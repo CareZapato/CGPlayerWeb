@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test API CGPlayerWeb</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test { margin: 10px 0; padding: 10px; border: 1px solid #ccc; }
+        .success { background-color: #d4edda; }
+        .error { background-color: #f8d7da; }
+        .loading { background-color: #fff3cd; }
+        button { padding: 10px 20px; margin: 5px; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Test de Conectividad CGPlayerWeb</h1>
+    
+    <div>
+        <strong>URL detectada:</strong> <span id="currentUrl"></span>
+    </div>
+    
+    <button onclick="testBackend()">🔍 Test Backend</button>
+    <button onclick="testLogin()">🔐 Test Login</button>
+    <button onclick="testSongs()">🎵 Test Songs</button>
+    
+    <div id="results"></div>
+
+    <script>
+        const hostname = window.location.hostname;
+        const backendHost = hostname === 'localhost' || hostname === '127.0.0.1' ? 'localhost' : hostname;
+        const apiUrl = `http://${backendHost}:3001/api`;
+        
+        document.getElementById('currentUrl').textContent = apiUrl;
+        
+        function addResult(title, status, message) {
+            const div = document.createElement('div');
+            div.className = `test ${status}`;
+            div.innerHTML = `<strong>${title}:</strong> ${message}`;
+            document.getElementById('results').appendChild(div);
+        }
+        
+        async function testBackend() {
+            addResult('Backend Health', 'loading', 'Verificando...');
+            try {
+                const response = await fetch(`${apiUrl}/auth/me`, {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                if (response.status === 401) {
+                    addResult('Backend Health', 'success', '✅ Backend conectado (401 esperado sin token)');
+                } else {
+                    addResult('Backend Health', 'success', `✅ Backend conectado (status: ${response.status})`);
+                }
+            } catch (error) {
+                addResult('Backend Health', 'error', `❌ Error: ${error.message}`);
+            }
+        }
+        
+        async function testLogin() {
+            addResult('Login Test', 'loading', 'Probando login...');
+            try {
+                const response = await fetch(`${apiUrl}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: 'admin@chilegospel.com',
+                        password: 'admin123'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.token) {
+                    addResult('Login Test', 'success', '✅ Login exitoso');
+                    localStorage.setItem('testToken', data.token);
+                } else {
+                    addResult('Login Test', 'error', `❌ Login falló: ${data.message}`);
+                }
+            } catch (error) {
+                addResult('Login Test', 'error', `❌ Error: ${error.message}`);
+            }
+        }
+        
+        async function testSongs() {
+            const token = localStorage.getItem('testToken');
+            if (!token) {
+                addResult('Songs Test', 'error', '❌ Primero debes hacer login');
+                return;
+            }
+            
+            addResult('Songs Test', 'loading', 'Obteniendo canciones...');
+            try {
+                const response = await fetch(`${apiUrl}/songs`, {
+                    headers: { 
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    addResult('Songs Test', 'success', `✅ API Songs funciona (${data.length || 0} canciones)`);
+                } else {
+                    addResult('Songs Test', 'error', `❌ Error: ${data.message}`);
+                }
+            } catch (error) {
+                addResult('Songs Test', 'error', `❌ Error: ${error.message}`);
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,32 @@
+{
+  "name": "cgplayerweb",
+  "version": "0.1.0",
+  "description": "Aplicación web moderna para la gestión y reproducción de música coral",
+  "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/CareZapato/CGPlayerWeb.git"
+  },
+  "homepage": "https://github.com/CareZapato/CGPlayerWeb#readme",
+  "bugs": {
+    "url": "https://github.com/CareZapato/CGPlayerWeb/issues"
+  },
+  "scripts": {
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "cd frontend && npm run dev",
+    "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install",
+    "build": "cd backend && npm run build && cd ../frontend && npm run build",
+    "start": "cd backend && npm start"
+  },
+  "keywords": ["music", "player", "choir", "web", "react", "nodejs", "postgresql", "audio", "streaming"],
+  "author": {
+    "name": "CareZapato",
+    "email": "pbarrerap1988@gmail.com",
+    "url": "https://github.com/CareZapato"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

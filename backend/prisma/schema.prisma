@@ -1,0 +1,247 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  SINGER
+  DIRECTOR
+  ADMIN
+}
+
+enum VoiceType {
+  SOPRANO
+  CONTRALTO
+  TENOR
+  BARITONE
+  BASS
+}
+
+enum SoloistType {
+  MALE
+  FEMALE
+  BOTH
+}
+
+enum LocationType {
+  ANTOFAGASTA
+  VINA_DEL_MAR
+  SANTIAGO
+  CONCEPCION
+  VALDIVIA
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  username  String   @unique
+  password  String
+  firstName String
+  lastName  String
+  role      UserRole @default(SINGER)
+  locationId String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relaciones
+  location            Location?          @relation(fields: [locationId], references: [id])
+  voiceProfiles       UserVoiceProfile[] @relation("UserVoiceProfiles")
+  assignedVoiceProfiles UserVoiceProfile[] @relation("VoiceAssignments")
+  playlists           Playlist[]
+  songUploads         Song[]             @relation("SongUploader")
+  songAssignments     SongAssignment[]
+  lyricContributions  Lyric[]
+  soloPerformances    Soloist[]
+
+  @@map("users")
+}
+
+model UserVoiceProfile {
+  id        String    @id @default(cuid())
+  userId    String
+  voiceType VoiceType
+  assignedBy String?   // ID del director que asignó este perfil
+  createdAt DateTime  @default(now())
+
+  // Relaciones
+  user           User  @relation("UserVoiceProfiles", fields: [userId], references: [id], onDelete: Cascade)
+  assignedByUser User? @relation("VoiceAssignments", fields: [assignedBy], references: [id])
+
+  @@unique([userId, voiceType])
+  @@map("user_voice_profiles")
+}
+
+model Song {
+  id          String   @id @default(cuid())
+  title       String
+  artist      String?
+  album       String?
+  genre       String?
+  duration    Int?     // Duración en segundos
+  fileName    String   // Nombre del archivo en el servidor
+  filePath    String   // Ruta completa del archivo
+  fileSize    Int      // Tamaño en bytes
+  mimeType    String
+  folderName  String?  // Nombre de la carpeta que contiene la canción
+  voiceType   VoiceType? // Tipo de voz específico (null para versión original)
+  parentSongId String?   // ID de la canción principal (para versiones por voz)
+  uploadedBy  String
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relaciones
+  uploader        User           @relation("SongUploader", fields: [uploadedBy], references: [id])
+  parentSong      Song?          @relation("SongVersions", fields: [parentSongId], references: [id])
+  childVersions   Song[]         @relation("SongVersions")
+  assignments     SongAssignment[]
+  lyrics          Lyric[]
+  playlistItems   PlaylistItem[]
+  eventSongs      EventSong[]
+  soloists        Soloist[]
+
+  @@map("songs")
+}
+
+model SongAssignment {
+  id        String    @id @default(cuid())
+  songId    String
+  userId    String
+  voiceType VoiceType
+  createdAt DateTime  @default(now())
+
+  // Relaciones
+  song Song @relation(fields: [songId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([songId, userId, voiceType])
+  @@map("song_assignments")
+}
+
+model Playlist {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  userId      String
+  voiceType   VoiceType?
+  isPublic    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relaciones
+  user  User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items PlaylistItem[]
+
+  @@map("playlists")
+}
+
+model PlaylistItem {
+  id         String   @id @default(cuid())
+  playlistId String
+  songId     String
+  order      Int
+  createdAt  DateTime @default(now())
+
+  // Relaciones
+  playlist Playlist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
+  song     Song     @relation(fields: [songId], references: [id], onDelete: Cascade)
+
+  @@unique([playlistId, order])
+  @@map("playlist_items")
+}
+
+model Lyric {
+  id         String    @id @default(cuid())
+  songId     String
+  content    String    // Texto de la letra
+  timestamp  Float?    // Tiempo en segundos para sincronización
+  voiceType  VoiceType?
+  createdBy  String
+  isActive   Boolean   @default(true)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  // Relaciones
+  song      Song @relation(fields: [songId], references: [id], onDelete: Cascade)
+  creator   User @relation(fields: [createdBy], references: [id])
+
+  @@map("lyrics")
+}
+
+model Location {
+  id          String       @id @default(cuid())
+  name        String
+  type        LocationType
+  address     String?
+  city        String
+  region      String?
+  country     String       @default("Chile")
+  isActive    Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  // Relations
+  users       User[]
+  events      Event[]
+
+  @@map("locations")
+}
+
+model Event {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  date        DateTime
+  locationId  String?
+  category    String?  // "Culto", "Ensayo", "Presentación", "Especial"
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  location    Location?     @relation(fields: [locationId], references: [id])
+  eventSongs  EventSong[]
+  soloists    Soloist[]
+
+  @@map("events")
+}
+
+model EventSong {
+  id       String @id @default(cuid())
+  eventId  String
+  songId   String
+  order    Int
+  notes    String?
+
+  // Relations
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  song  Song  @relation(fields: [songId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, order])
+  @@map("event_songs")
+}
+
+model Soloist {
+  id          String      @id @default(cuid())
+  eventId     String
+  userId      String
+  songId      String?     // Opcional, puede ser solista general del evento
+  soloistType SoloistType
+  notes       String?
+  createdAt   DateTime    @default(now())
+
+  // Relations
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  song  Song? @relation(fields: [songId], references: [id], onDelete: SetNull)
+
+  @@map("soloists")
+}
