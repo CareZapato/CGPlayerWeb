@@ -15,7 +15,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             </div>
             <div className="flex items-center space-x-4">
               <a href="/" className="text-gray-700 hover:text-gray-900">Inicio</a>
-              <a href="/songs" className="text-gray-700 hover:text-gray-900">Canciones</a>
+              <a href="/albums" className="text-gray-700 hover:text-gray-900">Canciones</a>
+              <a href="/songs" className="text-gray-700 hover:text-gray-900">Gestión</a>
               <a href="/playlists" className="text-gray-700 hover:text-gray-900">Listas</a>
               <a href="/events" className="text-gray-700 hover:text-gray-900">Eventos</a>
               <a href="/profile" className="text-gray-700 hover:text-gray-900">Perfil</a>

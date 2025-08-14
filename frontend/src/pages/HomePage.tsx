@@ -16,6 +16,18 @@ const HomePage: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {user?.role === 'SINGER' && (
+          <div className="card bg-gradient-to-br from-primary-500 to-primary-600 text-white">
+            <h3 className="text-lg font-medium mb-2">🎵 Vista de Canciones</h3>
+            <p className="mb-4 opacity-90">
+              Explora las canciones organizadas en cuadrícula con todas las variaciones de voz
+            </p>
+            <a href="/albums" className="inline-block bg-white text-primary-600 px-4 py-2 rounded font-medium hover:bg-gray-100 transition-colors">
+              Ver Canciones
+            </a>
+          </div>
+        )}
+
         <div className="card">
           <h3 className="text-lg font-medium text-gray-900 mb-2">🎵 Canciones</h3>
           <p className="text-gray-600 mb-4">

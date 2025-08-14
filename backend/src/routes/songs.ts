@@ -260,7 +260,53 @@ router.post('/multi-upload',
 
     // Crear canciones en la base de datos
     const songs: any[] = [];
+    let containerSong = null;
     
+    // PASO 1: Crear la canción contenedora (sin archivo de audio)
+    console.log('💾 Creating container song (no audio file):', {
+      title: title,
+      isContainer: true
+    });
+    
+    containerSong = await prisma.song.create({
+      data: {
+        title: title,
+        artist: artist || '',
+        album: album || '',
+        genre: genre || 'Gospel',
+        fileName: '', // Sin archivo
+        filePath: '', // Sin archivo
+        fileSize: 0,
+        mimeType: '',
+        voiceType: null, // Sin tipo de voz específico
+        uploadedBy: req.user!.id,
+        folderName: renamedFiles[0].folderName || req.songFolderName,
+        parentSongId: null // Es el contenedor principal
+      },
+      include: {
+        uploader: {
+          select: {
+            firstName: true,
+            lastName: true
+          }
+        },
+        childVersions: {
+          where: { isActive: true },
+          include: {
+            uploader: {
+              select: {
+                firstName: true,
+                lastName: true
+              }
+            }
+          }
+        }
+      }
+    });
+    
+    console.log('✅ Container song created:', containerSong.id);
+    
+    // PASO 2: Crear todas las variaciones como hijas del contenedor
     for (let i = 0; i < renamedFiles.length; i++) {
       const renamedFile = renamedFiles[i];
       const originalFile = files[i];
@@ -273,31 +319,41 @@ router.post('/multi-upload',
 
       const relativePath = path.relative(path.join(__dirname, '../../uploads'), renamedFile.filePath);
       
-      console.log('💾 Creating song in database:', {
-        title: `${title} (${assignment.voiceType})`,
+      console.log('💾 Creating voice variation:', {
+        title: title,
         fileName: renamedFile.fileName,
-        voiceType: assignment.voiceType
+        voiceType: assignment.voiceType,
+        parentId: containerSong.id
       });
+
+      const songData: any = {
+        title: title, // Mismo título que el contenedor
+        artist: artist || null,
+        album: album || null,
+        genre: genre || null,
+        fileName: renamedFile.fileName,
+        filePath: relativePath,
+        fileSize: originalFile.size,
+        mimeType: originalFile.mimetype,
+        voiceType: assignment.voiceType,
+        uploadedBy: req.user!.id,
+        folderName: renamedFile.folderName || req.songFolderName,
+        parentSongId: containerSong.id // Todas son hijas del contenedor
+      };
       
-      const song = await prisma.song.create({
-        data: {
-          title: `${title} (${assignment.voiceType})`,
-          artist: artist || null,
-          album: album || null,
-          genre: genre || null,
-          fileName: renamedFile.fileName,
-          filePath: relativePath,
-          fileSize: originalFile.size,
-          mimeType: originalFile.mimetype,
-          voiceType: assignment.voiceType,
-          uploadedBy: req.user!.id,
-          folderName: renamedFile.folderName || req.songFolderName
-        },
+      const song: any = await prisma.song.create({
+        data: songData,
         include: {
           uploader: {
             select: {
               firstName: true,
               lastName: true
+            }
+          },
+          parentSong: {
+            select: {
+              id: true,
+              title: true
             }
           }
         }
@@ -306,9 +362,37 @@ router.post('/multi-upload',
       songs.push(song);
     }
 
+    console.log('✅ Upload completed successfully!');
+    console.log(`📊 Results: 1 container song, ${songs.length} voice variations`);
+
+    // Recargar el contenedor con sus variaciones actualizadas
+    const finalContainerSong = await prisma.song.findUnique({
+      where: { id: containerSong.id },
+      include: {
+        uploader: {
+          select: {
+            firstName: true,
+            lastName: true
+          }
+        },
+        childVersions: {
+          where: { isActive: true },
+          include: {
+            uploader: {
+              select: {
+                firstName: true,
+                lastName: true
+              }
+            }
+          }
+        }
+      }
+    });
+
     res.status(201).json({
-      message: `Successfully uploaded ${songs.length} songs`,
-      songs
+      message: `Successfully uploaded 1 song with ${songs.length} voice variations`,
+      containerSong: finalContainerSong,
+      variations: songs
     });
 
   } catch (error) {

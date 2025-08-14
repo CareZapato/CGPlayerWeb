@@ -36,6 +36,10 @@ export interface Song {
   filePath: string;
   fileSize: number;
   mimeType: string;
+  folderName?: string;
+  voiceType?: VoiceType;
+  parentSongId?: string;
+  coverColor?: string;
   uploadedBy: string;
   isActive: boolean;
   createdAt: string;
@@ -44,6 +48,11 @@ export interface Song {
     firstName: string;
     lastName: string;
   };
+  parentSong?: {
+    id: string;
+    title: string;
+  };
+  childVersions?: Song[];
   assignments?: SongAssignment[];
   lyrics?: Lyric[];
   _count?: {

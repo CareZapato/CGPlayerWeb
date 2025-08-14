@@ -5,7 +5,39 @@
 [![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
 [![React](https://img.shields.io/badge/React-18+-blue.svg)](https://reactjs.org/)
 
+# CGPlayerWeb 🎵
+
+[![Version](https://img.shields.io/badge/version-0.2.0-blue.svg)](https://github.com/CareZapato/CGPlayerWeb/releases/tag/v0.2.0)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
+[![React](https://img.shields.io/badge/React-18+-blue.svg)](https://reactjs.org/)
+
 **CGPlayerWeb** es una aplicación web moderna para la gestión y reproducción de música coral, diseñada específicamente para coros y grupos musicales. Permite la subida, organización y reproducción de pistas de audio con un sistema avanzado de roles y autenticación.
+
+## 🚀 Características Principales
+
+### 🎵 Gestión de Música
+- **Subida de archivos de audio** (MP3, M4A, WAV, FLAC)
+- **Organización automática** en carpetas individuales por canción
+- **Sistema de variaciones de voz** - todas las voces son tratadas como iguales
+- **Metadatos automáticos** extraídos de archivos de audio
+- **Reproductor de audio integrado** con controles avanzados
+
+### 👥 Sistema de Usuarios
+- **Autenticación JWT** segura
+- **Roles diferenciados**: Admin, Director, Cantante
+- **Gestión de permisos** granular por funcionalidad
+- **Perfiles de usuario** personalizables
+
+### 🎼 Reproductor Avanzado
+- **Reproductor flotante** que permanece activo durante la navegación
+- **Playlist slide-up** con interfaz deslizante desde abajo
+- **Drag & Drop** para reordenar canciones en la cola
+- **Controles de reproducción** completos (play, pause, seek, volumen)
+- **Barra de progreso interactiva** con click-to-seek
+- **Navegación automática** entre canciones
+- **Soporte para streaming** con requests HTTP Range
+- **Audio de alta calidad** sin pérdida de fidelidad
 
 ## 🚀 Características Principales
 
@@ -30,8 +62,18 @@
 - **Audio de alta calidad** sin pérdida de fidelidad
 
 ### 🗂️ Organización Inteligente
+- **Estructura container-children** para variaciones de voz
+- **Todas las voces son iguales** - ninguna se trata como "principal"
 - **Carpetas automáticas** con nomenclatura: `nombreCancion_timestamp`
 - **Base de datos PostgreSQL** para metadatos y relaciones
+
+### ✨ Nuevas Características v0.2.0
+- **🎭 Playlist Slide-Up**: Interfaz deslizante con drag & drop para reordenar
+- **▶️ Botones de Reproducción**: Directamente en las tarjetas de canciones
+- **🔄 Auto-navegación**: Reproducción automática de la siguiente canción
+- **🎚️ Controles Mejorados**: Reproductor integrado con mejor UX
+- **🗄️ Scripts de BD**: Gestión automatizada de base de datos
+
 ## 🛠️ Tecnologías Utilizadas
 
 ### Frontend
@@ -165,6 +207,20 @@ La aplicación estará disponible en:
 - **Director**: Gestión de canciones, playlists y eventos
 - **Cantante**: Reproducción de música y acceso a su perfil
 
+### 👥 Usuarios de Prueba (v0.2.0)
+Después de ejecutar `npm run db:seed`, puedes usar estas credenciales:
+
+#### 👑 Administrador
+- **Email**: admin@cgplayer.com
+- **Password**: admin123
+
+#### 🎤 Cantantes
+- **soprano1@coro.com** / cantante123 - María González
+- **contralto1@coro.com** / cantante123 - Ana Martínez  
+- **tenor1@coro.com** / cantante123 - Carlos López
+- **baritono1@coro.com** / cantante123 - Luis Rodríguez
+- **bajo1@coro.com** / cantante123 - Miguel Fernández
+
 ## 🔧 Scripts Disponibles
 
 ### Proyecto Principal
@@ -180,8 +236,17 @@ npm run lint         # Ejecutar linting
 npm run dev          # Desarrollo con hot reload
 npm run build        # Compilar TypeScript
 npm run start        # Ejecutar versión compilada
-npm run db:migrate   # Ejecutar migraciones de BD
-npm run db:seed      # Poblar base de datos
+
+# 🗄️ Scripts de Base de Datos (NUEVO v0.2.0)
+npm run db:reset     # Limpiar base de datos
+npm run db:seed      # Sembrar datos de prueba
+npm run db:check     # Verificar estado de canciones
+npm run db:init      # Inicialización completa (reset + seed)
+
+# 🔧 Scripts de Prisma
+npm run prisma:generate  # Generar cliente Prisma
+npm run prisma:migrate   # Ejecutar migraciones
+npm run prisma:studio    # Abrir interfaz visual de BD
 ```
 
 ### Frontend

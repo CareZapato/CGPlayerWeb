@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { useAuthStore } from '../store/authStore';
 import api from '../services/api'; // Importar el servicio API con detección dinámica
 
 interface SongUploadProps {
@@ -20,7 +19,6 @@ const VOICE_TYPES = [
 ];
 
 const SongUpload: React.FC<SongUploadProps> = ({ parentSong, onUploadSuccess, onClose }) => {
-  const { token } = useAuthStore();
   const [formData, setFormData] = useState({
     title: parentSong ? parentSong.title : '',
     artist: '',

@@ -146,10 +146,48 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   },
 
   setCurrentSong: (song: Song, playlist?: Playlist, index = 0) => {
+    console.log(`🎵 [PLAYER-STORE] Setting current song:`, {
+      title: song.title,
+      voiceType: (song as any).voiceType,
+      filePath: song.filePath
+    });
+    
+    const { audioRef } = get();
+    
+    if (audioRef) {
+      audioRef.pause();
+      
+      // Construir la URL si no existe
+      let songUrl = (song as any).url;
+      if (!songUrl && song.filePath) {
+        songUrl = `http://localhost:3001/uploads/${song.filePath}`;
+      }
+      
+      console.log(`🔗 [PLAYER-STORE] Song URL:`, songUrl);
+      
+      if (songUrl) {
+        audioRef.src = songUrl;
+        audioRef.load();
+        
+        // Agregar la URL al objeto song para uso posterior
+        (song as any).url = songUrl;
+        
+        audioRef.addEventListener('loadedmetadata', () => {
+          console.log(`✅ [PLAYER-STORE] Audio loaded successfully, duration:`, audioRef.duration);
+        }, { once: true });
+        
+        audioRef.addEventListener('error', (e) => {
+          console.error(`❌ [PLAYER-STORE] Audio load error:`, e);
+        }, { once: true });
+      }
+    }
+    
     set({ 
       currentSong: song, 
       currentPlaylist: playlist || null,
-      currentIndex: index 
+      currentIndex: index,
+      currentTime: 0,
+      isPlaying: false
     });
   },
 

@@ -245,8 +245,6 @@ app.use('/api/playlists', playlistRoutes);
 app.use('/api/lyrics', lyricRoutes);
 app.use('/api/locations', locationRoutes);
 app.use('/api/events', eventRoutes);
-app.use('/api/locations', locationRoutes);
-app.use('/api/events', eventRoutes);
 
 // Ruta de salud
 app.get('/api/health', (req, res) => {

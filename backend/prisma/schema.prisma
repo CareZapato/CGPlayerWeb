@@ -93,6 +93,7 @@ model Song {
   folderName  String?  // Nombre de la carpeta que contiene la canción
   voiceType   VoiceType? // Tipo de voz específico (null para versión original)
   parentSongId String?   // ID de la canción principal (para versiones por voz)
+  coverColor  String?   // Color de fondo del cuadro (hex, ej: "#ff6b6b")
   uploadedBy  String
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
