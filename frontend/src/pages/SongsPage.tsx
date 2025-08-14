@@ -3,6 +3,7 @@ import { useAuthStore } from '../store/authStore';
 import { usePlayerStore } from '../store/playerStore';
 import { usePlaylistStore } from '../store/playlistStore';
 import { useServerInfo } from '../hooks/useServerInfo';
+import { getApiUrl } from '../config/api';
 import SongUpload from '../components/SongUpload';
 import MultiSongUpload from '../components/MultiSongUpload';
 import type { Song } from '../types';
@@ -37,7 +38,7 @@ const VOICE_TYPE_COLORS: { [key: string]: string } = {
 
 const SongsPage: React.FC = () => {
   const { token, user } = useAuthStore();
-  const { playSong, currentSong, isPlaying, setCurrentSong } = usePlayerStore();
+  const { playSong, currentSong, isPlaying } = usePlayerStore();
   const { addSingleToQueue, replaceQueueAndPlay } = usePlaylistStore();
   const { serverInfo } = useServerInfo();
   const [songs, setSongs] = useState<SongWithVersions[]>([]);
@@ -56,7 +57,7 @@ const SongsPage: React.FC = () => {
 
   const fetchSongs = async () => {
     try {
-      const response = await fetch(`http://${serverInfo.localIP}:${serverInfo.port}/api/songs?includeVersions=false`, {
+      const response = await fetch(getApiUrl('/api/songs?includeVersions=false'), {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -136,7 +137,7 @@ const SongsPage: React.FC = () => {
 
     try {
       // Obtener todas las versiones de la canción desde la API
-      const response = await fetch(`http://${serverInfo.localIP}:${serverInfo.port}/api/songs/${song.id}/versions`, {
+      const response = await fetch(getApiUrl(`/api/songs/${song.id}/versions`), {
         headers: {
           'Authorization': `Bearer ${token}`
         }

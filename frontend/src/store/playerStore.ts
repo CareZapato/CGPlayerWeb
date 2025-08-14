@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { Song, Playlist } from '../types';
+import { getSongFileUrl, getFileUrl } from '../config/api';
 
 interface PlayerState {
   // Estado del reproductor
@@ -166,11 +167,11 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
         const fileName = song.fileName;
         
         if (folderName && fileName) {
-          // Usar el endpoint de la API para archivos en carpetas
-          songUrl = `http://localhost:3001/api/songs/file/${folderName}/${fileName}`;
+          // Usar el endpoint de la API para archivos en carpetas (dinámico)
+          songUrl = getSongFileUrl(folderName, fileName);
         } else if (fileName) {
           // Archivo en carpeta raíz (si aplica)
-          songUrl = `http://localhost:3001/uploads/${fileName}`;
+          songUrl = getFileUrl(fileName);
         }
       }
       

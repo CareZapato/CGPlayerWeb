@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuthStore } from '../store/authStore';
+import { getApiUrl } from '../config/api';
 import SongCard from '../components/SongCard';
 import SongDetailModal from '../components/SongDetailModal';
 import type { Song } from '../types';
@@ -37,7 +38,7 @@ const SingerDashboard: React.FC = () => {
         setLoading(true);
         setError(null);
 
-        const response = await fetch(`http://localhost:3001/api/songs?includeVersions=false`, {
+        const response = await fetch(getApiUrl('/api/songs?includeVersions=false'), {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'

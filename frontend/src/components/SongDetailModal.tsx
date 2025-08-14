@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuthStore } from '../store/authStore';
 import { usePlayerStore } from '../store/playerStore';
+import { getApiUrl, getFileUrl } from '../config/api';
 import type { Song } from '../types';
 
 interface SongDetailModalProps {
@@ -22,7 +23,7 @@ const SongDetailModal: React.FC<SongDetailModalProps> = ({ song, color, onClose 
 
       try {
         setLoading(true);
-        const response = await fetch(`http://localhost:3001/api/songs?includeVersions=false`, {
+        const response = await fetch(getApiUrl('/api/songs?includeVersions=false'), {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
@@ -53,7 +54,7 @@ const SongDetailModal: React.FC<SongDetailModalProps> = ({ song, color, onClose 
     // Crear el objeto de canción con la URL completa
     const songWithUrl = {
       ...songToPlay,
-      url: `http://localhost:3001/uploads/${songToPlay.filePath}`
+      url: getFileUrl(songToPlay.filePath)
     };
     
     console.log('🔗 URL de la canción:', songWithUrl.url);

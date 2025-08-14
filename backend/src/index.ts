@@ -120,45 +120,81 @@ const getLocalIP = (): string => {
 };
 
 const PORT_NUMBER = Number(process.env.PORT) || 3001;
-
+const HOST = process.env.HOST || '0.0.0.0';
 const LOCAL_IP = getLocalIP();
 
+console.log(`🌐 Server starting on ${HOST}:${PORT_NUMBER}`);
+console.log(`📱 Local access: http://localhost:${PORT_NUMBER}`);
+console.log(`🌍 Network access: http://${LOCAL_IP}:${PORT_NUMBER}`);
+
 const app = express();
+
+// Configure CORS with dynamic origins
+const getAllowedOrigins = () => {
+  const baseOrigins = [
+    'http://localhost:5173',
+    'http://localhost:3000',
+    'http://127.0.0.1:5173',
+    'http://127.0.0.1:3000',
+    `http://${LOCAL_IP}:5173`,
+    `http://${LOCAL_IP}:3000`
+  ];
+
+  // Add environment-specific origins
+  if (process.env.CORS_ORIGINS) {
+    baseOrigins.push(...process.env.CORS_ORIGINS.split(','));
+  }
+
+  return baseOrigins;
+};
+
+const allowedOrigins = getAllowedOrigins();
+
+// CORS configurado para acceso móvil y red local
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests with no origin (mobile apps, curl, etc.)
+    if (!origin) return callback(null, true);
+    
+    // Check if origin is in allowed list
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    
+    // Allow any local network IP on development ports
+    const localNetworkPattern = /^http:\/\/(192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)\d+\.\d+:(5173|3000|3001|5000)$/;
+    if (localNetworkPattern.test(origin)) {
+      return callback(null, true);
+    }
+    
+    console.log(`🚫 CORS blocked origin: ${origin}`);
+    callback(new Error('Not allowed by CORS'));
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-access-token', 'Origin', 'X-Requested-With', 'Accept'],
+  exposedHeaders: ['Set-Cookie'],
+  preflightContinue: false,
+  optionsSuccessStatus: 200
+}));
 
 // Middleware de seguridad
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
 
-// Rate limiting
+// Rate limiting aumentado para acceso de red
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutos
-  max: 100, // máximo 100 requests por ventana de tiempo
+  max: 1000, // aumentado para acceso de red
   message: 'Too many requests from this IP, please try again later.'
 });
 app.use(limiter);
 
-// CORS configurado para acceso móvil - MUY PERMISIVO PARA DESARROLLO
-app.use(cors({
-  origin: true, // Permitir todos los orígenes en desarrollo
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: '*',
-  exposedHeaders: ['Set-Cookie'],
-  preflightContinue: false,
-  optionsSuccessStatus: 200
-}));
-
 // Headers adicionales para máxima compatibilidad móvil
 app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS,PATCH');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Cache-Control, Pragma');
-  res.header('Access-Control-Allow-Credentials', 'true');
-  res.header('Access-Control-Max-Age', '86400'); // 24 horas
-  
   // Log para debug de requests desde dispositivos externos
-  if (req.headers.origin && req.headers.origin !== 'http://localhost:5173') {
+  if (req.headers.origin && !req.headers.origin.includes('localhost')) {
     console.log('🌍 Request from external device:', {
       origin: req.headers.origin,
       method: req.method,
@@ -269,12 +305,13 @@ app.use('*', (req, res) => {
   res.status(404).json({ message: 'API route not found' });
 });
 
-app.listen(PORT_NUMBER, '0.0.0.0', async () => {
+app.listen(PORT_NUMBER, HOST, async () => {
   console.log(`🎵 CGPlayerWeb Backend running on port ${PORT_NUMBER}`);
   console.log(`📡 API URL: http://localhost:${PORT_NUMBER}/api`);
   console.log(`🌐 Network API URL: http://${LOCAL_IP}:${PORT_NUMBER}/api`);
   console.log(`📁 Uploads URL: http://localhost:${PORT_NUMBER}/uploads`);
   console.log(`🎵 Network Uploads URL: http://${LOCAL_IP}:${PORT_NUMBER}/uploads`);
+  console.log(`🔒 CORS origins: ${allowedOrigins.join(', ')}`);
   
   // Verificar y cargar datos iniciales
   await initializeDatabase();

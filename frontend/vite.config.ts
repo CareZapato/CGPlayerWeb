@@ -36,7 +36,7 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,ico,png,svg,mp3,wav,ogg}'],
         runtimeCaching: [
           {
-            urlPattern: /^https:\/\/localhost:3001\/api\/.*/i,
+            urlPattern: /^https?:\/\/.*:3001\/api\/.*/i,
             handler: 'NetworkFirst',
             options: {
               cacheName: 'api-cache',
@@ -47,7 +47,7 @@ export default defineConfig({
             }
           },
           {
-            urlPattern: /^https:\/\/localhost:3001\/uploads\/.*/i,
+            urlPattern: /^https?:\/\/.*:3001\/uploads\/.*/i,
             handler: 'CacheFirst',
             options: {
               cacheName: 'audio-cache',
@@ -62,11 +62,12 @@ export default defineConfig({
     })
   ],
   server: {
+    host: '0.0.0.0', // Listen on all network interfaces
     port: 5173,
-    host: true
+    cors: true
   },
   preview: {
-    port: 4173,
-    host: true
+    host: '0.0.0.0',
+    port: 4173
   }
 })
