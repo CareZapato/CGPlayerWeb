@@ -53,8 +53,12 @@ router.post('/upload', authenticateToken, upload.single('audio'), handleMulterEr
       }
     }
 
+    // Renombrar el archivo usando la función de renombrado con carpeta
+    const renamedFiles = await renameUploadedFiles([req.file], title, voiceType, req.songFolderName);
+    const renamedFile = renamedFiles[0];
+
     // Crear registro en la base de datos con la nueva estructura de archivos
-    const relativePath = path.relative(path.join(__dirname, '../../uploads'), req.file.path);
+    const relativePath = path.relative(path.join(__dirname, '../../uploads'), renamedFile.filePath);
     
     const song = await prisma.song.create({
       data: {
@@ -62,14 +66,14 @@ router.post('/upload', authenticateToken, upload.single('audio'), handleMulterEr
         artist: artist || null,
         album: album || null,
         genre: genre || null,
-        fileName: req.file.filename,
+        fileName: renamedFile.fileName,
         filePath: relativePath, // Guardar ruta relativa
         fileSize: req.file.size,
         mimeType: req.file.mimetype,
         voiceType: voiceType || null,
         parentSongId: parentSongId || null,
         uploadedBy: req.user!.id,
-        folderName: req.songFolderName // Nuevo campo para la carpeta
+        folderName: renamedFile.folderName // Usar el nombre de carpeta del archivo renombrado
       },
       include: {
         uploader: {
@@ -158,7 +162,33 @@ router.post('/multi-upload', authenticateToken, multiUpload.array('audio', 10), 
     // Renombrar archivos según tipo de voz
     const renamedFiles = await renameUploadedFiles(files, title, undefined, req.songFolderName, parsedAssignments);
 
-    // Crear canciones en la base de datos
+    // Crear canción padre primero (sin tipo de voz específico)
+    const parentSong = await prisma.song.create({
+      data: {
+        title: title, // Título sin tipo de voz
+        artist: artist || null,
+        album: album || null,
+        genre: genre || null,
+        fileName: renamedFiles[0].fileName, // Usar el primer archivo como referencia
+        filePath: `songs/${req.songFolderName}`, // Ruta a la carpeta
+        fileSize: files.reduce((total, file) => total + file.size, 0), // Suma de todos los archivos
+        mimeType: 'multitrack/folder', // Indicar que es un contenedor
+        voiceType: null, // Sin tipo de voz específico
+        uploadedBy: req.user!.id,
+        folderName: req.songFolderName,
+        parentSongId: null // Es la canción padre
+      },
+      include: {
+        uploader: {
+          select: {
+            firstName: true,
+            lastName: true
+          }
+        }
+      }
+    });
+
+    // Crear canciones hijas vinculadas al padre
     const songs = [];
     
     for (let i = 0; i < renamedFiles.length; i++) {
@@ -179,13 +209,20 @@ router.post('/multi-upload', authenticateToken, multiUpload.array('audio', 10), 
           mimeType: originalFile.mimetype,
           voiceType: assignment.voiceType,
           uploadedBy: req.user!.id,
-          folderName: file.folderName
+          folderName: file.folderName,
+          parentSongId: parentSong.id // Vincular al padre
         },
         include: {
           uploader: {
             select: {
               firstName: true,
               lastName: true
+            }
+          },
+          parentSong: {
+            select: {
+              id: true,
+              title: true
             }
           }
         }
@@ -195,7 +232,8 @@ router.post('/multi-upload', authenticateToken, multiUpload.array('audio', 10), 
     }
 
     res.status(201).json({
-      message: `Successfully uploaded ${songs.length} songs`,
+      message: `Successfully uploaded 1 song with ${songs.length} voice variations`,
+      parentSong,
       songs
     });
 
@@ -304,6 +342,87 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res: Response) =>
   } catch (error) {
     console.error('Error fetching song:', error);
     res.status(500).json({ message: 'Failed to fetch song' });
+  }
+});
+
+// Obtener las variaciones de voz de una canción
+router.get('/:id/versions', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    
+    // Buscar la canción contenedora
+    const containerSong = await prisma.song.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        title: true,
+        artist: true,
+        album: true,
+        genre: true,
+        duration: true,
+        fileName: true,
+        filePath: true,
+        fileSize: true,
+        mimeType: true,
+        folderName: true,
+        voiceType: true,
+        parentSongId: true,
+        coverColor: true,
+        uploadedBy: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
+        childVersions: {
+          select: {
+            id: true,
+            title: true,
+            artist: true,
+            album: true,
+            genre: true,
+            duration: true,
+            fileName: true,
+            filePath: true,
+            fileSize: true,
+            mimeType: true,
+            folderName: true,
+            voiceType: true,
+            parentSongId: true,
+            coverColor: true,
+            uploadedBy: true,
+            isActive: true,
+            createdAt: true,
+            updatedAt: true,
+            uploader: {
+              select: {
+                firstName: true,
+                lastName: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!containerSong) {
+      return res.status(404).json({ message: 'Canción no encontrada' });
+    }
+
+    // Si es una canción contenedora, devolver sus variaciones
+    if (containerSong.childVersions.length > 0) {
+      res.json({ 
+        versions: containerSong.childVersions,
+        total: containerSong.childVersions.length
+      });
+    } else {
+      // Si no es contenedora, puede ser una variación individual
+      res.json({ 
+        versions: [containerSong],
+        total: 1
+      });
+    }
+  } catch (error) {
+    console.error('Error fetching song versions:', error);
+    res.status(500).json({ message: 'Failed to fetch song versions' });
   }
 });
 

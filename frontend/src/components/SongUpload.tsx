@@ -17,7 +17,8 @@ const VOICE_TYPES = [
   { value: 'BARITONO', label: 'Barítono' },
   { value: 'MESOSOPRANO', label: 'Mesosoprano' },
   { value: 'BAJO', label: 'Bajo' },
-  { value: 'CORO', label: 'Coro' }
+  { value: 'CORO', label: 'Coro' },
+  { value: 'ORIGINAL', label: 'Original' }
 ];
 
 const SongUpload: React.FC<SongUploadProps> = ({ parentSong, onUploadSuccess, onClose }) => {

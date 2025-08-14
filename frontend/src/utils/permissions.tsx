@@ -30,7 +30,10 @@ export type SectionKey = keyof typeof SECTION_PERMISSIONS;
  * Basado en roles de la BD user_roles
  */
 export const hasAccess = (user: User | null, section: SectionKey): boolean => {
-  if (!user) return false;
+  if (!user) {
+    console.log(`🔐 [PERMISOS] Sin usuario para acceder a ${section}`);
+    return false;
+  }
   
   const allowedRoles = SECTION_PERMISSIONS[section];
   
@@ -38,8 +41,10 @@ export const hasAccess = (user: User | null, section: SectionKey): boolean => {
   const userRoles = user.roles?.filter(r => r.isActive).map(r => r.role) || [];
   
   console.log(`🔐 [PERMISOS] Verificando acceso a ${section}:`, {
+    user: user.firstName,
     allowedRoles,
-    userRoles,
+    allUserRoles: user.roles,
+    activeUserRoles: userRoles,
     hasAccess: userRoles.some(role => allowedRoles.includes(role as any))
   });
   

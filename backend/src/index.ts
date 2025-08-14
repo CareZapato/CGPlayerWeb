@@ -14,32 +14,10 @@ import playlistRoutes from './routes/playlists';
 import lyricRoutes from './routes/lyrics';
 import locationRoutes from './routes/locations';
 import eventRoutes from './routes/events';
-import { PrismaClient } from '@prisma/client';
-import bcrypt from 'bcryptjs';
+import { autoInitializeDatabase, closeDatabaseConnection } from './scripts/auto-init';
 
 // Cargar variables de entorno
 dotenv.config();
-
-const prisma = new PrismaClient();
-
-// Función para inicializar la base de datos con datos básicos
-async function initializeDatabase() {
-  try {
-    console.log('🔄 Verificando base de datos...');
-    
-    // Verificar si ya hay usuarios
-    const userCount = await prisma.user.count();
-    
-    if (userCount === 0) {
-      console.log('📊 Base de datos vacía. Use los seeders para cargar datos de prueba.');
-      console.log('   Ejecutar: npx ts-node src/seeders/newSystemSeed.ts');
-    } else {
-      console.log('✅ Base de datos ya contiene datos');
-    }
-  } catch (error) {
-    console.error('❌ Error inicializando base de datos:', error);
-  }
-}
 
 // Obtener IP local para acceso móvil
 const getLocalIP = (): string => {
@@ -248,8 +226,21 @@ app.listen(PORT_NUMBER, HOST, async () => {
   console.log(`🎵 Network Uploads URL: http://${LOCAL_IP}:${PORT_NUMBER}/uploads`);
   console.log(`🔒 CORS origins: ${allowedOrigins.join(', ')}`);
   
-  // Verificar y cargar datos iniciales
-  await initializeDatabase();
+  // Verificar y auto-inicializar base de datos
+  await autoInitializeDatabase();
+});
+
+// Manejo graceful del cierre del proceso
+process.on('SIGINT', async () => {
+  console.log('\n🔄 Cerrando servidor...');
+  await closeDatabaseConnection();
+  process.exit(0);
+});
+
+process.on('SIGTERM', async () => {
+  console.log('\n🔄 Cerrando servidor...');
+  await closeDatabaseConnection();
+  process.exit(0);
 });
 
 export default app;

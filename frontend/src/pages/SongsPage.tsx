@@ -23,7 +23,8 @@ const VOICE_TYPE_LABELS: { [key: string]: string } = {
   BARITONO: 'Barítono',
   MESOSOPRANO: 'Mesosoprano',
   BAJO: 'Bajo',
-  CORO: 'Coro'
+  CORO: 'Coro',
+  ORIGINAL: 'Original'
 };
 
 const VOICE_TYPE_COLORS: { [key: string]: string } = {
@@ -33,13 +34,14 @@ const VOICE_TYPE_COLORS: { [key: string]: string } = {
   BARITONO: 'bg-green-100 text-green-800 border-green-200',
   MESOSOPRANO: 'bg-indigo-100 text-indigo-800 border-indigo-200',
   BAJO: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-  CORO: 'bg-orange-100 text-orange-800 border-orange-200'
+  CORO: 'bg-orange-100 text-orange-800 border-orange-200',
+  ORIGINAL: 'bg-gray-100 text-gray-800 border-gray-200'
 };
 
 const SongsPage: React.FC = () => {
   const { token, user } = useAuthStore();
   const { playSong, currentSong, isPlaying } = usePlayerStore();
-  const { addSingleToQueue, replaceQueueAndPlay } = usePlaylistStore();
+  const { addSingleToQueue, replaceQueueAndPlay, addToQueue } = usePlaylistStore();
   const { serverInfo } = useServerInfo();
   const [songs, setSongs] = useState<SongWithVersions[]>([]);
   const [loading, setLoading] = useState(true);
@@ -57,7 +59,7 @@ const SongsPage: React.FC = () => {
 
   const fetchSongs = async () => {
     try {
-      const response = await fetch(getApiUrl('/api/songs?includeVersions=false'), {
+      const response = await fetch(getApiUrl('/api/songs?includeVersions=true'), {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -68,7 +70,11 @@ const SongsPage: React.FC = () => {
       }
 
       const data = await response.json();
-      setSongs(data.songs || []);
+      
+      // Filtrar solo canciones principales (sin parentSongId) ya que includeVersions=true 
+      // traerá las versiones como childVersions en cada canción padre
+      const mainSongs = (data.songs || []).filter((song: SongWithVersions) => !song.parentSongId);
+      setSongs(mainSongs);
     } catch (error: any) {
       setError(error.message);
     } finally {
@@ -108,7 +114,7 @@ const SongsPage: React.FC = () => {
       songUrl = `${serverInfo.audioBaseUrl}-root/${song.fileName}`;
     }
       
-    console.log('Playing single song:', { 
+    console.log('🎵 Reproduciendo canción individual:', { 
       song: song.title, 
       url: songUrl,
       voiceType: song.voiceType,
@@ -117,6 +123,7 @@ const SongsPage: React.FC = () => {
       audioBaseUrl: serverInfo.audioBaseUrl
     });
       
+    // Reproducir inmediatamente
     playSong({
       id: song.id,
       title: song.title,
@@ -185,23 +192,29 @@ const SongsPage: React.FC = () => {
     }));
 
     if (songsToQueue.length === 0) {
-      console.log('No hay versiones válidas para reproducir');
+      console.log('❌ No hay versiones válidas para reproducir');
       return;
     }
 
-    // Reemplazar la cola con las versiones y empezar a reproducir la primera
+    console.log('🎵 Configurando cola con versiones locales:', { 
+      total: songsToQueue.length,
+      titles: songsToQueue.map(s => `${s.title} (${VOICE_TYPE_LABELS[s.voiceType!] || s.voiceType})`)
+    });
+
+    // Reemplazar la cola y configurar la primera canción
     replaceQueueAndPlay(songsToQueue, 0);
     
-    // Establecer la primera canción como actual
+    // Inmediatamente reproducir la primera canción
     const firstSong = songsToQueue[0];
     const songUrl = `${serverInfo.audioBaseUrl}/${firstSong.folderName}/${firstSong.fileName}`;
     
-    console.log('Playing local versions:', { 
-      total: songsToQueue.length,
-      firstSong: firstSong.title,
+    console.log('🎵 ¡INICIANDO REPRODUCCIÓN INMEDIATA!:', { 
+      song: firstSong.title,
+      voiceType: firstSong.voiceType,
       url: songUrl
     });
     
+    // Reproducir SIN delay
     playSong({
       id: firstSong.id,
       title: `${firstSong.title} (${VOICE_TYPE_LABELS[firstSong.voiceType!] || firstSong.voiceType})`,
@@ -223,19 +236,30 @@ const SongsPage: React.FC = () => {
       updatedAt: version.updatedAt || version.createdAt
     }));
 
-    // Reemplazar la cola con las versiones y empezar a reproducir la primera
+    if (songsToQueue.length === 0) {
+      console.log('❌ No hay versiones válidas para reproducir desde API');
+      return;
+    }
+
+    console.log('🎵 Configurando cola con versiones de API:', { 
+      total: songsToQueue.length,
+      titles: songsToQueue.map(s => `${s.title} (${VOICE_TYPE_LABELS[s.voiceType!] || s.voiceType})`)
+    });
+
+    // Reemplazar la cola y configurar la primera canción
     replaceQueueAndPlay(songsToQueue, 0);
     
-    // Establecer la primera canción como actual
+    // Inmediatamente reproducir la primera canción
     const firstSong = songsToQueue[0];
     const songUrl = `${serverInfo.audioBaseUrl}/${firstSong.folderName}/${firstSong.fileName}`;
     
-    console.log('Playing API versions:', { 
-      total: songsToQueue.length,
-      firstSong: firstSong.title,
+    console.log('🎵 ¡INICIANDO REPRODUCCIÓN INMEDIATA!:', { 
+      song: firstSong.title,
+      voiceType: firstSong.voiceType,
       url: songUrl
     });
     
+    // Reproducir SIN delay
     playSong({
       id: firstSong.id,
       title: `${firstSong.title} (${VOICE_TYPE_LABELS[firstSong.voiceType!] || firstSong.voiceType})`,
@@ -243,6 +267,78 @@ const SongsPage: React.FC = () => {
       url: songUrl,
       duration: firstSong.duration || 0
     });
+  };
+
+  const addVersionsToQueue = (song: SongWithVersions) => {
+    console.log('🔥 AGREGANDO VERSIONES A LA COLA:', song.title);
+    console.log('🔥 Versiones disponibles:', song.childVersions.length);
+    
+    // Si no hay versiones hijas pero la canción tiene voiceType, es una canción individual
+    if (song.childVersions.length === 0) {
+      if (song.voiceType) {
+        console.log('🔥 Agregando canción individual con voiceType:', song.voiceType);
+        
+        // Crear el objeto Song completo para la canción individual
+        const songToAdd: Song = {
+          id: song.id,
+          title: song.title,
+          artist: song.artist || 'Desconocido',
+          album: song.album,
+          duration: song.duration || 0,
+          fileName: song.fileName,
+          filePath: song.filePath || `${song.folderName}/${song.fileName}`,
+          fileSize: song.fileSize || 0,
+          mimeType: song.mimeType || 'audio/mpeg',
+          folderName: song.folderName,
+          voiceType: song.voiceType,
+          parentSongId: song.parentSongId,
+          coverColor: song.coverColor,
+          uploadedBy: song.uploadedBy || (song.uploader ? `${song.uploader.firstName} ${song.uploader.lastName}` : 'Desconocido'),
+          isActive: song.isActive !== undefined ? song.isActive : true,
+          createdAt: song.createdAt,
+          updatedAt: song.updatedAt || song.createdAt,
+          uploader: song.uploader
+        };
+        
+        addToQueue(songToAdd);
+        console.log('✅ Canción individual agregada:', songToAdd.title, songToAdd.voiceType);
+      } else {
+        console.log('❌ No hay versiones ni voiceType para agregar');
+      }
+      return;
+    }
+    
+    // Agregar todas las versiones hijas
+    song.childVersions.forEach(version => {
+      console.log('🔥 Agregando versión:', version.voiceType, version.title);
+      
+      // Crear el objeto Song completo con todas las propiedades necesarias
+      const songToAdd: Song = {
+        id: version.id,
+        title: version.title,
+        artist: version.artist || 'Desconocido',
+        album: version.album,
+        duration: version.duration || 0,
+        fileName: version.fileName,
+        filePath: version.filePath || `${version.folderName}/${version.fileName}`,
+        fileSize: version.fileSize || 0,
+        mimeType: version.mimeType || 'audio/mpeg',
+        folderName: version.folderName,
+        voiceType: version.voiceType,
+        parentSongId: version.parentSongId,
+        coverColor: version.coverColor,
+        uploadedBy: version.uploadedBy || (version.uploader ? `${version.uploader.firstName} ${version.uploader.lastName}` : 'Desconocido'),
+        isActive: version.isActive !== undefined ? version.isActive : true,
+        createdAt: version.createdAt,
+        updatedAt: version.updatedAt || version.createdAt,
+        uploader: version.uploader
+      };
+      
+      addToQueue(songToAdd);
+      console.log('✅ Versión agregada:', songToAdd.title, songToAdd.voiceType);
+    });
+    
+    console.log('🎉 TODAS LAS VERSIONES AGREGADAS A LA COLA');
   };
 
   const toggleSongExpansion = (songId: string) => {
@@ -302,7 +398,7 @@ const SongsPage: React.FC = () => {
             className="btn-primary flex items-center justify-center space-x-2 w-full sm:w-auto"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
             </svg>
             <span>Subir Canción</span>
           </button>
@@ -450,17 +546,28 @@ const SongsPage: React.FC = () => {
 
                 {/* Acciones */}
                 <div className="flex items-center justify-end space-x-2">
+                  {/* Botón Agregar a Cola */}
+                  <button
+                    onClick={() => addVersionsToQueue(song)}
+                    className="p-2 text-gray-400 hover:text-blue-600 transition-colors bg-blue-50 hover:bg-blue-100 rounded-full border border-blue-200"
+                    title={song.childVersions.length > 0 ? `Agregar todas las versiones a la cola (${song.childVersions.length})` : 'Agregar canción a la cola'}
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                    </svg>
+                  </button>
+
                   {canUpload && (
                     <button
                       onClick={() => {
                         setSelectedSong(song);
                         setShowUpload(true);
                       }}
-                      className="p-2 text-gray-400 hover:text-primary-600 transition-colors"
+                      className="p-2 text-gray-400 hover:text-green-600 transition-colors bg-green-50 hover:bg-green-100 rounded-full border border-green-200"
                       title="Agregar versión por voz"
                     >
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                       </svg>
                     </button>
                   )}

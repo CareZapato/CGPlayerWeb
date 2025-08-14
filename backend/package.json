@@ -16,7 +16,7 @@
     "db:init": "npm run db:reset && npm run db:seed"
   },
   "prisma": {
-    "seed": "ts-node prisma/seed.ts"
+    "seed": "ts-node prisma/seed_new.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.7.1",

@@ -21,6 +21,39 @@ const normalizeFileName = (filename: string): string => {
     .replace(/^_+|_+$/g, '');
 };
 
+export const generateFolderName = (title: string): string => {
+  const normalizedTitle = normalizeFileName(title);
+  const timestamp = Date.now();
+  return `${normalizedTitle}_${timestamp}`;
+};
+
+// Middleware para preparar la carpeta de la canción antes de la subida
+export const prepareSongFolder = (req: any, res: any, next: any) => {
+  // Solo aplicar si hay un título en el body (necesario para generar carpeta)
+  if (req.body && req.body.title) {
+    const folderName = generateFolderName(req.body.title);
+    const folderPath = path.join(__dirname, '../../uploads/songs', folderName);
+    
+    console.log(`📂 [PREPARE-FOLDER] Creating song folder:`, {
+      title: req.body.title,
+      folderName,
+      folderPath
+    });
+    
+    // Crear la carpeta
+    if (!fs.existsSync(folderPath)) {
+      fs.mkdirSync(folderPath, { recursive: true });
+      console.log(`✅ [PREPARE-FOLDER] Folder created successfully`);
+    }
+    
+    // Agregar información de carpeta al request
+    req.songFolderName = folderName;
+    req.songFolderPath = folderPath;
+  }
+  
+  next();
+};
+
 // Función para generar nombre de archivo con patrón título_tipovoz.extensión
 const generateFileName = (title: string, voiceType?: string, originalExtension?: string): string => {
   const normalizedTitle = normalizeFileName(title);
@@ -37,6 +70,35 @@ const generateFileName = (title: string, voiceType?: string, originalExtension?:
 // Configuración de almacenamiento para archivos individuales
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
+    // Obtener el título del body si está disponible
+    const title = (req as any).body?.title;
+    
+    if (title) {
+      // Generar carpeta específica para la canción
+      const folderName = generateFolderName(title);
+      const folderPath = path.join(__dirname, '../../uploads/songs', folderName);
+      
+      console.log(`📂 [STORAGE] Creating folder for song:`, {
+        title,
+        folderName,
+        folderPath
+      });
+      
+      // Crear la carpeta si no existe
+      if (!fs.existsSync(folderPath)) {
+        fs.mkdirSync(folderPath, { recursive: true });
+        console.log(`✅ [STORAGE] Folder created successfully`);
+      }
+      
+      // Agregar información de carpeta al request
+      (req as any).songFolderName = folderName;
+      (req as any).songFolderPath = folderPath;
+      
+      cb(null, folderPath);
+      return;
+    }
+    
+    // Fallback: usar directorio raíz de songs
     const uploadsDir = path.join(__dirname, '../../uploads/songs');
     
     // Crear directorio si no existe
@@ -44,6 +106,7 @@ const storage = multer.diskStorage({
       fs.mkdirSync(uploadsDir, { recursive: true });
     }
     
+    console.log(`📂 [STORAGE] Using fallback folder: ${uploadsDir}`);
     cb(null, uploadsDir);
   },
   filename: (req, file, cb) => {
@@ -60,12 +123,46 @@ const storage = multer.diskStorage({
 // Configuración de almacenamiento para subida múltiple
 const multiStorage = multer.diskStorage({
   destination: (req, file, cb) => {
+    // Obtener el título del body si está disponible
+    const title = (req as any).body?.title;
+    
+    if (title) {
+      // Generar carpeta específica para la canción (usar la misma para todos los archivos)
+      let folderName = (req as any).songFolderName;
+      if (!folderName) {
+        folderName = generateFolderName(title);
+        (req as any).songFolderName = folderName;
+      }
+      
+      const folderPath = path.join(__dirname, '../../uploads/songs', folderName);
+      
+      console.log(`📂 [MULTI-STORAGE] Using folder for song:`, {
+        title,
+        folderName,
+        folderPath
+      });
+      
+      // Crear la carpeta si no existe
+      if (!fs.existsSync(folderPath)) {
+        fs.mkdirSync(folderPath, { recursive: true });
+        console.log(`✅ [MULTI-STORAGE] Folder created successfully`);
+      }
+      
+      // Agregar información de carpeta al request
+      (req as any).songFolderPath = folderPath;
+      
+      cb(null, folderPath);
+      return;
+    }
+    
+    // Fallback: usar directorio raíz de songs
     const uploadsDir = path.join(__dirname, '../../uploads/songs');
     
     if (!fs.existsSync(uploadsDir)) {
       fs.mkdirSync(uploadsDir, { recursive: true });
     }
     
+    console.log(`📂 [MULTI-STORAGE] Using fallback folder: ${uploadsDir}`);
     cb(null, uploadsDir);
   },
   filename: (req, file, cb) => {
@@ -229,7 +326,8 @@ export const renameUploadedFiles = async (
     filesCount: files.length,
     title,
     voiceType,
-    folderName,
+    folderName: folderName || 'NOT_PROVIDED',
+    folderNameType: typeof folderName,
     voiceAssignmentsCount: voiceAssignments?.length || 0
   });
   
@@ -271,24 +369,20 @@ export const renameUploadedFiles = async (
     let finalFolderName: string | undefined;
     
     if (folderName) {
-      console.log(`📂 [RENAME-FILES] Creating folder structure:`, { folderName });
-      // Crear carpeta específica si se proporciona
-      const folderPath = path.join(path.dirname(file.path), folderName);
-      console.log(`📂 [RENAME-FILES] Folder paths:`, {
-        currentFileDir: path.dirname(file.path),
-        targetFolderPath: folderPath,
-        folderExists: fs.existsSync(folderPath)
-      });
-      
-      if (!fs.existsSync(folderPath)) {
-        console.log(`📂 [RENAME-FILES] Creating folder:`, folderPath);
-        fs.mkdirSync(folderPath, { recursive: true });
-        console.log(`✅ [RENAME-FILES] Folder created successfully`);
-      }
-      
-      finalPath = path.join(folderPath, newFileName);
+      console.log(`📂 [RENAME-FILES] Using existing folder structure:`, { folderName });
+      // El archivo ya está en la carpeta correcta (creada por el storage)
+      // Solo necesitamos renombrarlo en la misma ubicación
+      const currentDir = path.dirname(file.path);
+      finalPath = path.join(currentDir, newFileName);
       finalFileName = newFileName;
       finalFolderName = folderName;
+      
+      console.log(`📂 [RENAME-FILES] File will be renamed in place:`, {
+        currentDir,
+        finalPath,
+        finalFileName,
+        finalFolderName
+      });
     } else {
       console.log(`📂 [RENAME-FILES] No folder specified, keeping in root`);
       // Mantener en la carpeta raíz de uploads/songs

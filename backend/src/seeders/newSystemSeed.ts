@@ -1,3 +1,7 @@
+/**
+ * @deprecated Este seeder está deprecado. 
+ * Usar prisma/seed_new.ts para la inicialización completa del sistema con 152 usuarios.
+ */
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import fs from 'fs';

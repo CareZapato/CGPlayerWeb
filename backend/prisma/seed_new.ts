@@ -23,16 +23,16 @@ const apellidos = [
   'Medina', 'Garrido', 'Cortés', 'Castillo', 'Santos', 'Lozano', 'Guerrero', 'Cano', 'Prieto', 'Méndez'
 ];
 
-const tiposVoz = ['SOPRANO', 'CONTRALTO', 'TENOR', 'BARITONO', 'BAJO', 'MESOSOPRANO', 'CORO'];
+const tiposVoz = ['SOPRANO', 'CONTRALTO', 'TENOR', 'BARITONO', 'BAJO', 'MESOSOPRANO', 'CORO', 'ORIGINAL'];
 
 // Distribución de cantantes por ciudad (total: 150)
 const distribucionCiudades = {
-  'Santiago': 60,      // 40%
-  'Concepción': 30,    // 20%
-  'Antofagasta': 20,   // 13%
-  'Viña del Mar': 15,  // 10%
-  'Valparaíso': 13,    // 9%
-  'Valdivia': 12       // 8%
+  'Santiago': 60,        // 40%
+  'Concepción': 30,      // 20%
+  'Antofagasta': 20,     // 13.3%
+  'Viña del Mar': 15,    // 10%
+  'Valparaíso': 13,      // 8.7%
+  'Valdivia': 12         // 8%
 };
 
 function getRandomElement<T>(array: T[]): T {
@@ -60,13 +60,11 @@ async function main() {
 
   const locationData = [
     { name: 'Iglesia Catedral Santiago', type: 'SANTIAGO', address: 'Plaza de Armas s/n', city: 'Santiago', region: 'Metropolitana' },
-    { name: 'Parroquia San Francisco', type: 'SANTIAGO', address: 'Av. Libertador Bernardo O\'Higgins 834', city: 'Santiago', region: 'Metropolitana' },
-    { name: 'Iglesia La Merced', type: 'SANTIAGO', address: 'Mac Iver 341', city: 'Santiago', region: 'Metropolitana' },
-    { name: 'Catedral de Viña del Mar', type: 'VINA_DEL_MAR', address: 'Plaza Vergara', city: 'Viña del Mar', region: 'Valparaíso' },
-    { name: 'Iglesia San José Valparaíso', type: 'VINA_DEL_MAR', address: 'Cerro Alegre', city: 'Valparaíso', region: 'Valparaíso' },
-    { name: 'Catedral de Concepción', type: 'CONCEPCION', address: 'Plaza de Armas', city: 'Concepción', region: 'Biobío' },
-    { name: 'Iglesia San Marcos Antofagasta', type: 'ANTOFAGASTA', address: 'Plaza Colón', city: 'Antofagasta', region: 'Antofagasta' },
-    { name: 'Catedral de Valdivia', type: 'VALDIVIA', address: 'Plaza de la República', city: 'Valdivia', region: 'Los Ríos' }
+    { name: 'Iglesia Viña del Mar', type: 'VINA_DEL_MAR', address: 'Plaza Vergara', city: 'Viña del Mar', region: 'Valparaíso' },
+    { name: 'Iglesia Valparaíso', type: 'VINA_DEL_MAR', address: 'Cerro Alegre', city: 'Valparaíso', region: 'Valparaíso' },
+    { name: 'Iglesia Concepción', type: 'CONCEPCION', address: 'Plaza de Armas', city: 'Concepción', region: 'Biobío' },
+    { name: 'Iglesia Antofagasta', type: 'ANTOFAGASTA', address: 'Plaza Colón', city: 'Antofagasta', region: 'Antofagasta' },
+    { name: 'Iglesia Valdivia', type: 'VALDIVIA', address: 'Plaza de la República', city: 'Valdivia', region: 'Los Ríos' }
   ];
 
   for (const loc of locationData) {
@@ -100,7 +98,7 @@ async function main() {
   // Asignar rol ADMIN
   await prisma.$executeRaw`
     INSERT INTO user_roles (id, "userId", role, "createdAt")
-    VALUES (gen_random_uuid(), ${admin.id}, 'ADMIN', NOW())
+    VALUES (gen_random_uuid(), ${admin.id}, 'ADMIN'::"UserRole", NOW())
   `;
 
   // 3. Crear usuario admin-cantante
@@ -122,14 +120,14 @@ async function main() {
   await prisma.$executeRaw`
     INSERT INTO user_roles (id, "userId", role, "createdAt")
     VALUES 
-      (gen_random_uuid(), ${adminSinger.id}, 'ADMIN', NOW()),
-      (gen_random_uuid(), ${adminSinger.id}, 'CANTANTE', NOW())
+      (gen_random_uuid(), ${adminSinger.id}, 'ADMIN'::"UserRole", NOW()),
+      (gen_random_uuid(), ${adminSinger.id}, 'CANTANTE'::"UserRole", NOW())
   `;
 
   // Asignar perfil de voz BARITONO al admin-cantante
   await prisma.$executeRaw`
     INSERT INTO user_voice_profiles (id, "userId", "voiceType", "createdAt")
-    VALUES (gen_random_uuid(), ${adminSinger.id}, 'BARITONO', NOW())
+    VALUES (gen_random_uuid(), ${adminSinger.id}, 'BARITONO'::"VoiceType", NOW())
   `;
 
   // 4. Crear 150 cantantes distribuidos por ciudades
@@ -181,13 +179,13 @@ async function main() {
       // Asignar rol CANTANTE
       await prisma.$executeRaw`
         INSERT INTO user_roles (id, "userId", role, "createdAt")
-        VALUES (gen_random_uuid(), ${cantante.id}, 'CANTANTE', NOW())
+        VALUES (gen_random_uuid(), ${cantante.id}, 'CANTANTE'::"UserRole", NOW())
       `;
 
       // Asignar perfil de voz
       await prisma.$executeRaw`
         INSERT INTO user_voice_profiles (id, "userId", "voiceType", "createdAt")
-        VALUES (gen_random_uuid(), ${cantante.id}, ${voiceType}, NOW())
+        VALUES (gen_random_uuid(), ${cantante.id}, ${voiceType}::"VoiceType", NOW())
       `;
 
       cantantesCreados++;

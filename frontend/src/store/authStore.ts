@@ -18,15 +18,21 @@ export const useAuthStore = create<AuthState>()(
       token: null,
       isAuthenticated: false,
       login: (user: User, token: string) => {
+        console.log('🔐 [AUTH_STORE] Login llamado con usuario:', user.firstName, user.roles);
         localStorage.setItem('token', token);
         set({ user, token, isAuthenticated: true });
+        console.log('🔐 [AUTH_STORE] Estado actualizado:', { user: user.firstName, roles: user.roles, isAuthenticated: true });
       },
       logout: () => {
+        console.log('🔐 [AUTH_STORE] Logout ejecutado');
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         set({ user: null, token: null, isAuthenticated: false });
       },
-      updateUser: (user: User) => set({ user }),
+      updateUser: (user: User) => {
+        console.log('🔐 [AUTH_STORE] UpdateUser llamado con:', user.firstName, user.roles);
+        set({ user });
+      },
     }),
     {
       name: 'auth-storage',
@@ -35,6 +41,19 @@ export const useAuthStore = create<AuthState>()(
         token: state.token, 
         isAuthenticated: state.isAuthenticated 
       }),
+      // Validar estado al hidratar
+      onRehydrateStorage: () => (state) => {
+        if (state) {
+          const storedToken = localStorage.getItem('token');
+          // Si no hay token en localStorage, limpiar el estado
+          if (!storedToken && state.isAuthenticated) {
+            console.log('🔐 [AUTH_STORE] Token no encontrado, limpiando estado');
+            state.user = null;
+            state.token = null;
+            state.isAuthenticated = false;
+          }
+        }
+      },
     }
   )
 );

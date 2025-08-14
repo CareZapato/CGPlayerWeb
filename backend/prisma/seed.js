@@ -23,7 +23,7 @@ const apellidos = [
   'Medina', 'Garrido', 'Cortés', 'Castillo', 'Santos', 'Lozano', 'Guerrero', 'Cano', 'Prieto', 'Méndez'
 ];
 
-const tiposVoz = ['SOPRANO', 'CONTRALTO', 'TENOR', 'BARITONO', 'BAJO', 'MESOSOPRANO', 'CORO'];
+const tiposVoz = ['SOPRANO', 'CONTRALTO', 'TENOR', 'BARITONO', 'BAJO', 'MESOSOPRANO', 'CORO', 'ORIGINAL'];
 
 // Distribución de cantantes por ciudad (total: 150)
 const distribucionCiudades = {

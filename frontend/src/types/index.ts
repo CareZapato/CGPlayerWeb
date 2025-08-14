@@ -1,6 +1,6 @@
 export type UserRole = 'ADMIN' | 'CANTANTE';
 
-export type VoiceType = 'SOPRANO' | 'CONTRALTO' | 'TENOR' | 'BARITONO' | 'MESOSOPRANO' | 'BAJO' | 'CORO';
+export type VoiceType = 'SOPRANO' | 'CONTRALTO' | 'TENOR' | 'BARITONO' | 'MESOSOPRANO' | 'BAJO' | 'CORO' | 'ORIGINAL';
 
 export interface UserRole_DB {
   id: string;

@@ -25,7 +25,8 @@ const HomePage: React.FC = () => {
   };
 
   useEffect(() => {
-    if (isAdmin(user)) {
+    // Solo cargar datos si el usuario está autenticado y es admin
+    if (isAdmin(user) && localStorage.getItem('token')) {
       fetchDashboardStats();
     }
   }, [user]);
@@ -80,8 +81,12 @@ const HomePage: React.FC = () => {
         })),
         recentEvents: events.slice(0, 5)
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching dashboard stats:', error);
+      // Si es error 401, el interceptor ya redirigirá al login
+      if (error.response?.status === 401) {
+        console.log('Token inválido, redirigiendo al login...');
+      }
     } finally {
       setLoading(false);
     }
@@ -96,6 +101,7 @@ const HomePage: React.FC = () => {
       case 'MESOSOPRANO': return 'bg-indigo-100 text-indigo-800';
       case 'BAJO': return 'bg-yellow-100 text-yellow-800';
       case 'CORO': return 'bg-orange-100 text-orange-800';
+      case 'ORIGINAL': return 'bg-gray-100 text-gray-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };

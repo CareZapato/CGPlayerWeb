@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { usePlaylistStore } from '../store/playlistStore';
 import { usePlayerStore } from '../store/playerStore';
+import { useServerInfo } from '../hooks/useServerInfo';
 import api from '../services/api';
 import type { Song } from '../types';
 
@@ -12,6 +13,7 @@ interface SongCardProps {
 
 const SongCard: React.FC<SongCardProps> = ({ song, color, onClick }) => {
   const { addToQueue, replaceQueueAndPlay } = usePlaylistStore();
+  const { serverInfo } = useServerInfo();
   const [showMenu, setShowMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -49,9 +51,70 @@ const SongCard: React.FC<SongCardProps> = ({ song, color, onClick }) => {
 
   const displayDuration = getSongDuration();
 
-  const handleAddToQueue = (e: React.MouseEvent) => {
+  const handleAddToQueue = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    addToQueue(song);
+    
+    try {
+      console.log(`🔥 [SONG-CARD] Agregando versiones a la cola: ${song.title} (ID: ${song.id})`);
+      
+      // Obtener las variaciones de la canción usando el servicio API
+      const response = await api.get(`/songs/${song.id}/versions`);
+      const data = response.data;
+      const variations = data.versions || [];
+      
+      console.log(`🔥 [SONG-CARD] Variaciones encontradas para agregar:`, variations.length);
+      
+      if (variations.length > 0) {
+        // Filtrar y convertir variaciones a objetos Song completos
+        const playableVariations: Song[] = variations
+          .filter((v: any) => v.fileName && v.folderName && v.voiceType)
+          .map((v: any) => ({
+            id: v.id,
+            title: v.title,
+            artist: v.artist || song.artist,
+            duration: v.duration || 0,
+            fileName: v.fileName,
+            filePath: v.filePath || `${v.folderName}/${v.fileName}`,
+            fileSize: v.fileSize || 0,
+            mimeType: v.mimeType || 'audio/mpeg',
+            folderName: v.folderName,
+            voiceType: v.voiceType,
+            parentSongId: v.parentSongId,
+            coverColor: v.coverColor || song.coverColor,
+            uploadedBy: v.uploadedBy || v.uploader?.firstName + ' ' + v.uploader?.lastName || 'Desconocido',
+            isActive: v.isActive !== undefined ? v.isActive : true,
+            createdAt: v.createdAt,
+            updatedAt: v.updatedAt || v.createdAt,
+            uploader: v.uploader || song.uploader
+          } as Song));
+        
+        console.log(`🔥 [SONG-CARD] Variaciones reproducibles para agregar:`, playableVariations.length);
+        
+        // Agregar todas las variaciones a la cola
+        playableVariations.forEach(variation => {
+          addToQueue(variation);
+          console.log(`✅ [SONG-CARD] Variación agregada a la cola:`, variation.title, variation.voiceType);
+        });
+        
+        console.log(`🎉 [SONG-CARD] Todas las variaciones agregadas a la cola para: ${song.title}`);
+      } else {
+        // Si no hay variaciones pero la canción tiene voiceType, es una canción individual
+        if (song.voiceType) {
+          console.log(`🔥 [SONG-CARD] Agregando canción individual:`, song.title, song.voiceType);
+          addToQueue(song);
+        } else {
+          console.warn(`⚠️ [SONG-CARD] No hay variaciones ni voiceType para agregar: ${song.title}`);
+        }
+      }
+    } catch (error) {
+      console.error('❌ [SONG-CARD] Error al obtener variaciones para agregar a cola:', error);
+      // Fallback: agregar la canción original si tiene voiceType
+      if (song.voiceType) {
+        console.log(`🔄 [SONG-CARD] Fallback - agregando canción original:`, song.title);
+        addToQueue(song);
+      }
+    }
+    
     setShowMenu(false);
   };
 
@@ -101,14 +164,14 @@ const SongCard: React.FC<SongCardProps> = ({ song, color, onClick }) => {
           // Reproducir la primera variación usando la API del playerStore
           const firstSong = playableVariations[0];
           
-          // Construir URL correcta para archivos de audio
+          // Construir URL correcta para archivos de audio usando serverInfo
           let songUrl: string;
           if (firstSong.folderName) {
             // Archivo en carpeta específica
-            songUrl = `http://localhost:3001/api/files/${firstSong.folderName}/${firstSong.fileName}`;
+            songUrl = `${serverInfo.audioBaseUrl}/${firstSong.folderName}/${firstSong.fileName}`;
           } else {
             // Archivo en carpeta raíz - usar endpoint específico
-            songUrl = `http://localhost:3001/api/files-root/${firstSong.fileName}`;
+            songUrl = `${serverInfo.audioBaseUrl}-root/${firstSong.fileName}`;
           }
           
           console.log(`🎵 [SONG-CARD] URL construida:`, songUrl);

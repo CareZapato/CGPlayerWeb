@@ -19,7 +19,6 @@ import UsersPage from './pages/UsersPage';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
 import SimplePlayer from './components/SimplePlayer';
-import AudioManager from './components/AudioManager';
 
 // Hooks
 import { useAuthStore } from './store/authStore';
@@ -119,10 +118,9 @@ function App() {
             } />
           </Routes>
           
-          {/* Reproductor flotante y audio manager */}
+          {/* Reproductor flotante */}
           {isAuthenticated && (
             <>
-              <AudioManager />
               <SimplePlayer />
             </>
           )}

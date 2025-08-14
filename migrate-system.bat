@@ -1,5 +1,11 @@
 @echo off
-echo 🚀 Iniciando migración completa del sistema CGPlayerWeb
+echo 🚀 echo 📊 Sistema actualizado con:
+echo    ✅ Nuevos tipos de voz: SOPRANO, CONTRALTO, TENOR, BARITONO, MESOSOPRANO, BAJO, CORO, ORIGINAL
+echo    ✅ Sistema de roles: ADMIN, CANTANTE
+echo    ✅ Tabla user_roles para múltiples roles por usuario  
+echo    ✅ Tabla user_voice_profiles para múltiples voces por usuario
+echo    ✅ 152 usuarios: 1 admin + 1 admin-cantante + 150 cantantes
+echo    ✅ Distribución realista por ciudades y tipos de vozdo migración completa del sistema CGPlayerWeb
 echo ==============================================
 
 rem Navegar al directorio del backend
@@ -11,14 +17,14 @@ npx prisma generate
 echo 📋 Paso 2: Aplicando migraciones de la base de datos...
 npx prisma migrate dev --name "update-roles-voices-system"
 
-echo 📋 Paso 3: Ejecutando seed con nuevo sistema...
-npx ts-node src/seeders/newSystemSeed.ts
+echo 📋 Paso 3: Ejecutando seed avanzado con 152 usuarios...
+npx ts-node prisma/seed_new.ts
 
 echo.
 echo 🎉 ¡Migración completada exitosamente!
 echo ==============================================
 echo 📊 Sistema actualizado con:
-echo    ✅ Nuevos tipos de voz: SOPRANO, CONTRALTO, TENOR, BARITONO, MESOSOPRANO, BAJO, CORO
+echo    ✅ Nuevos tipos de voz: SOPRANO, CONTRALTO, TENOR, BARITONO, MESOSOPRANO, BAJO, CORO, ORIGINAL
 echo    ✅ Sistema de roles: ADMIN, CANTANTE
 echo    ✅ Tabla user_roles para múltiples roles por usuario  
 echo    ✅ Tabla user_voice_profiles para múltiples voces por usuario

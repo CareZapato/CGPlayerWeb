@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { usePlayerStore } from '../store/playerStore';
 import { usePlaylistStore } from '../store/playlistStore';
+import { useServerInfo } from '../hooks/useServerInfo';
 import PlaylistPlayer from './PlaylistPlayer';
 
 const SimplePlayer: React.FC = () => {
@@ -25,6 +26,8 @@ const SimplePlayer: React.FC = () => {
     nextSong: getNextSong,
     previousSong: getPreviousSong
   } = usePlaylistStore();
+
+  const { serverInfo } = useServerInfo();
   
   const [showPlaylist, setShowPlaylist] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -61,7 +64,13 @@ const SimplePlayer: React.FC = () => {
       if (nextSong) {
         // Usar playSong para una reproducción más robusta
         const { playSong } = usePlayerStore.getState();
-        const songUrl = (nextSong as any).url || `${process.env.NODE_ENV === 'development' ? 'http://localhost:3001' : ''}/api/files/${(nextSong as any).folderName}/${nextSong.fileName}`;
+        let songUrl: string;
+        
+        if ((nextSong as any).folderName) {
+          songUrl = `${serverInfo.audioBaseUrl}/${(nextSong as any).folderName}/${nextSong.fileName}`;
+        } else {
+          songUrl = `${serverInfo.audioBaseUrl}-root/${nextSong.fileName}`;
+        }
         
         playSong({
           id: nextSong.id,
@@ -87,14 +96,14 @@ const SimplePlayer: React.FC = () => {
       if (audio.error?.code === 4 && currentSong) {
         console.log(`🔄 [SIMPLE-PLAYER] Attempting to reload with corrected URL...`);
         
-        // Construir URL alternativa
+        // Construir URL alternativa usando serverInfo
         let correctedUrl = '';
         const song = currentSong as any;
         
         if (song.folderName && song.fileName) {
-          correctedUrl = `http://localhost:3001/api/files/${song.folderName}/${song.fileName}`;
+          correctedUrl = `${serverInfo.audioBaseUrl}/${song.folderName}/${song.fileName}`;
         } else if (song.fileName) {
-          correctedUrl = `http://localhost:3001/api/files-root/${song.fileName}`;
+          correctedUrl = `${serverInfo.audioBaseUrl}-root/${song.fileName}`;
         } else if (song.url) {
           // Si ya tiene URL, intentar corregirla
           correctedUrl = song.url.replace(/\/+/g, '/').replace('http:/', 'http://');
@@ -156,12 +165,12 @@ const SimplePlayer: React.FC = () => {
       // Usar playSong para una reproducción más robusta
       const { playSong } = usePlayerStore.getState();
       
-      // Construir URL correcta
+      // Construir URL correcta usando serverInfo
       let songUrl: string;
       if ((nextSong as any).folderName) {
-        songUrl = `http://localhost:3001/api/files/${(nextSong as any).folderName}/${nextSong.fileName}`;
+        songUrl = `${serverInfo.audioBaseUrl}/${(nextSong as any).folderName}/${nextSong.fileName}`;
       } else {
-        songUrl = `http://localhost:3001/api/files-root/${nextSong.fileName}`;
+        songUrl = `${serverInfo.audioBaseUrl}-root/${nextSong.fileName}`;
       }
       
       playSong({
@@ -180,12 +189,12 @@ const SimplePlayer: React.FC = () => {
       // Usar playSong para una reproducción más robusta
       const { playSong } = usePlayerStore.getState();
       
-      // Construir URL correcta
+      // Construir URL correcta usando serverInfo
       let songUrl: string;
       if ((prevSong as any).folderName) {
-        songUrl = `http://localhost:3001/api/files/${(prevSong as any).folderName}/${prevSong.fileName}`;
+        songUrl = `${serverInfo.audioBaseUrl}/${(prevSong as any).folderName}/${prevSong.fileName}`;
       } else {
-        songUrl = `http://localhost:3001/api/files-root/${prevSong.fileName}`;
+        songUrl = `${serverInfo.audioBaseUrl}-root/${prevSong.fileName}`;
       }
       
       playSong({
