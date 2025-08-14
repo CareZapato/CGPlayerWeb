@@ -111,7 +111,8 @@ router.put('/:id', authenticateToken, async (req: AuthRequest, res: Response) =>
       return res.status(404).json({ message: 'Lyric not found' });
     }
 
-    if (lyric.createdBy !== req.user!.id && !['ADMIN', 'DIRECTOR'].includes(req.user!.role)) {
+    const hasAdminPermission = req.user!.roles.some((role: string) => ['ADMIN'].includes(role));
+    if (lyric.createdBy !== req.user!.id && !hasAdminPermission) {
       return res.status(403).json({ message: 'Not authorized to edit this lyric' });
     }
 
@@ -161,7 +162,8 @@ router.delete('/:id', authenticateToken, async (req: AuthRequest, res: Response)
       return res.status(404).json({ message: 'Lyric not found' });
     }
 
-    if (lyric.createdBy !== req.user!.id && !['ADMIN', 'DIRECTOR'].includes(req.user!.role)) {
+    const hasAdminPermissionForDelete = req.user!.roles.some((role: string) => ['ADMIN'].includes(role));
+    if (lyric.createdBy !== req.user!.id && !hasAdminPermissionForDelete) {
       return res.status(403).json({ message: 'Not authorized to delete this lyric' });
     }
 

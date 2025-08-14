@@ -31,11 +31,12 @@ router.get('/', async (req: Request, res: Response) => {
   }
 });
 
-// Crear nueva ubicación (solo ADMIN/DIRECTOR)
+// Crear nueva ubicación (solo ADMIN)
 router.post('/', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
-    if (!['ADMIN', 'DIRECTOR'].includes(req.user!.role)) {
-      return res.status(403).json({ message: 'Access denied' });
+    const hasPermission = req.user!.roles.some((role: string) => ['ADMIN'].includes(role));
+    if (!hasPermission) {
+      return res.status(403).json({ message: 'Insufficient permissions' });
     }
 
     const { name, type, address, city, region, country } = req.body;
@@ -68,11 +69,12 @@ router.post('/', authenticateToken, async (req: AuthRequest, res: Response) => {
   }
 });
 
-// Actualizar ubicación (solo ADMIN/DIRECTOR)
+// Actualizar ubicación (solo ADMIN)
 router.put('/:id', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
-    if (!['ADMIN', 'DIRECTOR'].includes(req.user!.role)) {
-      return res.status(403).json({ message: 'Access denied' });
+    const hasPermission = req.user!.roles.some((role: string) => ['ADMIN'].includes(role));
+    if (!hasPermission) {
+      return res.status(403).json({ message: 'Insufficient permissions' });
     }
 
     const { id } = req.params;
@@ -105,7 +107,8 @@ router.put('/:id', authenticateToken, async (req: AuthRequest, res: Response) =>
 // Eliminar ubicación (solo ADMIN)
 router.delete('/:id', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
-    if (req.user!.role !== 'ADMIN') {
+    const hasAdminRole = req.user!.roles.some((role: string) => role === 'ADMIN');
+    if (!hasAdminRole) {
       return res.status(403).json({ message: 'Access denied' });
     }
 
@@ -157,55 +160,68 @@ router.get('/:id/stats', async (req: Request, res: Response) => {
     const { id } = req.params;
 
     const location = await prisma.location.findUnique({
-      where: { id },
-      include: {
-        users: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            role: true,
-            voiceProfiles: {
-              select: {
-                voiceType: true
-              }
-            }
-          }
-        },
-        events: {
-          where: { isActive: true },
-          include: {
-            _count: {
-              select: {
-                eventSongs: true,
-                soloists: true
-              }
-            }
-          },
-          orderBy: { date: 'desc' },
-          take: 5
-        }
-      }
+      where: { id }
     });
 
     if (!location) {
       return res.status(404).json({ message: 'Location not found' });
     }
 
+    // Obtener usuarios de esta ubicación usando SQL raw
+    const usersInLocation = await prisma.$queryRaw`
+      SELECT u.id, u."firstName", u."lastName" 
+      FROM users u 
+      WHERE u."locationId" = ${id} AND u."isActive" = true
+    `;
+
+    // Obtener roles de estos usuarios
+    const userRoles = await prisma.$queryRaw`
+      SELECT ur.role, COUNT(*) as count
+      FROM user_roles ur
+      JOIN users u ON u.id = ur."userId"
+      WHERE u."locationId" = ${id} AND u."isActive" = true
+      GROUP BY ur.role
+    `;
+
+    // Obtener perfiles de voz
+    const voiceProfiles = await prisma.$queryRaw`
+      SELECT uvp."voiceType", COUNT(*) as count
+      FROM user_voice_profiles uvp
+      JOIN users u ON u.id = uvp."userId"
+      WHERE u."locationId" = ${id} AND u."isActive" = true
+      GROUP BY uvp."voiceType"
+    `;
+
+    // Obtener eventos recientes
+    const recentEvents = await prisma.event.findMany({
+      where: { 
+        locationId: id,
+        isActive: true 
+      },
+      include: {
+        _count: {
+          select: {
+            eventSongs: true,
+            soloists: true
+          }
+        }
+      },
+      orderBy: { date: 'desc' },
+      take: 5
+    });
+
     const stats = {
-      totalUsers: location.users.length,
-      usersByRole: location.users.reduce((acc: Record<string, number>, user: any) => {
-        acc[user.role] = (acc[user.role] || 0) + 1;
+      totalUsers: (usersInLocation as any[]).length,
+      usersByRole: (userRoles as any[]).reduce((acc: Record<string, number>, item: any) => {
+        acc[item.role] = parseInt(item.count);
         return acc;
       }, {} as Record<string, number>),
-      usersByVoice: location.users.reduce((acc: Record<string, number>, user: any) => {
-        user.voiceProfiles.forEach((profile: any) => {
-          acc[profile.voiceType] = (acc[profile.voiceType] || 0) + 1;
-        });
+      usersByVoice: (voiceProfiles as any[]).reduce((acc: Record<string, number>, item: any) => {
+        acc[item.voiceType] = parseInt(item.count);
         return acc;
       }, {} as Record<string, number>),
-      totalEvents: location.events.length,
-      recentEvents: location.events
+      totalEvents: recentEvents.length,
+      recentEvents: recentEvents
     };
 
     res.json({

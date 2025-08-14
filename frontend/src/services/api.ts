@@ -89,7 +89,7 @@ export const authAPI = {
     api.post('/auth/login', credentials),
   
   verify: (): Promise<{ data: { user: User } }> =>
-    api.get('/auth/verify'),
+    api.get('/auth/me'),
 };
 
 // Users API

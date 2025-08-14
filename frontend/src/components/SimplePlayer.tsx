@@ -59,13 +59,53 @@ const SimplePlayer: React.FC = () => {
       // Intentar reproducir la siguiente canción
       const nextSong = getNextSong();
       if (nextSong) {
-        setCurrentSong(nextSong);
+        // Usar playSong para una reproducción más robusta
+        const { playSong } = usePlayerStore.getState();
+        const songUrl = (nextSong as any).url || `${process.env.NODE_ENV === 'development' ? 'http://localhost:3001' : ''}/api/files/${(nextSong as any).folderName}/${nextSong.fileName}`;
+        
+        playSong({
+          id: nextSong.id,
+          title: nextSong.title,
+          artist: nextSong.artist || 'Artista desconocido',
+          url: songUrl,
+          duration: nextSong.duration || 0
+        });
       } else {
         pause();
       }
     };
     const handleError = () => {
-      console.error(`❌ [SIMPLE-PLAYER] Audio error:`, audio.error);
+      console.error(`❌ [SIMPLE-PLAYER] Audio error:`, {
+        error: audio.error,
+        currentSrc: audio.src,
+        readyState: audio.readyState,
+        networkState: audio.networkState,
+        currentSong: currentSong
+      });
+      
+      // Intentar recargar con URL alternativa si es un error de formato
+      if (audio.error?.code === 4 && currentSong) {
+        console.log(`🔄 [SIMPLE-PLAYER] Attempting to reload with corrected URL...`);
+        
+        // Construir URL alternativa
+        let correctedUrl = '';
+        const song = currentSong as any;
+        
+        if (song.folderName && song.fileName) {
+          correctedUrl = `http://localhost:3001/api/files/${song.folderName}/${song.fileName}`;
+        } else if (song.fileName) {
+          correctedUrl = `http://localhost:3001/api/files-root/${song.fileName}`;
+        } else if (song.url) {
+          // Si ya tiene URL, intentar corregirla
+          correctedUrl = song.url.replace(/\/+/g, '/').replace('http:/', 'http://');
+        }
+        
+        if (correctedUrl && correctedUrl !== audio.src) {
+          console.log(`🔄 [SIMPLE-PLAYER] Trying corrected URL:`, correctedUrl);
+          audio.src = correctedUrl;
+          audio.load();
+        }
+      }
     };
 
     audio.addEventListener('timeupdate', handleTimeUpdate);
@@ -113,14 +153,48 @@ const SimplePlayer: React.FC = () => {
   const handleNextSong = () => {
     const nextSong = getNextSong();
     if (nextSong) {
-      setCurrentSong(nextSong);
+      // Usar playSong para una reproducción más robusta
+      const { playSong } = usePlayerStore.getState();
+      
+      // Construir URL correcta
+      let songUrl: string;
+      if ((nextSong as any).folderName) {
+        songUrl = `http://localhost:3001/api/files/${(nextSong as any).folderName}/${nextSong.fileName}`;
+      } else {
+        songUrl = `http://localhost:3001/api/files-root/${nextSong.fileName}`;
+      }
+      
+      playSong({
+        id: nextSong.id,
+        title: nextSong.title,
+        artist: nextSong.artist || 'Artista desconocido',
+        url: songUrl,
+        duration: nextSong.duration || 0
+      });
     }
   };
 
   const handlePreviousSong = () => {
     const prevSong = getPreviousSong();
     if (prevSong) {
-      setCurrentSong(prevSong);
+      // Usar playSong para una reproducción más robusta
+      const { playSong } = usePlayerStore.getState();
+      
+      // Construir URL correcta
+      let songUrl: string;
+      if ((prevSong as any).folderName) {
+        songUrl = `http://localhost:3001/api/files/${(prevSong as any).folderName}/${prevSong.fileName}`;
+      } else {
+        songUrl = `http://localhost:3001/api/files-root/${prevSong.fileName}`;
+      }
+      
+      playSong({
+        id: prevSong.id,
+        title: prevSong.title,
+        artist: prevSong.artist || 'Artista desconocido',
+        url: songUrl,
+        duration: prevSong.duration || 0
+      });
     }
   };
 

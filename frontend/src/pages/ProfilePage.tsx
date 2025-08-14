@@ -28,8 +28,14 @@ const ProfilePage: React.FC = () => {
             <p className="text-gray-900">{user?.username}</p>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700">Rol</label>
-            <p className="text-gray-900">{user?.role}</p>
+            <label className="block text-sm font-medium text-gray-700">Roles</label>
+            <div className="flex flex-wrap gap-2">
+              {user?.roles?.map((userRole) => (
+                <span key={userRole.id} className="px-2 py-1 bg-blue-100 text-blue-800 rounded-md text-sm">
+                  {userRole.role}
+                </span>
+              )) || <span className="text-gray-500">Sin roles asignados</span>}
+            </div>
           </div>
         </div>
       </div>

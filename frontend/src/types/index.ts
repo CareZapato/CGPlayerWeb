@@ -1,6 +1,15 @@
-export type UserRole = 'SINGER' | 'DIRECTOR' | 'ADMIN';
+export type UserRole = 'ADMIN' | 'CANTANTE';
 
-export type VoiceType = 'SOPRANO' | 'CONTRALTO' | 'TENOR' | 'BARITONE' | 'BASS';
+export type VoiceType = 'SOPRANO' | 'CONTRALTO' | 'TENOR' | 'BARITONO' | 'MESOSOPRANO' | 'BAJO' | 'CORO';
+
+export interface UserRole_DB {
+  id: string;
+  userId: string;
+  role: UserRole;
+  assignedBy?: string;
+  assignedAt: string;
+  isActive: boolean;
+}
 
 export interface User {
   id: string;
@@ -8,10 +17,10 @@ export interface User {
   username: string;
   firstName: string;
   lastName: string;
-  role: UserRole;
   isActive: boolean;
   createdAt: string;
-  voiceProfiles?: UserVoiceProfile[];
+  roles?: UserRole_DB[];  // Roles del usuario desde user_roles
+  voiceProfiles?: UserVoiceProfile[];  // Voces desde user_voices_profile
 }
 
 export interface UserVoiceProfile {
@@ -19,7 +28,8 @@ export interface UserVoiceProfile {
   userId: string;
   voiceType: VoiceType;
   assignedBy?: string;
-  createdAt: string;
+  assignedAt: string;
+  isActive: boolean;
   assignedByUser?: {
     firstName: string;
     lastName: string;

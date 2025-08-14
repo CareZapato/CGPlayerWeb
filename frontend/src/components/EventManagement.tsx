@@ -107,7 +107,7 @@ const EventManagement: React.FC = () => {
     return colors[category as keyof typeof colors] || 'bg-gray-100 text-gray-800';
   };
 
-  const canManageEvents = user?.role === 'ADMIN' || user?.role === 'DIRECTOR';
+  const canManageEvents = user?.roles?.some(r => r.role === 'ADMIN') || false;
 
   if (eventsLoading) {
     return (

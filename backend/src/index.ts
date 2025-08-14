@@ -7,9 +7,9 @@ import dotenv from 'dotenv';
 import os from 'os';
 
 // Importar rutas
-import authRoutes from './routes/auth';
+import authRoutes from './routes/authNew';
 import userRoutes from './routes/users';
-import songRoutes from './routes/songs';
+import songRoutes from './routes/songsImproved';
 import playlistRoutes from './routes/playlists';
 import lyricRoutes from './routes/lyrics';
 import locationRoutes from './routes/locations';
@@ -31,73 +31,8 @@ async function initializeDatabase() {
     const userCount = await prisma.user.count();
     
     if (userCount === 0) {
-      console.log('📊 Base de datos vacía. Cargando datos iniciales...');
-      
-      // Crear usuarios básicos
-      const adminPassword = await bcrypt.hash('admin123', 10);
-      const directorPassword = await bcrypt.hash('director123', 10);
-      const singerPassword = await bcrypt.hash('singer123', 10);
-      
-      // Crear administrador
-      const admin = await prisma.user.create({
-        data: {
-          email: 'admin@chilegospel.com',
-          username: 'admin',
-          password: adminPassword,
-          firstName: 'Admin',
-          lastName: 'ChileGospel',
-          role: 'ADMIN',
-          isActive: true
-        }
-      });
-      
-      // Crear director musical
-      const director = await prisma.user.create({
-        data: {
-          email: 'director@chilegospel.com',
-          username: 'director',
-          password: directorPassword,
-          firstName: 'Director',
-          lastName: 'Musical',
-          role: 'DIRECTOR',
-          isActive: true
-        }
-      });
-      
-      // Crear cantantes
-      const singers = [];
-      for (let i = 1; i <= 10; i++) {
-        const singer = await prisma.user.create({
-          data: {
-            email: `singer${i}@chilegospel.com`,
-            username: `singer${i}`,
-            password: singerPassword,
-            firstName: `Cantante`,
-            lastName: `${i}`,
-            role: 'SINGER',
-            isActive: true
-          }
-        });
-        singers.push(singer);
-      }
-      
-      // Crear una ubicación por defecto
-      const defaultLocation = await prisma.location.create({
-        data: {
-          name: 'Iglesia Principal',
-          type: 'SANTIAGO',
-          address: 'Dirección de la Iglesia',
-          city: 'Santiago',
-          country: 'Chile',
-          isActive: true
-        }
-      });
-      
-      console.log('✅ Datos iniciales cargados exitosamente:');
-      console.log(`   👤 Admin: admin@chilegospel.com / admin123`);
-      console.log(`   🎵 Director: director@chilegospel.com / director123`);
-      console.log(`   🎤 Cantantes: singer1-10@chilegospel.com / singer123`);
-      console.log(`   📍 Ubicación: ${defaultLocation.name}`);
+      console.log('📊 Base de datos vacía. Use los seeders para cargar datos de prueba.');
+      console.log('   Ejecutar: npx ts-node src/seeders/newSystemSeed.ts');
     } else {
       console.log('✅ Base de datos ya contiene datos');
     }

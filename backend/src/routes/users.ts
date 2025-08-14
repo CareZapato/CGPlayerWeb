@@ -14,7 +14,6 @@ router.get('/', authenticateToken, requireRole(['DIRECTOR', 'ADMIN']), async (re
         username: true,
         firstName: true,
         lastName: true,
-        role: true,
         isActive: true,
         createdAt: true,
         voiceProfiles: {
@@ -125,7 +124,6 @@ router.get('/profile', authenticateToken, async (req: AuthRequest, res: Response
         username: true,
         firstName: true,
         lastName: true,
-        role: true,
         createdAt: true,
         voiceProfiles: {
           include: {

@@ -9,9 +9,14 @@ async function seedOnlyExistingSongs() {
   
   try {
     // Obtener el usuario admin para asignar como uploader
-    const admin = await prisma.user.findFirst({
-      where: { role: 'ADMIN' }
-    });
+    const adminResult = await prisma.$queryRaw`
+      SELECT u.* FROM users u 
+      JOIN user_roles ur ON u.id = ur."userId" 
+      WHERE ur.role = 'ADMIN' 
+      LIMIT 1
+    ` as any[];
+    
+    const admin = adminResult[0];
 
     if (!admin) {
       console.error('❌ No se encontró usuario admin');

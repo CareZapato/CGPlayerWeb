@@ -12,11 +12,14 @@ import ProfilePage from './pages/ProfilePage';
 import AdminPage from './pages/AdminPage';
 import EventsPage from './pages/EventsPage';
 import SongsGridView from './pages/SongsGridView';
+import ManagementPage from './pages/ManagementPage';
+import UsersPage from './pages/UsersPage';
 
 // Components
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
 import SimplePlayer from './components/SimplePlayer';
+import AudioManager from './components/AudioManager';
 
 // Hooks
 import { useAuthStore } from './store/authStore';
@@ -91,8 +94,24 @@ function App() {
               </ProtectedRoute>
             } />
             
+            <Route path="/management" element={
+              <ProtectedRoute allowedRoles={['ADMIN']}>
+                <Layout>
+                  <ManagementPage />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/users" element={
+              <ProtectedRoute allowedRoles={['ADMIN']}>
+                <Layout>
+                  <UsersPage />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            
             <Route path="/admin" element={
-              <ProtectedRoute allowedRoles={['ADMIN', 'DIRECTOR']}>
+              <ProtectedRoute allowedRoles={['ADMIN']}>
                 <Layout>
                   <AdminPage />
                 </Layout>
@@ -100,8 +119,13 @@ function App() {
             } />
           </Routes>
           
-          {/* Reproductor flotante (solo cuando hay una canción cargada) */}
-          {isAuthenticated && <SimplePlayer />}
+          {/* Reproductor flotante y audio manager */}
+          {isAuthenticated && (
+            <>
+              <AudioManager />
+              <SimplePlayer />
+            </>
+          )}
           
           {/* Notificaciones */}
           <Toaster 

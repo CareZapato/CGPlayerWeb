@@ -20,20 +20,20 @@ const VOICE_TYPE_LABELS: { [key: string]: string } = {
   SOPRANO: 'Soprano',
   CONTRALTO: 'Contralto',
   TENOR: 'Tenor',
-  BARITONE: 'Barítono',
-  BASS: 'Bajo',
-  CORO: 'Coro',
-  ORIGINAL: 'Original'
+  BARITONO: 'Barítono',
+  MESOSOPRANO: 'Mesosoprano',
+  BAJO: 'Bajo',
+  CORO: 'Coro'
 };
 
 const VOICE_TYPE_COLORS: { [key: string]: string } = {
   SOPRANO: 'bg-pink-100 text-pink-800 border-pink-200',
   CONTRALTO: 'bg-purple-100 text-purple-800 border-purple-200',
   TENOR: 'bg-blue-100 text-blue-800 border-blue-200',
-  BARITONE: 'bg-green-100 text-green-800 border-green-200',
-  BASS: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-  CORO: 'bg-orange-100 text-orange-800 border-orange-200',
-  ORIGINAL: 'bg-gray-100 text-gray-800 border-gray-200'
+  BARITONO: 'bg-green-100 text-green-800 border-green-200',
+  MESOSOPRANO: 'bg-indigo-100 text-indigo-800 border-indigo-200',
+  BAJO: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+  CORO: 'bg-orange-100 text-orange-800 border-orange-200'
 };
 
 const SongsPage: React.FC = () => {
@@ -49,7 +49,7 @@ const SongsPage: React.FC = () => {
   const [selectedSong, setSelectedSong] = useState<SongWithVersions | null>(null);
   const [expandedSongs, setExpandedSongs] = useState<Set<string>>(new Set());
 
-  const canUpload = user?.role === 'ADMIN' || user?.role === 'DIRECTOR';
+  const canUpload = user?.roles?.some(r => ['ADMIN', 'CANTANTE'].includes(r.role)) || false;
 
   useEffect(() => {
     fetchSongs();
@@ -293,13 +293,13 @@ const SongsPage: React.FC = () => {
   }
 
   return (
-    <div className="max-w-6xl mx-auto">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Biblioteca Musical</h1>
+    <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 sm:mb-6 gap-4">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Biblioteca Musical</h1>
         {canUpload && (
           <button
             onClick={() => setShowUpload(true)}
-            className="btn-primary flex items-center space-x-2"
+            className="btn-primary flex items-center justify-center space-x-2 w-full sm:w-auto"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -311,17 +311,17 @@ const SongsPage: React.FC = () => {
 
       {/* Modal de subida */}
       {showUpload && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-5xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold text-gray-900">Subir Canciones</h2>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
+          <div className="bg-white rounded-lg w-full max-w-5xl mx-auto max-h-[95vh] overflow-y-auto">
+            <div className="p-4 sm:p-6">
+              <div className="flex justify-between items-center mb-4 sm:mb-6">
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Subir Canciones</h2>
                 <button
                   onClick={() => {
                     setShowUpload(false);
                     setSelectedSong(null);
                   }}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="text-gray-400 hover:text-gray-600 p-1"
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -330,11 +330,11 @@ const SongsPage: React.FC = () => {
               </div>
 
               {/* Tabs */}
-              <div className="border-b border-gray-200 mb-6">
-                <nav className="-mb-px flex space-x-8">
+              <div className="border-b border-gray-200 mb-4 sm:mb-6">
+                <nav className="-mb-px flex space-x-4 sm:space-x-8 overflow-x-auto">
                   <button
                     onClick={() => setUploadMode('single')}
-                    className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                    className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
                       uploadMode === 'single'
                         ? 'border-blue-500 text-blue-600'
                         : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -344,7 +344,7 @@ const SongsPage: React.FC = () => {
                   </button>
                   <button
                     onClick={() => setUploadMode('multi')}
-                    className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                    className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
                       uploadMode === 'multi'
                         ? 'border-blue-500 text-blue-600'
                         : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -356,23 +356,25 @@ const SongsPage: React.FC = () => {
               </div>
 
               {/* Content */}
-              {uploadMode === 'single' ? (
-                <SongUpload
-                  parentSong={selectedSong ? { id: selectedSong.id, title: selectedSong.title } : undefined}
-                  onUploadSuccess={handleUploadSuccess}
-                  onClose={() => {
-                    setShowUpload(false);
-                    setSelectedSong(null);
-                  }}
-                />
-              ) : (
-                <MultiSongUpload
-                  parentSongId={selectedSong?.id}
-                  onUploadComplete={() => {
-                    handleUploadSuccess();
-                  }}
-                />
-              )}
+              <div className="overflow-hidden">
+                {uploadMode === 'single' ? (
+                  <SongUpload
+                    parentSong={selectedSong ? { id: selectedSong.id, title: selectedSong.title } : undefined}
+                    onUploadSuccess={handleUploadSuccess}
+                    onClose={() => {
+                      setShowUpload(false);
+                      setSelectedSong(null);
+                    }}
+                  />
+                ) : (
+                  <MultiSongUpload
+                    parentSongId={selectedSong?.id}
+                    onUploadComplete={() => {
+                      handleUploadSuccess();
+                    }}
+                  />
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -390,13 +392,13 @@ const SongsPage: React.FC = () => {
       ) : (
         <div className="space-y-4">
           {songs.map((song) => (
-            <div key={song.id} className="card">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4 flex-1">
+            <div key={song.id} className="card p-4">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                <div className="flex items-center space-x-4 flex-1 min-w-0">
                   {/* Botón de reproducir - siempre visible */}
                   <button
                     onClick={() => handlePlayAllVersions(song)}
-                    className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${
+                    className={`w-12 h-12 flex-shrink-0 rounded-full flex items-center justify-center transition-colors ${
                       currentSong?.id === song.id && isPlaying
                         ? 'bg-primary-600 text-white'
                         : 'bg-gray-100 hover:bg-primary-100 text-gray-600 hover:text-primary-600'
@@ -415,39 +417,39 @@ const SongsPage: React.FC = () => {
                   </button>
 
                   {/* Información de la canción */}
-                  <div className="flex-1">
-                    <h3 className="text-lg font-semibold text-gray-900">{song.title}</h3>
-                    <p className="text-sm text-gray-600">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-lg font-semibold text-gray-900 truncate">{song.title}</h3>
+                    <p className="text-sm text-gray-600 truncate">
                       {song.artist && `${song.artist} • `}
                       Subido el {formatDate(song.createdAt)}
                     </p>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-gray-500 truncate">
                       Por {song.uploader.firstName} {song.uploader.lastName}
                     </p>
                   </div>
-
-                  {/* Versiones disponibles */}
-                  {song.childVersions.length > 0 && (
-                    <div className="flex items-center space-x-2">
-                      <span className="text-sm text-gray-500">
-                        {song.childVersions.length} versión{song.childVersions.length !== 1 ? 'es' : ''}
-                      </span>
-                      <div className="flex space-x-1">
-                        {song.childVersions.map((version) => (
-                          <span
-                            key={version.id}
-                            className={`px-2 py-1 text-xs rounded-full border ${VOICE_TYPE_COLORS[version.voiceType!] || 'bg-gray-100 text-gray-800 border-gray-200'}`}
-                          >
-                            {VOICE_TYPE_LABELS[version.voiceType!] || version.voiceType}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
                 </div>
 
+                {/* Versiones disponibles */}
+                {song.childVersions.length > 0 && (
+                  <div className="flex flex-col sm:items-end space-y-2">
+                    <span className="text-sm text-gray-500">
+                      {song.childVersions.length} versión{song.childVersions.length !== 1 ? 'es' : ''}
+                    </span>
+                    <div className="flex flex-wrap gap-1">
+                      {song.childVersions.map((version) => (
+                        <span
+                          key={version.id}
+                          className={`px-2 py-1 text-xs rounded-full border ${VOICE_TYPE_COLORS[version.voiceType!] || 'bg-gray-100 text-gray-800 border-gray-200'}`}
+                        >
+                          {VOICE_TYPE_LABELS[version.voiceType!] || version.voiceType}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* Acciones */}
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center justify-end space-x-2">
                   {canUpload && (
                     <button
                       onClick={() => {
@@ -489,11 +491,11 @@ const SongsPage: React.FC = () => {
                   <h4 className="text-sm font-medium text-gray-700 mb-3">Versiones por voz:</h4>
                   <div className="space-y-2">
                     {song.childVersions.map((version) => (
-                      <div key={version.id} className="flex items-center justify-between bg-gray-50 rounded-lg p-3">
+                      <div key={version.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between bg-gray-50 rounded-lg p-3 gap-3">
                         <div className="flex items-center space-x-3">
                           <button
                             onClick={() => handlePlaySong(version)}
-                            className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
+                            className={`w-8 h-8 flex-shrink-0 rounded-full flex items-center justify-center transition-colors ${
                               currentSong?.id === version.id && isPlaying
                                 ? 'bg-primary-600 text-white'
                                 : 'bg-white text-gray-600 hover:text-primary-600'
@@ -509,11 +511,11 @@ const SongsPage: React.FC = () => {
                               </svg>
                             )}
                           </button>
-                          <div>
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                             <span className={`inline-block px-2 py-1 text-xs rounded-full border font-medium ${VOICE_TYPE_COLORS[version.voiceType!] || 'bg-gray-100 text-gray-800 border-gray-200'}`}>
                               {VOICE_TYPE_LABELS[version.voiceType!] || version.voiceType}
                             </span>
-                            <p className="text-xs text-gray-500 mt-1">
+                            <p className="text-xs text-gray-500">
                               {formatDate(version.createdAt)}
                             </p>
                           </div>

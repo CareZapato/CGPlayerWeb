@@ -103,28 +103,50 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     
     if (audioRef) {
       console.log(`🎵 [PLAYER-STORE] Setting audio source:`, song.url);
+      
+      // Pausar el audio actual si está reproduciéndose
+      audioRef.pause();
+      
+      // Configurar la nueva fuente
       audioRef.src = song.url;
       
       console.log(`🎵 [PLAYER-STORE] Loading audio...`);
       audioRef.load();
       
-      audioRef.play()
-        .then(() => {
-          console.log(`✅ [PLAYER-STORE] Audio playback started successfully`);
-        })
-        .catch((error) => {
-          console.error(`❌ [PLAYER-STORE] Error starting playback:`, {
-            error: error.message,
-            name: error.name,
-            code: error.code || 'no code',
-            audioElement: {
-              src: audioRef.src,
-              readyState: audioRef.readyState,
-              networkState: audioRef.networkState,
-              error: audioRef.error
-            }
+      // Esperar a que el audio esté listo antes de reproducir
+      const playWhenReady = () => {
+        audioRef.play()
+          .then(() => {
+            console.log(`✅ [PLAYER-STORE] Audio playback started successfully`);
+            set({ isPlaying: true });
+          })
+          .catch((error) => {
+            console.error(`❌ [PLAYER-STORE] Error starting playback:`, {
+              error: error.message,
+              name: error.name,
+              code: error.code || 'no code',
+              audioElement: {
+                src: audioRef.src,
+                readyState: audioRef.readyState,
+                networkState: audioRef.networkState,
+                error: audioRef.error
+              }
+            });
           });
-        });
+      };
+      
+      // Si el audio ya está listo, reproducir inmediatamente
+      if (audioRef.readyState >= 2) {
+        playWhenReady();
+      } else {
+        // Esperar a que el audio esté listo
+        const handleCanPlay = () => {
+          playWhenReady();
+          audioRef.removeEventListener('canplay', handleCanPlay);
+        };
+        audioRef.addEventListener('canplay', handleCanPlay);
+      }
+      
     } else {
       console.error(`❌ [PLAYER-STORE] No audio element found!`);
     }
@@ -140,7 +162,6 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     
     set({ 
       currentSong: songData as any, // Cast temporal hasta actualizar tipos
-      isPlaying: true,
       duration: song.duration,
       currentTime: 0
     });

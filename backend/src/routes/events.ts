@@ -13,11 +13,11 @@ router.get('/', async (req: Request, res: Response) => {
     const where: any = { isActive: true };
     
     if (locationId) {
-      where.locationId = locationId as string;
+      where.locationId = locationId;
     }
     
     if (category) {
-      where.category = category as string;
+      where.category = category;
     }
     
     if (upcoming === 'true') {
@@ -84,6 +84,47 @@ router.get('/', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error fetching events:', error);
     res.status(500).json({ message: 'Failed to fetch events' });
+  }
+});
+
+// Crear nuevo evento (solo ADMIN)
+router.post('/', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    // Verificar roles del usuario
+    const hasPermission = req.user!.roles.some((role: string) => ['ADMIN'].includes(role));
+    if (!hasPermission) {
+      return res.status(403).json({ message: 'Insufficient permissions' });
+    }
+
+    const { title, description, date, locationId, category } = req.body;
+
+    if (!title || !date) {
+      return res.status(400).json({ 
+        message: 'Title and date are required' 
+      });
+    }
+
+    const event = await prisma.event.create({
+      data: {
+        title,
+        description,
+        date: new Date(date),
+        locationId,
+        category
+      },
+      include: {
+        location: true
+      }
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Event created successfully',
+      data: event
+    });
+  } catch (error) {
+    console.error('Error creating event:', error);
+    res.status(500).json({ message: 'Failed to create event' });
   }
 });
 
@@ -163,11 +204,12 @@ router.get('/:id', async (req: Request, res: Response) => {
   }
 });
 
-// Crear nuevo evento (solo ADMIN/DIRECTOR)
-router.post('/', authenticateToken, async (req: AuthRequest, res: Response) => {
+// Actualizar evento (solo ADMIN)
+router.put('/:id', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
-    if (!['ADMIN', 'DIRECTOR'].includes(req.user!.role)) {
-      return res.status(403).json({ message: 'Access denied' });
+    const hasPermission = req.user!.roles.some((role: string) => ['ADMIN'].includes(role));
+    if (!hasPermission) {
+      return res.status(403).json({ message: 'Insufficient permissions' });
     }
 
     const { title, description, date, locationId, category } = req.body;
@@ -202,11 +244,12 @@ router.post('/', authenticateToken, async (req: AuthRequest, res: Response) => {
   }
 });
 
-// Actualizar evento (solo ADMIN/DIRECTOR)
+// Actualizar evento (solo ADMIN)
 router.put('/:id', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
-    if (!['ADMIN', 'DIRECTOR'].includes(req.user!.role)) {
-      return res.status(403).json({ message: 'Access denied' });
+    const hasPermission = req.user!.roles.some((role: string) => ['ADMIN'].includes(role));
+    if (!hasPermission) {
+      return res.status(403).json({ message: 'Insufficient permissions' });
     }
 
     const { id } = req.params;
@@ -238,11 +281,12 @@ router.put('/:id', authenticateToken, async (req: AuthRequest, res: Response) =>
   }
 });
 
-// Agregar canciones al evento
+// Agregar canciones al evento (solo ADMIN)
 router.post('/:id/songs', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
-    if (!['ADMIN', 'DIRECTOR'].includes(req.user!.role)) {
-      return res.status(403).json({ message: 'Access denied' });
+    const hasPermission = req.user!.roles.some((role: string) => ['ADMIN'].includes(role));
+    if (!hasPermission) {
+      return res.status(403).json({ message: 'Insufficient permissions' });
     }
 
     const { id } = req.params;
@@ -278,11 +322,12 @@ router.post('/:id/songs', authenticateToken, async (req: AuthRequest, res: Respo
   }
 });
 
-// Agregar/actualizar solistas del evento
+// Agregar/actualizar solistas del evento (solo ADMIN)
 router.post('/:id/soloists', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
-    if (!['ADMIN', 'DIRECTOR'].includes(req.user!.role)) {
-      return res.status(403).json({ message: 'Access denied' });
+    const hasPermission = req.user!.roles.some((role: string) => ['ADMIN'].includes(role));
+    if (!hasPermission) {
+      return res.status(403).json({ message: 'Insufficient permissions' });
     }
 
     const { id } = req.params;
@@ -322,7 +367,8 @@ router.post('/:id/soloists', authenticateToken, async (req: AuthRequest, res: Re
 // Eliminar evento (solo ADMIN)
 router.delete('/:id', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
-    if (req.user!.role !== 'ADMIN') {
+    const hasAdminRole = req.user!.roles.some((role: string) => role === 'ADMIN');
+    if (!hasAdminRole) {
       return res.status(403).json({ message: 'Access denied' });
     }
 

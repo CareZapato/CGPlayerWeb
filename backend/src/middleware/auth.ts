@@ -6,7 +6,7 @@ export interface AuthRequest extends Request {
   user?: {
     id: string;
     email: string;
-    role: string;
+    roles: string[];
   };
   songFolderPath?: string;
   songFolderName?: string;
@@ -33,7 +33,11 @@ export const authenticateToken = async (req: AuthRequest, res: Response, next: N
     // Verificar que el usuario aún existe
     const user = await prisma.user.findUnique({
       where: { id: decoded.userId },
-      select: { id: true, email: true, role: true, isActive: true }
+      select: { 
+        id: true, 
+        email: true, 
+        isActive: true
+      }
     });
 
     if (!user || !user.isActive) {
@@ -41,12 +45,18 @@ export const authenticateToken = async (req: AuthRequest, res: Response, next: N
       return res.status(401).json({ message: 'User not found or inactive' });
     }
 
-    console.log(`👤 [AUTH] User authenticated: ${user.email} (${user.role})`);
+    // Obtener roles del usuario usando SQL raw
+    const userRoleRows = await prisma.$queryRaw`
+      SELECT role FROM user_roles WHERE "userId" = ${decoded.userId}
+    `;
+    const userRoles = (userRoleRows as any[]).map(r => r.role);
+    
+    console.log(`👤 [AUTH] User authenticated: ${user.email} (${userRoles.join(', ')})`);
 
     req.user = {
       id: user.id,
       email: user.email,
-      role: user.role
+      roles: userRoles
     };
 
     next();
@@ -62,7 +72,10 @@ export const requireRole = (roles: string[]) => {
       return res.status(401).json({ message: 'Authentication required' });
     }
 
-    if (!roles.includes(req.user.role)) {
+    // Verificar si el usuario tiene al menos uno de los roles requeridos
+    const hasRequiredRole = roles.some(role => req.user!.roles.includes(role));
+    
+    if (!hasRequiredRole) {
       return res.status(403).json({ message: 'Insufficient permissions' });
     }
 

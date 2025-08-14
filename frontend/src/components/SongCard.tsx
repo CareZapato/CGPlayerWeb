@@ -12,7 +12,6 @@ interface SongCardProps {
 
 const SongCard: React.FC<SongCardProps> = ({ song, color, onClick }) => {
   const { addToQueue, replaceQueueAndPlay } = usePlaylistStore();
-  const { setCurrentSong } = usePlayerStore();
   const [showMenu, setShowMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -99,9 +98,31 @@ const SongCard: React.FC<SongCardProps> = ({ song, color, onClick }) => {
           // Limpiar la cola y agregar todas las variaciones
           replaceQueueAndPlay(playableVariations, 0);
           
-          // Reproducir la primera variación
-          setCurrentSong(playableVariations[0]);
-          console.log(`🎵 [SONG-CARD] Cola reemplazada y reproduciendo:`, playableVariations[0].title, playableVariations[0].voiceType);
+          // Reproducir la primera variación usando la API del playerStore
+          const firstSong = playableVariations[0];
+          
+          // Construir URL correcta para archivos de audio
+          let songUrl: string;
+          if (firstSong.folderName) {
+            // Archivo en carpeta específica
+            songUrl = `http://localhost:3001/api/files/${firstSong.folderName}/${firstSong.fileName}`;
+          } else {
+            // Archivo en carpeta raíz - usar endpoint específico
+            songUrl = `http://localhost:3001/api/files-root/${firstSong.fileName}`;
+          }
+          
+          console.log(`🎵 [SONG-CARD] URL construida:`, songUrl);
+          
+          const { playSong } = usePlayerStore.getState();
+          playSong({
+            id: firstSong.id,
+            title: firstSong.title,
+            artist: firstSong.artist || 'Artista desconocido',
+            url: songUrl,
+            duration: firstSong.duration || 0
+          });
+          
+          console.log(`🎵 [SONG-CARD] Cola reemplazada y reproduciendo:`, firstSong.title, firstSong.voiceType);
           console.log(`🎵 [SONG-CARD] Total de variaciones en cola:`, playableVariations.length);
         } else {
           console.error('❌ [SONG-CARD] No hay variaciones reproducibles para:', song.title);

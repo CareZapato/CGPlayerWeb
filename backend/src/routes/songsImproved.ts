@@ -400,7 +400,7 @@ router.delete('/:id', authenticateToken, async (req: AuthRequest, res: Response)
   try {
     const { id } = req.params;
     const userId = req.user!.id;
-    const userRole = req.user!.role;
+    const userRoles = req.user!.roles;
 
     const song = await prisma.song.findUnique({
       where: { id, isActive: true }
@@ -410,8 +410,9 @@ router.delete('/:id', authenticateToken, async (req: AuthRequest, res: Response)
       return res.status(404).json({ message: 'Song not found' });
     }
 
-    // Solo el admin, director o el usuario que subió la canción pueden eliminarla
-    if (userRole !== 'ADMIN' && userRole !== 'DIRECTOR' && song.uploadedBy !== userId) {
+    // Solo el admin o el usuario que subió la canción pueden eliminarla
+    const hasAdminRole = userRoles.some((role: string) => role === 'ADMIN');
+    if (!hasAdminRole && song.uploadedBy !== userId) {
       return res.status(403).json({ message: 'Insufficient permissions' });
     }
 
