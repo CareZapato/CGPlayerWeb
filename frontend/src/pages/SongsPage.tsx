@@ -1,31 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { useAuthStore } from '../store/authStore';
 import { usePlayerStore } from '../store/playerStore';
+import { usePlaylistStore } from '../store/playlistStore';
 import { useServerInfo } from '../hooks/useServerInfo';
 import SongUpload from '../components/SongUpload';
 import MultiSongUpload from '../components/MultiSongUpload';
+import type { Song } from '../types';
 
-interface Song {
-  id: string;
-  title: string;
-  artist?: string;
-  album?: string;
-  genre?: string;
-  duration?: number;
-  fileName: string;
-  folderName?: string;
-  voiceType?: string;
-  parentSongId?: string;
-  uploader: {
-    firstName: string;
-    lastName: string;
-  };
+interface SongWithVersions extends Song {
   parentSong?: {
     id: string;
     title: string;
   };
   childVersions: Song[];
-  createdAt: string;
 }
 
 const VOICE_TYPE_LABELS: { [key: string]: string } = {
@@ -47,13 +34,14 @@ const VOICE_TYPE_COLORS: { [key: string]: string } = {
 const SongsPage: React.FC = () => {
   const { token, user } = useAuthStore();
   const { playSong, currentSong, isPlaying } = usePlayerStore();
+  const { addSingleToQueue } = usePlaylistStore();
   const { serverInfo } = useServerInfo();
-  const [songs, setSongs] = useState<Song[]>([]);
+  const [songs, setSongs] = useState<SongWithVersions[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showUpload, setShowUpload] = useState(false);
   const [uploadMode, setUploadMode] = useState<'single' | 'multi'>('single');
-  const [selectedSong, setSelectedSong] = useState<Song | null>(null);
+  const [selectedSong, setSelectedSong] = useState<SongWithVersions | null>(null);
   const [expandedSongs, setExpandedSongs] = useState<Set<string>>(new Set());
 
   const canUpload = user?.role === 'ADMIN' || user?.role === 'DIRECTOR';
@@ -84,6 +72,26 @@ const SongsPage: React.FC = () => {
   };
 
   const handlePlaySong = (song: Song) => {
+    // Solo permitir reproducir versiones individuales (que tengan voiceType)
+    if (!song.voiceType) {
+      console.log('No se puede reproducir canción contenedora directamente');
+      return;
+    }
+
+    // Crear el objeto Song completo con las propiedades necesarias
+    const songToQueue: Song = {
+      ...song,
+      filePath: song.filePath || `${song.folderName}/${song.fileName}`,
+      fileSize: song.fileSize || 0,
+      mimeType: song.mimeType || 'audio/mpeg',
+      uploadedBy: song.uploadedBy || song.uploader.firstName + ' ' + song.uploader.lastName,
+      isActive: song.isActive || true,
+      updatedAt: song.updatedAt || song.createdAt
+    };
+
+    // Limpiar la cola y agregar solo esta canción
+    addSingleToQueue(songToQueue);
+    
     // Construir la URL usando la información del servidor
     let songUrl: string;
     
@@ -95,9 +103,10 @@ const SongsPage: React.FC = () => {
       songUrl = `${serverInfo.audioBaseUrl}-root/${song.fileName}`;
     }
       
-    console.log('Playing song:', { 
+    console.log('Playing single song:', { 
       song: song.title, 
       url: songUrl,
+      voiceType: song.voiceType,
       folderName: song.folderName,
       fileName: song.fileName,
       audioBaseUrl: serverInfo.audioBaseUrl
@@ -258,32 +267,33 @@ const SongsPage: React.FC = () => {
             <div key={song.id} className="card">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4 flex-1">
-                  {/* Botón de reproducir */}
-                  <button
-                    onClick={() => handlePlaySong(song)}
-                    className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${
-                      currentSong?.id === song.id && isPlaying
-                        ? 'bg-primary-600 text-white'
-                        : 'bg-gray-100 hover:bg-primary-100 text-gray-600 hover:text-primary-600'
-                    }`}
-                  >
-                    {currentSong?.id === song.id && isPlaying ? (
-                      <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
-                      </svg>
-                    ) : (
-                      <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M8 5v14l11-7z" />
-                      </svg>
-                    )}
-                  </button>
+                  {/* Botón de reproducir - solo para versiones individuales */}
+                  {song.childVersions.length === 0 && (
+                    <button
+                      onClick={() => handlePlaySong(song)}
+                      className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${
+                        currentSong?.id === song.id && isPlaying
+                          ? 'bg-primary-600 text-white'
+                          : 'bg-gray-100 hover:bg-primary-100 text-gray-600 hover:text-primary-600'
+                      }`}
+                    >
+                      {currentSong?.id === song.id && isPlaying ? (
+                        <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
+                        </svg>
+                      ) : (
+                        <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M8 5v14l11-7z" />
+                        </svg>
+                      )}
+                    </button>
+                  )}
 
                   {/* Información de la canción */}
                   <div className="flex-1">
                     <h3 className="text-lg font-semibold text-gray-900">{song.title}</h3>
                     <p className="text-sm text-gray-600">
                       {song.artist && `${song.artist} • `}
-                      {song.genre && `${song.genre} • `}
                       {formatDuration(song.duration)}
                     </p>
                     <p className="text-xs text-gray-500">

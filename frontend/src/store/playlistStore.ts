@@ -12,6 +12,9 @@ interface PlaylistState {
   addToQueue: (song: Song) => void;
   removeFromQueue: (songId: string) => void;
   clearQueue: () => void;
+  setQueue: (songs: Song[]) => void;
+  replaceQueueAndPlay: (songs: Song[], playIndex?: number) => void;
+  addSingleToQueue: (song: Song) => void;
   setCurrentIndex: (index: number) => void;
   nextSong: () => Song | null;
   previousSong: () => Song | null;
@@ -63,6 +66,27 @@ export const usePlaylistStore = create<PlaylistState>()(
       clearQueue: () => {
         set({
           queue: [],
+          currentIndex: 0
+        });
+      },
+
+      setQueue: (songs: Song[]) => {
+        set({
+          queue: songs,
+          currentIndex: 0
+        });
+      },
+
+      replaceQueueAndPlay: (songs: Song[], playIndex: number = 0) => {
+        set({
+          queue: songs,
+          currentIndex: playIndex
+        });
+      },
+
+      addSingleToQueue: (song: Song) => {
+        set({
+          queue: [song],
           currentIndex: 0
         });
       },

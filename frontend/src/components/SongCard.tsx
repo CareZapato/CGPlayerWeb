@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { usePlaylistStore } from '../store/playlistStore';
 import { usePlayerStore } from '../store/playerStore';
+import api from '../services/api';
 import type { Song } from '../types';
 
 interface SongCardProps {
@@ -10,7 +11,7 @@ interface SongCardProps {
 }
 
 const SongCard: React.FC<SongCardProps> = ({ song, color, onClick }) => {
-  const { addToQueue } = usePlaylistStore();
+  const { addToQueue, replaceQueueAndPlay } = usePlaylistStore();
   const { setCurrentSong } = usePlayerStore();
   const [showMenu, setShowMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -34,6 +35,21 @@ const SongCard: React.FC<SongCardProps> = ({ song, color, onClick }) => {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  // Obtener duración de la primera variación si es canción contenedora
+  const getSongDuration = () => {
+    if (song.duration && song.duration > 0) {
+      return song.duration;
+    }
+    // Si es contenedora, intentar obtener duración de la primera variación
+    if (song.childVersions && song.childVersions.length > 0) {
+      const firstVersion = song.childVersions[0];
+      return firstVersion.duration || 0;
+    }
+    return 0;
+  };
+
+  const displayDuration = getSongDuration();
+
   const handleAddToQueue = (e: React.MouseEvent) => {
     e.stopPropagation();
     addToQueue(song);
@@ -44,26 +60,57 @@ const SongCard: React.FC<SongCardProps> = ({ song, color, onClick }) => {
     e.stopPropagation();
     
     try {
-      // Obtener las variaciones de la canción
-      const response = await fetch(`http://localhost:3001/api/songs/${song.id}/versions`);
-      if (response.ok) {
-        const data = await response.json();
-        const variations = data.versions || [];
+      console.log(`🎵 [SONG-CARD] Iniciando reproducción de: ${song.title} (ID: ${song.id})`);
+      
+      // Obtener las variaciones de la canción usando el servicio API
+      const response = await api.get(`/songs/${song.id}/versions`);
+      const data = response.data;
+      const variations = data.versions || [];
+      
+      console.log(`🎵 [SONG-CARD] Variaciones encontradas:`, variations.length);
+      
+      if (variations.length > 0) {
+        // Filtrar y convertir variaciones a objetos Song completos
+        const playableVariations: Song[] = variations
+          .filter((v: any) => v.fileName && v.folderName)
+          .map((v: any) => ({
+            id: v.id,
+            title: v.title,
+            artist: v.artist || song.artist,
+            duration: v.duration || 0,
+            fileName: v.fileName,
+            filePath: v.filePath || `${v.folderName}/${v.fileName}`,
+            fileSize: v.fileSize || 0,
+            mimeType: v.mimeType || 'audio/mpeg',
+            folderName: v.folderName,
+            voiceType: v.voiceType,
+            parentSongId: v.parentSongId,
+            coverColor: v.coverColor || song.coverColor,
+            uploadedBy: v.uploadedBy || v.uploader?.firstName + ' ' + v.uploader?.lastName || 'Desconocido',
+            isActive: v.isActive !== undefined ? v.isActive : true,
+            createdAt: v.createdAt,
+            updatedAt: v.updatedAt || v.createdAt,
+            uploader: v.uploader || song.uploader
+          } as Song));
         
-        if (variations.length > 0) {
-          // Reproducir la primera variación encontrada
-          setCurrentSong(variations[0]);
+        console.log(`🎵 [SONG-CARD] Variaciones reproducibles:`, playableVariations.length);
+        
+        if (playableVariations.length > 0) {
+          // Limpiar la cola y agregar todas las variaciones
+          replaceQueueAndPlay(playableVariations, 0);
           
-          // Agregar el resto de variaciones a la cola
-          for (let i = 1; i < variations.length; i++) {
-            addToQueue(variations[i]);
-          }
+          // Reproducir la primera variación
+          setCurrentSong(playableVariations[0]);
+          console.log(`🎵 [SONG-CARD] Cola reemplazada y reproduciendo:`, playableVariations[0].title, playableVariations[0].voiceType);
+          console.log(`🎵 [SONG-CARD] Total de variaciones en cola:`, playableVariations.length);
         } else {
-          console.warn('No se encontraron variaciones para la canción:', song.title);
+          console.error('❌ [SONG-CARD] No hay variaciones reproducibles para:', song.title);
         }
+      } else {
+        console.error('❌ [SONG-CARD] No se encontraron variaciones para:', song.title);
       }
     } catch (error) {
-      console.error('Error al obtener variaciones de la canción:', error);
+      console.error('❌ [SONG-CARD] Error al obtener variaciones:', error);
     }
   };
 
@@ -155,10 +202,10 @@ const SongCard: React.FC<SongCardProps> = ({ song, color, onClick }) => {
         </p>
         <div className="flex items-center justify-between text-xs text-gray-500">
           <span>
-            {song.childVersions?.length ? `${song.childVersions.length + 1} pistas` : '1 pista'}
+            {song.childVersions?.length ? `${song.childVersions.length} variaciones` : '1 pista'}
           </span>
-          {song.duration && (
-            <span>{formatDuration(song.duration)}</span>
+          {displayDuration > 0 && (
+            <span>{formatDuration(displayDuration)}</span>
           )}
         </div>
       </div>

@@ -537,6 +537,51 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res: Response) =>
   }
 });
 
+// Obtener las variaciones de voz de una canción
+router.get('/:id/versions', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    
+    // Buscar la canción contenedora
+    const containerSong = await prisma.song.findUnique({
+      where: { id },
+      include: {
+        childVersions: {
+          include: {
+            uploader: {
+              select: {
+                firstName: true,
+                lastName: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!containerSong) {
+      return res.status(404).json({ message: 'Canción no encontrada' });
+    }
+
+    // Si es una canción contenedora, devolver sus variaciones
+    if (containerSong.childVersions.length > 0) {
+      res.json({ 
+        versions: containerSong.childVersions,
+        total: containerSong.childVersions.length
+      });
+    } else {
+      // Si no es contenedora, puede ser una variación individual
+      res.json({ 
+        versions: [containerSong],
+        total: 1
+      });
+    }
+  } catch (error) {
+    console.error('Error fetching song versions:', error);
+    res.status(500).json({ message: 'Failed to fetch song versions' });
+  }
+});
+
 // Servir archivos de audio con soporte para IP local
 router.get('/file/:folderName/:fileName', async (req, res) => {
   console.log(`\n🎵 [FILE-SERVER] === AUDIO FILE REQUEST ===`);

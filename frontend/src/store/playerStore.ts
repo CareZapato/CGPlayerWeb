@@ -149,7 +149,9 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     console.log(`🎵 [PLAYER-STORE] Setting current song:`, {
       title: song.title,
       voiceType: (song as any).voiceType,
-      filePath: song.filePath
+      filePath: song.filePath,
+      folderName: (song as any).folderName,
+      fileName: song.fileName
     });
     
     const { audioRef } = get();
@@ -157,10 +159,19 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     if (audioRef) {
       audioRef.pause();
       
-      // Construir la URL si no existe
+      // Construir la URL correcta usando el endpoint de la API
       let songUrl = (song as any).url;
-      if (!songUrl && song.filePath) {
-        songUrl = `http://localhost:3001/uploads/${song.filePath}`;
+      if (!songUrl) {
+        const folderName = (song as any).folderName;
+        const fileName = song.fileName;
+        
+        if (folderName && fileName) {
+          // Usar el endpoint de la API para archivos en carpetas
+          songUrl = `http://localhost:3001/api/songs/file/${folderName}/${fileName}`;
+        } else if (fileName) {
+          // Archivo en carpeta raíz (si aplica)
+          songUrl = `http://localhost:3001/uploads/${fileName}`;
+        }
       }
       
       console.log(`🔗 [PLAYER-STORE] Song URL:`, songUrl);
