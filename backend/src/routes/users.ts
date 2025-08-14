@@ -16,6 +16,13 @@ router.get('/', authenticateToken, requireRole(['DIRECTOR', 'ADMIN']), async (re
         lastName: true,
         isActive: true,
         createdAt: true,
+        location: {
+          select: {
+            id: true,
+            name: true,
+            city: true
+          }
+        },
         voiceProfiles: {
           include: {
             assignedByUser: {
@@ -32,10 +39,95 @@ router.get('/', authenticateToken, requireRole(['DIRECTOR', 'ADMIN']), async (re
       }
     });
 
-    res.json(users);
+    res.json({
+      success: true,
+      users: users
+    });
   } catch (error) {
     console.error('Error fetching users:', error);
     res.status(500).json({ message: 'Failed to fetch users' });
+  }
+});
+
+// Endpoint específico para estadísticas del dashboard (solo ADMIN)
+router.get('/stats', authenticateToken, requireRole(['ADMIN']), async (req: AuthRequest, res: Response) => {
+  try {
+    // Obtener usuarios con información completa
+    const users = await prisma.user.findMany({
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        isActive: true,
+        createdAt: true,
+        location: {
+          select: {
+            id: true,
+            name: true,
+            city: true
+          }
+        },
+        voiceProfiles: {
+          select: {
+            voiceType: true
+          }
+        },
+        roles: {
+          select: {
+            role: true
+          }
+        }
+      },
+      where: {
+        isActive: true
+      }
+    });
+
+    // Estadísticas de usuarios por ubicación
+    const usersByLocation = users.reduce((acc: any, user: any) => {
+      const location = user.location?.name || 'Sin ubicación';
+      acc[location] = (acc[location] || 0) + 1;
+      return acc;
+    }, {});
+
+    // Estadísticas de usuarios por tipo de voz
+    const usersByVoiceType = users.reduce((acc: any, user: any) => {
+      user.voiceProfiles?.forEach((profile: any) => {
+        acc[profile.voiceType] = (acc[profile.voiceType] || 0) + 1;
+      });
+      return acc;
+    }, {});
+
+    // Conteo por roles
+    const usersByRole = users.reduce((acc: any, user: any) => {
+      user.roles?.forEach((userRole: any) => {
+        acc[userRole.role] = (acc[userRole.role] || 0) + 1;
+      });
+      return acc;
+    }, {});
+
+    res.json({
+      success: true,
+      data: {
+        totalUsers: users.length,
+        usersByLocation: Object.entries(usersByLocation).map(([location, count]) => ({
+          location,
+          count: count as number
+        })),
+        usersByVoiceType: Object.entries(usersByVoiceType).map(([voiceType, count]) => ({
+          voiceType,
+          count: count as number
+        })),
+        usersByRole: Object.entries(usersByRole).map(([role, count]) => ({
+          role,
+          count: count as number
+        }))
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching user stats:', error);
+    res.status(500).json({ message: 'Failed to fetch user stats' });
   }
 });
 

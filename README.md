@@ -1,6 +1,6 @@
 # CGPlayerWeb 🎵
 
-[![Version](https://img.shields.io/badge/version-0.2.2-blue.svg)](https://github.com/CareZapato/CGPlayerWeb/releases/tag/v0.2.2)
+[![Version](https://img.shields.io/badge/version-0.3.0-blue.svg)](https://github.com/CareZapato/CGPlayerWeb/releases/tag/v0.3.0)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
 [![React](https://img.shields.io/badge/React-18+-blue.svg)](https://reactjs.org/)
@@ -15,12 +15,19 @@
 - **Sistema de variaciones de voz** - todas las voces son tratadas como iguales
 - **Metadatos automáticos** extraídos de archivos de audio
 - **Reproductor de audio integrado** con controles avanzados
+- **Cola de reproducción mejorada** con validación de tipos de voz
 
 ### 👥 Sistema de Usuarios
 - **Autenticación JWT** segura
 - **Roles diferenciados**: Admin, Director, Cantante
 - **Gestión de permisos** granular por funcionalidad
 - **Perfiles de usuario** personalizables
+
+### 📊 Panel de Administración
+- **Dashboard estadístico** con métricas en tiempo real
+- **Visualizaciones de datos** con gráficos de torta interactivos
+- **Gestión de usuarios** con estadísticas detalladas
+- **Monitoreo del sistema** con datos de rendimiento
 
 ### 🎼 Reproductor Avanzado
 - **Reproductor flotante** que permanece activo durante la navegación
@@ -31,10 +38,11 @@
 - **Navegación automática** entre canciones
 - **Soporte para streaming** con requests HTTP Range
 - **Audio de alta calidad** sin pérdida de fidelidad
+- **Sistema de cola corregido** que añade correctamente las versiones reproducibles
 
 ## 🚀 Características Principales
 
-### � Gestión de Música
+### 🎵 Gestión de Música
 - **Subida de archivos de audio** (MP3, M4A, WAV, FLAC)
 - **Organización automática** en carpetas individuales por canción
 - **Sistema de versiones** para diferentes arreglos de la misma canción
@@ -75,6 +83,14 @@
 - **📅 Fechas de Subida**: Reemplazada duración por fecha de subida en gestión
 - **🔧 Integridad de Datos**: Sistema automatizado de limpieza y validación de BD
 - **🗂️ Gestión Mejorada**: Solo canciones con archivos físicos en base de datos
+
+### 🎵 Características v0.3.0 (Enero 2025)
+- **📊 Dashboard Estadístico**: Panel administrativo completo con métricas en tiempo real
+- **📈 Gráficos de Torta**: Visualizaciones SVG para distribución de tipos de voz
+- **🔄 Cola Corregida**: Sistema "Agregar a cola" funciona correctamente con versiones reproducibles
+- **🛠️ API de Dashboard**: Endpoints especializados para estadísticas administrativas
+- **✅ Validación de Versiones**: Solo se agregan a la cola canciones con voiceType válido
+- **🧪 Herramientas de Testing**: Utilidades para verificar funcionamiento de APIs
 
 ## 🛠️ Tecnologías Utilizadas
 

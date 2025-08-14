@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Dashboard API</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .result { background: #f5f5f5; padding: 15px; border-radius: 5px; margin: 10px 0; }
+        .error { background: #ffebee; color: #c62828; }
+        .success { background: #e8f5e8; color: #2e7d32; }
+        button { padding: 10px 20px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        input { padding: 8px; margin: 5px; border: 1px solid #ccc; border-radius: 3px; width: 200px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎵 Test Dashboard API - CGPlayerWeb</h1>
+        
+        <div style="background: #e3f2fd; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
+            <h3>🔑 Credenciales de Prueba</h3>
+            <p><strong>Admin:</strong> admin@chilegospel.com / admin123</p>
+            <p><strong>Director:</strong> director@chilegospel.com / director123</p>
+        </div>
+
+        <div>
+            <h3>1. Login y obtener token</h3>
+            <input type="email" id="email" placeholder="Email" value="admin@chilegospel.com">
+            <input type="password" id="password" placeholder="Password" value="admin123">
+            <button onclick="login()">Login</button>
+            <div id="loginResult" class="result"></div>
+        </div>
+
+        <div>
+            <h3>2. Test Dashboard Stats</h3>
+            <button onclick="testDashboard()">Probar Dashboard Stats</button>
+            <div id="dashboardResult" class="result"></div>
+        </div>
+
+        <div>
+            <h3>3. Test usuarios</h3>
+            <button onclick="testUsers()">Probar /api/users</button>
+            <div id="usersResult" class="result"></div>
+        </div>
+
+        <div>
+            <h3>4. Test eventos</h3>
+            <button onclick="testEvents()">Probar /api/events</button>
+            <div id="eventsResult" class="result"></div>
+        </div>
+    </div>
+
+    <script>
+        let authToken = localStorage.getItem('cgplayer-token') || '';
+        const API_BASE = 'http://localhost:3001/api';
+
+        // Mostrar token si existe
+        if (authToken) {
+            document.getElementById('loginResult').innerHTML = `<div class="success">✅ Token encontrado: ${authToken.substring(0, 20)}...</div>`;
+        }
+
+        async function login() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const resultDiv = document.getElementById('loginResult');
+
+            try {
+                const response = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok && data.token) {
+                    authToken = data.token;
+                    localStorage.setItem('cgplayer-token', authToken);
+                    resultDiv.innerHTML = `<div class="success">✅ Login exitoso<br>Token: ${authToken.substring(0, 30)}...<br>Usuario: ${data.user.firstName} ${data.user.lastName}</div>`;
+                } else {
+                    resultDiv.innerHTML = `<div class="error">❌ Error: ${data.message || 'Login fallido'}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Error de conexión: ${error.message}</div>`;
+            }
+        }
+
+        async function testDashboard() {
+            const resultDiv = document.getElementById('dashboardResult');
+            
+            if (!authToken) {
+                resultDiv.innerHTML = '<div class="error">❌ Necesitas hacer login primero</div>';
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/dashboard/stats`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            ✅ Dashboard Stats exitoso<br>
+                            📊 Total Usuarios: ${data.data.totalUsers}<br>
+                            🎵 Total Canciones: ${data.data.totalSongs}<br>
+                            📅 Total Eventos: ${data.data.totalEvents}<br>
+                            🏙️ Ubicaciones: ${data.data.usersByLocation.length}<br>
+                            🎤 Tipos de voz: ${data.data.usersByVoiceType.length}
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `<div class="error">❌ Error ${response.status}: ${data.message || 'Error desconocido'}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Error de conexión: ${error.message}</div>`;
+            }
+        }
+
+        async function testUsers() {
+            const resultDiv = document.getElementById('usersResult');
+            
+            if (!authToken) {
+                resultDiv.innerHTML = '<div class="error">❌ Necesitas hacer login primero</div>';
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/users`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            ✅ Usuarios cargados<br>
+                            👥 Total: ${data.users ? data.users.length : 'N/A'}<br>
+                            📄 Formato: ${data.users ? 'Con wrapper' : 'Array directo'}
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `<div class="error">❌ Error ${response.status}: ${data.message || 'Error desconocido'}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Error de conexión: ${error.message}</div>`;
+            }
+        }
+
+        async function testEvents() {
+            const resultDiv = document.getElementById('eventsResult');
+
+            try {
+                const response = await fetch(`${API_BASE}/events`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            ✅ Eventos cargados<br>
+                            📅 Total: ${data.data ? data.data.length : (data.length || 0)}<br>
+                            📄 Estructura: ${JSON.stringify(Object.keys(data)).substring(0, 100)}...
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `<div class="error">❌ Error ${response.status}: ${data.message || 'Error desconocido'}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Error de conexión: ${error.message}</div>`;
+            }
+        }
+    </script>
+</body>
+</html>

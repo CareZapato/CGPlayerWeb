@@ -14,6 +14,7 @@ import playlistRoutes from './routes/playlists';
 import lyricRoutes from './routes/lyrics';
 import locationRoutes from './routes/locations';
 import eventRoutes from './routes/events';
+import dashboardRoutes from './routes/dashboard';
 import { autoInitializeDatabase, closeDatabaseConnection } from './scripts/auto-init';
 
 // Cargar variables de entorno
@@ -194,6 +195,7 @@ app.use('/api/playlists', playlistRoutes);
 app.use('/api/lyrics', lyricRoutes);
 app.use('/api/locations', locationRoutes);
 app.use('/api/events', eventRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 
 // Ruta de salud
 app.get('/api/health', (req, res) => {

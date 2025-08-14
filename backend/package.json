@@ -1,6 +1,6 @@
 {
   "name": "cgplayerweb-backend",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "description": "Backend API para CGPlayerWeb",
   "main": "dist/index.js",
   "scripts": {

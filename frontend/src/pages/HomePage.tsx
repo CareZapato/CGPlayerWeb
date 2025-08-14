@@ -34,58 +34,32 @@ const HomePage: React.FC = () => {
   const fetchDashboardStats = async () => {
     setLoading(true);
     try {
-      const [songsResponse, usersResponse, eventsResponse] = await Promise.all([
-        api.get('/songs'),
-        api.get('/users'),
-        api.get('/events')
-      ]);
-
-      const songs = songsResponse.data.songs || [];
-      const users = usersResponse.data.users || [];
-      const events = eventsResponse.data.events || [];
-
-      // Contar usuarios por ubicación
-      const usersByLocation = users.reduce((acc: any, user: any) => {
-        const location = user.location?.name || 'Sin ubicación';
-        acc[location] = (acc[location] || 0) + 1;
-        return acc;
-      }, {});
-
-      // Contar usuarios por tipo de voz
-      const voiceTypeCounts = users.reduce((acc: any, user: any) => {
-        user.voiceProfiles?.forEach((profile: any) => {
-          acc[profile.voiceType] = (acc[profile.voiceType] || 0) + 1;
+      // Usar el nuevo endpoint de estadísticas del dashboard
+      const response = await api.get('/dashboard/stats');
+      
+      if (response.data.success && response.data.data) {
+        const data = response.data.data;
+        
+        setStats({
+          totalSongs: data.totalSongs,
+          totalUsers: data.totalUsers,
+          totalEvents: data.totalEvents,
+          usersByLocation: data.usersByLocation,
+          usersByVoiceType: data.usersByVoiceType,
+          recentEvents: data.recentEvents
         });
-        return acc;
-      }, {});
-
-      // Contar canciones únicas (agrupar por nombre base, sin versiones)
-      const uniqueSongs = songs.reduce((acc: any, song: any) => {
-        // Extraer el nombre base de la canción sin versiones como "(Version 1)", "(Karaoke)", etc.
-        const baseName = song.name?.replace(/\s*\([^)]*\)\s*$/g, '').trim() || 'Sin nombre';
-        acc[baseName] = true;
-        return acc;
-      }, {});
-
-      setStats({
-        totalSongs: Object.keys(uniqueSongs).length, // Contar canciones únicas
-        totalUsers: users.length,
-        totalEvents: events.length,
-        usersByLocation: Object.entries(usersByLocation).map(([location, count]) => ({
-          location,
-          count: count as number
-        })),
-        usersByVoiceType: Object.entries(voiceTypeCounts).map(([voiceType, count]) => ({
-          voiceType,
-          count: count as number
-        })),
-        recentEvents: events.slice(0, 5)
-      });
+      } else {
+        throw new Error('Invalid response format');
+      }
     } catch (error: any) {
       console.error('Error fetching dashboard stats:', error);
       // Si es error 401, el interceptor ya redirigirá al login
       if (error.response?.status === 401) {
         console.log('Token inválido, redirigiendo al login...');
+      } else if (error.response?.status === 403) {
+        console.log('Sin permisos para ver estadísticas del dashboard');
+      } else {
+        console.log('Error al cargar estadísticas:', error.message);
       }
     } finally {
       setLoading(false);
@@ -149,68 +123,179 @@ const HomePage: React.FC = () => {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               {/* Usuarios por ubicación */}
               <div className="card">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">📍 Cantantes por Ciudad</h3>
-                <div className="space-y-3">
-                  {stats.usersByLocation.map((item, index) => (
-                    <div key={index} className="flex justify-between items-center">
-                      <span className="text-gray-700">{item.location}</span>
-                      <div className="flex items-center space-x-2">
-                        <div className="w-24 bg-gray-200 rounded-full h-2">
-                          <div 
-                            className="bg-blue-600 h-2 rounded-full" 
-                            style={{ width: `${(item.count / stats.totalUsers) * 100}%` }}
-                          ></div>
+                <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                  <span className="mr-2">📍</span>
+                  Cantantes por Ciudad
+                </h3>
+                {stats.usersByLocation.length > 0 ? (
+                  <div className="space-y-3">
+                    {stats.usersByLocation.map((item, index) => (
+                      <div key={index} className="flex justify-between items-center">
+                        <span className="text-gray-700 font-medium">{item.location}</span>
+                        <div className="flex items-center space-x-2">
+                          <div className="w-24 bg-gray-200 rounded-full h-2">
+                            <div 
+                              className="bg-blue-600 h-2 rounded-full transition-all duration-500" 
+                              style={{ width: `${(item.count / stats.totalUsers) * 100}%` }}
+                            ></div>
+                          </div>
+                          <span className="text-sm font-medium text-gray-900 min-w-[20px]">{item.count}</span>
                         </div>
-                        <span className="text-sm font-medium text-gray-900">{item.count}</span>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <span className="text-4xl mb-2 block">🏙️</span>
+                    <p>No hay datos de ubicación</p>
+                  </div>
+                )}
               </div>
 
               {/* Usuarios por tipo de voz */}
               <div className="card">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">🎤 Distribución de Voces</h3>
-                <div className="space-y-3">
-                  {stats.usersByVoiceType.map((item, index) => (
-                    <div key={index} className="flex justify-between items-center">
-                      <span className={`px-3 py-1 rounded-full text-sm font-medium ${getVoiceTypeColor(item.voiceType)}`}>
-                        {item.voiceType}
-                      </span>
-                      <div className="flex items-center space-x-2">
-                        <div className="w-24 bg-gray-200 rounded-full h-2">
-                          <div 
-                            className="bg-purple-600 h-2 rounded-full" 
-                            style={{ width: `${(item.count / stats.usersByVoiceType.reduce((sum, v) => sum + v.count, 0)) * 100}%` }}
-                          ></div>
+                <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                  <span className="mr-2">🎤</span>
+                  Distribución de Voces
+                </h3>
+                {stats.usersByVoiceType.length > 0 ? (
+                  <>
+                    {/* Gráfico de torta simple con CSS */}
+                    <div className="flex justify-center mb-4">
+                      <div className="relative w-32 h-32">
+                        {/* Crear un gráfico de torta simple */}
+                        <svg viewBox="0 0 42 42" className="w-32 h-32">
+                          <circle cx="21" cy="21" r="15.915" fill="transparent" stroke="#e5e7eb" strokeWidth="3"></circle>
+                          {stats.usersByVoiceType.map((item, index) => {
+                            const total = stats.usersByVoiceType.reduce((sum, v) => sum + v.count, 0);
+                            const percentage = (item.count / total) * 100;
+                            const strokeDasharray = `${percentage} ${100 - percentage}`;
+                            const colors = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#f97316', '#06b6d4', '#84cc16'];
+                            const rotate = stats.usersByVoiceType.slice(0, index).reduce((sum, v) => sum + (v.count / total) * 360, 0);
+                            
+                            return (
+                              <circle
+                                key={index}
+                                cx="21"
+                                cy="21"
+                                r="15.915"
+                                fill="transparent"
+                                stroke={colors[index % colors.length]}
+                                strokeWidth="3"
+                                strokeDasharray={strokeDasharray}
+                                strokeDashoffset="25"
+                                transform={`rotate(${rotate - 90} 21 21)`}
+                              ></circle>
+                            );
+                          })}
+                        </svg>
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <span className="text-2xl font-bold text-gray-700">
+                            {stats.usersByVoiceType.reduce((sum, v) => sum + v.count, 0)}
+                          </span>
                         </div>
-                        <span className="text-sm font-medium text-gray-900">{item.count}</span>
                       </div>
                     </div>
-                  ))}
-                </div>
+                    
+                    {/* Leyenda */}
+                    <div className="space-y-2">
+                      {stats.usersByVoiceType.map((item, index) => {
+                        const colors = ['bg-blue-500', 'bg-red-500', 'bg-green-500', 'bg-yellow-500', 'bg-purple-500', 'bg-orange-500', 'bg-cyan-500', 'bg-lime-500'];
+                        const total = stats.usersByVoiceType.reduce((sum, v) => sum + v.count, 0);
+                        const percentage = ((item.count / total) * 100).toFixed(1);
+                        
+                        return (
+                          <div key={index} className="flex items-center justify-between">
+                            <div className="flex items-center space-x-2">
+                              <div className={`w-3 h-3 rounded-full ${colors[index % colors.length]}`}></div>
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${getVoiceTypeColor(item.voiceType)}`}>
+                                {item.voiceType}
+                              </span>
+                            </div>
+                            <div className="text-right">
+                              <span className="text-sm font-medium text-gray-900">{item.count}</span>
+                              <span className="text-xs text-gray-500 ml-1">({percentage}%)</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <span className="text-4xl mb-2 block">🎵</span>
+                    <p>No hay perfiles de voz registrados</p>
+                  </div>
+                )}
               </div>
             </div>
 
             {/* Eventos recientes */}
-            {stats.recentEvents.length > 0 && (
+            {stats.recentEvents && stats.recentEvents.length > 0 && (
               <div className="card">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">📅 Próximos Eventos</h3>
+                <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                  <span className="mr-2">📅</span>
+                  Próximos Eventos
+                </h3>
                 <div className="space-y-4">
                   {stats.recentEvents.map((event, index) => (
-                    <div key={index} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                      <div>
-                        <h4 className="font-medium text-gray-900">{event.title}</h4>
-                        <p className="text-sm text-gray-600">{event.category}</p>
+                    <div key={index} className="flex justify-between items-center p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg hover:from-blue-50 hover:to-blue-100 transition-colors">
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-gray-900 mb-1">{event.title}</h4>
+                        <div className="flex items-center space-x-4 text-sm text-gray-600">
+                          <span className="flex items-center">
+                            <span className="mr-1">🏷️</span>
+                            {event.category}
+                          </span>
+                          {event.location?.name && (
+                            <span className="flex items-center">
+                              <span className="mr-1">📍</span>
+                              {event.location.name}
+                            </span>
+                          )}
+                        </div>
                       </div>
-                      <div className="text-right">
+                      <div className="text-right ml-4">
                         <p className="text-sm font-medium text-gray-900">
-                          {new Date(event.dateTime).toLocaleDateString('es-ES')}
+                          {new Date(event.dateTime).toLocaleDateString('es-ES', {
+                            weekday: 'short',
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric'
+                          })}
                         </p>
-                        <p className="text-xs text-gray-500">{event.location?.name}</p>
+                        <p className="text-xs text-gray-500">
+                          {new Date(event.dateTime).toLocaleTimeString('es-ES', {
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </p>
                       </div>
                     </div>
                   ))}
+                </div>
+                <div className="mt-4 text-center">
+                  <a 
+                    href="/events" 
+                    className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                  >
+                    Ver todos los eventos →
+                  </a>
+                </div>
+              </div>
+            )}
+            
+            {/* Estado vacío para eventos */}
+            {stats.recentEvents && stats.recentEvents.length === 0 && (
+              <div className="card">
+                <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                  <span className="mr-2">📅</span>
+                  Próximos Eventos
+                </h3>
+                <div className="text-center py-8 text-gray-500">
+                  <span className="text-4xl mb-2 block">📅</span>
+                  <p className="font-medium">No hay eventos programados</p>
+                  <p className="text-sm">Crea eventos desde la sección de gestión</p>
                 </div>
               </div>
             )}

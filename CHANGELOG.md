@@ -5,6 +5,53 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto se adhiere al [Versionado Semántico](https://semver.org/lang/es/).
 
+## [0.3.0] - 2025-01-02
+
+### 🎵 Nuevas Características
+
+#### 📊 Panel de Administración Mejorado
+- **Dashboard estadístico**: Nuevo panel con métricas completas del sistema
+- **Visualizaciones de datos**: Gráficos de torta para distribución de tipos de voz
+- **API de estadísticas**: Endpoint centralizado `/api/dashboard/stats` para datos administrativos
+- **Interfaz renovada**: Dashboard más intuitivo con tarjetas informativas y gráficos
+
+#### 🎛️ Funcionalidad de Cola Corregida
+- **Sistema de cola reparado**: Función "Agregar a cola" ahora añade correctamente las versiones reproducibles
+- **Validación de tipos de voz**: Solo se agregan a la cola canciones con voiceType válido
+- **Corrección en SongCard**: Tarjetas de canciones obtienen versiones reales via API
+- **Mejor manejo de errores**: Validación robusta antes de añadir elementos a la cola
+
+#### 🛠️ Herramientas de Desarrollo
+- **Utilidad de pruebas**: test-dashboard-api.html para verificación de endpoints del dashboard
+- **Validación de APIs**: Herramientas para testing manual de funcionalidades estadísticas
+
+### 🔧 Mejoras Técnicas
+
+#### 🗄️ Backend
+- **Nuevas rutas de dashboard**: Endpoints especializados para estadísticas administrativas
+- **Agregación de datos**: Consultas optimizadas para métricas de usuarios, canciones y eventos
+- **Autenticación mejorada**: Validación de roles ADMIN para acceso a estadísticas
+- **Paralelización de consultas**: Mejor rendimiento en obtención de datos
+
+#### 🎨 Frontend
+- **Dashboard responsive**: Interfaz adaptativa para diferentes tamaños de pantalla
+- **Gráficos SVG**: Implementación de charts usando CSS y SVG nativo
+- **Estados de carga**: Mejor feedback visual durante la obtención de datos
+- **Manejo de errores**: Visualización clara de errores en el dashboard
+
+### 🐛 Correcciones
+
+#### 🔄 Sistema de Reproducción
+- **Cola funcional**: Corregido el problema donde se agregaban contenedores padre en lugar de canciones reproducibles
+- **Validación de versiones**: Solo se procesan canciones con datos de voz válidos
+- **API de versiones**: Endpoint `/songs/:id/versions` funciona correctamente
+- **Consistencia de datos**: Sincronización entre diferentes componentes de la aplicación
+
+#### 📈 Panel Administrativo
+- **Carga de usuarios**: Corregido problema donde no se mostraban las estadísticas de usuarios
+- **Gráficos de torta**: Implementados correctamente los gráficos circulares
+- **Datos en tiempo real**: Dashboard actualiza información dinámicamente
+
 ## [0.2.2] - 2025-08-14
 
 ### 🎵 Nuevas Características
