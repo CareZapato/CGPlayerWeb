@@ -5,6 +5,69 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto se adhiere al [Versionado Semántico](https://semver.org/lang/es/).
 
+## [0.2.2] - 2025-08-14
+
+### 🎵 Nuevas Características
+
+#### 🎭 Ampliación del Sistema de Voces
+- **Nuevos tipos de voz**: Agregados 'Coro' y 'Original' al enum VoiceType
+- **7 clasificaciones completas**: Soprano, Contralto, Tenor, Barítono, Bajo, Coro, Original
+- **Migración de BD automática**: Aplicada para soportar los nuevos tipos
+- **Frontend actualizado**: Componentes de subida y gestión incluyen las nuevas opciones
+- **Etiquetas y colores**: Nuevas visualizaciones para 'Coro' (purple) y 'Original' (gray)
+
+#### ▶️ Reactivación del Sistema de Reproducción
+- **Botón play robusto**: Reactivado en sección de gestión con sistema de fallback múltiple
+- **Función handlePlayAllVersions**: Implementación robusta con manejo de errores avanzado
+- **API + Local fallback**: Si falla la API, reproduce versiones disponibles localmente
+- **Integración con colas**: Soporte completo para autoplay y navegación automática
+- **Feedback visual mejorado**: Estados de reproducción más claros
+
+#### 📅 Mejora en Visualización de Datos
+- **Fechas de subida**: Reemplazada duración por fecha de subida en lista de gestión
+- **Formato localizado**: Fechas en español con formato dd/mm/yyyy
+- **Información más relevante**: La fecha es más útil que la duración variable entre voces
+
+### 🔧 Mejoras de Integridad y Rendimiento
+
+#### 🗂️ Sistema de Validación de Datos
+- **Script de limpieza**: cleanupOrphanedSongs.ts para eliminar entradas sin archivos físicos
+- **Script de repoblación**: seedOnlyExistingSongs.ts para crear BD solo con archivos existentes
+- **Validación automática**: Verificación de existencia de archivos antes de crear entradas
+- **Integridad garantizada**: BD contiene únicamente canciones con archivos reales
+
+#### 🛠️ Refactoring del Sistema de Reproducción
+- **Manejo de errores mejorado**: Múltiples capas de fallback para garantizar reproducción
+- **Funciones auxiliares**: playLocalVersions() y playVersionsFromAPI() para mayor modularidad
+- **Logs detallados**: Mejor debugging y seguimiento de errores
+- **Prevención de regresiones**: Mantenimiento de fixes anteriores del reproductor
+
+### 🐛 Correcciones
+
+#### 🔄 Estabilidad del Reproductor
+- **Corrección de 404**: Eliminadas canciones órfanas que causaban errores de reproducción
+- **Validación de archivos**: Solo se crean entradas de BD para archivos que existen físicamente
+- **Mantenimiento de fixes**: Preservados todos los arreglos anteriores del reproductor
+- **Consistencia de datos**: BD y sistema de archivos perfectamente sincronizados
+
+### 📊 Datos del Proyecto
+
+#### 🎵 Estado Actual de la BD
+- **2 canciones padre**: assadfa, i_will_follow
+- **6 versiones totales**: 3 voces por cada canción (CONTRALTO, SOPRANO, TENOR)
+- **100% validado**: Todos los archivos de audio verificados como existentes
+- **0 entradas órfanas**: BD completamente limpia
+
+### 🚀 Scripts Nuevos y Actualizados
+
+#### 🛠️ Herramientas de Mantenimiento
+- `cleanupOrphanedSongs.ts`: Elimina canciones sin archivos físicos
+- `seedOnlyExistingSongs.ts`: Repuebla BD solo con archivos existentes
+- **Migración automática**: 20250814051504_add_coro_original_voice_types
+- **Validación TypeScript**: Todos los scripts compilados sin errores
+
+---
+
 ## [0.2.0] - 2025-08-13
 
 ### 🎉 Nuevas Características

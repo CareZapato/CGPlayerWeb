@@ -1,13 +1,6 @@
 # CGPlayerWeb 🎵
 
-[![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)](https://github.com/CareZapato/CGPlayerWeb/releases/tag/v0.1.0)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
-[![React](https://img.shields.io/badge/React-18+-blue.svg)](https://reactjs.org/)
-
-# CGPlayerWeb 🎵
-
-[![Version](https://img.shields.io/badge/version-0.2.0-blue.svg)](https://github.com/CareZapato/CGPlayerWeb/releases/tag/v0.2.0)
+[![Version](https://img.shields.io/badge/version-0.2.2-blue.svg)](https://github.com/CareZapato/CGPlayerWeb/releases/tag/v0.2.2)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
 [![React](https://img.shields.io/badge/React-18+-blue.svg)](https://reactjs.org/)
@@ -63,9 +56,11 @@
 
 ### 🗂️ Organización Inteligente
 - **Estructura container-children** para variaciones de voz
+- **7 tipos de voz completos**: Soprano, Contralto, Tenor, Barítono, Bajo, Coro, Original
 - **Todas las voces son iguales** - ninguna se trata como "principal"
 - **Carpetas automáticas** con nomenclatura: `nombreCancion_timestamp`
 - **Base de datos PostgreSQL** para metadatos y relaciones
+- **Validación automática** de integridad entre archivos y BD
 
 ### ✨ Nuevas Características v0.2.0
 - **🎭 Playlist Slide-Up**: Interfaz deslizante con drag & drop para reordenar
@@ -73,6 +68,13 @@
 - **🔄 Auto-navegación**: Reproducción automática de la siguiente canción
 - **🎚️ Controles Mejorados**: Reproductor integrado con mejor UX
 - **🗄️ Scripts de BD**: Gestión automatizada de base de datos
+
+### 🎵 Características v0.2.2 (Agosto 2025)
+- **🎭 Nuevos Tipos de Voz**: Agregados 'Coro' y 'Original' para clasificación completa
+- **▶️ Reproducción Robusta**: Botón play reactivado con sistema de fallback múltiple
+- **📅 Fechas de Subida**: Reemplazada duración por fecha de subida en gestión
+- **🔧 Integridad de Datos**: Sistema automatizado de limpieza y validación de BD
+- **🗂️ Gestión Mejorada**: Solo canciones con archivos físicos en base de datos
 
 ## 🛠️ Tecnologías Utilizadas
 
@@ -207,19 +209,21 @@ La aplicación estará disponible en:
 - **Director**: Gestión de canciones, playlists y eventos
 - **Cantante**: Reproducción de música y acceso a su perfil
 
-### 👥 Usuarios de Prueba (v0.2.0)
+### 👥 Usuarios de Prueba (v0.2.2)
 Después de ejecutar `npm run db:seed`, puedes usar estas credenciales:
 
 #### 👑 Administrador
 - **Email**: admin@cgplayer.com
 - **Password**: admin123
 
-#### 🎤 Cantantes
-- **soprano1@coro.com** / cantante123 - María González
-- **contralto1@coro.com** / cantante123 - Ana Martínez  
-- **tenor1@coro.com** / cantante123 - Carlos López
-- **baritono1@coro.com** / cantante123 - Luis Rodríguez
-- **bajo1@coro.com** / cantante123 - Miguel Fernández
+#### 🎤 Cantantes (Actualizados v0.2.2)
+- **soprano1@coro.com** / cantante123 - María González (Soprano)
+- **contralto1@coro.com** / cantante123 - Ana Martínez (Contralto)
+- **tenor1@coro.com** / cantante123 - Carlos López (Tenor)
+- **baritono1@coro.com** / cantante123 - Luis Rodríguez (Barítono)
+- **bajo1@coro.com** / cantante123 - Miguel Fernández (Bajo)
+
+> **📝 Nota v0.2.2**: Todos los usuarios pueden ahora subir archivos con las nuevas clasificaciones 'Coro' y 'Original', además de las 5 voces tradicionales.
 
 ## 🔧 Scripts Disponibles
 

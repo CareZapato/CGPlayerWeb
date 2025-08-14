@@ -22,7 +22,7 @@ const SongDetailModal: React.FC<SongDetailModalProps> = ({ song, color, onClose 
 
       try {
         setLoading(true);
-        const response = await fetch(`http://localhost:3001/api/songs`, {
+        const response = await fetch(`http://localhost:3001/api/songs?includeVersions=false`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
@@ -67,10 +67,12 @@ const SongDetailModal: React.FC<SongDetailModalProps> = ({ song, color, onClose 
       'SOPRANO': 'Soprano',
       'CONTRALTO': 'Contralto', 
       'TENOR': 'Tenor',
-      'BAJO': 'Bajo',
-      'original': 'Original'
+      'BARITONE': 'Barítono',
+      'BASS': 'Bajo',
+      'CORO': 'Coro',
+      'ORIGINAL': 'Original'
     };
-    return labels[voiceType || 'original'] || voiceType || 'Sin categoría';
+    return labels[voiceType || 'ORIGINAL'] || voiceType || 'Sin categoría';
   };
 
   return (

@@ -5,6 +5,7 @@ import { PrismaClient } from '@prisma/client';
 import path from 'path';
 import fs from 'fs';
 import os from 'os';
+import { parseFile } from 'music-metadata';
 
 const prisma = new PrismaClient();
 const router = express.Router();
@@ -23,6 +24,17 @@ const getLocalIP = (): string => {
 };
 
 const LOCAL_IP = getLocalIP();
+
+// Función para obtener la duración de un archivo de audio
+const getAudioDuration = async (filePath: string): Promise<number | null> => {
+  try {
+    const metadata = await parseFile(filePath);
+    return metadata.format.duration ? Math.round(metadata.format.duration) : null;
+  } catch (error) {
+    console.error('Error getting audio duration:', error);
+    return null;
+  }
+};
 
 // Subir canción individual
 router.post('/upload', authenticateToken, upload.single('audio'), handleMulterError, async (req: AuthRequest, res: Response) => {
@@ -56,12 +68,16 @@ router.post('/upload', authenticateToken, upload.single('audio'), handleMulterEr
     // Crear registro en la base de datos con la nueva estructura de archivos
     const relativePath = path.relative(path.join(__dirname, '../../uploads'), req.file.path);
     
+    // Obtener la duración del archivo de audio
+    const duration = await getAudioDuration(req.file.path);
+    
     const song = await prisma.song.create({
       data: {
         title: voiceType ? `${title} (${voiceType})` : title,
         artist: artist || null,
         album: album || null,
         genre: genre || null,
+        duration: duration,
         fileName: req.file.filename,
         filePath: relativePath, // Guardar ruta relativa
         fileSize: req.file.size,
@@ -319,11 +335,15 @@ router.post('/multi-upload',
 
       const relativePath = path.relative(path.join(__dirname, '../../uploads'), renamedFile.filePath);
       
+      // Obtener la duración del archivo de audio
+      const duration = await getAudioDuration(renamedFile.filePath);
+      
       console.log('💾 Creating voice variation:', {
         title: title,
         fileName: renamedFile.fileName,
         voiceType: assignment.voiceType,
-        parentId: containerSong.id
+        parentId: containerSong.id,
+        duration: duration
       });
 
       const songData: any = {
@@ -331,6 +351,7 @@ router.post('/multi-upload',
         artist: artist || null,
         album: album || null,
         genre: genre || null,
+        duration: duration,
         fileName: renamedFile.fileName,
         filePath: relativePath,
         fileSize: originalFile.size,
@@ -428,7 +449,25 @@ router.get('/', authenticateToken, async (req: AuthRequest, res: Response) => {
         isActive: true,
         ...(includeVersions === 'false' ? { parentSongId: null } : {})
       },
-      include: {
+      select: {
+        id: true,
+        title: true,
+        artist: true,
+        album: true,
+        genre: true,
+        duration: true,
+        fileName: true,
+        filePath: true,
+        fileSize: true,
+        mimeType: true,
+        folderName: true,
+        voiceType: true,
+        parentSongId: true,
+        coverColor: true,
+        uploadedBy: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
         uploader: {
           select: {
             firstName: true,
@@ -443,7 +482,25 @@ router.get('/', authenticateToken, async (req: AuthRequest, res: Response) => {
         },
         childVersions: {
           where: { isActive: true },
-          include: {
+          select: {
+            id: true,
+            title: true,
+            artist: true,
+            album: true,
+            genre: true,
+            duration: true,
+            fileName: true,
+            filePath: true,
+            fileSize: true,
+            mimeType: true,
+            folderName: true,
+            voiceType: true,
+            parentSongId: true,
+            coverColor: true,
+            uploadedBy: true,
+            isActive: true,
+            createdAt: true,
+            updatedAt: true,
             uploader: {
               select: {
                 firstName: true,
@@ -545,9 +602,45 @@ router.get('/:id/versions', authenticateToken, async (req: AuthRequest, res: Res
     // Buscar la canción contenedora
     const containerSong = await prisma.song.findUnique({
       where: { id },
-      include: {
+      select: {
+        id: true,
+        title: true,
+        artist: true,
+        album: true,
+        genre: true,
+        duration: true,
+        fileName: true,
+        filePath: true,
+        fileSize: true,
+        mimeType: true,
+        folderName: true,
+        voiceType: true,
+        parentSongId: true,
+        coverColor: true,
+        uploadedBy: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
         childVersions: {
-          include: {
+          select: {
+            id: true,
+            title: true,
+            artist: true,
+            album: true,
+            genre: true,
+            duration: true,
+            fileName: true,
+            filePath: true,
+            fileSize: true,
+            mimeType: true,
+            folderName: true,
+            voiceType: true,
+            parentSongId: true,
+            coverColor: true,
+            uploadedBy: true,
+            isActive: true,
+            createdAt: true,
+            updatedAt: true,
             uploader: {
               select: {
                 firstName: true,

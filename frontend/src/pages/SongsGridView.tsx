@@ -37,7 +37,7 @@ const SongsGridView: React.FC = () => {
         setLoading(true);
         setError(null);
 
-        const response = await fetch(`http://localhost:3001/api/songs`, {
+        const response = await fetch(`http://localhost:3001/api/songs?includeVersions=false`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'

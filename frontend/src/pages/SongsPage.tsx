@@ -20,7 +20,9 @@ const VOICE_TYPE_LABELS: { [key: string]: string } = {
   CONTRALTO: 'Contralto',
   TENOR: 'Tenor',
   BARITONE: 'Barítono',
-  BASS: 'Bajo'
+  BASS: 'Bajo',
+  CORO: 'Coro',
+  ORIGINAL: 'Original'
 };
 
 const VOICE_TYPE_COLORS: { [key: string]: string } = {
@@ -28,13 +30,15 @@ const VOICE_TYPE_COLORS: { [key: string]: string } = {
   CONTRALTO: 'bg-purple-100 text-purple-800 border-purple-200',
   TENOR: 'bg-blue-100 text-blue-800 border-blue-200',
   BARITONE: 'bg-green-100 text-green-800 border-green-200',
-  BASS: 'bg-yellow-100 text-yellow-800 border-yellow-200'
+  BASS: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+  CORO: 'bg-orange-100 text-orange-800 border-orange-200',
+  ORIGINAL: 'bg-gray-100 text-gray-800 border-gray-200'
 };
 
 const SongsPage: React.FC = () => {
   const { token, user } = useAuthStore();
-  const { playSong, currentSong, isPlaying } = usePlayerStore();
-  const { addSingleToQueue } = usePlaylistStore();
+  const { playSong, currentSong, isPlaying, setCurrentSong } = usePlayerStore();
+  const { addSingleToQueue, replaceQueueAndPlay } = usePlaylistStore();
   const { serverInfo } = useServerInfo();
   const [songs, setSongs] = useState<SongWithVersions[]>([]);
   const [loading, setLoading] = useState(true);
@@ -121,6 +125,125 @@ const SongsPage: React.FC = () => {
     });
   };
 
+  const handlePlayAllVersions = async (song: SongWithVersions) => {
+    console.log('🎵 Playing all versions for:', song.title);
+    
+    if (song.childVersions.length === 0) {
+      // Si no tiene versiones, es una canción individual, reproducirla directamente
+      handlePlaySong(song);
+      return;
+    }
+
+    try {
+      // Obtener todas las versiones de la canción desde la API
+      const response = await fetch(`http://${serverInfo.localIP}:${serverInfo.port}/api/songs/${song.id}/versions`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        console.error('Error en la respuesta:', response.status, response.statusText);
+        // Si falla la API, usar las versiones que ya tenemos
+        console.log('Usando versiones locales:', song.childVersions.length);
+        playLocalVersions(song);
+        return;
+      }
+
+      const data = await response.json();
+      const versions = data.versions || [];
+
+      if (versions.length === 0) {
+        console.log('No hay versiones en la respuesta de la API, usando versiones locales');
+        playLocalVersions(song);
+        return;
+      }
+
+      // Usar las versiones de la API
+      playVersionsFromAPI(versions);
+
+    } catch (error: any) {
+      console.error('Error al cargar versiones para reproducción:', error);
+      // Fallback a versiones locales
+      playLocalVersions(song);
+    }
+  };
+
+  const playLocalVersions = (song: SongWithVersions) => {
+    const versions = song.childVersions;
+    
+    // Convertir versiones al formato correcto para el reproductor
+    const songsToQueue: Song[] = versions.map((version: any) => ({
+      ...version,
+      filePath: version.filePath || `${version.folderName}/${version.fileName}`,
+      fileSize: version.fileSize || 0,
+      mimeType: version.mimeType || 'audio/mpeg',
+      uploadedBy: version.uploadedBy || version.uploader?.firstName + ' ' + version.uploader?.lastName,
+      isActive: version.isActive || true,
+      updatedAt: version.updatedAt || version.createdAt
+    }));
+
+    if (songsToQueue.length === 0) {
+      console.log('No hay versiones válidas para reproducir');
+      return;
+    }
+
+    // Reemplazar la cola con las versiones y empezar a reproducir la primera
+    replaceQueueAndPlay(songsToQueue, 0);
+    
+    // Establecer la primera canción como actual
+    const firstSong = songsToQueue[0];
+    const songUrl = `${serverInfo.audioBaseUrl}/${firstSong.folderName}/${firstSong.fileName}`;
+    
+    console.log('Playing local versions:', { 
+      total: songsToQueue.length,
+      firstSong: firstSong.title,
+      url: songUrl
+    });
+    
+    playSong({
+      id: firstSong.id,
+      title: `${firstSong.title} (${VOICE_TYPE_LABELS[firstSong.voiceType!] || firstSong.voiceType})`,
+      artist: firstSong.artist || 'Desconocido',
+      url: songUrl,
+      duration: firstSong.duration || 0
+    });
+  };
+
+  const playVersionsFromAPI = (versions: any[]) => {
+    // Convertir versiones al formato correcto para el reproductor
+    const songsToQueue: Song[] = versions.map((version: any) => ({
+      ...version,
+      filePath: version.filePath || `${version.folderName}/${version.fileName}`,
+      fileSize: version.fileSize || 0,
+      mimeType: version.mimeType || 'audio/mpeg',
+      uploadedBy: version.uploadedBy || version.uploader?.firstName + ' ' + version.uploader?.lastName,
+      isActive: version.isActive || true,
+      updatedAt: version.updatedAt || version.createdAt
+    }));
+
+    // Reemplazar la cola con las versiones y empezar a reproducir la primera
+    replaceQueueAndPlay(songsToQueue, 0);
+    
+    // Establecer la primera canción como actual
+    const firstSong = songsToQueue[0];
+    const songUrl = `${serverInfo.audioBaseUrl}/${firstSong.folderName}/${firstSong.fileName}`;
+    
+    console.log('Playing API versions:', { 
+      total: songsToQueue.length,
+      firstSong: firstSong.title,
+      url: songUrl
+    });
+    
+    playSong({
+      id: firstSong.id,
+      title: `${firstSong.title} (${VOICE_TYPE_LABELS[firstSong.voiceType!] || firstSong.voiceType})`,
+      artist: firstSong.artist || 'Desconocido',
+      url: songUrl,
+      duration: firstSong.duration || 0
+    });
+  };
+
   const toggleSongExpansion = (songId: string) => {
     const newExpanded = new Set(expandedSongs);
     if (newExpanded.has(songId)) {
@@ -137,11 +260,13 @@ const SongsPage: React.FC = () => {
     fetchSongs();
   };
 
-  const formatDuration = (seconds?: number) => {
-    if (!seconds) return '--:--';
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('es-ES', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
   };
 
   if (loading) {
@@ -267,37 +392,36 @@ const SongsPage: React.FC = () => {
             <div key={song.id} className="card">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4 flex-1">
-                  {/* Botón de reproducir - solo para versiones individuales */}
-                  {song.childVersions.length === 0 && (
-                    <button
-                      onClick={() => handlePlaySong(song)}
-                      className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${
-                        currentSong?.id === song.id && isPlaying
-                          ? 'bg-primary-600 text-white'
-                          : 'bg-gray-100 hover:bg-primary-100 text-gray-600 hover:text-primary-600'
-                      }`}
-                    >
-                      {currentSong?.id === song.id && isPlaying ? (
-                        <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                          <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
-                        </svg>
-                      ) : (
-                        <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                          <path d="M8 5v14l11-7z" />
-                        </svg>
-                      )}
-                    </button>
-                  )}
+                  {/* Botón de reproducir - siempre visible */}
+                  <button
+                    onClick={() => handlePlayAllVersions(song)}
+                    className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${
+                      currentSong?.id === song.id && isPlaying
+                        ? 'bg-primary-600 text-white'
+                        : 'bg-gray-100 hover:bg-primary-100 text-gray-600 hover:text-primary-600'
+                    }`}
+                    title={song.childVersions.length > 0 ? `Reproducir todas las versiones (${song.childVersions.length})` : 'Reproducir canción'}
+                  >
+                    {currentSong?.id === song.id && isPlaying ? (
+                      <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
+                      </svg>
+                    ) : (
+                      <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M8 5v14l11-7z" />
+                      </svg>
+                    )}
+                  </button>
 
                   {/* Información de la canción */}
                   <div className="flex-1">
                     <h3 className="text-lg font-semibold text-gray-900">{song.title}</h3>
                     <p className="text-sm text-gray-600">
                       {song.artist && `${song.artist} • `}
-                      {formatDuration(song.duration)}
+                      Subido el {formatDate(song.createdAt)}
                     </p>
                     <p className="text-xs text-gray-500">
-                      Subido por {song.uploader.firstName} {song.uploader.lastName}
+                      Por {song.uploader.firstName} {song.uploader.lastName}
                     </p>
                   </div>
 
@@ -389,7 +513,7 @@ const SongsPage: React.FC = () => {
                               {VOICE_TYPE_LABELS[version.voiceType!] || version.voiceType}
                             </span>
                             <p className="text-xs text-gray-500 mt-1">
-                              {formatDuration(version.duration)}
+                              {formatDate(version.createdAt)}
                             </p>
                           </div>
                         </div>

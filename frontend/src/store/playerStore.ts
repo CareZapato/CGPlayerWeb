@@ -183,12 +183,23 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
         // Agregar la URL al objeto song para uso posterior
         (song as any).url = songUrl;
         
-        audioRef.addEventListener('loadedmetadata', () => {
+        audioRef.addEventListener('loadeddata', () => {
           console.log(`✅ [PLAYER-STORE] Audio loaded successfully, duration:`, audioRef.duration);
+          // AUTOPLAY: Iniciar reproducción automáticamente cuando los datos estén cargados
+          audioRef.play()
+            .then(() => {
+              console.log(`🎵 [PLAYER-STORE] Autoplay started successfully`);
+              set({ isPlaying: true });
+            })
+            .catch((error) => {
+              console.error(`❌ [PLAYER-STORE] Autoplay failed:`, error);
+              set({ isPlaying: false });
+            });
         }, { once: true });
         
         audioRef.addEventListener('error', (e) => {
           console.error(`❌ [PLAYER-STORE] Audio load error:`, e);
+          set({ isPlaying: false });
         }, { once: true });
       }
     }
@@ -198,7 +209,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       currentPlaylist: playlist || null,
       currentIndex: index,
       currentTime: 0,
-      isPlaying: false
+      isPlaying: false // Se actualizará a true cuando inicie el autoplay
     });
   },
 
@@ -228,31 +239,25 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   },
 
   nextSong: () => {
-    const { currentPlaylist, currentIndex } = get();
+    const { currentPlaylist, currentIndex, setCurrentSong } = get();
     if (currentPlaylist && currentPlaylist.items) {
       const nextIndex = currentIndex + 1;
       if (nextIndex < currentPlaylist.items.length) {
         const nextSong = currentPlaylist.items[nextIndex].song;
-        set({ 
-          currentSong: nextSong, 
-          currentIndex: nextIndex,
-          currentTime: 0 
-        });
+        console.log(`🎵 [PLAYER-STORE] Moving to next song:`, nextSong.title);
+        setCurrentSong(nextSong, currentPlaylist, nextIndex);
       }
     }
   },
 
   previousSong: () => {
-    const { currentPlaylist, currentIndex } = get();
+    const { currentPlaylist, currentIndex, setCurrentSong } = get();
     if (currentPlaylist && currentPlaylist.items) {
       const prevIndex = currentIndex - 1;
       if (prevIndex >= 0) {
         const prevSong = currentPlaylist.items[prevIndex].song;
-        set({ 
-          currentSong: prevSong, 
-          currentIndex: prevIndex,
-          currentTime: 0 
-        });
+        console.log(`🎵 [PLAYER-STORE] Moving to previous song:`, prevSong.title);
+        setCurrentSong(prevSong, currentPlaylist, prevIndex);
       }
     }
   },

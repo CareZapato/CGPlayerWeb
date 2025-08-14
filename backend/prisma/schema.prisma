@@ -22,6 +22,8 @@ enum VoiceType {
   TENOR
   BARITONE
   BASS
+  CORO
+  ORIGINAL
 }
 
 enum SoloistType {
