@@ -76,6 +76,14 @@ const PlaylistPlayer: React.FC<PlaylistPlayerProps> = ({ isOpen, onToggle }) => 
     setDraggedIndex(index);
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/html', '');
+    
+    // Agregar clase CSS para el elemento que se está arrastrando
+    setTimeout(() => {
+      const draggedElement = document.querySelector(`[data-song-index="${index}"]`);
+      if (draggedElement) {
+        draggedElement.classList.add('dragging');
+      }
+    }, 0);
   };
 
   const handleSongClick = (song: Song, index: number, e: React.MouseEvent) => {
@@ -92,20 +100,46 @@ const PlaylistPlayer: React.FC<PlaylistPlayerProps> = ({ isOpen, onToggle }) => 
   const handleDragOver = (e: React.DragEvent, index: number) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
-    setDropTargetIndex(index);
+    
+    if (draggedIndex !== null && draggedIndex !== index) {
+      setDropTargetIndex(index);
+    }
   };
 
-  const handleDragLeave = () => {
-    setDropTargetIndex(null);
+  const handleDragLeave = (e: React.DragEvent) => {
+    // Solo limpiar si realmente salimos del elemento
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const x = e.clientX;
+    const y = e.clientY;
+    
+    if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) {
+      setDropTargetIndex(null);
+    }
   };
 
   const handleDrop = (e: React.DragEvent, dropIndex: number) => {
     e.preventDefault();
     if (draggedIndex !== null && draggedIndex !== dropIndex) {
       moveInQueue(draggedIndex, dropIndex);
+      
+      // Animación de éxito
+      const droppedElement = document.querySelector(`[data-song-index="${dropIndex}"]`);
+      if (droppedElement) {
+        droppedElement.classList.add('drop-success');
+        setTimeout(() => {
+          droppedElement.classList.remove('drop-success');
+        }, 600);
+      }
     }
+    
+    // Limpiar estados
     setDraggedIndex(null);
     setDropTargetIndex(null);
+    
+    // Remover clases de arrastre
+    document.querySelectorAll('.dragging').forEach(el => {
+      el.classList.remove('dragging');
+    });
   };
 
   const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
@@ -247,16 +281,33 @@ const PlaylistPlayer: React.FC<PlaylistPlayerProps> = ({ isOpen, onToggle }) => 
               {queue.map((song, index) => (
                 <div
                   key={song.id}
+                  data-song-index={index}
                   onClick={(e) => handleSongClick(song, index, e)}
-                  className={`flex items-center justify-between p-3 rounded-lg border transition-all cursor-pointer hover:shadow-md ${
+                  onDragOver={(e) => handleDragOver(e, index)}
+                  onDragLeave={handleDragLeave}
+                  onDrop={(e) => handleDrop(e, index)}
+                  className={`flex items-center justify-between p-3 rounded-lg border transition-all duration-300 ease-in-out cursor-pointer hover:shadow-md transform ${
                     currentSong?.id === song.id 
                       ? 'bg-blue-50 border-blue-200 shadow-sm' 
                       : 'bg-white border-gray-200 hover:bg-gray-50'
                   } ${
-                    dropTargetIndex === index ? 'border-blue-400 bg-blue-100' : ''
+                    dropTargetIndex === index ? 'border-blue-400 bg-blue-100 scale-105 shadow-lg border-dashed border-2' : ''
                   } ${
-                    draggedIndex === index ? 'opacity-50' : ''
+                    draggedIndex === index ? 'opacity-30 scale-95 rotate-2 shadow-xl blur-sm' : 'hover:scale-102'
                   }`}
+                  style={{
+                    transform: draggedIndex === index 
+                      ? 'scale(0.95) rotate(2deg)' 
+                      : dropTargetIndex === index 
+                        ? 'scale(1.02) translateY(-2px)' 
+                        : 'scale(1)',
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    boxShadow: dropTargetIndex === index 
+                      ? '0 10px 25px rgba(59, 130, 246, 0.3)' 
+                      : draggedIndex === index 
+                        ? '0 5px 15px rgba(0, 0, 0, 0.3)' 
+                        : ''
+                  }}
                 >
                   <div className="flex items-center space-x-3 flex-1 min-w-0">
                     {/* Número de posición */}

@@ -48,6 +48,52 @@
     @apply fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-50;
   }
 
+  /* Animaciones para drag and drop */
+  .dragging {
+    opacity: 0.3 !important;
+    transform: scale(0.95) rotate(2deg) !important;
+    filter: blur(1px);
+    z-index: 1000;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .drop-success {
+    animation: dropSuccess 0.6s ease-out;
+  }
+
+  @keyframes dropSuccess {
+    0% {
+      transform: scale(1);
+      background-color: rgb(239 246 255);
+    }
+    50% {
+      transform: scale(1.05);
+      background-color: rgb(219 234 254);
+      box-shadow: 0 10px 25px rgba(59, 130, 246, 0.4);
+    }
+    100% {
+      transform: scale(1);
+      background-color: rgb(239 246 255);
+    }
+  }
+
+  /* Efectos de hover mejorados */
+  .song-item {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .song-item:hover:not(.dragging) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  }
+
+  /* Indicador visual para zona de drop */
+  .drop-zone-active {
+    background: linear-gradient(135deg, rgb(219 234 254) 0%, rgb(191 219 254) 100%);
+    border: 2px dashed rgb(59 130 246);
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+  }
+
   /* Estilos para líneas de texto truncado */
   .line-clamp-1 {
     display: -webkit-box;

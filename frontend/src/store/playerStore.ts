@@ -287,8 +287,20 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   seekTo: (time: number) => {
     const { audioRef } = get();
     if (audioRef) {
+      console.log(`🎵 [PLAYER-STORE] Seeking to time:`, time);
       audioRef.currentTime = time;
+      
+      // Actualizar el estado inmediatamente para feedback visual
       set({ currentTime: time });
+      
+      // Escuchar el evento 'seeked' para confirmar que el seek se completó
+      const handleSeeked = () => {
+        console.log(`✅ [PLAYER-STORE] Seek completed, actual time:`, audioRef.currentTime);
+        set({ currentTime: audioRef.currentTime });
+        audioRef.removeEventListener('seeked', handleSeeked);
+      };
+      
+      audioRef.addEventListener('seeked', handleSeeked, { once: true });
     }
   },
 }));

@@ -1,7 +1,9 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { usePlayerStore } from '../store/playerStore';
 import { usePlaylistStore } from '../store/playlistStore';
 import { useServerInfo } from '../hooks/useServerInfo';
+import { useMediaSession } from '../hooks/useMediaSession';
+import { updateFavicon, resetFavicon } from '../utils/favicon';
 import { 
   PlayIcon,
   PauseIcon,
@@ -42,6 +44,34 @@ const StickyPlayer: React.FC = () => {
   const [isQueueVisible, setIsQueueVisible] = useState(false);
 
   const progressRef = useRef<HTMLDivElement>(null);
+
+  // Configurar Media Session API para controles nativos en móvil
+  useMediaSession();
+
+  // Actualizar título de la página con el nombre de la canción
+  useEffect(() => {
+    if (currentSong) {
+      const baseTitle = 'CGPlayerWeb';
+      const songTitle = isPlaying ? `♪ ${currentSong.title}` : currentSong.title;
+      document.title = `${songTitle} - ${baseTitle}`;
+    } else {
+      document.title = 'CGPlayerWeb - Reproductor de Música Coral';
+    }
+
+    return () => {
+      // Limpiar título cuando el componente se desmonte
+      document.title = 'CGPlayerWeb - Reproductor de Música Coral';
+    };
+  }, [currentSong, isPlaying]);
+
+  // Actualizar favicon cuando cambia la canción
+  useEffect(() => {
+    if (currentSong) {
+      updateFavicon(currentSong.title);
+    } else {
+      resetFavicon();
+    }
+  }, [currentSong]);
 
   // No mostrar el reproductor si no hay canción actual
   if (!currentSong) return null;
@@ -150,10 +180,11 @@ const StickyPlayer: React.FC = () => {
 
         {/* Contenido principal del reproductor */}
         <div className="px-3 md:px-6 py-2 md:py-3">
-          <div className="flex items-center justify-between">
+          {/* LAYOUT OPTIMIZADO PARA CENTRADO PERFECTO */}
+          <div className="grid grid-cols-3 items-center gap-2 md:gap-4">
             
-            {/* Información de la canción */}
-            <div className="flex items-center space-x-3 flex-1 min-w-0">
+            {/* Información de la canción - COLUMNA 1 */}
+            <div className="flex items-center space-x-3 min-w-0">
               <div className="flex-shrink-0">
                 <div className="w-10 h-10 md:w-12 md:h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
                   <span className="text-white text-xs md:text-sm font-semibold">
@@ -175,40 +206,39 @@ const StickyPlayer: React.FC = () => {
               </div>
             </div>
 
-            {/* Controles principales */}
-            <div className="flex items-center space-x-2 md:space-x-6">
+            {/* Controles de reproducción - COLUMNA 2 - CENTRADO ABSOLUTO */}
+            <div className="flex items-center justify-center space-x-1 md:space-x-3">
+              <button
+                onClick={handlePrevious}
+                disabled={currentIndex <= 0 || queue.length <= 1}
+                className="p-1.5 md:p-2 rounded-full hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <BackwardIcon className="w-4 h-4 md:w-5 md:h-5" />
+              </button>
               
-              {/* Controles de reproducción - centrados mejor en PC */}
-              <div className="flex items-center justify-center space-x-1 md:space-x-3 md:flex-1 md:max-w-xs">
-                <button
-                  onClick={handlePrevious}
-                  disabled={currentIndex <= 0 || queue.length <= 1}
-                  className="p-1.5 md:p-2 rounded-full hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <BackwardIcon className="w-4 h-4 md:w-5 md:h-5" />
-                </button>
-                
-                <button
-                  onClick={isPlaying ? pause : play}
-                  className="p-2 md:p-3 rounded-full bg-blue-500 hover:bg-blue-600 text-white shadow-lg"
-                >
-                  {isPlaying ? (
-                    <PauseIcon className="w-4 h-4 md:w-5 md:h-5" />
-                  ) : (
-                    <PlayIcon className="w-4 h-4 md:w-5 md:h-5 ml-0.5" />
-                  )}
-                </button>
-                
-                <button
-                  onClick={handleNext}
-                  disabled={currentIndex >= queue.length - 1 || queue.length <= 1}
-                  className="p-1.5 md:p-2 rounded-full hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <ForwardIcon className="w-4 h-4 md:w-5 md:h-5" />
-                </button>
-              </div>
+              <button
+                onClick={isPlaying ? pause : play}
+                className="p-2 md:p-3 rounded-full bg-blue-500 hover:bg-blue-600 text-white shadow-lg"
+              >
+                {isPlaying ? (
+                  <PauseIcon className="w-4 h-4 md:w-5 md:h-5" />
+                ) : (
+                  <PlayIcon className="w-4 h-4 md:w-5 md:h-5 ml-0.5" />
+                )}
+              </button>
+              
+              <button
+                onClick={handleNext}
+                disabled={currentIndex >= queue.length - 1 || queue.length <= 1}
+                className="p-1.5 md:p-2 rounded-full hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <ForwardIcon className="w-4 h-4 md:w-5 md:h-5" />
+              </button>
+            </div>
 
-              {/* Controles adicionales (desktop) */}
+            {/* Controles adicionales - COLUMNA 3 */}
+            <div className="flex items-center justify-end space-x-2">
+              {/* Controles de volumen (desktop) */}
               <div className="hidden md:flex items-center space-x-2">
                 <button
                   onClick={toggleMute}
@@ -242,29 +272,27 @@ const StickyPlayer: React.FC = () => {
               </div>
 
               {/* Botones de acción */}
-              <div className="flex items-center space-x-1">
-                {queue.length > 1 && (
-                  <button
-                    onClick={toggleQueue}
-                    className={`p-1.5 md:p-2 rounded-full hover:bg-gray-100 ${
-                      isQueueVisible ? 'bg-blue-100 text-blue-600' : ''
-                    }`}
-                  >
-                    <QueueListIcon className="w-4 h-4 md:w-5 md:h-5" />
-                  </button>
-                )}
-                
+              {queue.length > 1 && (
                 <button
-                  onClick={() => setIsExpanded(!isExpanded)}
-                  className="p-1.5 md:p-2 rounded-full hover:bg-gray-100 md:hidden"
+                  onClick={toggleQueue}
+                  className={`p-1.5 md:p-2 rounded-full hover:bg-gray-100 ${
+                    isQueueVisible ? 'bg-blue-100 text-blue-600' : ''
+                  }`}
                 >
-                  {isExpanded ? (
-                    <ChevronDownIcon className="w-4 h-4" />
-                  ) : (
-                    <ChevronUpIcon className="w-4 h-4" />
-                  )}
+                  <QueueListIcon className="w-4 h-4 md:w-5 md:h-5" />
                 </button>
-              </div>
+              )}
+              
+              <button
+                onClick={() => setIsExpanded(!isExpanded)}
+                className="p-1.5 md:p-2 rounded-full hover:bg-gray-100 md:hidden"
+              >
+                {isExpanded ? (
+                  <ChevronDownIcon className="w-4 h-4" />
+                ) : (
+                  <ChevronUpIcon className="w-4 h-4" />
+                )}
+              </button>
             </div>
           </div>
 
