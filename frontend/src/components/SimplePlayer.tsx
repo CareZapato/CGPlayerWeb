@@ -323,15 +323,25 @@ const SimplePlayer: React.FC = () => {
                 <svg className="w-4 h-4 text-gray-600" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.617.788L4.627 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.627l3.756-3.788a1 1 0 011.617.788zM14.657 5.343a1 1 0 011.414 0 9.97 9.97 0 010 14.314 1 1 0 11-1.414-1.414 7.971 7.971 0 000-11.486 1 1 0 010-1.414zM12.828 7.172a1 1 0 011.414 0 5.983 5.983 0 010 8.656 1 1 0 01-1.414-1.414 3.987 3.987 0 000-5.828 1 1 0 010-1.414z" clipRule="evenodd" />
                 </svg>
-                <input
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.1"
-                  value={volume}
-                  onChange={(e) => setVolume(parseFloat(e.target.value))}
-                  className="w-20 h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                />
+                
+                {/* Barra de volumen mejorada */}
+                <div className="relative w-20 h-4 flex items-center">
+                  <div className="w-full h-1 bg-gray-200 rounded-full">
+                    <div 
+                      className="h-full bg-blue-500 rounded-full transition-all duration-150"
+                      style={{ width: `${volume * 100}%` }}
+                    />
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.1"
+                    value={volume}
+                    onChange={(e) => setVolume(parseFloat(e.target.value))}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  />
+                </div>
               </div>
             </div>
           </div>

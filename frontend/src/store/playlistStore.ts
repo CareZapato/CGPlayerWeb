@@ -32,16 +32,9 @@ export const usePlaylistStore = create<PlaylistState>()(
       isRepeating: false,
 
       addToQueue: (song: Song) => {
-        set((state) => {
-          const isAlreadyInQueue = state.queue.some(s => s.id === song.id);
-          if (isAlreadyInQueue) {
-            return state; // No agregar duplicados
-          }
-          
-          return {
-            queue: [...state.queue, song]
-          };
-        });
+        set((state) => ({
+          queue: [...state.queue, song]
+        }));
       },
 
       removeFromQueue: (songId: string) => {

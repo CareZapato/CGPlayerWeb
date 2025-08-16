@@ -66,9 +66,27 @@ const PlaylistPlayer: React.FC<PlaylistPlayerProps> = ({ isOpen, onToggle }) => 
 
   // Drag and Drop handlers
   const handleDragStart = (e: React.DragEvent, index: number) => {
+    // Solo permitir drag desde el icono de arrastrar
+    const target = e.target as HTMLElement;
+    if (!target.closest('.drag-handle')) {
+      e.preventDefault();
+      return;
+    }
+    
     setDraggedIndex(index);
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/html', '');
+  };
+
+  const handleSongClick = (song: Song, index: number, e: React.MouseEvent) => {
+    // No hacer nada si se hizo click en el botón de eliminar o en el drag handle
+    const target = e.target as HTMLElement;
+    if (target.closest('.remove-button') || target.closest('.drag-handle')) {
+      return;
+    }
+    
+    // Reproducir la canción
+    handleSongSelect(song, index);
   };
 
   const handleDragOver = (e: React.DragEvent, index: number) => {
@@ -191,15 +209,24 @@ const PlaylistPlayer: React.FC<PlaylistPlayerProps> = ({ isOpen, onToggle }) => 
                   )}
                 </button>
 
-                <input
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.1"
-                  value={volume}
-                  onChange={(e) => setVolume(parseFloat(e.target.value))}
-                  className="w-16 h-1"
-                />
+                {/* Barra de volumen mejorada */}
+                <div className="relative w-16 h-4 flex items-center">
+                  <div className="w-full h-1 bg-gray-200 rounded-full">
+                    <div 
+                      className="h-full bg-blue-500 rounded-full transition-all duration-150"
+                      style={{ width: `${volume * 100}%` }}
+                    />
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.1"
+                    value={volume}
+                    onChange={(e) => setVolume(parseFloat(e.target.value))}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -220,12 +247,8 @@ const PlaylistPlayer: React.FC<PlaylistPlayerProps> = ({ isOpen, onToggle }) => 
               {queue.map((song, index) => (
                 <div
                   key={song.id}
-                  draggable
-                  onDragStart={(e) => handleDragStart(e, index)}
-                  onDragOver={(e) => handleDragOver(e, index)}
-                  onDragLeave={handleDragLeave}
-                  onDrop={(e) => handleDrop(e, index)}
-                  className={`flex items-center justify-between p-3 rounded-lg border transition-all cursor-move hover:shadow-md ${
+                  onClick={(e) => handleSongClick(song, index, e)}
+                  className={`flex items-center justify-between p-3 rounded-lg border transition-all cursor-pointer hover:shadow-md ${
                     currentSong?.id === song.id 
                       ? 'bg-blue-50 border-blue-200 shadow-sm' 
                       : 'bg-white border-gray-200 hover:bg-gray-50'
@@ -278,28 +301,25 @@ const PlaylistPlayer: React.FC<PlaylistPlayerProps> = ({ isOpen, onToggle }) => 
                   
                   {/* Controles */}
                   <div className="flex items-center space-x-2">
-                    {/* Icono de arrastrar */}
-                    <div className="text-gray-400 cursor-move">
+                    {/* Icono de arrastrar - único elemento draggable */}
+                    <div 
+                      className="drag-handle text-gray-400 cursor-move p-1 hover:text-gray-600 transition-colors"
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, index)}
+                      onDragOver={(e) => handleDragOver(e, index)}
+                      onDragLeave={handleDragLeave}
+                      onDrop={(e) => handleDrop(e, index)}
+                      title="Arrastrar para reordenar"
+                    >
                       <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                         <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
                       </svg>
                     </div>
                     
-                    {/* Botón de reproducir */}
-                    <button
-                      onClick={() => handleSongSelect(song, index)}
-                      className="p-2 text-gray-600 hover:text-blue-600 transition-colors"
-                      title="Reproducir"
-                    >
-                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
-                      </svg>
-                    </button>
-                    
                     {/* Botón de eliminar */}
                     <button
+                      className="remove-button p-2 text-gray-600 hover:text-red-600 transition-colors"
                       onClick={() => handleRemoveFromQueue(song.id)}
-                      className="p-2 text-gray-600 hover:text-red-600 transition-colors"
                       title="Eliminar"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

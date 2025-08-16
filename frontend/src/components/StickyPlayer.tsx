@@ -176,10 +176,10 @@ const StickyPlayer: React.FC = () => {
             </div>
 
             {/* Controles principales */}
-            <div className="flex items-center space-x-2 md:space-x-4">
+            <div className="flex items-center space-x-2 md:space-x-6">
               
-              {/* Controles de reproducción */}
-              <div className="flex items-center space-x-1 md:space-x-2">
+              {/* Controles de reproducción - centrados mejor en PC */}
+              <div className="flex items-center justify-center space-x-1 md:space-x-3 md:flex-1 md:max-w-xs">
                 <button
                   onClick={handlePrevious}
                   disabled={currentIndex <= 0 || queue.length <= 1}
@@ -190,12 +190,12 @@ const StickyPlayer: React.FC = () => {
                 
                 <button
                   onClick={isPlaying ? pause : play}
-                  className="p-2 md:p-3 rounded-full bg-blue-500 hover:bg-blue-600 text-white"
+                  className="p-2 md:p-3 rounded-full bg-blue-500 hover:bg-blue-600 text-white shadow-lg"
                 >
                   {isPlaying ? (
                     <PauseIcon className="w-4 h-4 md:w-5 md:h-5" />
                   ) : (
-                    <PlayIcon className="w-4 h-4 md:w-5 md:h-5" />
+                    <PlayIcon className="w-4 h-4 md:w-5 md:h-5 ml-0.5" />
                   )}
                 </button>
                 
@@ -221,15 +221,24 @@ const StickyPlayer: React.FC = () => {
                   )}
                 </button>
                 
-                <input
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.01"
-                  value={volume}
-                  onChange={(e) => setVolume(parseFloat(e.target.value))}
-                  className="w-20 h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                />
+                {/* Barra de volumen mejorada */}
+                <div className="relative w-20 h-4 flex items-center">
+                  <div className="w-full h-1 bg-gray-200 rounded-full">
+                    <div 
+                      className="h-full bg-blue-500 rounded-full transition-all duration-150"
+                      style={{ width: `${volume * 100}%` }}
+                    />
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                    value={volume}
+                    onChange={(e) => setVolume(parseFloat(e.target.value))}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  />
+                </div>
               </div>
 
               {/* Botones de acción */}
@@ -275,15 +284,24 @@ const StickyPlayer: React.FC = () => {
                   )}
                 </button>
                 
-                <input
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.01"
-                  value={volume}
-                  onChange={(e) => setVolume(parseFloat(e.target.value))}
-                  className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                />
+                {/* Barra de volumen mejorada para móvil */}
+                <div className="relative flex-1 h-6 flex items-center">
+                  <div className="w-full h-2 bg-gray-200 rounded-full">
+                    <div 
+                      className="h-full bg-blue-500 rounded-full transition-all duration-150"
+                      style={{ width: `${volume * 100}%` }}
+                    />
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                    value={volume}
+                    onChange={(e) => setVolume(parseFloat(e.target.value))}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  />
+                </div>
               </div>
 
               {/* Información adicional */}
