@@ -1,0 +1,84 @@
+/* ==========================================================================
+   AUDIO MANAGER - Global Audio Element Manager
+   ========================================================================== */
+
+/**
+ * AudioManager - Componente oculto que gestiona el elemento audio global
+ * No tiene interfaz visual, solo maneja la lógica de audio
+ */
+
+.audio-manager {
+  /* Componente completamente oculto */
+  position: absolute;
+  top: -9999px;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.audio-manager__element {
+  /* Elemento audio oculto */
+  width: 0;
+  height: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ==========================================================================
+   DEBUG MODE (Development only)
+   ========================================================================== */
+
+.audio-manager--debug {
+  /* Modo debug para desarrollo */
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  width: auto;
+  height: auto;
+  opacity: 1;
+  background: var(--color-surface);
+  border: 2px solid var(--color-warning);
+  border-radius: var(--border-radius-md);
+  padding: var(--spacing-sm);
+  z-index: 9999;
+}
+
+.audio-manager--debug .audio-manager__element {
+  width: 250px;
+  height: 40px;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* ==========================================================================
+   RESPONSIVE BEHAVIOR
+   ========================================================================== */
+
+@media (max-width: 768px) {
+  .audio-manager--debug {
+    bottom: 10px;
+    left: 10px;
+    padding: var(--spacing-xs);
+  }
+  
+  .audio-manager--debug .audio-manager__element {
+    width: 200px;
+    height: 35px;
+  }
+}
+
+/* ==========================================================================
+   ACCESSIBILITY
+   ========================================================================== */
+
+.audio-manager__element:focus {
+  outline: none; /* El elemento nunca debería recibir foco */
+}
+
+.audio-manager--debug .audio-manager__element:focus {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}

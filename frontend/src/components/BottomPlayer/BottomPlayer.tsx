@@ -1,0 +1,534 @@
+import React, { useState, useEffect } from 'react';
+import { usePlayerStore } from '../../store/playerStore';
+import { usePlaylistStore } from '../../store/playlistStore';
+import { useServerInfo } from '../../hooks/useServerInfo';
+import { updateFavicon, resetFavicon } from '../../utils/favicon';
+import type { Song } from '../../types';
+import {
+  PlayIcon,
+  PauseIcon,
+  BackwardIcon,
+  ForwardIcon,
+  SpeakerWaveIcon,
+  SpeakerXMarkIcon,
+  QueueListIcon,
+  ChevronUpIcon,
+  ChevronDownIcon,
+  XMarkIcon,
+  Bars3Icon,
+  MusicalNoteIcon
+} from '@heroicons/react/24/solid';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import {
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import './BottomPlayer.css';
+
+// Componente para items de playlist con drag & drop
+interface PlaylistItemProps {
+  song: Song;
+  index: number;
+  isCurrentSong: boolean;
+  isPlaying: boolean;
+  onPlay: (song: Song, index: number) => void;
+  onRemove: (songId: string) => void;
+}
+
+const PlaylistItem: React.FC<PlaylistItemProps> = ({
+  song,
+  index,
+  isCurrentSong,
+  isPlaying,
+  onPlay,
+  onRemove,
+}) => {
+  const uniqueId = `${song.id}-${index}`;
+  
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: uniqueId });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.8 : 1,
+  };
+
+  const formatTime = (time: number) => {
+    if (!time || isNaN(time)) return '0:00';
+    const minutes = Math.floor(time / 60);
+    const seconds = Math.floor(time % 60);
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  };
+
+  return (
+    <li
+      ref={setNodeRef}
+      style={style}
+      className={`bottom-player__playlist-item ${
+        isCurrentSong ? 'bottom-player__playlist-item--current' : ''
+      } ${isDragging ? 'bottom-player__playlist-item--dragging' : ''}`}
+    >
+      {/* Drag handle */}
+      <div
+        className="bottom-player__playlist-item-drag-handle"
+        {...attributes}
+        {...listeners}
+      >
+        <Bars3Icon className="bottom-player__playlist-item-drag-icon" />
+      </div>
+
+      {/* Play/pause icon */}
+      <div className="bottom-player__playlist-item-play-icon">
+        {isCurrentSong ? (
+          isPlaying ? (
+            <div className="bottom-player__playing-indicator">
+              <div className="bottom-player__playing-bar"></div>
+              <div className="bottom-player__playing-bar"></div>
+              <div className="bottom-player__playing-bar"></div>
+            </div>
+          ) : (
+            <PauseIcon className="bottom-player__playlist-item-icon" />
+          )
+        ) : (
+          <MusicalNoteIcon className="bottom-player__playlist-item-icon" />
+        )}
+      </div>
+
+      {/* Song info */}
+      <div
+        className="bottom-player__playlist-item-info"
+        onClick={() => onPlay(song, index)}
+      >
+        <span className="bottom-player__playlist-item-title">
+          {song.title}
+        </span>
+        <span className="bottom-player__playlist-item-artist">
+          {song.artist || 'Artista desconocido'}
+        </span>
+      </div>
+
+      {/* Duration */}
+      <span className="bottom-player__playlist-item-duration">
+        {formatTime(song.duration || 0)}
+      </span>
+
+      {/* Remove button */}
+      <button
+        className="bottom-player__playlist-item-remove"
+        onClick={(e) => {
+          e.stopPropagation();
+          onRemove(song.id);
+        }}
+        title="Remover de la cola"
+      >
+        <XMarkIcon className="bottom-player__playlist-item-remove-icon" />
+      </button>
+    </li>
+  );
+};
+
+/**
+ * BottomPlayer - Reproductor persistente en la parte inferior
+ * Barra de reproducción completa que se mantiene siempre visible
+ */
+const BottomPlayer: React.FC = () => {
+  const [showPlaylist, setShowPlaylist] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
+  
+  const { serverInfo } = useServerInfo();
+  
+  const {
+    currentSong,
+    isPlaying,
+    currentTime,
+    duration,
+    volume,
+    isMuted,
+    setVolume,
+    toggleMute,
+    seekTo,
+    togglePlayPause,
+    playSong
+  } = usePlayerStore();
+
+  const {
+    queue,
+    currentIndex,
+    nextSong,
+    previousSong,
+    removeFromQueue,
+    moveInQueue,
+    setCurrentIndex
+  } = usePlaylistStore();
+
+  // Actualizar título de la pestaña cuando cambia la canción o el estado de reproducción
+  useEffect(() => {
+    if (currentSong && currentSong.title && isPlaying) {
+      updateFavicon(currentSong.title);
+    } else if (!isPlaying || !currentSong?.title) {
+      resetFavicon();
+    }
+  }, [currentSong?.title, isPlaying]);
+
+  // Configurar sensores para drag & drop
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // Require 8px of movement before drag starts
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 250,
+        tolerance: 5,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  // Función para construir URL de canción
+  const buildSongUrl = (song: Song): string => {
+    if ((song as any).folderName) {
+      return `${serverInfo.audioBaseUrl}/${(song as any).folderName}/${song.fileName}`;
+    } else {
+      return `${serverInfo.audioBaseUrl}-root/${song.fileName}`;
+    }
+  };
+
+  // Manejar navegación de canciones
+  const handleNextSong = () => {
+    const nextTrack = nextSong();
+    if (nextTrack) {
+      const songUrl = buildSongUrl(nextTrack);
+      playSong({
+        id: nextTrack.id,
+        title: nextTrack.title,
+        artist: nextTrack.artist || 'Desconocido',
+        url: songUrl,
+        duration: nextTrack.duration || 0
+      });
+    }
+  };
+
+  const handlePreviousSong = () => {
+    const prevTrack = previousSong();
+    if (prevTrack) {
+      const songUrl = buildSongUrl(prevTrack);
+      playSong({
+        id: prevTrack.id,
+        title: prevTrack.title,
+        artist: prevTrack.artist || 'Desconocido',
+        url: songUrl,
+        duration: prevTrack.duration || 0
+      });
+    }
+  };
+
+  // Manejar selección de canción desde playlist
+  const handlePlaylistSongClick = (song: Song, index: number) => {
+    setCurrentIndex(index);
+    const songUrl = buildSongUrl(song);
+    playSong({
+      id: song.id,
+      title: song.title,
+      artist: song.artist || 'Desconocido',
+      url: songUrl,
+      duration: song.duration || 0
+    });
+  };
+
+  // Manejar drag & drop en la playlist
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (active.id !== over?.id) {
+      // Extraer índices de las claves únicas
+      const getIndexFromId = (id: string | number) => {
+        const idStr = id.toString();
+        const lastDashIndex = idStr.lastIndexOf('-');
+        return parseInt(idStr.substring(lastDashIndex + 1));
+      };
+      
+      const oldIndex = getIndexFromId(active.id);
+      const newIndex = getIndexFromId(over?.id || '');
+      
+      if (!isNaN(oldIndex) && !isNaN(newIndex) && oldIndex !== newIndex) {
+        moveInQueue(oldIndex, newIndex);
+        
+        // Actualizar el índice actual si es necesario
+        if (oldIndex === currentIndex) {
+          setCurrentIndex(newIndex);
+        } else if (oldIndex < currentIndex && newIndex >= currentIndex) {
+          setCurrentIndex(currentIndex - 1);
+        } else if (oldIndex > currentIndex && newIndex <= currentIndex) {
+          setCurrentIndex(currentIndex + 1);
+        }
+      }
+    }
+  };
+
+  // Manejar eliminación de canción de la cola
+  const handleRemoveFromQueue = (songId: string) => {
+    try {
+      removeFromQueue(songId);
+    } catch (error) {
+      console.error('Error removing song from queue:', error);
+    }
+  };
+
+  const formatTime = (time: number) => {
+    if (!time || isNaN(time)) return '0:00';
+    const minutes = Math.floor(time / 60);
+    const seconds = Math.floor(time % 60);
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  };
+
+  const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const percent = (e.clientX - rect.left) / rect.width;
+    const newTime = percent * duration;
+    seekTo(newTime);
+  };
+
+  const progressPercentage = duration > 0 ? (currentTime / duration) * 100 : 0;
+
+  if (!currentSong) {
+    return null;
+  }
+
+  return (
+    <>
+      {/* Barra de reproducción principal */}
+      <div className={`bottom-player ${isExpanded ? 'bottom-player--expanded' : ''}`}>
+        {/* Barra de progreso superior */}
+        <div 
+          className="bottom-player__progress-container"
+          onClick={handleProgressClick}
+        >
+          <div className="bottom-player__progress">
+            <div 
+              className="bottom-player__progress-fill"
+              style={{ width: `${progressPercentage}%` }}
+            />
+            <div 
+              className="bottom-player__progress-thumb"
+              style={{ left: `${progressPercentage}%` }}
+            />
+          </div>
+        </div>
+
+        {/* Contenido principal de la barra */}
+        <div className="bottom-player__content">
+          {/* Información de la canción - Izquierda */}
+          <div className="bottom-player__song-info">
+            <div className="bottom-player__artwork">
+              <div className="bottom-player__artwork-placeholder">
+                {currentSong.title.charAt(0).toUpperCase()}
+              </div>
+            </div>
+            
+            <div className="bottom-player__details">
+              <h4 className="bottom-player__title">
+                {currentSong.title}
+              </h4>
+              <p className="bottom-player__artist">
+                {currentSong.artist || 'Artista desconocido'}
+              </p>
+            </div>
+
+            <div className="bottom-player__time">
+              <span className="bottom-player__current-time">
+                {formatTime(currentTime)}
+              </span>
+              <span className="bottom-player__duration">
+                {formatTime(duration)}
+              </span>
+            </div>
+          </div>
+
+          {/* Controles principales - Centro */}
+          <div className="bottom-player__controls">
+            <button
+              onClick={handlePreviousSong}
+              disabled={currentIndex <= 0}
+              className="bottom-player__control bottom-player__control--secondary"
+              title="Anterior"
+            >
+              <BackwardIcon className="bottom-player__control-icon" />
+            </button>
+            
+            <button
+              onClick={togglePlayPause}
+              className="bottom-player__control bottom-player__control--primary"
+              title={isPlaying ? 'Pausar' : 'Reproducir'}
+            >
+              {isPlaying ? (
+                <PauseIcon className="bottom-player__control-icon" />
+              ) : (
+                <PlayIcon className="bottom-player__control-icon" />
+              )}
+            </button>
+            
+            <button
+              onClick={handleNextSong}
+              disabled={currentIndex >= queue.length - 1}
+              className="bottom-player__control bottom-player__control--secondary"
+              title="Siguiente"
+            >
+              <ForwardIcon className="bottom-player__control-icon" />
+            </button>
+          </div>
+
+          {/* Controles adicionales - Derecha */}
+          <div className="bottom-player__additional-controls">
+            {/* Control de volumen */}
+            <div className="bottom-player__volume-control">
+              <button
+                onClick={toggleMute}
+                className="bottom-player__control bottom-player__control--secondary"
+                title={isMuted ? 'Activar sonido' : 'Silenciar'}
+              >
+                {isMuted || volume === 0 ? (
+                  <SpeakerXMarkIcon className="bottom-player__control-icon" />
+                ) : (
+                  <SpeakerWaveIcon className="bottom-player__control-icon" />
+                )}
+              </button>
+              
+              <div className="bottom-player__volume-slider-container">
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                  value={volume}
+                  onChange={(e) => setVolume(parseFloat(e.target.value))}
+                  className="bottom-player__volume-slider"
+                  title={`Volumen: ${Math.round(volume * 100)}%`}
+                />
+              </div>
+            </div>
+
+            {/* Botón de lista de reproducción */}
+            <button
+              onClick={() => setShowPlaylist(!showPlaylist)}
+              className={`bottom-player__control bottom-player__control--secondary ${showPlaylist ? 'bottom-player__control--active' : ''}`}
+              title="Lista de reproducción"
+            >
+              <QueueListIcon className="bottom-player__control-icon" />
+            </button>
+
+            {/* Botón de expandir */}
+            <button
+              onClick={() => setIsExpanded(!isExpanded)}
+              className="bottom-player__control bottom-player__control--secondary"
+              title={isExpanded ? 'Contraer' : 'Expandir'}
+            >
+              {isExpanded ? (
+                <ChevronDownIcon className="bottom-player__control-icon" />
+              ) : (
+                <ChevronUpIcon className="bottom-player__control-icon" />
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Información expandida */}
+        {isExpanded && (
+          <div className="bottom-player__expanded-info">
+            <div className="bottom-player__expanded-details">
+              <div className="bottom-player__expanded-meta">
+                {currentSong.album && (
+                  <span className="bottom-player__album">Álbum: {currentSong.album}</span>
+                )}
+                <span className="bottom-player__file-info">
+                  {currentSong.fileName} • {formatTime(duration)}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Panel lateral de lista de reproducción */}
+      {showPlaylist && (
+        <div className="bottom-player__playlist-panel">
+          <div className="bottom-player__playlist-header">
+            <h3>Cola de reproducción</h3>
+            <button
+              onClick={() => setShowPlaylist(false)}
+              className="bottom-player__playlist-close"
+            >
+              ×
+            </button>
+          </div>
+          
+          <div className="bottom-player__playlist-content">
+            {queue && queue.length > 0 ? (
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext 
+                  items={queue.map((song, index) => `${song.id}-${index}`)} 
+                  strategy={verticalListSortingStrategy}
+                >
+                  <ul className="bottom-player__playlist-list">
+                    {queue.map((song, index) => {
+                      // Verificar que la canción tiene ID válido
+                      if (!song || !song.id) {
+                        return null;
+                      }
+                      
+                      return (
+                        <PlaylistItem
+                          key={`${song.id}-${index}`}
+                          song={song}
+                          index={index}
+                          isCurrentSong={index === currentIndex}
+                          isPlaying={isPlaying && index === currentIndex}
+                          onPlay={handlePlaylistSongClick}
+                          onRemove={handleRemoveFromQueue}
+                        />
+                      );
+                    })}
+                  </ul>
+                </SortableContext>
+              </DndContext>
+            ) : (
+              <div className="bottom-player__playlist-empty">
+                <p>No hay canciones en la cola</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </>
+  );
+};
+
+export default BottomPlayer;

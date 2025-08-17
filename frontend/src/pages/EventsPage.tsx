@@ -1,5 +1,5 @@
 import React from 'react';
-import EventManagement from '../components/EventManagement';
+import EventManagement from '../components/Management/EventManagement';
 
 const EventsPage: React.FC = () => {
   return (

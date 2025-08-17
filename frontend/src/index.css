@@ -1,3 +1,7 @@
+/* Importar nuestros estilos organizados */
+@import './styles/variables.css';
+@import './styles/main.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

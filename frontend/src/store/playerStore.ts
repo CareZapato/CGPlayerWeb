@@ -2,10 +2,15 @@ import { create } from 'zustand';
 import type { Song, Playlist } from '../types';
 import { getSongFileUrl, getFileUrl } from '../config/api';
 
+// Tipo extendido para el reproductor que incluye la URL
+interface PlayingSong extends Song {
+  url: string;
+}
+
 interface PlayerState {
   // Estado del reproductor
   isPlaying: boolean;
-  currentSong: Song | null;
+  currentSong: PlayingSong | null;
   currentTime: number;
   duration: number;
   volume: number;
@@ -151,17 +156,34 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       console.error(`❌ [PLAYER-STORE] No audio element found!`);
     }
     
-    // Convertir al formato Song interno - simplificado para el reproductor
-    const songData = {
+    // Crear el objeto PlayingSong con las propiedades necesarias
+    const playingSong: PlayingSong = {
       id: song.id,
       title: song.title,
-      artist: song.artist,
-      duration: song.duration,
-      url: song.url // Mantener la URL para reproducción
+      artist: song.artist || 'Desconocido',
+      album: undefined,
+      duration: song.duration || 0,
+      fileName: `${song.title}.mp3`, // Nombre temporal
+      filePath: song.url,
+      fileSize: 0,
+      mimeType: 'audio/mpeg',
+      folderName: undefined,
+      voiceType: undefined,
+      parentSongId: undefined,
+      coverColor: undefined,
+      uploadedBy: 'Sistema',
+      isActive: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      uploader: {
+        firstName: 'Sistema',
+        lastName: 'Reproductor'
+      },
+      url: song.url // URL para reproducción
     };
     
     set({ 
-      currentSong: songData as any, // Cast temporal hasta actualizar tipos
+      currentSong: playingSong,
       duration: song.duration,
       currentTime: 0
     });
@@ -202,8 +224,11 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
         audioRef.src = songUrl;
         audioRef.load();
         
-        // Agregar la URL al objeto song para uso posterior
-        (song as any).url = songUrl;
+        // Crear el objeto PlayingSong con la URL
+        const playingSong: PlayingSong = {
+          ...song,
+          url: songUrl
+        };
         
         audioRef.addEventListener('loadeddata', () => {
           console.log(`✅ [PLAYER-STORE] Audio loaded successfully, duration:`, audioRef.duration);
@@ -223,16 +248,21 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
           console.error(`❌ [PLAYER-STORE] Audio load error:`, e);
           set({ isPlaying: false });
         }, { once: true });
+        
+        // Configurar el currentSong con la URL incluida
+        set({ 
+          currentSong: playingSong, 
+          currentPlaylist: playlist || null,
+          currentIndex: index,
+          currentTime: 0,
+          isPlaying: false // Se actualizará a true cuando inicie el autoplay
+        });
+      } else {
+        console.error(`❌ [PLAYER-STORE] No URL generated for song`);
       }
+    } else {
+      console.error(`❌ [PLAYER-STORE] No audio element found when setting current song`);
     }
-    
-    set({ 
-      currentSong: song, 
-      currentPlaylist: playlist || null,
-      currentIndex: index,
-      currentTime: 0,
-      isPlaying: false // Se actualizará a true cuando inicie el autoplay
-    });
   },
 
   setCurrentTime: (time: number) => set({ currentTime: time }),

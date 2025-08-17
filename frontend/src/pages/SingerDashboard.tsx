@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAuthStore } from '../store/authStore';
 import { getApiUrl } from '../config/api';
-import SongCard from '../components/SongCard';
-import SongDetailModal from '../components/SongDetailModal';
+import { SongCard } from '../components/UI';
+import { SongDetailModal } from '../components/Modal';
 import type { Song } from '../types';
 
 // Paleta de colores predefinida

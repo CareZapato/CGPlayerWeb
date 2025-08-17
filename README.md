@@ -1,9 +1,9 @@
 # CGPlayerWeb 🎵
 
-[![Version](https://img.shields.io/badge/version-0.3.0-blue.svg)](https://github.com/CareZapato/CGPlayerWeb/releases/tag/v0.3.0)
+[![Version](https://img.shields.io/badge/version-0.4.0-blue.svg)](https://github.com/CareZapato/CGPlayerWeb/releases/tag/v0.4.0)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
-[![React](https://img.shields.io/badge/React-18+-blue.svg)](https://reactjs.org/)
+[![React](https://img.shields.io/badge/React-19+-blue.svg)](https://reactjs.org/)
 
 **CGPlayerWeb** es una aplicación web moderna para la gestión y reproducción de música coral, diseñada específicamente para coros y grupos musicales. Permite la subida, organización y reproducción de pistas de audio con un sistema avanzado de roles y autenticación.
 
@@ -30,15 +30,24 @@
 - **Monitoreo del sistema** con datos de rendimiento
 
 ### 🎼 Reproductor Avanzado
-- **Reproductor flotante** que permanece activo durante la navegación
-- **Playlist slide-up** con interfaz deslizante desde abajo
-- **Drag & Drop** para reordenar canciones en la cola
+- **Reproductor persistente** en la parte inferior con diseño moderno
+- **Drag & Drop optimizado** para dispositivos móviles y desktop
 - **Controles de reproducción** completos (play, pause, seek, volumen)
 - **Barra de progreso interactiva** con click-to-seek
 - **Navegación automática** entre canciones
 - **Soporte para streaming** con requests HTTP Range
 - **Audio de alta calidad** sin pérdida de fidelidad
-- **Sistema de cola corregido** que añade correctamente las versiones reproducibles
+- **Sistema de cola mejorado** que añade correctamente las versiones reproducibles
+- **Título dinámico en pestaña** que muestra la canción actual
+- **Favicon dinámico** que cambia según la canción en reproducción
+
+### 📱 Experiencia Móvil Optimizada
+- **Contraste mejorado** para títulos en dispositivos móviles
+- **Soporte touch completo** con TouchSensor para drag & drop
+- **Dark mode optimizado** con colores específicos para móvil
+- **Interacciones táctiles** con delay y tolerancia configurables
+- **Text shadows** para mejor legibilidad en diferentes fondos
+- **Responsive design** adaptado para diferentes tamaños de pantalla
 
 ## 🚀 Características Principales
 

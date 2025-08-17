@@ -5,7 +5,7 @@ import { usePlaylistStore } from '../store/playlistStore';
 import { useServerInfo } from '../hooks/useServerInfo';
 import { getApiUrl } from '../config/api';
 import SongUpload from '../components/SongUpload';
-import MultiSongUpload from '../components/MultiSongUpload';
+import MultiSongUpload from '../components/Upload/MultiSongUpload';
 import type { Song } from '../types';
 
 interface SongWithVersions extends Song {

@@ -5,6 +5,55 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto se adhiere al [Versionado Semántico](https://semver.org/lang/es/).
 
+## [0.4.0] - 2025-08-17
+
+### 🎵 Nuevas Características
+
+#### 📱 Experiencia Móvil Mejorada
+- **Contraste mejorado**: Títulos de canciones con mejor contraste y legibilidad en dispositivos móviles
+- **Soporte para dark mode**: Optimización específica para modo oscuro en móviles
+- **Text shadows**: Sombras de texto para mejor legibilidad en diferentes fondos
+- **Tipografía responsive**: Font weights y tamaños optimizados para pantallas pequeñas
+
+#### 🎵 Título Dinámico en Pestaña
+- **Favicon dinámico**: Actualización automática del favicon basado en la canción actual
+- **Título de pestaña**: Muestra "[Título de la canción] - CGPlayer" durante la reproducción
+- **Restauración automática**: Vuelve al título por defecto "CGPlayer" cuando se pausa
+- **Integración completa**: Sincronizado con el estado del reproductor
+
+#### 🎯 Drag & Drop Móvil Optimizado
+- **TouchSensor**: Soporte específico para dispositivos táctiles
+- **Activación inteligente**: 250ms de delay y tolerancia de 5px para evitar activación accidental
+- **PointerSensor mejorado**: Distancia mínima de 8px antes de iniciar el drag
+- **Feedback visual**: Mejor respuesta visual durante el arrastre en móviles
+
+### 🔧 Mejoras Técnicas
+
+#### 📱 Frontend Mobile-First
+- **Touch actions**: Configuración `touch-action: none` para mejor soporte táctil
+- **User experience**: Manejo optimizado de interacciones táctiles
+- **CSS responsivo**: Media queries específicas para móviles y tablets
+- **Performance**: Sensores de drag & drop optimizados para diferentes dispositivos
+
+#### 🎨 Interfaz de Usuario
+- **Contraste dinámico**: Colores adaptativos según el tema del sistema
+- **Estilos específicos**: Diferentes configuraciones para light/dark mode en móvil
+- **Accessibility**: Mejor experiencia para usuarios con diferentes necesidades
+- **Visual feedback**: Indicadores mejorados durante interacciones de drag & drop
+
+### 🐛 Correcciones
+
+#### 📱 Dispositivos Móviles
+- **Drag & drop funcional**: Corregido el problema donde no funcionaba en dispositivos táctiles
+- **Contraste insuficiente**: Solucionado el problema de legibilidad de títulos en móvil
+- **Touch responsiveness**: Mejor respuesta a gestos táctiles en la playlist
+- **Configuración de sensores**: Optimización para diferentes tipos de input (touch, pointer, keyboard)
+
+#### 🔧 Reproducción
+- **Estado de pestaña**: Sincronización correcta del título de pestaña con el estado de reproducción
+- **Memory leaks**: Prevención de fugas de memoria en useEffect del título
+- **Performance**: Optimización de actualizaciones del DOM para favicon y título
+
 ## [0.3.0] - 2025-01-02
 
 ### 🎵 Nuevas Características

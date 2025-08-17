@@ -1,0 +1,95 @@
+/* ==========================================================================
+   SIMPLE PLAYER - Hidden Audio Element Component
+   ========================================================================== */
+
+/**
+ * SimplePlayer - Componente oculto que maneja el elemento audio HTML5
+ * Este componente no tiene interfaz visual, solo maneja la lógica de audio
+ */
+
+.simple-player {
+  /* Componente completamente oculto - no interfaz visual */
+  position: absolute;
+  top: -9999px;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.simple-player__audio {
+  /* Elemento audio HTML5 oculto */
+  width: 0;
+  height: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ==========================================================================
+   ESTADOS DE DEPURACIÓN (solo para desarrollo)
+   ========================================================================== */
+
+.simple-player--debug {
+  /* Modo debug para desarrollo - hace visible el componente */
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: auto;
+  height: auto;
+  opacity: 1;
+  background: var(--color-surface);
+  border: 2px solid var(--color-accent);
+  border-radius: var(--border-radius-md);
+  padding: var(--spacing-sm);
+  z-index: 9999;
+}
+
+.simple-player--debug .simple-player__audio {
+  width: 200px;
+  height: 30px;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.simple-player__loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background-color: #f3f4f6;
+  border-radius: 0.5rem;
+  margin-bottom: 1rem;
+  color: #6b7280;
+  font-size: 0.875rem;
+}
+
+.simple-player__loading::before {
+  content: '';
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid #e5e7eb;
+  border-top: 2px solid #3b82f6;
+  border-radius: 50%;
+  margin-right: 0.5rem;
+  animation: spin 1s linear infinite;
+}
+
+.simple-player__error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 0.5rem;
+  margin-bottom: 1rem;
+  color: #dc2626;
+  font-size: 0.875rem;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}

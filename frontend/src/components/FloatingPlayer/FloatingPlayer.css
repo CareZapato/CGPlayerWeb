@@ -1,0 +1,342 @@
+/* ==========================================================================
+   FLOATING PLAYER - Compact Floating Player Component
+   ========================================================================== */
+
+/**
+ * FloatingPlayer - Reproductor flotante compacto
+ * Se mantiene visible en una esquina con controles esenciales
+ */
+
+.floating-player {
+  position: fixed;
+  bottom: var(--spacing-lg);
+  right: var(--spacing-lg);
+  background: var(--color-surface);
+  border-radius: var(--border-radius-lg);
+  box-shadow: var(--shadow-xl);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--color-border);
+  z-index: var(--z-index-floating);
+  min-width: 280px;
+  max-width: 400px;
+  transition: all var(--transition-base);
+  overflow: hidden;
+}
+
+.floating-player:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-2xl);
+}
+
+.floating-player--collapsed {
+  /* Estado colapsado - más compacto */
+  width: 280px;
+}
+
+.floating-player--expanded {
+  /* Estado expandido - más controles */
+  width: 400px;
+}
+
+/* ==========================================================================
+   PROGRESS BAR
+   ========================================================================== */
+
+.floating-player__progress {
+  height: 3px;
+  background: var(--color-background);
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+.floating-player__progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--color-accent), var(--color-accent-light));
+  transition: width var(--transition-fast);
+}
+
+.floating-player__progress:hover {
+  height: 5px;
+}
+
+/* ==========================================================================
+   CONTENT LAYOUT
+   ========================================================================== */
+
+.floating-player__content {
+  padding: var(--spacing-md);
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: var(--spacing-md);
+  align-items: center;
+}
+
+/* ==========================================================================
+   SONG INFO
+   ========================================================================== */
+
+.floating-player__info {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  min-width: 0; /* Permite que el texto se trunque */
+}
+
+.floating-player__avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--border-radius-full);
+  background: var(--color-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.floating-player__avatar-text {
+  color: white;
+  font-weight: var(--font-weight-bold);
+  font-size: var(--font-size-sm);
+}
+
+.floating-player__details {
+  min-width: 0;
+  flex: 1;
+}
+
+.floating-player__title {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  margin: 0 0 2px 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.floating-player__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.floating-player__artist {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.floating-player__time {
+  font-size: var(--font-size-xs);
+  color: var(--color-accent);
+  font-weight: var(--font-weight-medium);
+}
+
+/* ==========================================================================
+   CONTROLS
+   ========================================================================== */
+
+.floating-player__controls {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.floating-player__control {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: var(--border-radius-full);
+  cursor: pointer;
+  transition: all var(--transition-base);
+  background: transparent;
+}
+
+.floating-player__control--primary {
+  width: 40px;
+  height: 40px;
+  background: var(--color-accent);
+  color: white;
+}
+
+.floating-player__control--primary:hover {
+  background: var(--color-accent-dark);
+  transform: scale(1.05);
+}
+
+.floating-player__control--secondary {
+  width: 32px;
+  height: 32px;
+  color: var(--color-text-muted);
+}
+
+.floating-player__control--secondary:hover {
+  background: var(--color-background-subtle);
+  color: var(--color-text-primary);
+}
+
+.floating-player__control--close {
+  width: 24px;
+  height: 24px;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+}
+
+.floating-player__control--close:hover {
+  background: var(--color-danger-subtle);
+  color: var(--color-danger);
+}
+
+.floating-player__control:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+.floating-player__control-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.floating-player__control--primary .floating-player__control-icon {
+  width: 20px;
+  height: 20px;
+}
+
+/* ==========================================================================
+   ACTIONS
+   ========================================================================== */
+
+.floating-player__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.floating-player__volume {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.floating-player__volume-slider {
+  width: 60px;
+  height: 4px;
+  background: var(--color-background);
+  border-radius: var(--border-radius-full);
+  outline: none;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.floating-player__volume-slider::-webkit-slider-thumb {
+  width: 12px;
+  height: 12px;
+  background: var(--color-accent);
+  border-radius: var(--border-radius-full);
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.floating-player__volume-slider::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  background: var(--color-accent);
+  border-radius: var(--border-radius-full);
+  cursor: pointer;
+  border: none;
+}
+
+/* ==========================================================================
+   RESPONSIVE DESIGN
+   ========================================================================== */
+
+@media (max-width: 768px) {
+  .floating-player {
+    bottom: var(--spacing-md);
+    right: var(--spacing-md);
+    left: var(--spacing-md);
+    min-width: auto;
+    max-width: none;
+  }
+  
+  .floating-player--collapsed,
+  .floating-player--expanded {
+    width: auto;
+  }
+  
+  .floating-player__volume {
+    display: none; /* Ocultar controles de volumen en móvil */
+  }
+}
+
+@media (max-width: 480px) {
+  .floating-player {
+    bottom: var(--spacing-sm);
+    right: var(--spacing-sm);
+    left: var(--spacing-sm);
+  }
+  
+  .floating-player__content {
+    padding: var(--spacing-sm);
+    gap: var(--spacing-sm);
+  }
+  
+  .floating-player__controls {
+    gap: var(--spacing-xs);
+  }
+  
+  .floating-player__control--secondary {
+    display: none; /* Ocultar controles secundarios en pantallas muy pequeñas */
+  }
+}
+
+/* ==========================================================================
+   ANIMATIONS
+   ========================================================================== */
+
+@keyframes slideInFromBottom {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.floating-player {
+  animation: slideInFromBottom var(--transition-base);
+}
+
+/* ==========================================================================
+   ACCESSIBILITY
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  .floating-player,
+  .floating-player__control,
+  .floating-player__progress-fill {
+    transition: none;
+    animation: none;
+  }
+}
+
+/* ==========================================================================
+   DARK MODE SUPPORT
+   ========================================================================== */
+
+@media (prefers-color-scheme: dark) {
+  .floating-player {
+    background: var(--color-surface-dark);
+    border-color: var(--color-border-dark);
+  }
+}

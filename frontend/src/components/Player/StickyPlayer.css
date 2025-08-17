@@ -1,0 +1,382 @@
+/* StickyPlayer.css - Estilos para el reproductor principal */
+
+/* Contenedor principal del reproductor */
+.sticky-player {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background-color: white;
+  border-top: 1px solid #e5e7eb;
+  box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.1);
+  z-index: 40;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sticky-player--collapsed {
+  height: 4rem; /* 64px */
+}
+
+.sticky-player--expanded {
+  height: auto;
+}
+
+/* Barra de progreso principal */
+.progress-bar {
+  width: 100%;
+  background-color: #e5e7eb;
+  cursor: pointer;
+  height: 4px;
+  transition: height 0.2s ease-in-out;
+}
+
+.progress-bar:hover {
+  height: 8px;
+}
+
+.progress-bar__fill {
+  height: 100%;
+  background-color: #3b82f6;
+  transition: all 0.1s ease-out;
+}
+
+/* Layout principal del reproductor */
+.player-layout {
+  padding: 0.5rem 0.75rem;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Información de la canción */
+.song-info {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.song-info__avatar {
+  flex-shrink: 0;
+}
+
+.song-info__avatar-circle {
+  width: 2.5rem;
+  height: 2.5rem;
+  background: linear-gradient(to bottom right, #3b82f6, #8b5cf6);
+  border-radius: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.song-info__avatar-text {
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.song-info__details {
+  min-width: 0;
+  flex: 1;
+}
+
+.song-info__title {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #111827;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.song-info__subtitle {
+  font-size: 0.75rem;
+  color: #6b7280;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Controles de reproducción */
+.player-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+}
+
+.control-button {
+  padding: 0.375rem;
+  border-radius: 9999px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+
+.control-button:hover {
+  background-color: #f3f4f6;
+  transform: scale(1.05);
+}
+
+.control-button:active {
+  transform: scale(0.95);
+}
+
+.control-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.control-button--primary {
+  padding: 0.5rem;
+  background-color: #3b82f6;
+  color: white;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.control-button--primary:hover {
+  background-color: #2563eb;
+  transform: scale(1.1);
+}
+
+.control-button--primary:active {
+  transform: scale(1.0);
+}
+
+.control-button__icon {
+  width: 1rem;
+  height: 1rem;
+}
+
+.control-button--primary .control-button__icon {
+  width: 1rem;
+  height: 1rem;
+}
+
+/* Controles adicionales */
+.additional-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.volume-controls {
+  display: none;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.volume-slider {
+  position: relative;
+  width: 5rem;
+  height: 1rem;
+  display: flex;
+  align-items: center;
+}
+
+.volume-slider__track {
+  width: 100%;
+  height: 0.25rem;
+  background-color: #e5e7eb;
+  border-radius: 9999px;
+}
+
+.volume-slider__fill {
+  height: 100%;
+  background-color: #3b82f6;
+  border-radius: 9999px;
+  transition: all 0.15s ease-out;
+}
+
+.volume-slider__input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+/* Panel expandido de la cola */
+.queue-panel {
+  border-top: 1px solid #f3f4f6;
+  background-color: #f9fafb;
+  padding: 1rem;
+  max-height: 16rem;
+  overflow-y: auto;
+  animation: slideUp 0.3s ease-out;
+}
+
+.queue-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+  transition: background-color 0.2s ease-in-out;
+}
+
+.queue-item:hover {
+  background-color: white;
+}
+
+.queue-item--current {
+  background-color: #eff6ff;
+  border: 1px solid #bfdbfe;
+}
+
+.queue-item__info {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.queue-item__title {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #111827;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.queue-item__subtitle {
+  font-size: 0.75rem;
+  color: #6b7280;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.queue-item__remove {
+  color: #9ca3af;
+  padding: 0.25rem;
+  border-radius: 0.25rem;
+  transition: color 0.2s ease-in-out;
+}
+
+.queue-item__remove:hover {
+  color: #ef4444;
+}
+
+/* Responsive Design - Tablet y Desktop */
+@media (min-width: 768px) {
+  .sticky-player--collapsed {
+    height: 5rem; /* 80px */
+  }
+  
+  .player-layout {
+    padding: 0.75rem 1.5rem;
+    gap: 1rem;
+  }
+  
+  .song-info__avatar-circle {
+    width: 3rem;
+    height: 3rem;
+  }
+  
+  .song-info__avatar-text {
+    font-size: 0.875rem;
+  }
+  
+  .song-info__title {
+    font-size: 1rem;
+  }
+  
+  .song-info__subtitle {
+    font-size: 0.875rem;
+  }
+  
+  .player-controls {
+    gap: 0.75rem;
+  }
+  
+  .control-button {
+    padding: 0.5rem;
+  }
+  
+  .control-button--primary {
+    padding: 0.75rem;
+  }
+  
+  .control-button__icon {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+  
+  .control-button--primary .control-button__icon {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+  
+  .volume-controls {
+    display: flex;
+  }
+}
+
+/* Animaciones */
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+.queue-panel--closing {
+  animation: slideDown 0.3s ease-out;
+}
+
+/* Indicador de canción actual en la cola */
+.queue-item--current::before {
+  content: '♪';
+  color: #3b82f6;
+  font-weight: 600;
+  margin-right: 0.5rem;
+}
+
+/* Estilos para estados de carga */
+.loading-skeleton {
+  background-color: #e5e7eb;
+  border-radius: 0.25rem;
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.song-info__title--loading {
+  width: 120px;
+  height: 16px;
+}
+
+.song-info__subtitle--loading {
+  width: 80px;
+  height: 12px;
+}

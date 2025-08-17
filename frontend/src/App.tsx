@@ -16,12 +16,7 @@ import ManagementPage from './pages/ManagementPage';
 import UsersPage from './pages/UsersPage';
 
 // Components
-import Layout from './components/Layout';
-import ProtectedRoute from './components/ProtectedRoute';
-import SimplePlayer from './components/SimplePlayer';
-
-// Hooks
-import { useAuthStore } from './store/authStore';
+import { Layout, ProtectedRoute } from './components';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -33,8 +28,6 @@ const queryClient = new QueryClient({
 });
 
 function App() {
-  const { isAuthenticated } = useAuthStore();
-
   return (
     <QueryClientProvider client={queryClient}>
       <Router>
@@ -117,13 +110,6 @@ function App() {
               </ProtectedRoute>
             } />
           </Routes>
-          
-          {/* Reproductor flotante */}
-          {isAuthenticated && (
-            <>
-              <SimplePlayer />
-            </>
-          )}
           
           {/* Notificaciones */}
           <Toaster 

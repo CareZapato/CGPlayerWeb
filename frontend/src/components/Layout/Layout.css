@@ -1,0 +1,117 @@
+/* ==========================================================================
+   LAYOUT - Main Application Layout Component
+   ========================================================================== */
+
+/**
+ * Layout - Contenedor principal de la aplicación con navegación
+ * Proporciona la estructura base para todas las páginas
+ */
+
+.layout {
+  min-height: 100vh;
+  background: var(--color-background);
+  display: flex;
+  flex-direction: column;
+}
+
+.layout__navigation {
+  /* Área de navegación fija */
+  position: sticky;
+  top: 0;
+  z-index: var(--z-index-navigation);
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.layout__content {
+  /* Contenido principal con padding para la navegación */
+  flex: 1;
+  padding-bottom: calc(var(--player-height) + var(--spacing-lg));
+  min-height: calc(100vh - var(--navigation-height));
+}
+
+.layout__main {
+  /* Área principal de contenido */
+  max-width: var(--max-width-content);
+  margin: 0 auto;
+  padding: var(--spacing-lg);
+}
+
+/* ==========================================================================
+   RESPONSIVE BEHAVIOR
+   ========================================================================== */
+
+@media (max-width: 768px) {
+  .layout__main {
+    padding: var(--spacing-md);
+  }
+  
+  .layout__content {
+    padding-bottom: calc(var(--player-height-mobile) + var(--spacing-md));
+  }
+}
+
+@media (max-width: 480px) {
+  .layout__main {
+    padding: var(--spacing-sm);
+  }
+}
+
+/* ==========================================================================
+   LAYOUT STATES
+   ========================================================================== */
+
+.layout--with-player {
+  /* Layout cuando el reproductor está activo */
+  padding-bottom: var(--player-height);
+}
+
+.layout--loading {
+  /* Estado de carga */
+  pointer-events: none;
+}
+
+.layout--loading::after {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: var(--z-index-overlay);
+}
+
+/* ==========================================================================
+   ACCESSIBILITY
+   ========================================================================== */
+
+.layout:focus-within {
+  /* Cuando hay elementos enfocados dentro del layout */
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .layout,
+  .layout__content,
+  .layout__main {
+    transition: none;
+  }
+}
+
+/* ==========================================================================
+   DARK MODE SUPPORT
+   ========================================================================== */
+
+@media (prefers-color-scheme: dark) {
+  .layout {
+    background: var(--color-background-dark);
+  }
+  
+  .layout__navigation {
+    background: var(--color-surface-dark);
+    border-bottom-color: var(--color-border-dark);
+  }
+}
