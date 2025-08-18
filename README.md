@@ -49,29 +49,7 @@
 - **Text shadows** para mejor legibilidad en diferentes fondos
 - **Responsive design** adaptado para diferentes tamaños de pantalla
 
-## 🚀 Características Principales
-
-### 🎵 Gestión de Música
-- **Subida de archivos de audio** (MP3, M4A, WAV, FLAC)
-- **Organización automática** en carpetas individuales por canción
-- **Sistema de versiones** para diferentes arreglos de la misma canción
-- **Metadatos automáticos** extraídos de archivos de audio
-- **Reproductor de audio integrado** con controles avanzados
-
-### 👥 Sistema de Usuarios
-- **Autenticación JWT** segura
-- **Roles diferenciados**: Admin, Director, Cantante
-- **Gestión de permisos** granular por funcionalidad
-- **Perfiles de usuario** personalizables
-
-### 🎵 Reproductor Avanzado
-- **Reproductor flotante** que permanece activo durante la navegación
-- **Controles de reproducción** completos (play, pause, seek, volumen)
-- **Barra de progreso interactiva** con click-to-seek
-- **Soporte para streaming** con requests HTTP Range
-- **Audio de alta calidad** sin pérdida de fidelidad
-
-### 🗂️ Organización Inteligente
+### ️ Organización Inteligente
 - **Estructura container-children** para variaciones de voz
 - **7 tipos de voz completos**: Soprano, Contralto, Tenor, Barítono, Bajo, Coro, Original
 - **Todas las voces son iguales** - ninguna se trata como "principal"
@@ -79,32 +57,10 @@
 - **Base de datos PostgreSQL** para metadatos y relaciones
 - **Validación automática** de integridad entre archivos y BD
 
-### ✨ Nuevas Características v0.2.0
-- **🎭 Playlist Slide-Up**: Interfaz deslizante con drag & drop para reordenar
-- **▶️ Botones de Reproducción**: Directamente en las tarjetas de canciones
-- **🔄 Auto-navegación**: Reproducción automática de la siguiente canción
-- **🎚️ Controles Mejorados**: Reproductor integrado con mejor UX
-- **🗄️ Scripts de BD**: Gestión automatizada de base de datos
-
-### 🎵 Características v0.2.2 (Agosto 2025)
-- **🎭 Nuevos Tipos de Voz**: Agregados 'Coro' y 'Original' para clasificación completa
-- **▶️ Reproducción Robusta**: Botón play reactivado con sistema de fallback múltiple
-- **📅 Fechas de Subida**: Reemplazada duración por fecha de subida en gestión
-- **🔧 Integridad de Datos**: Sistema automatizado de limpieza y validación de BD
-- **🗂️ Gestión Mejorada**: Solo canciones con archivos físicos en base de datos
-
-### 🎵 Características v0.3.0 (Enero 2025)
-- **📊 Dashboard Estadístico**: Panel administrativo completo con métricas en tiempo real
-- **📈 Gráficos de Torta**: Visualizaciones SVG para distribución de tipos de voz
-- **🔄 Cola Corregida**: Sistema "Agregar a cola" funciona correctamente con versiones reproducibles
-- **🛠️ API de Dashboard**: Endpoints especializados para estadísticas administrativas
-- **✅ Validación de Versiones**: Solo se agregan a la cola canciones con voiceType válido
-- **🧪 Herramientas de Testing**: Utilidades para verificar funcionamiento de APIs
-
 ## 🛠️ Tecnologías Utilizadas
 
 ### Frontend
-- **React 18** con TypeScript
+- **React 19** con TypeScript
 - **Vite** como bundler y dev server
 - **Tailwind CSS** para estilos responsivos
 - **Zustand** para gestión de estado global
@@ -112,6 +68,7 @@
 - **React Router** para navegación SPA
 - **React Hook Form** para formularios
 - **React Hot Toast** para notificaciones
+- **@dnd-kit** para funcionalidad drag & drop
 
 ### Backend
 - **Node.js** con TypeScript
@@ -146,19 +103,8 @@ cd CGPlayerWeb
 
 ### 2. Instalar dependencias
 ```bash
-# Instalar dependencias del proyecto principal
-npm install
-
-# Instalar dependencias del backend
-cd backend
-npm install
-
-# Instalar dependencias del frontend
-cd ../frontend
-npm install
-
-# Volver al directorio raíz
-cd ..
+# Instalar dependencias de todos los módulos
+npm run install:all
 ```
 
 ### 3. Configurar la base de datos
@@ -207,7 +153,7 @@ npx prisma generate
 # Ejecutar migraciones
 npx prisma migrate dev
 
-# (Opcional) Poblar con datos de ejemplo
+# Poblar con datos de ejemplo
 npx prisma db seed
 ```
 
@@ -221,7 +167,7 @@ La aplicación estará disponible en:
 - **Frontend**: http://localhost:5173
 - **Backend API**: http://localhost:3001/api
 
-## 📱 Uso de la Aplicación
+## � Manual de Uso
 
 ### Primer Uso
 1. **Registro**: Crear una cuenta de usuario
@@ -234,84 +180,27 @@ La aplicación estará disponible en:
 - **Director**: Gestión de canciones, playlists y eventos
 - **Cantante**: Reproducción de música y acceso a su perfil
 
-### 👥 Usuarios de Prueba (v0.2.2)
-Después de ejecutar `npm run db:seed`, puedes usar estas credenciales:
+### 👥 Credenciales de Prueba
+
+Después de ejecutar `npx prisma db seed`, puedes usar estas credenciales:
 
 #### 👑 Administrador
 - **Email**: admin@cgplayer.com
 - **Password**: admin123
 
-#### 🎤 Cantantes (Actualizados v0.2.2)
+#### 🎤 Cantantes
 - **soprano1@coro.com** / cantante123 - María González (Soprano)
 - **contralto1@coro.com** / cantante123 - Ana Martínez (Contralto)
 - **tenor1@coro.com** / cantante123 - Carlos López (Tenor)
 - **baritono1@coro.com** / cantante123 - Luis Rodríguez (Barítono)
 - **bajo1@coro.com** / cantante123 - Miguel Fernández (Bajo)
 
-> **📝 Nota v0.2.2**: Todos los usuarios pueden ahora subir archivos con las nuevas clasificaciones 'Coro' y 'Original', además de las 5 voces tradicionales.
-
-## 🔧 Scripts Disponibles
-
-### Proyecto Principal
-```bash
-npm run dev          # Ejecutar frontend y backend en desarrollo
-npm run build        # Construir para producción
-npm run start        # Ejecutar en modo producción
-npm run lint         # Ejecutar linting
-```
-
-### Backend
-```bash
-npm run dev          # Desarrollo con hot reload
-npm run build        # Compilar TypeScript
-npm run start        # Ejecutar versión compilada
-
-# 🗄️ Scripts de Base de Datos (NUEVO v0.2.0)
-npm run db:reset     # Limpiar base de datos
-npm run db:seed      # Sembrar datos de prueba
-npm run db:check     # Verificar estado de canciones
-npm run db:init      # Inicialización completa (reset + seed)
-
-# 🔧 Scripts de Prisma
-npm run prisma:generate  # Generar cliente Prisma
-npm run prisma:migrate   # Ejecutar migraciones
-npm run prisma:studio    # Abrir interfaz visual de BD
-```
-
-### Frontend
-```bash
-npm run dev          # Servidor de desarrollo
-npm run build        # Construir para producción
-npm run preview      # Vista previa de la build
-npm run lint         # Linting del código
-```
-
-## 📁 Estructura del Proyecto
-
-```
-CGPlayerWeb/
-├── frontend/                 # Aplicación React
-│   ├── src/
-│   │   ├── components/      # Componentes reutilizables
-│   │   ├── pages/          # Páginas de la aplicación
-│   │   ├── store/          # Estado global (Zustand)
-│   │   ├── hooks/          # Custom hooks
-│   │   ├── types/          # Tipos TypeScript
-│   │   └── utils/          # Utilidades
-│   ├── public/             # Archivos estáticos
-│   └── package.json
-├── backend/                 # API Node.js
-│   ├── src/
-│   │   ├── routes/         # Rutas de la API
-│   │   ├── middleware/     # Middlewares
-│   │   ├── utils/          # Utilidades
-│   │   └── types/          # Tipos TypeScript
-│   ├── prisma/             # Esquemas y migraciones
-│   ├── uploads/            # Archivos subidos
-│   └── package.json
-├── package.json            # Dependencias principales
-└── README.md              # Este archivo
-```
+### 🎵 Uso del Reproductor
+- **Reproducción**: Haz clic en cualquier canción para reproducirla
+- **Cola de reproducción**: Arrastra y suelta canciones para reordenar
+- **Controles**: Play/Pause, anterior/siguiente, control de volumen
+- **Barra de progreso**: Haz clic para saltar a una posición específica
+- **Título dinámico**: El título de la pestaña cambia con la canción actual
 
 ## 🔄 API Endpoints
 
@@ -333,82 +222,57 @@ CGPlayerWeb/
 - `PUT /api/users/:id` - Actualizar usuario
 - `DELETE /api/users/:id` - Eliminar usuario
 
-## 🚧 Roadmap
+### Dashboard (Solo Admin)
+- `GET /api/dashboard/stats` - Estadísticas generales
+- `GET /api/dashboard/voice-distribution` - Distribución de tipos de voz
+- `GET /api/dashboard/recent-activity` - Actividad reciente
 
-### v0.2.0 (Próxima versión)
-- [ ] Sistema de playlists completo
-- [ ] Comentarios en canciones
-- [ ] Favoritos personales
-- [ ] Búsqueda avanzada con filtros
+## 📝 Historial de Cambios
 
-### v0.3.0
-- [ ] Modo offline con cache
-- [ ] Sincronización entre dispositivos
-- [ ] Exportación de playlists
-- [ ] Estadísticas de reproducción
+### [0.4.1] - 2025-08-18
 
-### v1.0.0
-- [ ] Aplicación móvil React Native
-- [ ] Sistema de notificaciones
-- [ ] Integración con servicios de almacenamiento en la nube
-- [ ] Dashboard analítico completo
+#### 🐛 Correcciones de Errores
+- **Error de exportación**: Solucionado el error "does not provide an export named 'default'" en Layout
+- **Limpieza de archivos**: Eliminados archivos duplicados y vacíos de Layout
+- **Importación corregida**: Actualizada la importación para apuntar a `./Layout/Layout` correctamente
+- **Compilación**: Frontend ahora compila sin errores de importación
+- **Variables no utilizadas**: Eliminadas variables no utilizadas en AudioManager
 
-## 🤝 Contribuir
+### [0.4.0] - 2025-08-17
 
-1. **Fork** el proyecto
-2. **Crear** una rama para tu feature (`git checkout -b feature/AmazingFeature`)
-3. **Commit** tus cambios (`git commit -m 'Add some AmazingFeature'`)
-4. **Push** a la rama (`git push origin feature/AmazingFeature`)
-5. **Abrir** un Pull Request
+#### 🎵 Nuevas Características
 
-## 📝 Changelog
+##### 📱 Experiencia Móvil Mejorada
+- **Contraste mejorado**: Títulos de canciones con mejor contraste y legibilidad en dispositivos móviles
+- **Soporte para dark mode**: Optimización específica para modo oscuro en móviles
+- **Text shadows**: Sombras de texto para mejor legibilidad en diferentes fondos
+- **Tipografía responsive**: Font weights y tamaños optimizados para pantallas pequeñas
 
-### [0.1.0] - 2025-08-13
+##### 🎵 Título Dinámico en Pestaña
+- **Favicon dinámico**: Actualización automática del favicon basado en la canción actual
+- **Título de pestaña**: Muestra "[Título de la canción] - CGPlayer" durante la reproducción
+- **Restauración automática**: Vuelve al título por defecto "CGPlayer" cuando se pausa
+- **Integración completa**: Sincronizado con el estado del reproductor
 
-#### ✨ Nuevas Características
-- **Sistema de autenticación completo** con JWT y roles de usuario
-- **Subida de archivos de audio** con soporte para múltiples formatos
-- **Reproductor de audio integrado** con controles avanzados
-- **Organización automática** de archivos en carpetas individuales
-- **Base de datos PostgreSQL** con Prisma ORM
-- **API RESTful completa** para gestión de canciones y usuarios
-- **Interfaz responsiva** con Tailwind CSS
-- **Sistema de streaming** de audio con HTTP Range requests
+##### 🎯 Drag & Drop Móvil Optimizado
+- **TouchSensor**: Soporte específico para dispositivos táctiles
+- **Activación inteligente**: 250ms de delay y tolerancia de 5px para evitar activación accidental
+- **PointerSensor mejorado**: Distancia mínima de 8px antes de iniciar el drag
+- **Feedback visual**: Mejor respuesta visual durante el arrastre en móviles
 
-#### 🔧 Características Técnicas
-- **Frontend React 18** con TypeScript y Vite
-- **Backend Node.js** con Express y TypeScript
-- **Gestión de estado** con Zustand
-- **Queries optimizadas** con React Query
-- **Validación de formularios** con React Hook Form
-- **Notificaciones** con React Hot Toast
-
-#### 🛠️ Configuración del Proyecto
-- **Configuración de desarrollo** con hot reload
-- **Scripts automatizados** para desarrollo y producción
-- **Linting y formatting** con ESLint y Prettier
-- **Dockerización** opcional para base de datos
-- **Variables de entorno** configurables
-
-#### 📚 Documentación
-- **README completo** con guías de instalación
-- **Documentación de API** con ejemplos
-- **Estructura del proyecto** documentada
-- **Guías de contribución** establecidas
+#### � Mejoras Técnicas
+- **CSS responsivo**: Media queries específicas para móviles
+- **Sensors optimizados**: Configuración avanzada de @dnd-kit para dispositivos táctiles
+- **useEffect**: Gestión automática del título de pestaña con dependencias optimizadas
+- **Error handling**: Mejor manejo de errores en playlist management
 
 ## 📄 Licencia
 
 Este proyecto está bajo la Licencia MIT. Ver el archivo [LICENSE](LICENSE) para más detalles.
 
-## 👥 Autores
+## 👥 Autor
 
 - **CareZapato** - *Desarrollador Principal* - [@CareZapato](https://github.com/CareZapato)
-
-## 🙏 Agradecimientos
-
-- Comunidad de React y Node.js
-- Contribuidores de las librerías utilizadas
-- Testers y usuarios beta
 
 ---
 
