@@ -27,7 +27,11 @@ const PlaylistPlayer: React.FC<PlaylistPlayerProps> = ({ isOpen, onToggle }) => 
     removeFromQueue,
     clearQueue,
     setCurrentIndex,
-    moveInQueue
+    moveInQueue,
+    isShuffled,
+    repeatMode,
+    toggleShuffle,
+    toggleRepeat
   } = usePlaylistStore();
   
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
@@ -155,35 +159,94 @@ const PlaylistPlayer: React.FC<PlaylistPlayerProps> = ({ isOpen, onToggle }) => 
       )}
 
       {/* Panel deslizante */}
-      <div className={`fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-2xl z-50 transform transition-transform duration-300 ease-in-out ${
+      <div className={`fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-2xl z-50 transform transition-transform duration-300 ease-in-out md:left-1/4 md:right-1/4 lg:left-1/3 lg:right-1/3 xl:left-2/5 xl:right-2/5 ${
         isOpen ? 'translate-y-0' : 'translate-y-full'
       }`} style={{ height: '80vh' }}>
         
         {/* Header del panel */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gray-50">
           <div className="flex items-center space-x-3">
-            <button
-              onClick={onToggle}
-              className="p-2 text-gray-600 hover:text-gray-900 transition-colors"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-            <h2 className="text-lg font-semibold text-gray-900">Lista de Reproducción</h2>
+            <h2 className="text-lg font-semibold text-gray-900">Reproductor</h2>
             <span className="text-sm text-gray-500">
               {queue.length} canción{queue.length !== 1 ? 'es' : ''}
             </span>
           </div>
           
-          {queue.length > 0 && (
+          <div className="flex items-center space-x-2">
+            {/* Botón combinado shuffle/repeat */}
             <button
-              onClick={clearQueue}
-              className="text-sm text-red-600 hover:text-red-800 px-3 py-1 rounded-md hover:bg-red-50"
+              onClick={() => {
+                if (repeatMode === 'off' && !isShuffled) {
+                  toggleShuffle(); // Activar shuffle
+                } else if (isShuffled && repeatMode === 'off') {
+                  toggleShuffle(); // Desactivar shuffle
+                  toggleRepeat(); // Activar repeat all
+                } else if (!isShuffled && repeatMode === 'all') {
+                  toggleRepeat(); // Cambiar a repeat one
+                } else if (!isShuffled && repeatMode === 'one') {
+                  toggleRepeat(); // Desactivar repeat (volver a off)
+                }
+              }}
+              className="p-2 rounded-md transition-colors text-gray-600 hover:text-gray-800 hover:bg-gray-100"
+              title={
+                isShuffled ? 'Modo aleatorio activo' :
+                repeatMode === 'all' ? 'Repetir lista' :
+                repeatMode === 'one' ? 'Repetir canción' :
+                'Reproducción normal'
+              }
             >
-              Limpiar Todo
+              {isShuffled ? (
+                // Icono shuffle
+                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v1m0 8V9a2 2 0 012-2h13m0-3l3 3-3 3m-3 0v3a2 2 0 01-2 2H6a2 2 0 01-2-2v-1m8 0V9a2 2 0 00-2-2H9m11 11l3-3-3-3" />
+                </svg>
+              ) : repeatMode === 'all' ? (
+                // Icono repeat all
+                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              ) : repeatMode === 'one' ? (
+                // Icono repeat one
+                <div className="relative">
+                  <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  <span className="absolute -top-1 -right-1 text-xs font-bold bg-blue-600 text-white rounded-full w-4 h-4 flex items-center justify-center">
+                    1
+                  </span>
+                </div>
+              ) : (
+                // Icono normal (lista secuencial)
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              )}
             </button>
-          )}
+
+            {/* Botón limpiar lista */}
+            {queue.length > 0 && (
+              <button
+                onClick={clearQueue}
+                className="p-2 rounded-md transition-colors text-red-600 hover:text-red-800 hover:bg-red-50"
+                title="Limpiar lista"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </button>
+            )}
+
+            {/* Botón cerrar */}
+            <button
+              onClick={onToggle}
+              className="p-2 text-gray-600 hover:text-gray-900 transition-colors"
+              title="Cerrar reproductor"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
         </div>
 
         {/* Reproductor compacto */}

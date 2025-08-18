@@ -3,7 +3,7 @@ import EventManagement from '../components/Management/EventManagement';
 
 const EventsPage: React.FC = () => {
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="w-full mx-auto px-2 sm:px-4 lg:px-6 py-4 lg:py-8">
       <EventManagement />
     </div>
   );

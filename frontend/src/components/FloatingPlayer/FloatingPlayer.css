@@ -20,7 +20,8 @@
   min-width: 280px;
   max-width: 400px;
   transition: all var(--transition-base);
-  overflow: hidden;
+  overflow: visible;
+  min-height: 90px;
 }
 
 .floating-player:hover {
@@ -61,11 +62,39 @@
 }
 
 /* ==========================================================================
+   TIME DISPLAY
+   ========================================================================== */
+
+.floating-player__time-display {
+  position: absolute;
+  bottom: 8px;
+  left: var(--spacing-md);
+  right: var(--spacing-md);
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: var(--color-text-secondary);
+  pointer-events: none;
+}
+
+.floating-player__time-current,
+.floating-player__time-total {
+  background: var(--color-surface);
+  padding: 2px 6px;
+  border-radius: var(--border-radius-sm);
+  border: 1px solid var(--color-border);
+  font-weight: 500;
+  backdrop-filter: blur(4px);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+/* ==========================================================================
    CONTENT LAYOUT
    ========================================================================== */
 
 .floating-player__content {
   padding: var(--spacing-md);
+  padding-bottom: 30px;
   display: grid;
   grid-template-columns: 1fr auto auto;
   gap: var(--spacing-md);
@@ -133,6 +162,33 @@
   font-size: var(--font-size-xs);
   color: var(--color-accent);
   font-weight: var(--font-weight-medium);
+}
+
+/* ==========================================================================
+   QUEUE INDICATOR
+   ========================================================================== */
+
+.floating-player__queue-indicator {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--color-accent);
+  color: white;
+  padding: 4px 8px;
+  border-radius: var(--border-radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  margin-left: var(--spacing-sm);
+}
+
+.floating-player__queue-icon {
+  width: 12px;
+  height: 12px;
+}
+
+.floating-player__queue-count {
+  min-width: 14px;
+  text-align: center;
 }
 
 /* ==========================================================================
@@ -255,6 +311,49 @@
 }
 
 /* ==========================================================================
+   CUSTOM VOLUME CONTROL
+   ========================================================================== */
+
+.floating-player__volume-container {
+  width: 60px;
+  margin-left: var(--spacing-xs);
+}
+
+.floating-player__volume-track {
+  position: relative;
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: var(--border-radius-full);
+  cursor: pointer;
+}
+
+.floating-player__volume-fill {
+  height: 100%;
+  background: var(--color-accent);
+  border-radius: var(--border-radius-full);
+  transition: width var(--transition-fast);
+}
+
+.floating-player__volume-handle {
+  position: absolute;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  background: var(--color-accent);
+  border: 2px solid white;
+  border-radius: var(--border-radius-full);
+  transform: translate(-50%, -50%);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  box-shadow: var(--shadow-sm);
+}
+
+.floating-player__volume-handle:hover {
+  transform: translate(-50%, -50%) scale(1.2);
+}
+
+/* ==========================================================================
    RESPONSIVE DESIGN
    ========================================================================== */
 
@@ -265,11 +364,25 @@
     left: var(--spacing-md);
     min-width: auto;
     max-width: none;
+    min-height: 85px;
   }
   
   .floating-player--collapsed,
   .floating-player--expanded {
     width: auto;
+  }
+  
+  .floating-player__time-display {
+    bottom: 6px;
+    left: var(--spacing-sm);
+    right: var(--spacing-sm);
+    font-size: 9px;
+  }
+  
+  .floating-player__time-current,
+  .floating-player__time-total {
+    padding: 1px 4px;
+    font-size: 9px;
   }
   
   .floating-player__volume {
@@ -282,10 +395,17 @@
     bottom: var(--spacing-sm);
     right: var(--spacing-sm);
     left: var(--spacing-sm);
+    min-height: 80px;
+  }
+  
+  .floating-player__time-display {
+    bottom: 4px;
+    font-size: 8px;
   }
   
   .floating-player__content {
     padding: var(--spacing-sm);
+    padding-bottom: 26px;
     gap: var(--spacing-sm);
   }
   

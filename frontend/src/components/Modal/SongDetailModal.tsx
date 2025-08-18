@@ -78,11 +78,11 @@ const SongDetailModal: React.FC<SongDetailModalProps> = ({ song, color, onClose 
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 lg:p-4 z-50">
+      <div className="bg-white rounded-lg shadow-xl max-w-full lg:max-w-3xl w-full max-h-[90vh] overflow-hidden mx-2 lg:mx-auto">
         {/* Header */}
         <div 
-          className="p-6 text-white relative"
+          className="p-4 lg:p-6 text-white relative"
           style={{ backgroundColor: color }}
         >
           <button

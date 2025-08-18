@@ -15,7 +15,9 @@ import lyricRoutes from './routes/lyrics';
 import locationRoutes from './routes/locations';
 import eventRoutes from './routes/events';
 import dashboardRoutes from './routes/dashboard';
-import { autoInitializeDatabase, closeDatabaseConnection } from './scripts/auto-init';
+import adminRoutes from './routes/admin';
+import { swaggerUi, specs } from './config/swagger';
+import { prisma } from './utils/prisma';
 
 // Cargar variables de entorno
 dotenv.config();
@@ -187,6 +189,13 @@ app.get('/api/ping', (req, res) => {
   res.send('pong');
 });
 
+// Swagger documentation
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs, {
+  explorer: true,
+  customCss: '.swagger-ui .topbar { display: none }',
+  customSiteTitle: 'CGPlayerWeb API Documentation'
+}));
+
 // Rutas de la API
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
@@ -196,6 +205,7 @@ app.use('/api/lyrics', lyricRoutes);
 app.use('/api/locations', locationRoutes);
 app.use('/api/events', eventRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Ruta de salud
 app.get('/api/health', (req, res) => {
@@ -228,20 +238,29 @@ app.listen(PORT_NUMBER, HOST, async () => {
   console.log(`🎵 Network Uploads URL: http://${LOCAL_IP}:${PORT_NUMBER}/uploads`);
   console.log(`🔒 CORS origins: ${allowedOrigins.join(', ')}`);
   
-  // Verificar y auto-inicializar base de datos
-  await autoInitializeDatabase();
+  // Verificar conexión a base de datos
+  console.log('🔍 Verificando estado de la base de datos...');
+  try {
+    await prisma.$connect();
+    const userCount = await prisma.user.count();
+    const locationCount = await prisma.location.count();
+    console.log('✅ Base de datos conectada correctamente');
+    console.log(`✅ Base de datos ya contiene ${userCount} usuarios y ${locationCount} ubicaciones`);
+  } catch (error) {
+    console.error('❌ Error conectando a base de datos:', error);
+  }
 });
 
 // Manejo graceful del cierre del proceso
 process.on('SIGINT', async () => {
   console.log('\n🔄 Cerrando servidor...');
-  await closeDatabaseConnection();
+  await prisma.$disconnect();
   process.exit(0);
 });
 
 process.on('SIGTERM', async () => {
   console.log('\n🔄 Cerrando servidor...');
-  await closeDatabaseConnection();
+  await prisma.$disconnect();
   process.exit(0);
 });
 

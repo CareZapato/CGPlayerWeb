@@ -1,5 +1,9 @@
-export type UserRole = 'ADMIN' | 'CANTANTE';
+export type UserRole = 'ADMIN' | 'CANTANTE' | 'DIRECTOR';
 
+// Tipos de voz para usuarios (sin CORO y ORIGINAL)
+export type UserVoiceType = 'SOPRANO' | 'MESOSOPRANO' | 'CONTRALTO' | 'TENOR' | 'BARITONO' | 'BAJO';
+
+// Tipos de voz para canciones (incluye CORO y ORIGINAL como tags)
 export type VoiceType = 'SOPRANO' | 'CONTRALTO' | 'TENOR' | 'BARITONO' | 'MESOSOPRANO' | 'BAJO' | 'CORO' | 'ORIGINAL';
 
 export interface UserRole_DB {
@@ -19,6 +23,7 @@ export interface User {
   lastName: string;
   isActive: boolean;
   createdAt: string;
+  locationId?: string;  // ID de la ubicación asignada
   roles?: UserRole_DB[];  // Roles del usuario desde user_roles
   voiceProfiles?: UserVoiceProfile[];  // Voces desde user_voices_profile
 }
@@ -178,4 +183,57 @@ export interface MediaSessionState {
   currentTime: number;
   duration: number;
   volume: number;
+}
+
+export interface Location {
+  id: string;
+  name: string;
+  city: string;
+  color?: string;
+  address?: string;
+  phone?: string;
+  directors?: DirectorInfo[];
+}
+
+export interface DirectorInfo {
+  id: string;
+  name: string;
+  voiceProfiles?: {
+    voiceType: UserVoiceType;
+  }[];
+}
+
+export interface DashboardStats {
+  totalUsers: number;
+  activeUsers: number;
+  inactiveUsers: number;
+  totalSongs: number;
+  totalEvents: number;
+  usersByLocation: {
+    locationId: string;
+    locationName: string;
+    city: string;
+    color: string;
+    address?: string;
+    phone?: string;
+    count: number;
+  }[];
+  usersByVoiceType: {
+    voiceType: string;
+    count: number;
+  }[];
+  usersByRole: {
+    role: string;
+    count: number;
+  }[];
+  recentEvents: {
+    id: string;
+    title: string;
+    category: string;
+    dateTime: string;
+    location: { name: string };
+  }[];
+  userRole: string[];
+  isFiltered: boolean;
+  filterLocation?: string;
 }

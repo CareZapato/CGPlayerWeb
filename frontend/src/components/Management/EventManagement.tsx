@@ -9,6 +9,8 @@ interface Location {
   type: string;
   city: string;
   region: string;
+  address?: string;
+  phone?: string;
 }
 
 interface Song {
@@ -310,11 +312,11 @@ const EventDetailModal: React.FC<EventDetailModalProps> = ({ event, onClose, can
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="p-6">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 lg:p-4 z-50">
+      <div className="bg-white rounded-lg max-w-full lg:max-w-4xl w-full max-h-[90vh] overflow-y-auto mx-2 lg:mx-auto">
+        <div className="p-4 lg:p-6">
           <div className="flex justify-between items-start mb-4">
-            <h2 className="text-2xl font-bold text-gray-900">{event.title}</h2>
+            <h2 className="text-xl lg:text-2xl font-bold text-gray-900">{event.title}</h2>
             <button
               onClick={onClose}
               className="text-gray-400 hover:text-gray-600"

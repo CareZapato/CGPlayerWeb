@@ -1,11 +1,11 @@
 # CGPlayerWeb 🎵
 
-[![Version](https://img.shields.io/badge/version-0.4.1-blue.svg)](https://github.com/CareZapato/CGPlayerWeb/releases/tag/v0.4.1)
+[![Version](https://img.shields.io/badge/version-0.5.0-blue.svg)](https://github.com/CareZapato/CGPlayerWeb/releases/tag/v0.5.0)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
 [![React](https://img.shields.io/badge/React-19+-blue.svg)](https://reactjs.org/)
 
-**CGPlayerWeb** es una aplicación web moderna para la gestión y reproducción de música coral, diseñada específicamente para coros y grupos musicales. Permite la subida, organización y reproducción de pistas de audio con un sistema avanzado de roles y autenticación.
+**CGPlayerWeb** es una aplicación web moderna para la gestión y reproducción de música coral, diseñada específicamente para coros y grupos musicales. Permite la subida, organización y reproducción de pistas de audio con un sistema avanzado de roles, autenticación y gestión de ubicaciones.
 
 ## 🚀 Características Principales
 
@@ -16,18 +16,25 @@
 - **Metadatos automáticos** extraídos de archivos de audio
 - **Reproductor de audio integrado** con controles avanzados
 - **Cola de reproducción mejorada** con validación de tipos de voz
+- **Sistema de subida robusto** con validación y limpieza automática
 
-### 👥 Sistema de Usuarios
-- **Autenticación JWT** segura
-- **Roles diferenciados**: Admin, Director, Cantante
-- **Gestión de permisos** granular por funcionalidad
-- **Perfiles de usuario** personalizables
+### 👥 Sistema de Usuarios y Roles
+- **Autenticación JWT** segura con información extendida
+- **Roles jerárquicos**: Admin, Director, Cantante
+- **Filtrado por ubicación**: Directores ven solo su ubicación asignada
+- **Gestión de permisos** granular por funcionalidad y ubicación
+- **Perfiles de usuario** personalizables con asignación de roles
+- **Dashboard específico por rol** con vistas personalizadas
 
-### 📊 Panel de Administración
-- **Dashboard estadístico** con métricas en tiempo real
-- **Visualizaciones de datos** con gráficos de torta interactivos
-- **Gestión de usuarios** con estadísticas detalladas
-- **Monitoreo del sistema** con datos de rendimiento
+### 📊 Dashboard Analytics Avanzado
+- **Métricas en tiempo real** con estadísticas completas del sistema
+- **Visualizaciones de datos** con gráficos interactivos
+- **Filtrado inteligente**: 
+  - **Admins**: Ven todas las métricas del sistema
+  - **Directores**: Solo métricas de su ubicación
+  - **Cantantes**: Vista apropiada para su rol
+- **API optimizada** con consultas paralelas para mejor rendimiento
+- **UI responsive** adaptativa para diferentes tipos de datos
 
 ### 🎼 Reproductor Avanzado
 - **Reproductor persistente** en la parte inferior con diseño moderno
@@ -49,13 +56,14 @@
 - **Text shadows** para mejor legibilidad en diferentes fondos
 - **Responsive design** adaptado para diferentes tamaños de pantalla
 
-### ️ Organización Inteligente
+### 🏗️ Organización Inteligente
 - **Estructura container-children** para variaciones de voz
 - **7 tipos de voz completos**: Soprano, Contralto, Tenor, Barítono, Bajo, Coro, Original
 - **Todas las voces son iguales** - ninguna se trata como "principal"
 - **Carpetas automáticas** con nomenclatura: `nombreCancion_timestamp`
 - **Base de datos PostgreSQL** para metadatos y relaciones
 - **Validación automática** de integridad entre archivos y BD
+- **Sistema de ubicaciones** para organización geográfica
 
 ## 🛠️ Tecnologías Utilizadas
 
@@ -75,7 +83,7 @@
 - **Express.js** como framework web
 - **Prisma ORM** para base de datos
 - **PostgreSQL** como base de datos principal
-- **JWT** para autenticación
+- **JWT** para autenticación con roles y ubicaciones
 - **Multer** para subida de archivos
 - **Music-metadata** para extracción de metadatos
 - **CORS** configurado para desarrollo
@@ -157,6 +165,74 @@ npx prisma migrate dev
 npx prisma db seed
 ```
 
+## 🔐 Sistema de Roles y Autenticación
+
+### Tipos de Roles
+
+#### 👑 ADMIN
+- **Acceso completo** al sistema
+- **Gestión de usuarios**: Crear, editar, eliminar cualquier usuario
+- **Dashboard global**: Ve métricas de todo el sistema
+- **Gestión de ubicaciones**: Administra todas las ubicaciones
+- **Configuración del sistema**: Acceso a configuraciones avanzadas
+
+#### 🎯 DIRECTOR
+- **Gestión de ubicación específica**: Solo ve datos de su ubicación asignada
+- **Dashboard filtrado**: Métricas limitadas a su ubicación
+- **Gestión de cantantes**: Administra cantantes de su ubicación
+- **Eventos y actividades**: Gestiona eventos de su ubicación
+- **Playlists locales**: Crea y gestiona playlists para su ubicación
+
+#### 🎤 CANTANTE
+- **Vista personalizada**: Dashboard específico para cantantes
+- **Reproducción de música**: Acceso completo al reproductor
+- **Perfil personal**: Gestión de su perfil y preferencias
+- **Eventos asignados**: Ve eventos relevantes para su rol
+
+### Filtrado por Ubicación
+
+El sistema implementa un filtrado inteligente basado en ubicaciones:
+
+- **Admins**: Ven todos los datos sin filtros
+- **Directores**: Automáticamente filtrados por su `locationId` asignado
+- **Cantantes**: Ven contenido apropiado para su ubicación
+
+### JWT y Autenticación
+
+Los tokens JWT incluyen información extendida:
+```json
+{
+  "userId": "uuid",
+  "email": "user@example.com", 
+  "role": "DIRECTOR",
+  "locationId": "location-uuid", // Solo para directores
+  "iat": timestamp,
+  "exp": timestamp
+}
+```
+
+## 📊 Dashboard Analytics
+
+### Métricas por Rol
+
+#### Dashboard Admin
+- **Usuarios totales** por tipo y ubicación
+- **Canciones subidas** con estadísticas de uso
+- **Eventos programados** en todas las ubicaciones  
+- **Actividad del sistema** en tiempo real
+- **Distribución geográfica** de usuarios
+
+#### Dashboard Director
+- **Usuarios de su ubicación** con detalles específicos
+- **Canciones relevantes** para su ubicación
+- **Eventos locales** que gestiona
+- **Estadísticas filtradas** por su área de responsabilidad
+
+#### Dashboard Cantante
+- **Progreso personal** en reproducción
+- **Eventos asignados** próximos
+- **Estadísticas de práctica** personales
+
 ### 6. Ejecutar la aplicación
 ```bash
 # Desde el directorio raíz, ejecutar ambos servidores
@@ -198,6 +274,36 @@ Después de ejecutar `npx prisma db seed`, puedes usar estas credenciales:
 ### 🎵 Uso del Reproductor
 - **Reproducción**: Haz clic en cualquier canción para reproducirla
 - **Cola de reproducción**: Arrastra y suelta canciones para reordenar
+
+## 📚 Documentación API
+
+### 🔧 Swagger/OpenAPI
+CGPlayerWeb incluye documentación completa de la API usando Swagger UI.
+
+**Acceso Local**: http://localhost:3001/api-docs
+
+#### Características de la API:
+- **Autenticación JWT** - La mayoría de endpoints requieren token
+- **Documentación interactiva** - Probar endpoints directamente
+- **Schemas completos** - Estructura de datos detallada
+- **Ejemplos de uso** - Respuestas de ejemplo para cada endpoint
+
+#### Endpoints Principales:
+- 🔐 **Authentication** (`/api/auth`) - Registro y login
+- 👥 **Users** (`/api/users`) - Gestión de usuarios
+- 🎵 **Songs** (`/api/songs`) - Gestión de canciones
+- 📊 **Dashboard** (`/api/dashboard`) - Estadísticas del sistema
+- 📍 **Locations** (`/api/locations`) - Gestión de ubicaciones
+- 🎉 **Events** (`/api/events`) - Gestión de eventos
+- ⚙️ **Admin** (`/api/admin`) - Herramientas de administrador
+
+#### Uso de la Documentación:
+1. **Explorar**: Navegar por categorías y endpoints
+2. **Autenticar**: Usar botón "Authorize" con token JWT
+3. **Probar**: Ejecutar requests directamente desde la interfaz
+4. **Integrar**: Usar ejemplos para desarrollo
+
+**📖 Guía completa**: Ver [SWAGGER_DOCS.md](SWAGGER_DOCS.md)
 - **Controles**: Play/Pause, anterior/siguiente, control de volumen
 - **Barra de progreso**: Haz clic para saltar a una posición específica
 - **Título dinámico**: El título de la pestaña cambia con la canción actual

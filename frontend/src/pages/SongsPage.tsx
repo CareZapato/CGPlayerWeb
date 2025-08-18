@@ -389,13 +389,13 @@ const SongsPage: React.FC = () => {
   }
 
   return (
-    <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 sm:mb-6 gap-4">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Biblioteca Musical</h1>
+    <div className="w-full max-w-full mx-auto px-2 sm:px-4 lg:px-6">
+      <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center mb-4 lg:mb-6 gap-4">
+        <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">Biblioteca Musical</h1>
         {canUpload && (
           <button
             onClick={() => setShowUpload(true)}
-            className="btn-primary flex items-center justify-center space-x-2 w-full sm:w-auto"
+            className="btn-primary flex items-center justify-center space-x-2 w-full lg:w-auto"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
@@ -407,11 +407,11 @@ const SongsPage: React.FC = () => {
 
       {/* Modal de subida */}
       {showUpload && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
-          <div className="bg-white rounded-lg w-full max-w-5xl mx-auto max-h-[95vh] overflow-y-auto">
-            <div className="p-4 sm:p-6">
-              <div className="flex justify-between items-center mb-4 sm:mb-6">
-                <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Subir Canciones</h2>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 lg:p-4">
+          <div className="bg-white rounded-lg w-full max-w-full mx-2 lg:mx-auto lg:max-w-6xl max-h-[95vh] overflow-y-auto">
+            <div className="p-4 lg:p-6">
+              <div className="flex justify-between items-center mb-4 lg:mb-6">
+                <h2 className="text-xl lg:text-2xl font-bold text-gray-900">Subir Canciones</h2>
                 <button
                   onClick={() => {
                     setShowUpload(false);

@@ -5,6 +5,40 @@ import { authenticateToken, AuthRequest } from '../middleware/auth';
 const prisma = new PrismaClient();
 const router = express.Router();
 
+/**
+ * @swagger
+ * /locations:
+ *   get:
+ *     summary: Obtener todas las ubicaciones
+ *     tags: [Locations]
+ *     responses:
+ *       200:
+ *         description: Lista de ubicaciones obtenida exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 allOf:
+ *                   - $ref: '#/components/schemas/Location'
+ *                   - type: object
+ *                     properties:
+ *                       _count:
+ *                         type: object
+ *                         properties:
+ *                           users:
+ *                             type: number
+ *                             description: Número de usuarios en esta ubicación
+ *                           events:
+ *                             type: number
+ *                             description: Número de eventos en esta ubicación
+ *       500:
+ *         description: Error interno del servidor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 // Obtener todas las ubicaciones
 router.get('/', async (req: Request, res: Response) => {
   try {

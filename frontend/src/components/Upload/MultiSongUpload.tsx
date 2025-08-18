@@ -238,14 +238,14 @@ const MultiSongUpload: React.FC<MultiSongUploadProps> = ({ onUploadComplete, par
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-6">
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <h2 className="text-2xl font-bold mb-6 text-gray-800">
+    <div className="max-w-full mx-auto p-2 sm:p-4 lg:p-6">
+      <div className="bg-white rounded-lg shadow-md p-4 lg:p-6">
+        <h2 className="text-xl lg:text-2xl font-bold mb-4 lg:mb-6 text-gray-800">
           📚 Subir Múltiples Canciones
         </h2>
 
         {/* Metadatos generales */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4 lg:mb-6">
           <div>
             <label className="block text-sm font-medium mb-2">
               Título de la canción *

@@ -6,6 +6,8 @@ import { Toaster } from 'react-hot-toast';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import HomePage from './pages/HomePage';
+import DashboardPage from './pages/DashboardPage';
+import ChangelogPage from './pages/ChangelogPage';
 import SongsPage from './pages/SongsPage';
 import PlaylistsPage from './pages/PlaylistsPage';
 import ProfilePage from './pages/ProfilePage';
@@ -42,6 +44,22 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <HomePage />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/dashboard" element={
+              <ProtectedRoute allowedRoles={['ADMIN', 'DIRECTOR']}>
+                <Layout>
+                  <DashboardPage />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/changelog" element={
+              <ProtectedRoute>
+                <Layout>
+                  <ChangelogPage />
                 </Layout>
               </ProtectedRoute>
             } />

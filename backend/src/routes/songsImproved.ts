@@ -24,6 +24,66 @@ const getLocalIP = (): string => {
 
 const LOCAL_IP = getLocalIP();
 
+/**
+ * @swagger
+ * /songs/upload:
+ *   post:
+ *     summary: Subir una canción individual
+ *     tags: [Songs]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - audio
+ *               - title
+ *               - artist
+ *             properties:
+ *               audio:
+ *                 type: string
+ *                 format: binary
+ *                 description: Archivo de audio
+ *               title:
+ *                 type: string
+ *                 description: Título de la canción
+ *               artist:
+ *                 type: string
+ *                 description: Artista de la canción
+ *               voiceTypes:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   enum: [SOPRANO, MEZZOSOPRANO, ALTO, TENOR, BARITONO, BAJO, CORO, ORIGINAL]
+ *                 description: Tipos de voz para la canción
+ *     responses:
+ *       201:
+ *         description: Canción subida exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 song:
+ *                   $ref: '#/components/schemas/Song'
+ *       400:
+ *         description: Error de validación o archivo faltante
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       401:
+ *         description: No autorizado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 // Subir canción individual
 router.post('/upload', authenticateToken, upload.single('audio'), handleMulterError, async (req: AuthRequest, res: Response) => {
   try {
@@ -250,6 +310,53 @@ router.post('/multi-upload', authenticateToken, multiUpload.array('audio', 10), 
   }
 });
 
+/**
+ * @swagger
+ * /songs:
+ *   get:
+ *     summary: Obtener todas las canciones
+ *     tags: [Songs]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - name: includeVersions
+ *         in: query
+ *         description: Incluir versiones de canciones
+ *         required: false
+ *         schema:
+ *           type: string
+ *           enum: [true, false]
+ *           default: 'true'
+ *     responses:
+ *       200:
+ *         description: Lista de canciones obtenida exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 allOf:
+ *                   - $ref: '#/components/schemas/Song'
+ *                   - type: object
+ *                     properties:
+ *                       uploader:
+ *                         type: object
+ *                         properties:
+ *                           firstName:
+ *                             type: string
+ *                           lastName:
+ *                             type: string
+ *                       versions:
+ *                         type: array
+ *                         items:
+ *                           $ref: '#/components/schemas/Song'
+ *       401:
+ *         description: No autorizado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 // Obtener todas las canciones
 router.get('/', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {

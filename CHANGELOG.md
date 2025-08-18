@@ -5,6 +5,68 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto se adhiere al [Versionado Semántico](https://semver.org/lang/es/).
 
+## [0.5.0] - 2025-08-18
+
+### 🏗️ Arquitectura y Refactorización Major
+
+#### 🔐 Sistema de Roles y Autenticación Robusto
+- **Roles jerárquicos**: Implementación completa de ADMIN, DIRECTOR, CANTANTE con permisos específicos
+- **Filtrado por ubicación**: Los directores solo ven datos de su ubicación asignada
+- **Dashboard específico por rol**: Cada tipo de usuario tiene vistas personalizadas
+- **Middleware de autorización**: Protección de rutas basada en roles y ubicación
+- **JWT con información extendida**: Tokens incluyen rol y locationId para directores
+
+#### 📊 Dashboard Analytics Avanzado
+- **Métricas en tiempo real**: Estadísticas de usuarios, canciones, eventos y ubicaciones
+- **Visualización de datos**: Gráficos y métricas personalizadas por rol
+- **Filtrado inteligente**: Admins ven todo, directores filtrado por ubicación
+- **API optimizada**: Consultas paralelas para mejor rendimiento
+- **UI responsive**: Interfaz adaptativa para diferentes tipos de datos
+
+#### 🗂️ Gestión de Archivos Mejorada
+- **Sistema de subida robusto**: Manejo mejorado de archivos múltiples
+- **Validación de archivos**: Verificación de tipos y tamaños antes de la subida
+- **Limpieza automática**: Eliminación de archivos temporales en caso de error
+- **Organización**: Estructura de carpetas por canción con nombres únicos
+
+### 🧹 Limpieza Masiva de Código
+
+#### 📁 Eliminación de Archivos Obsoletos
+- **Scripts de test**: Eliminados todos los archivos test-*.html y test-*.ts
+- **Versiones antiguas**: Removidos archivos *_old.ts, *Fixed.ts no utilizados
+- **Seeders duplicados**: Limpieza de basicSeed, enhancedSeed, newSystemSeed, simpleSeed
+- **Archivos de migración**: Eliminados migrate-system.bat/sh ya obsoletos
+- **Backups obsoletos**: Removido database_backup.sql y scripts de diagnóstico
+- **Dist compilado**: Limpieza de carpetas de compilación no versionadas
+
+#### 🔧 Optimización de Estructura
+- **Rutas consolidadas**: Unificación en authNew.ts, songsImproved.ts, uploadImproved.ts
+- **Middleware optimizado**: Consolidación de middleware de autenticación
+- **Scripts útiles**: Mantenidos solo los scripts necesarios para el sistema
+- **Organización**: Estructura más limpia y mantenible
+
+### 🛠️ Correcciones Técnicas Importantes
+
+#### 🔍 Resolución de Errores de Compilación
+- **TypeScript strict**: Corrección de todos los errores de tipos
+- **Exports/Imports**: Arreglo de problemas de módulos ES6
+- **Dependencies**: Actualización y limpieza de dependencias
+- **Module resolution**: Corrección de paths y resolución de módulos
+
+#### 🚀 Performance y Estabilidad
+- **Queries optimizadas**: Consultas de base de datos más eficientes
+- **Error handling**: Manejo robusto de errores en toda la aplicación
+- **Memory leaks**: Prevención de pérdidas de memoria
+- **Hot reload**: Mejor experiencia de desarrollo
+
+### 🔐 Seguridad y Autenticación
+
+#### 🛡️ Mejoras de Seguridad
+- **Validación de roles**: Verificación estricta de permisos
+- **Protección de rutas**: Middleware de autorización mejorado
+- **Token validation**: Validación robusta de JWT
+- **Input sanitization**: Sanitización de inputs del usuario
+
 ## [0.4.1] - 2025-08-18
 
 ### 🐛 Correcciones de Errores

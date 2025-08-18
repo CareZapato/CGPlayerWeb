@@ -9,7 +9,8 @@ import {
   SpeakerWaveIcon,
   SpeakerXMarkIcon,
   ChevronUpIcon,
-  ChevronDownIcon
+  ChevronDownIcon,
+  QueueListIcon
 } from '@heroicons/react/24/solid';
 import './FloatingPlayer.css';
 
@@ -75,6 +76,12 @@ const FloatingPlayer: React.FC = () => {
         />
       </div>
 
+      {/* Tiempos de reproducción */}
+      <div className="floating-player__time-display">
+        <span className="floating-player__time-current">{formatTime(currentTime)}</span>
+        <span className="floating-player__time-total">{formatTime(duration)}</span>
+      </div>
+
       {/* Contenido principal */}
       <div className="floating-player__content">
         {/* Información de la canción */}
@@ -94,12 +101,17 @@ const FloatingPlayer: React.FC = () => {
                 {currentSong.artist && (
                   <span className="floating-player__artist">{currentSong.artist}</span>
                 )}
-                <span className="floating-player__time">
-                  {formatTime(currentTime)} / {formatTime(duration)}
-                </span>
               </div>
             )}
           </div>
+          
+          {/* Contador de cola */}
+          {queue.length > 1 && (
+            <div className="floating-player__queue-indicator">
+              <QueueListIcon className="floating-player__queue-icon" />
+              <span className="floating-player__queue-count">{queue.length}</span>
+            </div>
+          )}
         </div>
 
         {/* Controles principales */}
@@ -151,15 +163,25 @@ const FloatingPlayer: React.FC = () => {
                 )}
               </button>
               
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.01"
-                value={volume}
-                onChange={(e) => setVolume(parseFloat(e.target.value))}
-                className="floating-player__volume-slider"
-              />
+              <div className="floating-player__volume-container">
+                <div 
+                  className="floating-player__volume-track"
+                  onClick={(e) => {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const percent = (e.clientX - rect.left) / rect.width;
+                    setVolume(Math.max(0, Math.min(1, percent)));
+                  }}
+                >
+                  <div 
+                    className="floating-player__volume-fill"
+                    style={{ width: `${volume * 100}%` }}
+                  />
+                  <div 
+                    className="floating-player__volume-handle"
+                    style={{ left: `${volume * 100}%` }}
+                  />
+                </div>
+              </div>
             </div>
           )}
           

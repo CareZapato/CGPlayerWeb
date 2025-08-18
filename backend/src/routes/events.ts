@@ -5,6 +5,53 @@ import { authenticateToken, AuthRequest } from '../middleware/auth';
 const prisma = new PrismaClient();
 const router = express.Router();
 
+/**
+ * @swagger
+ * /events:
+ *   get:
+ *     summary: Obtener todos los eventos
+ *     tags: [Events]
+ *     parameters:
+ *       - name: locationId
+ *         in: query
+ *         description: Filtrar por ID de ubicación
+ *         required: false
+ *         schema:
+ *           type: string
+ *       - name: category
+ *         in: query
+ *         description: Filtrar por categoría
+ *         required: false
+ *         schema:
+ *           type: string
+ *       - name: upcoming
+ *         in: query
+ *         description: Solo eventos futuros
+ *         required: false
+ *         schema:
+ *           type: string
+ *           enum: [true, false]
+ *     responses:
+ *       200:
+ *         description: Lista de eventos obtenida exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 allOf:
+ *                   - $ref: '#/components/schemas/Event'
+ *                   - type: object
+ *                     properties:
+ *                       location:
+ *                         $ref: '#/components/schemas/Location'
+ *       500:
+ *         description: Error interno del servidor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 // Obtener todos los eventos
 router.get('/', async (req: Request, res: Response) => {
   try {

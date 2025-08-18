@@ -76,9 +76,9 @@ const ManagementPage: React.FC = () => {
   );
 
   return (
-    <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div className="mb-6">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
+    <div className="w-full max-w-full mx-auto px-2 sm:px-4 lg:px-6">
+      <div className="mb-4 lg:mb-6">
+        <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">
           Panel de Gestión
         </h1>
         <p className="text-gray-600">
@@ -87,7 +87,7 @@ const ManagementPage: React.FC = () => {
       </div>
 
       {/* Información del usuario */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4 lg:mb-6">
         <div className="flex items-center">
           <div className="flex-shrink-0">
             <Cog6ToothIcon className="h-5 w-5 text-blue-400" />

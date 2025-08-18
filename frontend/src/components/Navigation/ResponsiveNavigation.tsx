@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import { usePermissions } from '../../utils/permissions';
 import './ResponsiveNavigation.css';
+import LogoCGP from '../../images/LogoCGP.png';
 import { 
   HomeIcon,
   MusicalNoteIcon,
@@ -17,7 +18,8 @@ import {
   XMarkIcon,
   ArrowRightOnRectangleIcon,
   ChevronDownIcon,
-  ChevronRightIcon
+  ChevronRightIcon,
+  QuestionMarkCircleIcon
 } from '@heroicons/react/24/outline';
 
 const iconMap = {
@@ -182,14 +184,28 @@ const ResponsiveNavigation: React.FC = () => {
     <>
       {/* Desktop Navigation */}
       <nav className="hidden md:flex bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="w-full mx-auto px-2 sm:px-4 lg:px-6">
           <div className="flex justify-between h-16">
             <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <h1 className="text-xl font-bold text-gray-900">CGPlayerWeb</h1>
+              <div className="flex-shrink-0 flex items-center">
+                <img 
+                  src={LogoCGP} 
+                  alt="CGPlayer Logo" 
+                  className="h-8 w-8 mr-3"
+                />
+                <h1 className="text-xl font-bold text-gray-900">CGPlayer</h1>
               </div>
               <div className="hidden md:ml-6 md:flex md:space-x-8">
                 {menuItems.map((item) => renderMenuItem(item, false))}
+                
+                {/* Changelog Icon */}
+                <Link
+                  to="/changelog"
+                  className="inline-flex items-center px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50"
+                  title="Changelog y Versiones"
+                >
+                  <QuestionMarkCircleIcon className="w-4 h-4" />
+                </Link>
               </div>
             </div>
             <div className="flex items-center space-x-4">
@@ -213,7 +229,14 @@ const ResponsiveNavigation: React.FC = () => {
         {/* Mobile Header */}
         <div className="bg-white shadow-sm border-b border-gray-200">
           <div className="flex justify-between items-center px-4 py-3">
-            <h1 className="text-lg font-bold text-gray-900">CGPlayerWeb</h1>
+            <div className="flex items-center">
+              <img 
+                src={LogoCGP} 
+                alt="CGPlayer Logo" 
+                className="h-6 w-6 mr-2"
+              />
+              <h1 className="text-lg font-bold text-gray-900">CGPlayer</h1>
+            </div>
             <button
               onClick={toggleMobileMenu}
               className="p-2 rounded-md text-gray-700 hover:text-blue-600 hover:bg-gray-50"
@@ -267,6 +290,16 @@ const ResponsiveNavigation: React.FC = () => {
             <div className="flex-1 overflow-y-auto">
               <nav className="p-2 space-y-1">
                 {menuItems.map((item) => renderMenuItem(item, true))}
+                
+                {/* Changelog móvil */}
+                <Link
+                  to="/changelog"
+                  onClick={closeMobileMenu}
+                  className="flex items-center px-3 py-3 rounded-lg text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50"
+                >
+                  <QuestionMarkCircleIcon className="w-5 h-5 mr-3" />
+                  Changelog & Info
+                </Link>
               </nav>
             </div>
 

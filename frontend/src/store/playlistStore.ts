@@ -2,11 +2,13 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { Song } from '../types';
 
+type RepeatMode = 'off' | 'all' | 'one';
+
 interface PlaylistState {
   queue: Song[];
   currentIndex: number;
   isShuffled: boolean;
-  isRepeating: boolean;
+  repeatMode: RepeatMode;
   
   // Acciones
   addToQueue: (song: Song) => void;
@@ -18,7 +20,7 @@ interface PlaylistState {
   setCurrentIndex: (index: number) => void;
   nextSong: () => Song | null;
   previousSong: () => Song | null;
-  shuffleQueue: () => void;
+  toggleShuffle: () => void;
   toggleRepeat: () => void;
   moveInQueue: (fromIndex: number, toIndex: number) => void;
 }
@@ -29,7 +31,7 @@ export const usePlaylistStore = create<PlaylistState>()(
       queue: [],
       currentIndex: 0,
       isShuffled: false,
-      isRepeating: false,
+      repeatMode: 'off',
 
       addToQueue: (song: Song) => {
         set((state) => ({
@@ -95,8 +97,10 @@ export const usePlaylistStore = create<PlaylistState>()(
         if (state.queue.length === 0) return null;
         
         let nextIndex;
-        if (state.isRepeating && state.currentIndex === state.queue.length - 1) {
-          nextIndex = 0; // Volver al inicio si está en repeat
+        if (state.repeatMode === 'one') {
+          return state.queue[state.currentIndex]; // Stay on the same song
+        } else if (state.repeatMode === 'all' && state.currentIndex === state.queue.length - 1) {
+          nextIndex = 0; // Volver al inicio si está en repeat all
         } else {
           nextIndex = state.currentIndex + 1;
         }
@@ -115,7 +119,7 @@ export const usePlaylistStore = create<PlaylistState>()(
         
         const prevIndex = state.currentIndex - 1;
         if (prevIndex < 0) {
-          if (state.isRepeating) {
+          if (state.repeatMode === 'all') {
             const lastIndex = state.queue.length - 1;
             set({ currentIndex: lastIndex });
             return state.queue[lastIndex];
@@ -150,10 +154,17 @@ export const usePlaylistStore = create<PlaylistState>()(
         });
       },
 
+      toggleShuffle: () => {
+        set((state) => ({ isShuffled: !state.isShuffled }));
+      },
+
       toggleRepeat: () => {
-        set((state) => ({
-          isRepeating: !state.isRepeating
-        }));
+        set((state) => {
+          const modes: RepeatMode[] = ['off', 'all', 'one'];
+          const currentIndex = modes.indexOf(state.repeatMode);
+          const nextIndex = (currentIndex + 1) % modes.length;
+          return { repeatMode: modes[nextIndex] };
+        });
       },
 
       moveInQueue: (fromIndex: number, toIndex: number) => {

@@ -14,6 +14,7 @@ model User {
   password              String
   firstName             String
   lastName              String
+  phone                 String?
   isActive              Boolean            @default(true)
   createdAt             DateTime           @default(now())
   updatedAt             DateTime           @updatedAt
@@ -157,6 +158,8 @@ model Location {
   isActive  Boolean      @default(true)
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
+  color     String?
+  phone     String?
   events    Event[]
   users     User[]
 
@@ -211,6 +214,7 @@ model Soloist {
 enum UserRole {
   ADMIN
   CANTANTE
+  DIRECTOR
 }
 
 enum VoiceType {
@@ -236,4 +240,5 @@ enum LocationType {
   SANTIAGO
   CONCEPCION
   VALDIVIA
+  TODOS_LOS_CORISTAS
 }

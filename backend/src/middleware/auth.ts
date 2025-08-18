@@ -7,6 +7,7 @@ export interface AuthRequest extends Request {
     id: string;
     email: string;
     roles: string[];
+    locationId?: string;
   };
   songFolderPath?: string;
   songFolderName?: string;
@@ -30,13 +31,19 @@ export const authenticateToken = async (req: AuthRequest, res: Response, next: N
     const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
     console.log(`✅ [AUTH] Token verified for user ID: ${decoded.userId}`);
     
-    // Verificar que el usuario aún existe
+    // Verificar que el usuario aún existe y obtener datos completos
     const user = await prisma.user.findUnique({
       where: { id: decoded.userId },
       select: { 
         id: true, 
         email: true, 
-        isActive: true
+        isActive: true,
+        locationId: true,
+        roles: {
+          select: {
+            role: true
+          }
+        }
       }
     });
 
@@ -44,19 +51,14 @@ export const authenticateToken = async (req: AuthRequest, res: Response, next: N
       console.log(`❌ [AUTH] User not found or inactive: ${decoded.userId}`);
       return res.status(401).json({ message: 'User not found or inactive' });
     }
-
-    // Obtener roles del usuario usando SQL raw
-    const userRoleRows = await prisma.$queryRaw`
-      SELECT role FROM user_roles WHERE "userId" = ${decoded.userId}
-    `;
-    const userRoles = (userRoleRows as any[]).map(r => r.role);
     
-    console.log(`👤 [AUTH] User authenticated: ${user.email} (${userRoles.join(', ')})`);
+    console.log(`👤 [AUTH] User authenticated: ${user.email} (${user.roles.map(r => r.role).join(', ')})`);
 
     req.user = {
       id: user.id,
       email: user.email,
-      roles: userRoles
+      roles: user.roles.map(r => r.role),
+      locationId: user.locationId || undefined
     };
 
     next();

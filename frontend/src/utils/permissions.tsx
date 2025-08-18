@@ -4,11 +4,12 @@ import React from 'react';
 // Configuración de permisos por sección basada en roles de la BD
 export const SECTION_PERMISSIONS = {
   // Secciones accesibles para cantantes
-  DASHBOARD: ['ADMIN', 'CANTANTE'] as const,
-  SONGS: ['ADMIN', 'CANTANTE'] as const, // Vista de canciones en cuadros
-  PLAYLISTS: ['ADMIN', 'CANTANTE'] as const,
-  EVENTS: ['ADMIN', 'CANTANTE'] as const, // Cantantes pueden ver eventos
-  PROFILE: ['ADMIN', 'CANTANTE'] as const,
+  HOME: ['ADMIN', 'CANTANTE', 'DIRECTOR'] as const, // Pantalla de inicio/guía para todos
+  DASHBOARD: ['ADMIN', 'DIRECTOR'] as const, // Dashboard solo para admin y directores
+  SONGS: ['ADMIN', 'CANTANTE', 'DIRECTOR'] as const, // Vista de canciones en cuadros
+  PLAYLISTS: ['ADMIN', 'CANTANTE', 'DIRECTOR'] as const,
+  EVENTS: ['ADMIN', 'CANTANTE', 'DIRECTOR'] as const, // Cantantes pueden ver eventos
+  PROFILE: ['ADMIN', 'CANTANTE', 'DIRECTOR'] as const,
   
   // Secciones para administradores
   MANAGEMENT: ['ADMIN'] as const, // Panel de gestión
@@ -78,10 +79,17 @@ export const usePermissions = () => {
     
     const menuItems = [
       {
-        key: 'DASHBOARD',
+        key: 'HOME',
         label: 'Inicio',
         icon: 'Home',
         path: '/',
+        type: 'single'
+      },
+      {
+        key: 'DASHBOARD',
+        label: 'Dashboard',
+        icon: 'ChartBar',
+        path: '/dashboard',
         type: 'single'
       },
       {
@@ -214,4 +222,22 @@ export const ProtectedRoute: React.FC<{
   }
   
   return <>{children}</>;
+};
+
+/**
+ * Helper functions for role checking
+ */
+export const isAdmin = (user: User | null): boolean => {
+  if (!user) return false;
+  return user.roles?.some(role => role.role === 'ADMIN' && role.isActive) || false;
+};
+
+export const isDirector = (user: User | null): boolean => {
+  if (!user) return false;
+  return user.roles?.some(role => role.role === 'DIRECTOR' && role.isActive) || false;
+};
+
+export const isCantante = (user: User | null): boolean => {
+  if (!user) return false;
+  return user.roles?.some(role => role.role === 'CANTANTE' && role.isActive) || false;
 };

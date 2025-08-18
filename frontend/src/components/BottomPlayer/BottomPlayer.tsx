@@ -179,7 +179,12 @@ const BottomPlayer: React.FC = () => {
     previousSong,
     removeFromQueue,
     moveInQueue,
-    setCurrentIndex
+    setCurrentIndex,
+    isShuffled,
+    repeatMode,
+    toggleShuffle,
+    toggleRepeat,
+    clearQueue
   } = usePlaylistStore();
 
   // Actualizar título de la pestaña cuando cambia la canción o el estado de reproducción
@@ -338,6 +343,12 @@ const BottomPlayer: React.FC = () => {
               style={{ left: `${progressPercentage}%` }}
             />
           </div>
+          
+          {/* Tiempos de reproducción */}
+          <div className="bottom-player__time-display">
+            <span className="bottom-player__time-current">{formatTime(currentTime)}</span>
+            <span className="bottom-player__time-total">{formatTime(duration)}</span>
+          </div>
         </div>
 
         {/* Contenido principal de la barra */}
@@ -357,15 +368,6 @@ const BottomPlayer: React.FC = () => {
               <p className="bottom-player__artist">
                 {currentSong.artist || 'Artista desconocido'}
               </p>
-            </div>
-
-            <div className="bottom-player__time">
-              <span className="bottom-player__current-time">
-                {formatTime(currentTime)}
-              </span>
-              <span className="bottom-player__duration">
-                {formatTime(duration)}
-              </span>
             </div>
           </div>
 
@@ -419,16 +421,23 @@ const BottomPlayer: React.FC = () => {
               </button>
               
               <div className="bottom-player__volume-slider-container">
-                <input
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.01"
-                  value={volume}
-                  onChange={(e) => setVolume(parseFloat(e.target.value))}
-                  className="bottom-player__volume-slider"
-                  title={`Volumen: ${Math.round(volume * 100)}%`}
-                />
+                <div 
+                  className="bottom-player__volume-track"
+                  onClick={(e) => {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const percent = (e.clientX - rect.left) / rect.width;
+                    setVolume(Math.max(0, Math.min(1, percent)));
+                  }}
+                >
+                  <div 
+                    className="bottom-player__volume-fill"
+                    style={{ width: `${volume * 100}%` }}
+                  />
+                  <div 
+                    className="bottom-player__volume-handle"
+                    style={{ left: `${volume * 100}%` }}
+                  />
+                </div>
               </div>
             </div>
 
@@ -439,6 +448,9 @@ const BottomPlayer: React.FC = () => {
               title="Lista de reproducción"
             >
               <QueueListIcon className="bottom-player__control-icon" />
+              {queue && queue.length > 1 && (
+                <span className="bottom-player__queue-count">{queue.length}</span>
+              )}
             </button>
 
             {/* Botón de expandir */}
@@ -477,13 +489,85 @@ const BottomPlayer: React.FC = () => {
       {showPlaylist && (
         <div className="bottom-player__playlist-panel">
           <div className="bottom-player__playlist-header">
-            <h3>Cola de reproducción</h3>
-            <button
-              onClick={() => setShowPlaylist(false)}
-              className="bottom-player__playlist-close"
-            >
-              ×
-            </button>
+            <div className="flex items-center space-x-3">
+              <h3>Reproductor</h3>
+              <span className="text-sm text-gray-500">
+                {queue.length} canción{queue.length !== 1 ? 'es' : ''}
+              </span>
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              {/* Botón combinado de modos de reproducción */}
+              <button
+                onClick={() => {
+                  if (repeatMode === 'off' && !isShuffled) {
+                    toggleShuffle(); // Activar shuffle
+                  } else if (isShuffled && repeatMode === 'off') {
+                    toggleShuffle(); // Desactivar shuffle
+                    toggleRepeat(); // Activar repeat all
+                  } else if (!isShuffled && repeatMode === 'all') {
+                    toggleRepeat(); // Cambiar a repeat one
+                  } else if (!isShuffled && repeatMode === 'one') {
+                    toggleRepeat(); // Desactivar repeat (volver a off)
+                  }
+                }}
+                className="p-2 rounded-md transition-colors text-gray-600 hover:text-gray-800 hover:bg-gray-100"
+                title={
+                  isShuffled ? 'Modo aleatorio activo' :
+                  repeatMode === 'all' ? 'Repetir lista' :
+                  repeatMode === 'one' ? 'Repetir canción' :
+                  'Reproducción normal'
+                }
+              >
+                {isShuffled ? (
+                  // Icono shuffle - flechas cruzadas
+                  <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 17L21 12L16 7M8 7L3 12L8 17M21 12H3" />
+                  </svg>
+                ) : repeatMode === 'all' ? (
+                  // Icono repeat all
+                  <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                ) : repeatMode === 'one' ? (
+                  // Icono repeat one
+                  <div className="relative">
+                    <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    <span className="absolute -top-1 -right-1 text-xs font-bold bg-blue-600 text-white rounded-full w-4 h-4 flex items-center justify-center">
+                      1
+                    </span>
+                  </div>
+                ) : (
+                  // Icono normal (lista secuencial)
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                )}
+              </button>
+
+              {/* Botón limpiar lista */}
+              {queue.length > 0 && (
+                <button
+                  onClick={clearQueue}
+                  className="p-2 rounded-md transition-colors text-red-600 hover:text-red-800 hover:bg-red-50"
+                  title="Limpiar lista"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
+              )}
+
+              {/* Botón cerrar */}
+              <button
+                onClick={() => setShowPlaylist(false)}
+                className="bottom-player__playlist-close"
+              >
+                ×
+              </button>
+            </div>
           </div>
           
           <div className="bottom-player__playlist-content">
