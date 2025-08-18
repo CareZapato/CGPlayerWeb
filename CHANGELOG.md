@@ -5,6 +5,20 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto se adhiere al [Versionado Semántico](https://semver.org/lang/es/).
 
+## [0.4.1] - 2025-08-18
+
+### 🐛 Correcciones de Errores
+
+#### 🔧 Corrección de Importación de Layout
+- **Error de exportación**: Solucionado el error "does not provide an export named 'default'" en Layout
+- **Limpieza de archivos**: Eliminados archivos duplicados y vacíos de Layout
+- **Importación corregida**: Actualizada la importación para apuntar a `./Layout/Layout` correctamente
+- **Compilación**: Frontend ahora compila sin errores de importación
+
+#### 🧹 Limpieza de Código
+- **Variables no utilizadas**: Eliminadas variables no utilizadas en AudioManager
+- **Optimización**: Código más limpio y eficiente
+
 ## [0.4.0] - 2025-08-17
 
 ### 🎵 Nuevas Características

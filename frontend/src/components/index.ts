@@ -9,7 +9,7 @@ export { default as SongCard } from './UI/SongCard';
 export { default as PlaylistPlayer } from './UI/PlaylistPlayer';
 
 // Layout components
-export { default as Layout } from './Layout';
+export { default as Layout } from './Layout/Layout';
 
 // Modal components
 export { default as SongDetailModal } from './Modal/SongDetailModal';

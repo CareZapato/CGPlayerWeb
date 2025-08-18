@@ -1,6 +1,6 @@
 # CGPlayerWeb 🎵
 
-[![Version](https://img.shields.io/badge/version-0.4.0-blue.svg)](https://github.com/CareZapato/CGPlayerWeb/releases/tag/v0.4.0)
+[![Version](https://img.shields.io/badge/version-0.4.1-blue.svg)](https://github.com/CareZapato/CGPlayerWeb/releases/tag/v0.4.1)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
 [![React](https://img.shields.io/badge/React-19+-blue.svg)](https://reactjs.org/)

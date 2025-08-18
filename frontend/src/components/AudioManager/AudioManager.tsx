@@ -10,7 +10,6 @@ const AudioManager: React.FC = () => {
   const audioRef = useRef<HTMLAudioElement>(null);
   const { 
     currentSong, 
-    isPlaying, 
     volume, 
     setAudioRef,
     setCurrentTime,
