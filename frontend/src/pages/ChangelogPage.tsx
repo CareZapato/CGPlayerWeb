@@ -15,6 +15,51 @@ interface ChangelogEntry {
 
 const changelogData: ChangelogEntry[] = [
   {
+    version: '0.6.0',
+    date: '2025-08-19',
+    type: 'major',
+    title: 'Reproductor de Audio con Autenticación - Solución Completa',
+    highlights: [
+      'Reproductor de audio 100% funcional',
+      'Autenticación via tokens en URLs',
+      'Solución para HTML5 audio elements',
+      'Streaming de audio autenticado',
+      'Compatibilidad total con JWT'
+    ],
+    changes: [
+      {
+        category: 'fixed',
+        items: [
+          'SOLUCIÓN COMPLETA: Reproductor de audio ahora reproduce correctamente',
+          'Autenticación de archivos de audio via query parameters',
+          'HTML5 audio elements compatibles con JWT tokens',
+          'Error 401 eliminado en streaming de canciones',
+          'Función getSongFileUrl() centralizada para URLs autenticadas'
+        ]
+      },
+      {
+        category: 'added',
+        items: [
+          'Sistema dual de autenticación: headers + query parameters',
+          'Middleware auth.ts actualizado para rutas /file/',
+          'Soporte completo para streaming de audio autenticado',
+          'Validación automática de tokens en URLs de audio',
+          'Compatibilidad nativa con HTML5 audio elements'
+        ]
+      },
+      {
+        category: 'improved',
+        items: [
+          'Todos los componentes usan getSongFileUrl() centralizada',
+          'URLs de audio construidas automáticamente con tokens',
+          'Experiencia de usuario sin interrupciones',
+          'Rendimiento optimizado en streaming de audio',
+          'Código frontend consistente en manejo de URLs'
+        ]
+      }
+    ]
+  },
+  {
     version: '0.5.0',
     date: '2025-08-18',
     type: 'major',
@@ -262,7 +307,7 @@ const ChangelogPage: React.FC = () => {
               <p><strong>Versión actual:</strong> {changelogData[0].version}</p>
               <p><strong>Última actualización:</strong> {new Date(changelogData[0].date).toLocaleDateString('es-ES')}</p>
               <p><strong>Tecnologías:</strong> React, TypeScript, Node.js, PostgreSQL, Prisma</p>
-              <p><strong>Nuevo en v0.5.0:</strong> Sistema de roles jerárquico, localización chilena completa</p>
+              <p><strong>Nuevo en v0.6.0:</strong> Reproductor de audio 100% funcional con autenticación JWT</p>
             </div>
           </div>
           <div className="text-6xl">

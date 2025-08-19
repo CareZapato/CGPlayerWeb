@@ -1,6 +1,6 @@
 # CGPlayerWeb 🎵
 
-[![Version](https://img.shields.io/badge/version-0.5.0-blue.svg)](https://github.com/CareZapato/CGPlayerWeb/releases/tag/v0.5.0)
+[![Version](https://img.shields.io/badge/version-0.6.0-blue.svg)](https://github.com/CareZapato/CGPlayerWeb/releases/tag/v0.6.0)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
 [![React](https://img.shields.io/badge/React-19+-blue.svg)](https://reactjs.org/)
@@ -48,6 +48,8 @@
 - **Soporte para streaming** con requests HTTP Range para archivos grandes
 - **Audio de alta calidad** sin pérdida de fidelidad
 - **Sistema de cola inteligente** que añade correctamente las versiones reproducibles
+- **Autenticación de archivos de audio** via query parameters para compatibilidad con HTML5 audio
+- **Streaming seguro** con tokens JWT para proteger contenido multimedia
 - **Título dinámico** en pestaña del navegador con canción actual
 - **Favicon dinámico** que cambia según el estado de reproducción
 

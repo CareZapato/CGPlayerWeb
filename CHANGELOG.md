@@ -5,6 +5,43 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto se adhiere al [Versionado Semántico](https://semver.org/lang/es/).
 
+## [0.6.0] - 2025-08-19
+
+### 🎵 **SOLUCIÓN CRÍTICA: Reproductor de Audio Funcional**
+
+#### 🐛 **Problema Crítico Resuelto**
+- **Reproductor no funcional**: Solucionado error 401 que impedía la reproducción de audio
+- **Elementos HTML5 audio**: Ahora compatibles con sistema de autenticación
+- **Streaming de archivos**: Funcionamiento completo restaurado
+
+#### 🔧 **Implementación Técnica**
+**Backend:**
+- **Autenticación dual**: Middleware actualizado para aceptar tokens via query parameters
+- **Rutas /file/ mejoradas**: Compatibilidad con elementos `<audio>` nativos
+- **Logging detallado**: Mejor debugging para troubleshooting de autenticación
+
+**Frontend:**
+- **Función centralizada getSongFileUrl()**: Construcción uniforme de URLs con tokens
+- **SongsPage.tsx**: Eliminada construcción manual de URLs en funciones de reproducción
+- **SongCard.tsx**: Implementada autenticación para reproductor de tarjetas
+- **SimplePlayer.tsx**: Corregido manejo de errores y navegación con URLs autenticadas
+- **BottomPlayer.tsx**: Actualizada función buildSongUrl() para incluir tokens JWT
+- **useMediaSession.ts**: Soporte para Media Session API con autenticación
+
+#### ✅ **Resultado**
+- **🎧 Reproductor 100% funcional**: Audio se reproduce sin errores
+- **🔒 Seguridad mantenida**: Archivos protegidos con autenticación JWT
+- **📱 Compatibilidad total**: Funciona en localhost y acceso remoto por red
+- **🎵 Filtrado preservado**: Sistema de permisos por tipos de voz intacto
+
+### 🧪 **Testing y Validación**
+- **Base de datos poblada**: 313 usuarios en 5 ciudades chilenas
+- **Pruebas completas**: Login, upload, listado, reproducción individual y por versiones
+- **Verificación de roles**: ADMIN, DIRECTOR, CANTANTE con permisos apropiados
+- **Acceso multi-dispositivo**: Confirmado funcionamiento desde red local
+
+---
+
 ## [0.5.0] - 2025-08-18
 
 ### 🏗️ Arquitectura y Refactorización Major

@@ -1,6 +1,6 @@
 {
   "name": "cgplayerweb",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Aplicación web moderna para la gestión y reproducción de música coral con sistema de roles y ubicaciones",
   "main": "index.js",
   "repository": {
