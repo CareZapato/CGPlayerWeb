@@ -252,6 +252,8 @@ async function resetChileanDatabase() {
     // Crear playlists de ejemplo
     console.log('🎵 Creando playlists de ejemplo...');
     
+    // TODO: Uncomment when songs are available in seed
+    /*
     // Obtener algunos usuarios para crear playlists
     const allUsers = await prisma.user.findMany({
       where: { isActive: true },
@@ -327,6 +329,9 @@ async function resetChileanDatabase() {
         }
       }
     }
+    */
+    
+    console.log('📝 Playlists omitidas hasta que haya canciones disponibles en el seed');
 
     console.log('📊 Resumen final:');
     const totalUsers = await prisma.user.count();

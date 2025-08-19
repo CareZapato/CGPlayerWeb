@@ -71,12 +71,13 @@ const PlaylistsPage: React.FC = () => {
   const [selectedSongsForNewPlaylist, setSelectedSongsForNewPlaylist] = useState<Song[]>([]);
   const [searchSongsInModal, setSearchSongsInModal] = useState('');
   const [filteredSongsInModal, setFilteredSongsInModal] = useState<Song[]>([]);
+  const [loadingSongs, setLoadingSongs] = useState(false);
 
   // Cargar playlists
   const loadPlaylists = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/playlists', {
+      const response = await fetch('http://localhost:3001/api/playlists', {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -93,11 +94,17 @@ const PlaylistsPage: React.FC = () => {
     }
   };
 
-  // Cargar canciones disponibles
-  const loadAvailableSongs = async () => {
+  // Cargar canciones disponibles con búsqueda
+  const loadAvailableSongs = async (search: string = '') => {
     try {
+      setLoadingSongs(true);
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/songs/for-playlist', {
+      const url = new URL('http://localhost:3001/api/songs/for-playlist');
+      if (search.trim()) {
+        url.searchParams.append('search', search.trim());
+      }
+      
+      const response = await fetch(url.toString(), {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -106,9 +113,12 @@ const PlaylistsPage: React.FC = () => {
       if (response.ok) {
         const data = await response.json();
         setAvailableSongs(data);
+        setFilteredSongsInModal(data);
       }
     } catch (error) {
       console.error('Error loading available songs:', error);
+    } finally {
+      setLoadingSongs(false);
     }
   };
 
@@ -125,7 +135,7 @@ const PlaylistsPage: React.FC = () => {
         formData.append('image', newPlaylist.image);
       }
 
-      const response = await fetch('/api/playlists', {
+      const response = await fetch('http://localhost:3001/api/playlists', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -140,7 +150,7 @@ const PlaylistsPage: React.FC = () => {
         if (selectedSongsForNewPlaylist.length > 0) {
           for (const song of selectedSongsForNewPlaylist) {
             try {
-              await fetch(`/api/playlists/${createdPlaylist.id}/songs`, {
+              await fetch(`http://localhost:3001/api/playlists/${createdPlaylist.id}/songs`, {
                 method: 'POST',
                 headers: {
                   'Authorization': `Bearer ${token}`,
@@ -178,7 +188,7 @@ const PlaylistsPage: React.FC = () => {
 
   const openCreateModal = () => {
     setShowCreateModal(true);
-    setFilteredSongsInModal(availableSongs);
+    loadAvailableSongs(); // Cargar canciones sin filtro inicial
   };
 
   const closeCreateModal = () => {
@@ -187,26 +197,38 @@ const PlaylistsPage: React.FC = () => {
     setSelectedSongsForNewPlaylist([]);
     setSearchSongsInModal('');
     setFilteredSongsInModal([]);
+    
+    // Limpiar timeout si existe
+    if (searchTimeout) {
+      clearTimeout(searchTimeout);
+      setSearchTimeout(null);
+    }
   };
 
-  // Filtrar canciones en el modal según la búsqueda
+  // Filtrar canciones en el modal según la búsqueda (con debounce)
+  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
+  
   const filterSongsInModal = (searchTerm: string) => {
-    if (!searchTerm) {
-      setFilteredSongsInModal(availableSongs);
-    } else {
-      const filtered = availableSongs.filter(song =>
-        song.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (song.artist && song.artist.toLowerCase().includes(searchTerm.toLowerCase()))
-      );
-      setFilteredSongsInModal(filtered);
+    setSearchSongsInModal(searchTerm);
+    
+    // Limpiar timeout anterior
+    if (searchTimeout) {
+      clearTimeout(searchTimeout);
     }
+    
+    // Crear nuevo timeout para debounce más rápido
+    const timeout = setTimeout(() => {
+      loadAvailableSongs(searchTerm);
+    }, 200); // 200ms de debounce para respuesta más rápida
+    
+    setSearchTimeout(timeout);
   };
 
   // Agregar canción a playlist
   const addSongToPlaylist = async (playlistId: string, songId: string) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/playlists/${playlistId}/songs`, {
+      const response = await fetch(`http://localhost:3001/api/playlists/${playlistId}/songs`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -231,7 +253,7 @@ const PlaylistsPage: React.FC = () => {
   const loadPlaylistDetails = async (playlistId: string) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/playlists/${playlistId}`, {
+      const response = await fetch(`http://localhost:3001/api/playlists/${playlistId}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -268,7 +290,7 @@ const PlaylistsPage: React.FC = () => {
       if (searchTerm) params.append('q', searchTerm);
       if (creatorFilter) params.append('creator', creatorFilter);
 
-      const response = await fetch(`/api/playlists/search?${params}`, {
+      const response = await fetch(`http://localhost:3001/api/playlists/search?${params}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -302,7 +324,16 @@ const PlaylistsPage: React.FC = () => {
   // Effect para filtrar canciones en el modal
   useEffect(() => {
     filterSongsInModal(searchSongsInModal);
-  }, [searchSongsInModal, availableSongs]);
+  }, [searchSongsInModal]);
+
+  // Cleanup del timeout al desmontar el componente
+  useEffect(() => {
+    return () => {
+      if (searchTimeout) {
+        clearTimeout(searchTimeout);
+      }
+    };
+  }, [searchTimeout]);
 
   if (loading) {
     return (
@@ -571,14 +602,19 @@ const PlaylistsPage: React.FC = () => {
                       type="text"
                       placeholder="Buscar canciones..."
                       value={searchSongsInModal}
-                      onChange={(e) => setSearchSongsInModal(e.target.value)}
+                      onChange={(e) => filterSongsInModal(e.target.value)}
                       className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
                     />
                   </div>
                 </div>
 
                 <div className="h-96 overflow-y-auto border border-gray-200 rounded-lg">
-                  {filteredSongsInModal.length === 0 ? (
+                  {loadingSongs ? (
+                    <div className="p-8 text-center text-gray-500">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-3"></div>
+                      <p className="text-sm">Buscando canciones...</p>
+                    </div>
+                  ) : filteredSongsInModal.length === 0 ? (
                     <div className="p-8 text-center text-gray-500">
                       <MusicalNoteIcon className="w-12 h-12 mx-auto mb-3 text-gray-300" />
                       <p className="text-sm">

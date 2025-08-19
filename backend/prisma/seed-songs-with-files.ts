@@ -2,28 +2,15 @@ import { PrismaClient, VoiceType } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-/**
- * SEED FINAL - Solo canciones con archivos de audio reales
- * 
- * Este seed incluye únicamente las canciones que tienen archivos
- * de audio físicos en el sistema de archivos.
- * 
- * Canciones incluidas:
- * - I Will Follow Him (ChileGospel)
- * - Jesus Promised He'll Take Care of Me (ChileGospel)
- * - You Raise Me Up (ChileGospel)
- */
-
-async function seedFinal() {
-  console.log('🎵 SEED FINAL - Canciones con archivos reales...\n');
+async function seedSongsWithFiles() {
+  console.log('🎵 Seeding only songs with real audio files...\n');
 
   try {
     // Verificar si ya existen canciones
     const existingSongs = await prisma.song.count();
     if (existingSongs > 0) {
-      console.log('⚠️ Ya existen canciones en la base de datos.');
-      console.log('Este seed solo debe ejecutarse en una BD sin canciones.');
-      console.log('Si quieres resetear, elimina primero las canciones existentes.');
+      console.log('⚠️ Ya existen canciones en la base de datos. Este seed solo debe ejecutarse en una BD vacía.');
+      console.log('Si quieres resetear completamente, usa el script reset-db.ts primero.');
       return;
     }
 
@@ -159,24 +146,18 @@ async function seedFinal() {
     }
     console.log('  ✅ 3 versiones creadas');
 
-    console.log('\n🎉 SEED FINAL completado!');
+    console.log('\n🎉 Seed de canciones completado!');
     console.log('📊 Resumen:');
     console.log('  - 3 canciones principales');
     console.log('  - 9 versiones por tipo de voz');
     console.log('  - Total: 12 registros de canciones');
-    console.log('\n✅ Todas las canciones tienen archivos de audio reales verificados');
-    console.log('🗑️ Canciones sin archivos (Amazing Grace, Be Still My Soul, How Great Thou Art) NO incluidas');
+    console.log('\nTodas las canciones tienen archivos de audio reales en el sistema.');
 
   } catch (error) {
-    console.error('❌ Error en seed final:', error);
+    console.error('❌ Error en seed:', error);
   } finally {
     await prisma.$disconnect();
   }
 }
 
-// Ejecutar si es llamado directamente
-if (require.main === module) {
-  seedFinal();
-}
-
-export default seedFinal;
+seedSongsWithFiles();

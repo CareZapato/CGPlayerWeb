@@ -29,7 +29,7 @@ const SongsGridView: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Obtener canciones principales (sin parentSongId)
+  // Obtener canciones principales (sin parentSongId) - filtradas por rol
   useEffect(() => {
     const fetchSongs = async () => {
       if (!token) return;
@@ -38,6 +38,8 @@ const SongsGridView: React.FC = () => {
         setLoading(true);
         setError(null);
 
+        // La API /songs ya aplica el filtrado por rol automáticamente
+        // Solo necesitamos obtener las canciones principales
         const response = await fetch(getApiUrl('/api/songs?includeVersions=false'), {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -50,7 +52,7 @@ const SongsGridView: React.FC = () => {
         }
 
         const data = await response.json();
-        // Filtrar solo canciones principales (sin parentSongId)
+        // La API ya filtra por rol, solo necesitamos las canciones principales
         const mainSongs = (data.songs || []).filter((song: Song) => !song.parentSongId);
         setSongs(mainSongs);
       } catch (error: any) {

@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Búsqueda Mejorada</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test-container { max-width: 800px; margin: 0 auto; }
+        .test-result { margin: 10px 0; padding: 10px; border-radius: 5px; }
+        .success { background-color: #d4edda; border: 1px solid #c3e6cb; color: #155724; }
+        .error { background-color: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; }
+        .info { background-color: #d1ecf1; border: 1px solid #bee5eb; color: #0c5460; }
+        input { padding: 10px; width: 300px; margin: 10px 0; }
+        .results { max-height: 400px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; }
+        .song-item { padding: 8px; border-bottom: 1px solid #eee; }
+        .loading { color: #666; font-style: italic; }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🎵 Test Búsqueda Mejorada - Playlists</h1>
+        
+        <div class="test-result info">
+            <h3>Prueba de Búsqueda en Tiempo Real</h3>
+            <p>Esta prueba verifica la nueva funcionalidad de búsqueda mejorada que:</p>
+            <ul>
+                <li>Busca en título, artista y álbum</li>
+                <li>Maneja palabras individuales</li>
+                <li>Respeta las restricciones de voz del usuario</li>
+                <li>Funciona con debounce de 200ms</li>
+            </ul>
+        </div>
+
+        <div>
+            <h3>Buscar Canciones:</h3>
+            <input type="text" id="searchInput" placeholder="Escribe para buscar (ej: 'you', 'raise', 'follow')..." />
+            <div id="loadingIndicator" class="loading" style="display: none;">🔍 Buscando...</div>
+            <div id="results" class="results"></div>
+        </div>
+
+        <div class="test-result info">
+            <h4>Tokens de Prueba:</h4>
+            <p><strong>Admin:</strong> <button onclick="loginAsAdmin()">Usar token Admin</button></p>
+            <p><strong>Cantante (BAJO):</strong> <button onclick="loginAsCantante()">Usar token Cantante</button></p>
+            <p id="currentUser"></p>
+        </div>
+    </div>
+
+    <script>
+        let currentToken = '';
+        let searchTimeout;
+        
+        // Tokens de ejemplo (deberás reemplazarlos con tokens reales)
+        const ADMIN_TOKEN = 'token_admin_aqui';
+        const CANTANTE_TOKEN = 'token_cantante_aqui';
+
+        function loginAsAdmin() {
+            // En un test real, aquí harías login y obtendrías el token
+            currentToken = localStorage.getItem('token') || '';
+            document.getElementById('currentUser').textContent = 'Usuario: Admin (ve todas las canciones)';
+            testSearch('');
+        }
+
+        function loginAsCantante() {
+            // En un test real, aquí harías login como cantante
+            currentToken = localStorage.getItem('token') || '';
+            document.getElementById('currentUser').textContent = 'Usuario: Cantante (solo su tipo de voz)';
+            testSearch('');
+        }
+
+        async function testSearch(searchTerm) {
+            const loadingDiv = document.getElementById('loadingIndicator');
+            const resultsDiv = document.getElementById('results');
+            
+            loadingDiv.style.display = 'block';
+            resultsDiv.innerHTML = '';
+
+            try {
+                // Primero probar endpoint sin auth
+                console.log('🔍 Testing test endpoint...');
+                const testResponse = await fetch('http://localhost:3001/api/songs/test-endpoint');
+                const testData = await testResponse.json();
+                console.log('✅ Test endpoint works:', testData);
+
+                if (!currentToken) {
+                    resultsDiv.innerHTML = '<div class="error">❌ No hay token. Usa el frontend para obtener un token válido.</div>';
+                    loadingDiv.style.display = 'none';
+                    return;
+                }
+
+                const url = new URL('http://localhost:3001/api/songs/for-playlist');
+                if (searchTerm.trim()) {
+                    url.searchParams.append('search', searchTerm.trim());
+                }
+
+                console.log('🔍 Buscando:', url.toString());
+
+                const response = await fetch(url.toString(), {
+                    headers: {
+                        'Authorization': `Bearer ${currentToken}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                loadingDiv.style.display = 'none';
+
+                console.log('📊 Response status:', response.status);
+                const responseText = await response.text();
+                console.log('📊 Response text:', responseText);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText} - ${responseText}`);
+                }
+
+                const songs = JSON.parse(responseText);
+                console.log('📊 Resultados:', songs);
+
+                if (songs.length === 0) {
+                    resultsDiv.innerHTML = '<div class="info">🔍 No se encontraron canciones</div>';
+                    return;
+                }
+
+                resultsDiv.innerHTML = `
+                    <div class="success">✅ Encontradas ${songs.length} canciones</div>
+                    ${songs.map(song => `
+                        <div class="song-item">
+                            <strong>${song.title}</strong> - ${song.artist}<br>
+                            <small>Voz: ${song.voiceType} | Por: ${song.uploader.firstName} ${song.uploader.lastName}</small>
+                        </div>
+                    `).join('')}
+                `;
+
+            } catch (error) {
+                loadingDiv.style.display = 'none';
+                console.error('❌ Error:', error);
+                resultsDiv.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+            }
+        }
+
+        // Configurar búsqueda con debounce
+        document.getElementById('searchInput').addEventListener('input', function(e) {
+            const searchTerm = e.target.value;
+            
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                testSearch(searchTerm);
+            }, 200); // Mismo debounce que el frontend
+        });
+
+        // Obtener token automáticamente si está disponible
+        document.addEventListener('DOMContentLoaded', function() {
+            const token = localStorage.getItem('token');
+            if (token) {
+                currentToken = token;
+                loginAsAdmin(); // Asumir admin por defecto
+            } else {
+                document.getElementById('results').innerHTML = '<div class="info">💡 Abre el frontend primero para obtener un token válido</div>';
+            }
+        });
+    </script>
+</body>
+</html>

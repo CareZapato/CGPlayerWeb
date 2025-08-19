@@ -307,7 +307,19 @@ router.get('/me', async (req: Request, res: Response) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
     
     const user = await prisma.user.findUnique({
-      where: { id: decoded.userId }
+      where: { id: decoded.userId },
+      include: {
+        voiceProfiles: {
+          include: {
+            assignedByUser: {
+              select: {
+                firstName: true,
+                lastName: true
+              }
+            }
+          }
+        }
+      }
     });
 
     if (!user || !user.isActive) {

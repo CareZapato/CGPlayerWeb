@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Direct API Call</title>
+</head>
+<body>
+    <h1>Test for-playlist endpoint</h1>
+    <button onclick="testEndpoint()">Test Endpoint</button>
+    <div id="result"></div>
+
+    <script>
+        async function testEndpoint() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = 'Testing...';
+
+            try {
+                // Intentar obtener token del localStorage (si existe)
+                const token = localStorage.getItem('token');
+                
+                const response = await fetch('http://localhost:3001/api/songs/for-playlist', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': token ? `Bearer ${token}` : '',
+                        'Content-Type': 'application/json',
+                    }
+                });
+
+                const responseText = await response.text();
+                
+                resultDiv.innerHTML = `
+                    <h3>Response Status: ${response.status}</h3>
+                    <h3>Response:</h3>
+                    <pre>${responseText}</pre>
+                    <h3>Token found:</h3>
+                    <pre>${token ? 'Yes' : 'No'}</pre>
+                `;
+
+                console.log('Response:', response.status, responseText);
+                
+            } catch (error) {
+                resultDiv.innerHTML = `<h3>Error:</h3><pre>${error.message}</pre>`;
+                console.error('Error:', error);
+            }
+        }
+    </script>
+</body>
+</html>

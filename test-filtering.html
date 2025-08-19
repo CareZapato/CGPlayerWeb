@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Filtrado de Canciones</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .section { margin-bottom: 30px; border: 1px solid #ddd; padding: 20px; border-radius: 5px; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+        .response { background: #f5f5f5; padding: 10px; margin-top: 10px; border-radius: 5px; }
+        .error { background: #ffebee; color: #c62828; }
+        .success { background: #e8f5e8; color: #2e7d32; }
+        input { padding: 8px; margin: 5px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Test de Filtrado de Canciones por Tipo de Voz</h1>
+        
+        <div class="section">
+            <h2>1. Login</h2>
+            <input type="text" id="email" placeholder="Email" value="cantante1@cgplayer.com">
+            <input type="password" id="password" placeholder="Password" value="admin123">
+            <button onclick="login()">Login</button>
+            <div id="loginResponse" class="response"></div>
+        </div>
+
+        <div class="section">
+            <h2>2. Obtener Perfil del Usuario</h2>
+            <button onclick="getProfile()">Obtener Perfil</button>
+            <div id="profileResponse" class="response"></div>
+        </div>
+
+        <div class="section">
+            <h2>3. Obtener Canciones para Playlist (Filtradas por Voz)</h2>
+            <input type="text" id="searchTerm" placeholder="Buscar canciones...">
+            <button onclick="getSongsForPlaylist()">Obtener Canciones</button>
+            <div id="songsResponse" class="response"></div>
+        </div>
+
+        <div class="section">
+            <h2>4. Obtener Todas las Canciones (Albums)</h2>
+            <button onclick="getAllSongs()">Obtener Albums</button>
+            <div id="albumsResponse" class="response"></div>
+        </div>
+    </div>
+
+    <script>
+        let token = '';
+        const API_BASE = 'http://localhost:3001/api';
+
+        async function login() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            try {
+                const response = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        login: email,
+                        password: password
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    token = data.token;
+                    document.getElementById('loginResponse').innerHTML = `
+                        <div class="success">
+                            <strong>Login exitoso!</strong><br>
+                            Usuario: ${data.user.firstName} ${data.user.lastName}<br>
+                            Roles: ${data.user.roles?.map(r => r.role).join(', ')}<br>
+                            Token guardado.
+                        </div>
+                    `;
+                } else {
+                    document.getElementById('loginResponse').innerHTML = `
+                        <div class="error">Error: ${data.message}</div>
+                    `;
+                }
+            } catch (error) {
+                document.getElementById('loginResponse').innerHTML = `
+                    <div class="error">Error de conexión: ${error.message}</div>
+                `;
+            }
+        }
+
+        async function getProfile() {
+            if (!token) {
+                alert('Primero haz login');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/auth/me`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    document.getElementById('profileResponse').innerHTML = `
+                        <div class="success">
+                            <strong>Perfil del usuario:</strong><br>
+                            Nombre: ${data.user.firstName} ${data.user.lastName}<br>
+                            Email: ${data.user.email}<br>
+                            Roles: ${data.user.roles?.map(r => r.role).join(', ')}<br>
+                            Tipos de voz: ${data.user.voiceProfiles?.map(vp => vp.voiceType).join(', ') || 'Ninguno'}<br>
+                            <pre>${JSON.stringify(data.user.voiceProfiles, null, 2)}</pre>
+                        </div>
+                    `;
+                } else {
+                    document.getElementById('profileResponse').innerHTML = `
+                        <div class="error">Error: ${data.message}</div>
+                    `;
+                }
+            } catch (error) {
+                document.getElementById('profileResponse').innerHTML = `
+                    <div class="error">Error de conexión: ${error.message}</div>
+                `;
+            }
+        }
+
+        async function getSongsForPlaylist() {
+            if (!token) {
+                alert('Primero haz login');
+                return;
+            }
+
+            const searchTerm = document.getElementById('searchTerm').value;
+            let url = `${API_BASE}/songs/for-playlist`;
+            
+            if (searchTerm.trim()) {
+                url += `?search=${encodeURIComponent(searchTerm.trim())}`;
+            }
+
+            try {
+                const response = await fetch(url, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    document.getElementById('songsResponse').innerHTML = `
+                        <div class="success">
+                            <strong>Canciones para playlist encontradas: ${Array.isArray(data) ? data.length : 0}</strong><br>
+                            ${Array.isArray(data) ? data.map(song => 
+                                `• ${song.title} (${song.voiceType}) - ${song.artist || 'Sin artista'}`
+                            ).join('<br>') : 'No se encontraron canciones'}
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                        </div>
+                    `;
+                } else {
+                    document.getElementById('songsResponse').innerHTML = `
+                        <div class="error">Error: ${data.message}</div>
+                    `;
+                }
+            } catch (error) {
+                document.getElementById('songsResponse').innerHTML = `
+                    <div class="error">Error de conexión: ${error.message}</div>
+                `;
+            }
+        }
+
+        async function getAllSongs() {
+            if (!token) {
+                alert('Primero haz login');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/songs?includeVersions=true`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    const songs = data.songs || [];
+                    const variations = songs.filter(song => song.parentSongId && song.voiceType);
+                    const containers = songs.filter(song => !song.parentSongId);
+                    
+                    document.getElementById('albumsResponse').innerHTML = `
+                        <div class="success">
+                            <strong>Estadísticas:</strong><br>
+                            Total de canciones: ${songs.length}<br>
+                            Canciones contenedoras: ${containers.length}<br>
+                            Variaciones: ${variations.length}<br>
+                            <br>
+                            <strong>Variaciones encontradas:</strong><br>
+                            ${variations.map(song => 
+                                `• ${song.title} (${song.voiceType}) - Parent: ${song.parentSongId}`
+                            ).join('<br>')}
+                            <br><br>
+                            <strong>Contenedoras:</strong><br>
+                            ${containers.map(song => 
+                                `• ${song.title} - Versiones: ${song.childVersions?.length || 0}`
+                            ).join('<br>')}
+                        </div>
+                    `;
+                } else {
+                    document.getElementById('albumsResponse').innerHTML = `
+                        <div class="error">Error: ${data.message}</div>
+                    `;
+                }
+            } catch (error) {
+                document.getElementById('albumsResponse').innerHTML = `
+                    <div class="error">Error de conexión: ${error.message}</div>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>

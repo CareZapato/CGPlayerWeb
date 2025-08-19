@@ -9,6 +9,9 @@ import os from 'os';
 const prisma = new PrismaClient();
 const router = express.Router();
 
+// Log para verificar que el router se está cargando
+console.log('🎵 [SONGS ROUTER] Loading songsImproved router...');
+
 // Obtener IP local para acceso móvil
 const getLocalIP = (): string => {
   const interfaces = os.networkInterfaces();
@@ -361,12 +364,58 @@ router.post('/multi-upload', authenticateToken, multiUpload.array('audio', 10), 
 router.get('/', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
     const { includeVersions = 'true' } = req.query;
+    const userId = req.user!.id;
+    const userRoles = req.user!.roles || [];
+    
+    // Verificar si el usuario es ADMIN o DIRECTOR
+    const isAdmin = userRoles.some((role: string) => role === 'ADMIN');
+    const isDirector = userRoles.some((role: string) => role === 'DIRECTOR');
+    const isCantante = userRoles.some((role: string) => role === 'CANTANTE');
+
+    let whereClause: any = {
+      isActive: true,
+      ...(includeVersions === 'false' ? { parentSongId: null } : {})
+    };
+
+    // Si es CANTANTE, filtrar por tipos de voz del usuario
+    if (isCantante && !isAdmin && !isDirector) {
+      // Obtener los tipos de voz del usuario
+      const userVoiceProfiles = await prisma.userVoiceProfile.findMany({
+        where: { userId },
+        select: { voiceType: true }
+      });
+
+      if (userVoiceProfiles.length > 0) {
+        const voiceTypes = userVoiceProfiles.map(profile => profile.voiceType);
+        
+        // Solo mostrar canciones que:
+        // 1. Tienen parentId (son variaciones) Y tienen voiceType del usuario
+        // 2. O son canciones sin parentId pero sin voiceType (para acceso general)
+        whereClause = {
+          ...whereClause,
+          OR: [
+            {
+              parentSongId: { not: null },
+              voiceType: { in: voiceTypes }
+            },
+            {
+              parentSongId: null,
+              voiceType: null
+            }
+          ]
+        };
+      } else {
+        // Si no tiene tipos de voz asignados, solo ver canciones generales
+        whereClause = {
+          ...whereClause,
+          parentSongId: null,
+          voiceType: null
+        };
+      }
+    }
     
     const songs = await prisma.song.findMany({
-      where: {
-        isActive: true,
-        ...(includeVersions === 'false' ? { parentSongId: null } : {})
-      },
+      where: whereClause,
       include: {
         uploader: {
           select: {
@@ -401,6 +450,82 @@ router.get('/', authenticateToken, async (req: AuthRequest, res: Response) => {
   } catch (error) {
     console.error('Error fetching songs:', error);
     res.status(500).json({ message: 'Failed to fetch songs' });
+  }
+});
+
+// Obtener canciones para playlists (filtradas por tipo de voz del usuario)
+router.get('/for-playlist', authenticateToken, async (req: AuthRequest, res: Response) => {
+  console.log('🎵 [FOR-PLAYLIST] Endpoint called!');
+  try {
+    const userId = req.user!.id;
+    const userRoles = req.user!.roles || [];
+    const { search = '' } = req.query;
+    
+    console.log('🎵 [FOR-PLAYLIST] User:', userId, 'Roles:', userRoles, 'Search:', search);
+    
+    // Verificar si el usuario es ADMIN o DIRECTOR
+    const isAdmin = userRoles.some((role: string) => role === 'ADMIN');
+    const isDirector = userRoles.some((role: string) => role === 'DIRECTOR');
+    const isCantante = userRoles.some((role: string) => role === 'CANTANTE');
+
+    let whereClause: any = {
+      isActive: true,
+      parentSongId: { not: null }, // Solo variaciones (canciones con parentId)
+      voiceType: { not: null } // Y que tengan voiceType definido
+    };
+
+    // Agregar búsqueda simple pero efectiva
+    if (search && typeof search === 'string' && search.trim() !== '') {
+      const searchTerm = search.trim();
+      whereClause.title = {
+        contains: searchTerm,
+        mode: 'insensitive'
+      };
+    }
+
+    // Si es CANTANTE (y no es ADMIN ni DIRECTOR), filtrar por tipos de voz del usuario
+    if (isCantante && !isAdmin && !isDirector) {
+      // Obtener los tipos de voz del usuario
+      const userVoiceProfiles = await prisma.userVoiceProfile.findMany({
+        where: { userId },
+        select: { voiceType: true }
+      });
+
+      if (userVoiceProfiles.length === 0) {
+        return res.status(400).json({ message: 'Usuario no tiene tipos de voz asignados' });
+      }
+
+      // Extraer los tipos de voz y agregar al filtro
+      const voiceTypes = userVoiceProfiles.map(profile => profile.voiceType);
+      whereClause.voiceType = { in: voiceTypes };
+    }
+
+    // Obtener canciones compatibles
+    const songs = await prisma.song.findMany({
+      where: whereClause,
+      select: {
+        id: true,
+        title: true,
+        artist: true,
+        duration: true,
+        voiceType: true,
+        uploader: {
+          select: {
+            firstName: true,
+            lastName: true
+          }
+        }
+      },
+      orderBy: [
+        { title: 'asc' },
+        { artist: 'asc' }
+      ]
+    });
+
+    res.json(songs);
+  } catch (error) {
+    console.error('Error fetching songs for playlist:', error);
+    res.status(500).json({ message: 'Error interno del servidor' });
   }
 });
 
@@ -655,57 +780,6 @@ router.delete('/:id', authenticateToken, async (req: AuthRequest, res: Response)
   }
 });
 
-// Obtener canciones para playlists (filtradas por tipo de voz del usuario)
-router.get('/for-playlist', authenticateToken, async (req: AuthRequest, res: Response) => {
-  try {
-    const userId = req.user!.id;
-
-    // Obtener los tipos de voz del usuario
-    const userVoiceProfiles = await prisma.userVoiceProfile.findMany({
-      where: { userId },
-      select: { voiceType: true }
-    });
-
-    if (userVoiceProfiles.length === 0) {
-      return res.status(400).json({ message: 'Usuario no tiene tipos de voz asignados' });
-    }
-
-    // Extraer los tipos de voz
-    const voiceTypes = userVoiceProfiles.map(profile => profile.voiceType);
-
-    // Obtener canciones compatibles con los tipos de voz del usuario
-    const songs = await prisma.song.findMany({
-      where: {
-        voiceType: {
-          in: voiceTypes
-        }
-      },
-      select: {
-        id: true,
-        title: true,
-        artist: true,
-        duration: true,
-        voiceType: true,
-        uploader: {
-          select: {
-            firstName: true,
-            lastName: true
-          }
-        }
-      },
-      orderBy: [
-        { title: 'asc' },
-        { artist: 'asc' }
-      ]
-    });
-
-    res.json(songs);
-  } catch (error) {
-    console.error('Error fetching songs for playlist:', error);
-    res.status(500).json({ message: 'Error interno del servidor' });
-  }
-});
-
 // Obtener información del servidor para acceso móvil
 router.get('/info/server', (req, res) => {
   const PORT_NUMBER = Number(process.env.PORT) || 3001;
@@ -714,6 +788,11 @@ router.get('/info/server', (req, res) => {
     port: PORT_NUMBER,
     audioBaseUrl: `http://${LOCAL_IP}:${PORT_NUMBER}/api/songs/file`
   });
+});
+
+// TEST: Ruta de prueba para verificar que el router funciona
+router.get('/test-endpoint', (req, res) => {
+  res.json({ message: 'Test endpoint works!', timestamp: new Date().toISOString() });
 });
 
 export default router;
