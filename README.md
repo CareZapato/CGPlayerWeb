@@ -4,49 +4,66 @@
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
 [![React](https://img.shields.io/badge/React-19+-blue.svg)](https://reactjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5+-blue.svg)](https://www.typescriptlang.org/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15+-blue.svg)](https://www.postgresql.org/)
 
-**CGPlayerWeb** es una aplicación web moderna para la gestión y reproducción de música coral, diseñada específicamente para coros y grupos musicales. Permite la subida, organización y reproducción de pistas de audio con un sistema avanzado de roles, autenticación y gestión de ubicaciones.
+**CGPlayerWeb** es una aplicación web moderna para la gestión y reproducción de música coral, diseñada específicamente para coros y grupos musicales chilenos. Permite la subida, organización y reproducción de pistas de audio con un sistema avanzado de roles, autenticación y gestión de sedes ubicadas a lo largo de Chile.
 
 ## 🚀 Características Principales
 
 ### 🎵 Gestión de Música
-- **Subida de archivos de audio** (MP3, M4A, WAV, FLAC)
+- **Subida de archivos de audio** (MP3, M4A, WAV, FLAC) con validación robusta
 - **Organización automática** en carpetas individuales por canción
 - **Sistema de variaciones de voz** - todas las voces son tratadas como iguales
 - **Metadatos automáticos** extraídos de archivos de audio
-- **Reproductor de audio integrado** con controles avanzados
+- **Reproductor de audio integrado** con controles avanzados y streaming optimizado
 - **Cola de reproducción mejorada** con validación de tipos de voz
-- **Sistema de subida robusto** con validación y limpieza automática
+- **Sistema de subida robusto** con validación, limpieza automática y manejo de errores
 
-### 👥 Sistema de Usuarios y Roles
-- **Autenticación JWT** segura con información extendida
-- **Roles jerárquicos**: Admin, Director, Cantante
-- **Filtrado por ubicación**: Directores ven solo su ubicación asignada
+### 👥 Sistema de Usuarios y Roles Jerárquico
+- **Autenticación JWT** segura con información extendida (rol, ubicación)
+- **Roles jerárquicos**: Admin, Director, Cantante con permisos específicos
+- **Filtrado inteligente por sede**: Directores ven solo su sede asignada
 - **Gestión de permisos** granular por funcionalidad y ubicación
-- **Perfiles de usuario** personalizables con asignación de roles
-- **Dashboard específico por rol** con vistas personalizadas
+- **Perfiles de usuario** con asignación automática de roles y voces
+- **Dashboard específico por rol** con vistas personalizadas y métricas relevantes
+- **Sistema dual para directores**: Pueden ser cantantes simultáneamente
 
-### 📊 Dashboard Analytics Avanzado
+### 📊 Dashboard Analytics Avanzado e Interactivo
 - **Métricas en tiempo real** con estadísticas completas del sistema
-- **Visualizaciones de datos** con gráficos interactivos
-- **Filtrado inteligente**: 
-  - **Admins**: Ven todas las métricas del sistema
-  - **Directores**: Solo métricas de su ubicación
-  - **Cantantes**: Vista apropiada para su rol
+- **Visualizaciones interactivas**: Gráficos de torta expandidos con porcentajes al hover
+- **Cuadros estadísticos coloridos**: UI mejorada con paleta de colores y iconos
+- **Filtrado inteligente por rol**: 
+  - **Admins**: Ven todas las métricas del sistema completo
+  - **Directores**: Solo métricas de su sede con información de cantantes
+  - **Cantantes**: Vista apropiada con información relevante
 - **API optimizada** con consultas paralelas para mejor rendimiento
-- **UI responsive** adaptativa para diferentes tipos de datos
+- **UI responsive** adaptativa con diseño moderno y profesional
 
-### 🎼 Reproductor Avanzado
-- **Reproductor persistente** en la parte inferior con diseño moderno
-- **Drag & Drop optimizado** para dispositivos móviles y desktop
-- **Controles de reproducción** completos (play, pause, seek, volumen)
-- **Barra de progreso interactiva** con click-to-seek
-- **Navegación automática** entre canciones
-- **Soporte para streaming** con requests HTTP Range
+### 🎼 Reproductor Avanzado y Persistente
+- **Reproductor flotante** en la parte inferior con diseño moderno
+- **Controles completos** (play, pause, seek, volumen) con feedback visual
+- **Barra de progreso interactiva** con click-to-seek y visualización de tiempo
+- **Navegación automática** entre canciones con transiciones suaves
+- **Soporte para streaming** con requests HTTP Range para archivos grandes
 - **Audio de alta calidad** sin pérdida de fidelidad
-- **Sistema de cola mejorado** que añade correctamente las versiones reproducibles
-- **Título dinámico en pestaña** que muestra la canción actual
-- **Favicon dinámico** que cambia según la canción en reproducción
+- **Sistema de cola inteligente** que añade correctamente las versiones reproducibles
+- **Título dinámico** en pestaña del navegador con canción actual
+- **Favicon dinámico** que cambia según el estado de reproducción
+
+### 🏛️ Gestión de Sedes Chilenas
+- **6 Sedes principales**: Santiago, Valparaíso, Viña del Mar, Valdivia, Antofagasta, Concepción
+- **Distribución específica**: 288 cantantes distribuidos según necesidades regionales
+- **Datos localizados**: Nombres, direcciones y teléfonos chilenos auténticos
+- **Formato telefónico chileno**: +56 9 XXXX XXXX para todos los usuarios
+- **Directores por sede**: Cada sede tiene su director asignado con acceso local
+
+### 🎨 Interfaz de Usuario Moderna
+- **Navegación reorganizada**: Logo y título a la izquierda, opciones centradas, perfil a la derecha
+- **Paleta de colores**: Diseño colorido y profesional para mejor experiencia visual
+- **Iconografía mejorada**: Iconos apropiados y consistentes en toda la aplicación
+- **Responsive design**: Optimizado para desktop, tablet y móvil
+- **Feedback visual**: Hover effects, transiciones suaves y estados interactivos
 
 ### 📱 Experiencia Móvil Optimizada
 - **Contraste mejorado** para títulos en dispositivos móviles

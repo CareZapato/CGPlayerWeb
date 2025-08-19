@@ -66,6 +66,8 @@ const DashboardPage: React.FC = () => {
   const [showLocationModal, setShowLocationModal] = useState(false);
   const [expandedVoiceTypes, setExpandedVoiceTypes] = useState<Set<string>>(new Set());
   const [pinnedLocation, setPinnedLocation] = useState<string | null>(null);
+  const [hoveredSlice, setHoveredSlice] = useState<string | null>(null);
+  const [showPercentages, setShowPercentages] = useState(false);
 
   useEffect(() => {
     fetchDashboardData();
@@ -245,59 +247,59 @@ const DashboardPage: React.FC = () => {
 
       {/* Estadísticas principales */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white p-6 rounded-lg shadow-md">
+        <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-6 rounded-lg shadow-md border border-blue-200">
           <div className="flex items-center">
-            <div className="p-3 rounded-full bg-blue-100 text-blue-600">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
+            <div className="p-3 rounded-full bg-blue-500 text-white">
+              <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
               </svg>
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Usuarios Activos</p>
-              <p className="text-2xl font-semibold text-gray-900">{data.activeUsers}</p>
+              <p className="text-sm font-medium text-blue-700">Usuarios Activos</p>
+              <p className="text-2xl font-semibold text-blue-900">{data.activeUsers}</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-lg shadow-md">
+        <div className="bg-gradient-to-br from-green-50 to-green-100 p-6 rounded-lg shadow-md border border-green-200">
           <div className="flex items-center">
-            <div className="p-3 rounded-full bg-green-100 text-green-600">
+            <div className="p-3 rounded-full bg-green-500 text-white">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
               </svg>
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Canciones</p>
-              <p className="text-2xl font-semibold text-gray-900">{data.totalSongs}</p>
+              <p className="text-sm font-medium text-green-700">Canciones</p>
+              <p className="text-2xl font-semibold text-green-900">{data.totalSongs}</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-lg shadow-md">
+        <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-6 rounded-lg shadow-md border border-purple-200">
           <div className="flex items-center">
-            <div className="p-3 rounded-full bg-purple-100 text-purple-600">
+            <div className="p-3 rounded-full bg-purple-500 text-white">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Eventos</p>
-              <p className="text-2xl font-semibold text-gray-900">{data.totalEvents}</p>
+              <p className="text-sm font-medium text-purple-700">Eventos</p>
+              <p className="text-2xl font-semibold text-purple-900">{data.totalEvents}</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-lg shadow-md">
+        <div className="bg-gradient-to-br from-orange-50 to-orange-100 p-6 rounded-lg shadow-md border border-orange-200">
           <div className="flex items-center">
-            <div className="p-3 rounded-full bg-orange-100 text-orange-600">
+            <div className="p-3 rounded-full bg-orange-500 text-white">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Ubicaciones</p>
-              <p className="text-2xl font-semibold text-gray-900">{data.totalLocations}</p>
+              <p className="text-sm font-medium text-orange-700">Sedes</p>
+              <p className="text-2xl font-semibold text-orange-900">{data.totalLocations}</p>
             </div>
           </div>
         </div>
@@ -305,16 +307,16 @@ const DashboardPage: React.FC = () => {
 
       {/* Layout principal: Tabla de ubicaciones + Gráfico de torta */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Tabla de Ubicaciones */}
+        {/* Tabla de Sedes */}
         <div className="bg-white rounded-lg shadow-md p-6">
           <h2 className="text-xl font-semibold text-gray-900 mb-4">
-            📍 Ubicaciones y Cantantes
+            🏢 Sedes y Cantantes
           </h2>
           <div className="overflow-x-auto">
             <table className="min-w-full">
               <thead>
                 <tr className="border-b">
-                  <th className="text-left py-2 px-3 font-medium text-gray-700">Ubicación</th>
+                  <th className="text-left py-2 px-3 font-medium text-gray-700">Sede</th>
                   <th className="text-center py-2 px-3 font-medium text-gray-700">Cantantes</th>
                   <th className="text-center py-2 px-3 font-medium text-gray-700">Acciones</th>
                 </tr>
@@ -409,35 +411,92 @@ const DashboardPage: React.FC = () => {
             )}
           </div>
           
-          {/* Gráfico de torta SVG simplificado */}
+          {/* Gráfico de torta SVG más grande con porcentajes */}
           <div className="flex justify-center mb-6">
-            <div className="relative w-48 h-48">
-              <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
-                {getVoiceDistribution().map((voice, index) => {
-                  const voiceData = getVoiceDistribution();
-                  const total = voiceData.reduce((sum, v) => sum + v.count, 0);
-                  const percentage = total > 0 ? (voice.count / total) * 100 : 0;
-                  const startAngle = voiceData.slice(0, index).reduce((sum, v) => sum + (v.count / total) * 360, 0);
-                  const endAngle = startAngle + (percentage * 3.6);
-                  
-                  const x1 = 50 + 30 * Math.cos((startAngle * Math.PI) / 180);
-                  const y1 = 50 + 30 * Math.sin((startAngle * Math.PI) / 180);
-                  const x2 = 50 + 30 * Math.cos((endAngle * Math.PI) / 180);
-                  const y2 = 50 + 30 * Math.sin((endAngle * Math.PI) / 180);
-                  
-                  const largeArcFlag = percentage > 50 ? 1 : 0;
-                  
-                  return (
-                    <path
-                      key={voice.voiceType}
-                      d={`M 50 50 L ${x1} ${y1} A 30 30 0 ${largeArcFlag} 1 ${x2} ${y2} Z`}
-                      fill={getVoiceTypeColor(voice.voiceType)}
-                      className="hover:opacity-80 cursor-pointer transition-opacity"
-                      onClick={() => toggleVoiceTypeExpansion(voice.voiceType)}
-                    />
-                  );
-                })}
-              </svg>
+            <div className="relative">
+              {/* Gráfico principal más grande */}
+              <div className="relative w-96 h-96">
+                <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
+                  {getVoiceDistribution().map((voice, index) => {
+                    const voiceData = getVoiceDistribution();
+                    const total = voiceData.reduce((sum, v) => sum + v.count, 0);
+                    const percentage = total > 0 ? (voice.count / total) * 100 : 0;
+                    const startAngle = voiceData.slice(0, index).reduce((sum, v) => sum + (v.count / total) * 360, 0);
+                    const endAngle = startAngle + (percentage * 3.6);
+                    
+                    const x1 = 50 + 35 * Math.cos((startAngle * Math.PI) / 180);
+                    const y1 = 50 + 35 * Math.sin((startAngle * Math.PI) / 180);
+                    const x2 = 50 + 35 * Math.cos((endAngle * Math.PI) / 180);
+                    const y2 = 50 + 35 * Math.sin((endAngle * Math.PI) / 180);
+                    
+                    const largeArcFlag = percentage > 50 ? 1 : 0;
+                    
+                    return (
+                      <path
+                        key={voice.voiceType}
+                        d={`M 50 50 L ${x1} ${y1} A 35 35 0 ${largeArcFlag} 1 ${x2} ${y2} Z`}
+                        fill={getVoiceTypeColor(voice.voiceType)}
+                        className="hover:opacity-80 cursor-pointer transition-all duration-200 hover:scale-105"
+                        onClick={() => {
+                          toggleVoiceTypeExpansion(voice.voiceType);
+                          setShowPercentages(!showPercentages);
+                        }}
+                        onMouseEnter={() => setHoveredSlice(voice.voiceType)}
+                        onMouseLeave={() => setHoveredSlice(null)}
+                        style={{
+                          filter: hoveredSlice === voice.voiceType ? 'brightness(1.1)' : 'none',
+                          transformOrigin: '50% 50%'
+                        }}
+                      />
+                    );
+                  })}
+                </svg>
+
+                {/* Porcentajes flotantes */}
+                {showPercentages && (
+                  <div className="absolute inset-0 pointer-events-none">
+                    {getVoiceDistribution().map((voice, index) => {
+                      const voiceData = getVoiceDistribution();
+                      const total = voiceData.reduce((sum, v) => sum + v.count, 0);
+                      const percentage = total > 0 ? (voice.count / total) * 100 : 0;
+                      const startAngle = voiceData.slice(0, index).reduce((sum, v) => sum + (v.count / total) * 360, 0);
+                      const midAngle = startAngle + (percentage * 3.6) / 2;
+                      
+                      // Posición para el texto (más alejado del centro)
+                      const textRadius = 45;
+                      const x = 50 + textRadius * Math.cos((midAngle * Math.PI) / 180);
+                      const y = 50 + textRadius * Math.sin((midAngle * Math.PI) / 180);
+                      
+                      if (percentage < 3) return null; // No mostrar porcentajes muy pequeños
+                      
+                      return (
+                        <div
+                          key={`percentage-${voice.voiceType}`}
+                          className="absolute transform -translate-x-1/2 -translate-y-1/2 bg-white bg-opacity-90 rounded-full px-2 py-1 text-xs font-bold shadow-lg border"
+                          style={{
+                            left: `${x}%`,
+                            top: `${y}%`,
+                            color: getVoiceTypeColor(voice.voiceType)
+                          }}
+                        >
+                          {percentage.toFixed(1)}%
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Botón para mostrar/ocultar porcentajes */}
+              <button
+                onClick={() => setShowPercentages(!showPercentages)}
+                className="absolute top-2 right-2 bg-white bg-opacity-90 hover:bg-opacity-100 rounded-full p-2 shadow-lg transition-all duration-200 border"
+                title={showPercentages ? "Ocultar porcentajes" : "Mostrar porcentajes"}
+              >
+                <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.997 1.997 0 013 12V7a2 2 0 012-2z" />
+                </svg>
+              </button>
             </div>
           </div>
 

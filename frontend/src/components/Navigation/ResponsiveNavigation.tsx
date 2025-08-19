@@ -18,8 +18,7 @@ import {
   XMarkIcon,
   ArrowRightOnRectangleIcon,
   ChevronDownIcon,
-  ChevronRightIcon,
-  QuestionMarkCircleIcon
+  ChevronRightIcon
 } from '@heroicons/react/24/outline';
 
 const iconMap = {
@@ -186,6 +185,7 @@ const ResponsiveNavigation: React.FC = () => {
       <nav className="hidden md:flex bg-white shadow-sm border-b border-gray-200">
         <div className="w-full mx-auto px-2 sm:px-4 lg:px-6">
           <div className="flex justify-between h-16">
+            {/* Logo y título a la izquierda */}
             <div className="flex items-center">
               <div className="flex-shrink-0 flex items-center">
                 <img 
@@ -195,20 +195,28 @@ const ResponsiveNavigation: React.FC = () => {
                 />
                 <h1 className="text-xl font-bold text-gray-900">CGPlayer</h1>
               </div>
-              <div className="hidden md:ml-6 md:flex md:space-x-8">
+            </div>
+
+            {/* Menú centrado */}
+            <div className="flex-1 flex items-center justify-center">
+              <div className="flex space-x-6">
                 {menuItems.map((item) => renderMenuItem(item, false))}
-                
-                {/* Changelog Icon */}
-                <Link
-                  to="/changelog"
-                  className="inline-flex items-center px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50"
-                  title="Changelog y Versiones"
-                >
-                  <QuestionMarkCircleIcon className="w-4 h-4" />
-                </Link>
               </div>
             </div>
+
+            {/* Changelog, usuario y logout a la derecha */}
             <div className="flex items-center space-x-4">
+              {/* Changelog Icon con mejor icono */}
+              <Link
+                to="/changelog"
+                className="inline-flex items-center px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50"
+                title="Historial de cambios y versiones"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </Link>
+              
               <span className="text-sm text-gray-700">
                 Hola, {user?.firstName}
               </span>
@@ -291,14 +299,16 @@ const ResponsiveNavigation: React.FC = () => {
               <nav className="p-2 space-y-1">
                 {menuItems.map((item) => renderMenuItem(item, true))}
                 
-                {/* Changelog móvil */}
+                {/* Changelog móvil con mejor icono */}
                 <Link
                   to="/changelog"
                   onClick={closeMobileMenu}
                   className="flex items-center px-3 py-3 rounded-lg text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50"
                 >
-                  <QuestionMarkCircleIcon className="w-5 h-5 mr-3" />
-                  Changelog & Info
+                  <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  Historial de Cambios
                 </Link>
               </nav>
             </div>
