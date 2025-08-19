@@ -124,7 +124,7 @@ const SongsGridView: React.FC = () => {
       </div>
 
       {/* Grid de canciones */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-7 xl:grid-cols-8 gap-3">
         {filteredSongs.map((song) => (
           <SongCard
             key={song.id}

@@ -209,11 +209,11 @@ const SongCard: React.FC<SongCardProps> = ({ song, color, onClick }) => {
       {/* Cover de la canción */}
       <div 
         onClick={onClick}
-        className="aspect-square rounded-lg p-4 mb-3 shadow-lg group-hover:shadow-xl transition-shadow duration-200 flex items-center justify-center text-white font-bold text-center relative"
+        className="aspect-square rounded-lg p-2 sm:p-3 mb-2 shadow-lg group-hover:shadow-xl transition-shadow duration-200 flex items-center justify-center text-white font-bold text-center relative"
         style={{ backgroundColor: color }}
       >
         <div className="w-full">
-          <h3 className="text-sm sm:text-base lg:text-lg leading-tight line-clamp-3 uppercase tracking-wide">
+          <h3 className="text-xs sm:text-sm lg:text-base leading-tight line-clamp-3 uppercase tracking-wide">
             {song.title}
           </h3>
         </div>
@@ -223,8 +223,8 @@ const SongCard: React.FC<SongCardProps> = ({ song, color, onClick }) => {
           onClick={handlePlaySong}
           className="absolute inset-0 w-full h-full bg-black bg-opacity-0 hover:bg-opacity-30 transition-all duration-200 flex items-center justify-center opacity-0 group-hover:opacity-100"
         >
-          <div className="w-12 h-12 bg-white bg-opacity-90 rounded-full flex items-center justify-center shadow-lg transform scale-90 group-hover:scale-100 transition-transform">
-            <svg className="w-6 h-6 text-gray-800 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+          <div className="w-8 h-8 sm:w-10 sm:h-10 bg-white bg-opacity-90 rounded-full flex items-center justify-center shadow-lg transform scale-90 group-hover:scale-100 transition-transform">
+            <svg className="w-4 h-4 sm:w-5 sm:h-5 text-gray-800 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
               <path d="M8 5v14l11-7z"/>
             </svg>
           </div>
@@ -233,9 +233,9 @@ const SongCard: React.FC<SongCardProps> = ({ song, color, onClick }) => {
         {/* Botón de menú */}
         <button
           onClick={handleMenuClick}
-          className="absolute top-2 right-2 w-8 h-8 bg-black bg-opacity-30 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-opacity-50"
+          className="absolute top-1 right-1 sm:top-2 sm:right-2 w-6 h-6 sm:w-8 sm:h-8 bg-black bg-opacity-30 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-opacity-50"
         >
-          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+          <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="currentColor" viewBox="0 0 20 20">
             <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
           </svg>
         </button>
@@ -278,19 +278,22 @@ const SongCard: React.FC<SongCardProps> = ({ song, color, onClick }) => {
       </div>
 
       {/* Información de la canción */}
-      <div className="space-y-1" onClick={onClick}>
-        <h4 className="font-semibold text-sm text-gray-900 line-clamp-1">
+      <div className="space-y-0.5 sm:space-y-1" onClick={onClick}>
+        <h4 className="font-semibold text-xs sm:text-sm text-gray-900 line-clamp-1">
           {song.title}
         </h4>
-        <p className="text-xs text-gray-600 line-clamp-1">
+        <p className="text-xs text-gray-600 line-clamp-1 hidden sm:block">
           {song.artist || '[Unknown Artist]'}
         </p>
         <div className="flex items-center justify-between text-xs text-gray-500">
-          <span>
+          <span className="hidden sm:inline">
             {song.childVersions?.length ? `${song.childVersions.length} variaciones` : '1 pista'}
           </span>
+          <span className="sm:hidden text-xs">
+            {song.childVersions?.length || '1'}
+          </span>
           {displayDuration > 0 && (
-            <span>{formatDuration(displayDuration)}</span>
+            <span className="text-xs">{formatDuration(displayDuration)}</span>
           )}
         </div>
       </div>
