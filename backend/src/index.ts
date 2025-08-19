@@ -168,8 +168,9 @@ app.use((req, res, next) => {
   next();
 });
 
-// Servir archivos estáticos (audios subidos)
-app.use('/uploads', express.static(path.join(__dirname, '../../uploads')));
+// ELIMINADO: No servir archivos estáticos directamente por seguridad
+// Los archivos de audio ahora solo se sirven a través de endpoints autenticados
+// app.use('/uploads', express.static(path.join(__dirname, '../../uploads')));
 
 // Endpoints públicos (sin autenticación)
 app.get('/api/health', (req, res) => {

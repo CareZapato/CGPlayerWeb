@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { usePlaylistStore } from '../../store/playlistStore';
 import { usePlayerStore } from '../../store/playerStore';
 import { useServerInfo } from '../../hooks/useServerInfo';
+import { getSongFileUrl } from '../../config/api';
 import api from '../../services/api';
 import type { Song } from '../../types';
 import './SongCard.css';
@@ -165,11 +166,11 @@ const SongCard: React.FC<SongCardProps> = ({ song, color, onClick }) => {
           // Reproducir la primera variación usando la API del playerStore
           const firstSong = playableVariations[0];
           
-          // Construir URL correcta para archivos de audio usando serverInfo
+          // Construir URL correcta para archivos de audio con autenticación
           let songUrl: string;
           if (firstSong.folderName) {
-            // Archivo en carpeta específica
-            songUrl = `${serverInfo.audioBaseUrl}/${firstSong.folderName}/${firstSong.fileName}`;
+            // Archivo en carpeta específica - usar función con autenticación
+            songUrl = getSongFileUrl(firstSong.folderName, firstSong.fileName);
           } else {
             // Archivo en carpeta raíz - usar endpoint específico
             songUrl = `${serverInfo.audioBaseUrl}-root/${firstSong.fileName}`;

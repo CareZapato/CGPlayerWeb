@@ -3,7 +3,7 @@ import { useAuthStore } from '../store/authStore';
 import { usePlayerStore } from '../store/playerStore';
 import { usePlaylistStore } from '../store/playlistStore';
 import { useServerInfo } from '../hooks/useServerInfo';
-import { getApiUrl } from '../config/api';
+import { getApiUrl, getSongFileUrl } from '../config/api';
 import SongUpload from '../components/SongUpload';
 import MultiSongUpload from '../components/Upload/MultiSongUpload';
 import type { Song } from '../types';
@@ -52,6 +52,25 @@ const SongsPage: React.FC = () => {
   const [expandedSongs, setExpandedSongs] = useState<Set<string>>(new Set());
 
   const canUpload = user?.roles?.some(r => ['ADMIN', 'CANTANTE'].includes(r.role)) || false;
+
+  // Función para filtrar versiones según los voice types del usuario
+  const getFilteredVersions = (childVersions: Song[]) => {
+    // Si el usuario es ADMIN o DIRECTOR, puede ver todas las versiones
+    const isAdmin = user?.roles?.some(r => r.role === 'ADMIN') || false;
+    const isDirector = user?.roles?.some(r => r.role === 'DIRECTOR') || false;
+    
+    if (isAdmin || isDirector) {
+      return childVersions;
+    }
+
+    // Si es CANTANTE, filtrar por sus voice types + CORO + ORIGINAL
+    const userVoiceTypes = user?.voiceProfiles?.map(vp => vp.voiceType) || [];
+    const allowedVoiceTypes = [...userVoiceTypes, 'CORO', 'ORIGINAL'];
+    
+    return childVersions.filter(version => 
+      version.voiceType && allowedVoiceTypes.includes(version.voiceType)
+    );
+  };
 
   useEffect(() => {
     fetchSongs();
@@ -103,14 +122,14 @@ const SongsPage: React.FC = () => {
     // Limpiar la cola y agregar solo esta canción
     addSingleToQueue(songToQueue);
     
-    // Construir la URL usando la información del servidor
+    // Construir la URL usando getSongFileUrl para incluir el token de autenticación
     let songUrl: string;
     
     if (song.folderName) {
-      // Archivo en carpeta específica
-      songUrl = `${serverInfo.audioBaseUrl}/${song.folderName}/${song.fileName}`;
+      // Archivo en carpeta específica - usar función con autenticación
+      songUrl = getSongFileUrl(song.folderName, song.fileName);
     } else {
-      // Archivo en carpeta raíz - usar endpoint específico
+      // Archivo en carpeta raíz - construir URL alternativa (si aplica)
       songUrl = `${serverInfo.audioBaseUrl}-root/${song.fileName}`;
     }
       
@@ -136,9 +155,11 @@ const SongsPage: React.FC = () => {
   const handlePlayAllVersions = async (song: SongWithVersions) => {
     console.log('🎵 Playing all versions for:', song.title);
     
-    if (song.childVersions.length === 0) {
-      // Si no tiene versiones, es una canción individual, reproducirla directamente
-      handlePlaySong(song);
+    const filteredVersions = getFilteredVersions(song.childVersions);
+    
+    if (filteredVersions.length === 0) {
+      // Si no tiene versiones disponibles para este usuario, no hacer nada
+      console.log('No hay versiones disponibles para este usuario');
       return;
     }
 
@@ -153,7 +174,7 @@ const SongsPage: React.FC = () => {
       if (!response.ok) {
         console.error('Error en la respuesta:', response.status, response.statusText);
         // Si falla la API, usar las versiones que ya tenemos
-        console.log('Usando versiones locales:', song.childVersions.length);
+        console.log('Usando versiones locales:', filteredVersions.length);
         playLocalVersions(song);
         return;
       }
@@ -178,7 +199,7 @@ const SongsPage: React.FC = () => {
   };
 
   const playLocalVersions = (song: SongWithVersions) => {
-    const versions = song.childVersions;
+    const versions = getFilteredVersions(song.childVersions);
     
     // Convertir versiones al formato correcto para el reproductor
     const songsToQueue: Song[] = versions.map((version: any) => ({
@@ -206,7 +227,7 @@ const SongsPage: React.FC = () => {
     
     // Inmediatamente reproducir la primera canción
     const firstSong = songsToQueue[0];
-    const songUrl = `${serverInfo.audioBaseUrl}/${firstSong.folderName}/${firstSong.fileName}`;
+    const songUrl = getSongFileUrl(firstSong.folderName!, firstSong.fileName);
     
     console.log('🎵 ¡INICIANDO REPRODUCCIÓN INMEDIATA!:', { 
       song: firstSong.title,
@@ -251,7 +272,7 @@ const SongsPage: React.FC = () => {
     
     // Inmediatamente reproducir la primera canción
     const firstSong = songsToQueue[0];
-    const songUrl = `${serverInfo.audioBaseUrl}/${firstSong.folderName}/${firstSong.fileName}`;
+    const songUrl = getSongFileUrl(firstSong.folderName!, firstSong.fileName);
     
     console.log('🎵 ¡INICIANDO REPRODUCCIÓN INMEDIATA!:', { 
       song: firstSong.title,
@@ -271,45 +292,18 @@ const SongsPage: React.FC = () => {
 
   const addVersionsToQueue = (song: SongWithVersions) => {
     console.log('🔥 AGREGANDO VERSIONES A LA COLA:', song.title);
-    console.log('🔥 Versiones disponibles:', song.childVersions.length);
     
-    // Si no hay versiones hijas pero la canción tiene voiceType, es una canción individual
-    if (song.childVersions.length === 0) {
-      if (song.voiceType) {
-        console.log('🔥 Agregando canción individual con voiceType:', song.voiceType);
-        
-        // Crear el objeto Song completo para la canción individual
-        const songToAdd: Song = {
-          id: song.id,
-          title: song.title,
-          artist: song.artist || 'Desconocido',
-          album: song.album,
-          duration: song.duration || 0,
-          fileName: song.fileName,
-          filePath: song.filePath || `${song.folderName}/${song.fileName}`,
-          fileSize: song.fileSize || 0,
-          mimeType: song.mimeType || 'audio/mpeg',
-          folderName: song.folderName,
-          voiceType: song.voiceType,
-          parentSongId: song.parentSongId,
-          coverColor: song.coverColor,
-          uploadedBy: song.uploadedBy || (song.uploader ? `${song.uploader.firstName} ${song.uploader.lastName}` : 'Desconocido'),
-          isActive: song.isActive !== undefined ? song.isActive : true,
-          createdAt: song.createdAt,
-          updatedAt: song.updatedAt || song.createdAt,
-          uploader: song.uploader
-        };
-        
-        addToQueue(songToAdd);
-        console.log('✅ Canción individual agregada:', songToAdd.title, songToAdd.voiceType);
-      } else {
-        console.log('❌ No hay versiones ni voiceType para agregar');
-      }
+    const filteredVersions = getFilteredVersions(song.childVersions);
+    console.log('🔥 Versiones filtradas disponibles:', filteredVersions.length);
+    
+    // Si no hay versiones filtradas disponibles para este usuario
+    if (filteredVersions.length === 0) {
+      console.log('❌ No hay versiones disponibles para este usuario');
       return;
     }
     
-    // Agregar todas las versiones hijas
-    song.childVersions.forEach(version => {
+    // Agregar todas las versiones filtradas
+    filteredVersions.forEach(version => {
       console.log('🔥 Agregando versión:', version.voiceType, version.title);
       
       // Crear el objeto Song completo con todas las propiedades necesarias
@@ -499,7 +493,10 @@ const SongsPage: React.FC = () => {
                         ? 'bg-primary-600 text-white'
                         : 'bg-gray-100 hover:bg-primary-100 text-gray-600 hover:text-primary-600'
                     }`}
-                    title={song.childVersions.length > 0 ? `Reproducir todas las versiones (${song.childVersions.length})` : 'Reproducir canción'}
+                    title={(() => {
+                      const filteredVersions = getFilteredVersions(song.childVersions);
+                      return filteredVersions.length > 0 ? `Reproducir todas las versiones disponibles (${filteredVersions.length})` : 'Reproducir canción';
+                    })()}
                   >
                     {currentSong?.id === song.id && isPlaying ? (
                       <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
@@ -526,23 +523,26 @@ const SongsPage: React.FC = () => {
                 </div>
 
                 {/* Versiones disponibles */}
-                {song.childVersions.length > 0 && (
-                  <div className="flex flex-col sm:items-end space-y-2">
-                    <span className="text-sm text-gray-500">
-                      {song.childVersions.length} versión{song.childVersions.length !== 1 ? 'es' : ''}
-                    </span>
-                    <div className="flex flex-wrap gap-1">
-                      {song.childVersions.map((version) => (
-                        <span
-                          key={version.id}
-                          className={`px-2 py-1 text-xs rounded-full border ${VOICE_TYPE_COLORS[version.voiceType!] || 'bg-gray-100 text-gray-800 border-gray-200'}`}
-                        >
-                          {VOICE_TYPE_LABELS[version.voiceType!] || version.voiceType}
-                        </span>
-                      ))}
+                {(() => {
+                  const filteredVersions = getFilteredVersions(song.childVersions);
+                  return filteredVersions.length > 0 && (
+                    <div className="flex flex-col sm:items-end space-y-2">
+                      <span className="text-sm text-gray-500">
+                        {filteredVersions.length} versión{filteredVersions.length !== 1 ? 'es' : ''} disponible{filteredVersions.length !== 1 ? 's' : ''}
+                      </span>
+                      <div className="flex flex-wrap gap-1">
+                        {filteredVersions.map((version) => (
+                          <span
+                            key={version.id}
+                            className={`px-2 py-1 text-xs rounded-full border ${VOICE_TYPE_COLORS[version.voiceType!] || 'bg-gray-100 text-gray-800 border-gray-200'}`}
+                          >
+                            {VOICE_TYPE_LABELS[version.voiceType!] || version.voiceType}
+                          </span>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
 
                 {/* Acciones */}
                 <div className="flex items-center justify-end space-x-2">
@@ -550,7 +550,10 @@ const SongsPage: React.FC = () => {
                   <button
                     onClick={() => addVersionsToQueue(song)}
                     className="p-2 text-gray-400 hover:text-blue-600 transition-colors bg-blue-50 hover:bg-blue-100 rounded-full border border-blue-200"
-                    title={song.childVersions.length > 0 ? `Agregar todas las versiones a la cola (${song.childVersions.length})` : 'Agregar canción a la cola'}
+                    title={(() => {
+                      const filteredVersions = getFilteredVersions(song.childVersions);
+                      return filteredVersions.length > 0 ? `Agregar todas las versiones disponibles a la cola (${filteredVersions.length})` : 'Agregar canción a la cola';
+                    })()}
                   >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
@@ -593,11 +596,11 @@ const SongsPage: React.FC = () => {
               </div>
 
               {/* Versiones expandidas */}
-              {expandedSongs.has(song.id) && song.childVersions.length > 0 && (
+              {expandedSongs.has(song.id) && getFilteredVersions(song.childVersions).length > 0 && (
                 <div className="mt-4 pt-4 border-t border-gray-200">
-                  <h4 className="text-sm font-medium text-gray-700 mb-3">Versiones por voz:</h4>
+                  <h4 className="text-sm font-medium text-gray-700 mb-3">Versiones disponibles por voz:</h4>
                   <div className="space-y-2">
-                    {song.childVersions.map((version) => (
+                    {getFilteredVersions(song.childVersions).map((version) => (
                       <div key={version.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between bg-gray-50 rounded-lg p-3 gap-3">
                         <div className="flex items-center space-x-3">
                           <button

@@ -366,37 +366,40 @@ router.get('/', authenticateToken, async (req: AuthRequest, res: Response) => {
     const { includeVersions = 'true' } = req.query;
     const userId = req.user!.id;
     const userRoles = req.user!.roles || [];
+    const userVoiceProfiles = req.user!.voiceProfiles || [];
     
     // Verificar si el usuario es ADMIN o DIRECTOR
     const isAdmin = userRoles.some((role: string) => role === 'ADMIN');
     const isDirector = userRoles.some((role: string) => role === 'DIRECTOR');
     const isCantante = userRoles.some((role: string) => role === 'CANTANTE');
 
+    console.log('🎵 [SONGS] User:', userId, 'Roles:', userRoles);
+    console.log('🎵 [SONGS] Voice Profiles:', userVoiceProfiles.map((vp: any) => vp.voiceType));
+
     let whereClause: any = {
       isActive: true,
       ...(includeVersions === 'false' ? { parentSongId: null } : {})
     };
 
-    // Si es CANTANTE, filtrar por tipos de voz del usuario
+    // Si es CANTANTE, filtrar por tipos de voz del usuario (incluir CORO y ORIGINAL)
     if (isCantante && !isAdmin && !isDirector) {
-      // Obtener los tipos de voz del usuario
-      const userVoiceProfiles = await prisma.userVoiceProfile.findMany({
-        where: { userId },
-        select: { voiceType: true }
-      });
-
       if (userVoiceProfiles.length > 0) {
-        const voiceTypes = userVoiceProfiles.map(profile => profile.voiceType);
+        const userVoiceTypes = userVoiceProfiles.map((profile: any) => profile.voiceType);
+        
+        // Agregar CORO y ORIGINAL - todos pueden verlos
+        const allowedVoiceTypes = [...userVoiceTypes, 'CORO', 'ORIGINAL'];
+        
+        console.log('🎵 [SONGS] Filtering by voice types:', allowedVoiceTypes);
         
         // Solo mostrar canciones que:
-        // 1. Tienen parentId (son variaciones) Y tienen voiceType del usuario
-        // 2. O son canciones sin parentId pero sin voiceType (para acceso general)
+        // 1. Tienen parentId (son variaciones) Y tienen voiceType permitido
+        // 2. O son canciones sin parentId pero sin voiceType (contenedoras generales)
         whereClause = {
           ...whereClause,
           OR: [
             {
               parentSongId: { not: null },
-              voiceType: { in: voiceTypes }
+              voiceType: { in: allowedVoiceTypes }
             },
             {
               parentSongId: null,
@@ -405,13 +408,24 @@ router.get('/', authenticateToken, async (req: AuthRequest, res: Response) => {
           ]
         };
       } else {
-        // Si no tiene tipos de voz asignados, solo ver canciones generales
+        // Si no tiene tipos de voz asignados, solo mostrar CORO y ORIGINAL
+        console.log('🎵 [SONGS] No voice profiles, only showing CORO and ORIGINAL');
         whereClause = {
           ...whereClause,
-          parentSongId: null,
-          voiceType: null
+          OR: [
+            {
+              parentSongId: { not: null },
+              voiceType: { in: ['CORO', 'ORIGINAL'] }
+            },
+            {
+              parentSongId: null,
+              voiceType: null
+            }
+          ]
         };
       }
+    } else {
+      console.log('🎵 [SONGS] User is ADMIN/DIRECTOR, showing all songs');
     }
     
     const songs = await prisma.song.findMany({
@@ -459,9 +473,11 @@ router.get('/for-playlist', authenticateToken, async (req: AuthRequest, res: Res
   try {
     const userId = req.user!.id;
     const userRoles = req.user!.roles || [];
+    const userVoiceProfiles = req.user!.voiceProfiles || [];
     const { search = '' } = req.query;
     
     console.log('🎵 [FOR-PLAYLIST] User:', userId, 'Roles:', userRoles, 'Search:', search);
+    console.log('🎵 [FOR-PLAYLIST] Voice Profiles:', userVoiceProfiles.map((vp: any) => vp.voiceType));
     
     // Verificar si el usuario es ADMIN o DIRECTOR
     const isAdmin = userRoles.some((role: string) => role === 'ADMIN');
@@ -485,19 +501,19 @@ router.get('/for-playlist', authenticateToken, async (req: AuthRequest, res: Res
 
     // Si es CANTANTE (y no es ADMIN ni DIRECTOR), filtrar por tipos de voz del usuario
     if (isCantante && !isAdmin && !isDirector) {
-      // Obtener los tipos de voz del usuario
-      const userVoiceProfiles = await prisma.userVoiceProfile.findMany({
-        where: { userId },
-        select: { voiceType: true }
-      });
-
       if (userVoiceProfiles.length === 0) {
-        return res.status(400).json({ message: 'Usuario no tiene tipos de voz asignados' });
+        // Si no tiene tipos asignados, solo mostrar CORO y ORIGINAL
+        whereClause.voiceType = { in: ['CORO', 'ORIGINAL'] };
+        console.log('🎵 [FOR-PLAYLIST] No voice profiles found, only showing CORO and ORIGINAL');
+      } else {
+        // Extraer los tipos de voz del usuario y agregar CORO y ORIGINAL
+        const userVoiceTypes = userVoiceProfiles.map((profile: any) => profile.voiceType);
+        const allowedVoiceTypes = [...userVoiceTypes, 'CORO', 'ORIGINAL'];
+        whereClause.voiceType = { in: allowedVoiceTypes };
+        console.log('🎵 [FOR-PLAYLIST] Filtering by voice types:', allowedVoiceTypes);
       }
-
-      // Extraer los tipos de voz y agregar al filtro
-      const voiceTypes = userVoiceProfiles.map(profile => profile.voiceType);
-      whereClause.voiceType = { in: voiceTypes };
+    } else {
+      console.log('🎵 [FOR-PLAYLIST] User is ADMIN/DIRECTOR, showing all songs');
     }
 
     // Obtener canciones compatibles
@@ -581,6 +597,35 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res: Response) =>
 router.get('/:id/versions', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
+    const userId = req.user!.id;
+    const userRoles = req.user!.roles || [];
+    
+    // Determinar los tipos de voz permitidos según el rol del usuario
+    let allowedVoiceTypes: ('SOPRANO' | 'CONTRALTO' | 'TENOR' | 'BAJO' | 'CORO' | 'ORIGINAL')[] = [];
+    
+    const isAdmin = userRoles.some((role: string) => role === 'ADMIN');
+    const isDirector = userRoles.some((role: string) => role === 'DIRECTOR');
+    const isCantante = userRoles.some((role: string) => role === 'CANTANTE');
+
+    if (isAdmin || isDirector) {
+      // ADMIN y DIRECTOR pueden ver todas las variaciones
+      allowedVoiceTypes = ['SOPRANO', 'CONTRALTO', 'TENOR', 'BAJO', 'CORO', 'ORIGINAL'];
+    } else if (isCantante) {
+      // CANTANTE solo puede ver sus tipos de voz + CORO + ORIGINAL
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        include: { voiceProfiles: true }
+      });
+      
+      if (user?.voiceProfiles) {
+        const userVoiceTypes = user.voiceProfiles.map(vp => vp.voiceType as any);
+        allowedVoiceTypes = [...userVoiceTypes, 'CORO', 'ORIGINAL'];
+        console.log(`🎵 [VERSIONS] User: ${userId} Voice Profiles: [`, userVoiceTypes.map(vt => `'${vt}'`).join(', '), ']');
+        console.log(`🎵 [VERSIONS] Filtering by voice types: [`, allowedVoiceTypes.map(vt => `'${vt}'`).join(', '), ']');
+      } else {
+        allowedVoiceTypes = ['CORO', 'ORIGINAL']; // Solo CORO y ORIGINAL por defecto
+      }
+    }
     
     // Buscar la canción contenedora
     const containerSong = await prisma.song.findUnique({
@@ -605,6 +650,11 @@ router.get('/:id/versions', authenticateToken, async (req: AuthRequest, res: Res
         createdAt: true,
         updatedAt: true,
         childVersions: {
+          where: {
+            voiceType: {
+              in: allowedVoiceTypes
+            }
+          },
           select: {
             id: true,
             title: true,
@@ -639,18 +689,26 @@ router.get('/:id/versions', authenticateToken, async (req: AuthRequest, res: Res
       return res.status(404).json({ message: 'Canción no encontrada' });
     }
 
-    // Si es una canción contenedora, devolver sus variaciones
-    if (containerSong.childVersions.length > 0) {
+    // Si es una canción contenedora, devolver sus variaciones filtradas
+    if (containerSong.childVersions && containerSong.childVersions.length > 0) {
       res.json({ 
         versions: containerSong.childVersions,
         total: containerSong.childVersions.length
       });
     } else {
-      // Si no es contenedora, puede ser una variación individual
-      res.json({ 
-        versions: [containerSong],
-        total: 1
-      });
+      // Si no es contenedora, verificar si la canción individual está permitida
+      const isAllowed = containerSong.voiceType ? allowedVoiceTypes.includes(containerSong.voiceType as any) : true;
+      if (isAllowed) {
+        res.json({ 
+          versions: [containerSong],
+          total: 1
+        });
+      } else {
+        res.json({ 
+          versions: [],
+          total: 0
+        });
+      }
     }
   } catch (error) {
     console.error('Error fetching song versions:', error);
@@ -658,21 +716,69 @@ router.get('/:id/versions', authenticateToken, async (req: AuthRequest, res: Res
   }
 });
 
-// Servir archivos de audio con soporte para IP local
-router.get('/file/:folderName/:fileName', async (req, res) => {
+// Servir archivos de audio con autenticación y autorización por tipo de voz
+router.get('/file/:folderName/:fileName', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
     const { folderName, fileName } = req.params;
+    const userId = req.user!.id;
+    const userRoles = req.user!.roles || [];
     
     const filePath = path.join(__dirname, '../../uploads/songs', folderName, fileName);
     
     if (!fs.existsSync(filePath)) {
-      return res.status(404).json({ message: 'File not found' });
+      return res.status(404).json({ message: 'Archivo no encontrado' });
+    }
+
+    // Los ADMIN y DIRECTOR pueden acceder a cualquier archivo
+    const isAdmin = userRoles.some((role: string) => role === 'ADMIN');
+    const isDirector = userRoles.some((role: string) => role === 'DIRECTOR');
+    const isCantante = userRoles.some((role: string) => role === 'CANTANTE');
+
+    if (!isAdmin && !isDirector && isCantante) {
+      // Para CANTANTES, verificar si tienen acceso según su tipo de voz
+      
+      // Buscar la canción en la base de datos
+      const song = await prisma.song.findFirst({
+        where: {
+          fileName: fileName,
+          isActive: true
+        }
+      });
+
+      if (!song) {
+        return res.status(404).json({ message: 'Archivo no encontrado en base de datos' });
+      }
+
+      // Si la canción es CORO u ORIGINAL, todos pueden acceder
+      if (song.voiceType === 'CORO' || song.voiceType === 'ORIGINAL') {
+        // Acceso permitido para CORO y ORIGINAL
+      } else {
+        // Verificar si el usuario tiene el tipo de voz de la canción
+        const userVoiceProfiles = await prisma.userVoiceProfile.findMany({
+          where: { userId },
+          select: { voiceType: true }
+        });
+
+        const userVoiceTypes = userVoiceProfiles.map(profile => profile.voiceType);
+        
+        if (!userVoiceTypes.includes(song.voiceType as any)) {
+          return res.status(403).json({ 
+            message: 'No tienes autorización para acceder a este archivo',
+            reason: `Esta canción es para tipo de voz ${song.voiceType} y tu no tienes ese tipo asignado`
+          });
+        }
+      }
     }
 
     // Configurar headers para audio streaming
     const stat = fs.statSync(filePath);
     const fileSize = stat.size;
     const range = req.headers.range;
+
+    // Agregar headers para evitar descarga directa
+    res.setHeader('Content-Disposition', 'inline');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Cache-Control', 'private, no-cache');
 
     if (range) {
       const parts = range.replace(/bytes=/, "").split("-");
@@ -698,25 +804,73 @@ router.get('/file/:folderName/:fileName', async (req, res) => {
     }
   } catch (error) {
     console.error('Error serving audio file:', error);
-    res.status(500).json({ message: 'Error serving file' });
+    res.status(500).json({ message: 'Error sirviendo archivo' });
   }
 });
 
-// Ruta alternativa para archivos en la raíz de uploads/songs
-router.get('/file/:fileName', async (req, res) => {
+// Ruta alternativa para archivos en la raíz de uploads/songs (también protegida)
+router.get('/file/:fileName', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
     const { fileName } = req.params;
+    const userId = req.user!.id;
+    const userRoles = req.user!.roles || [];
     
     const filePath = path.join(__dirname, '../../uploads/songs', fileName);
     
     if (!fs.existsSync(filePath)) {
-      return res.status(404).json({ message: 'File not found' });
+      return res.status(404).json({ message: 'Archivo no encontrado' });
+    }
+
+    // Los ADMIN y DIRECTOR pueden acceder a cualquier archivo
+    const isAdmin = userRoles.some((role: string) => role === 'ADMIN');
+    const isDirector = userRoles.some((role: string) => role === 'DIRECTOR');
+    const isCantante = userRoles.some((role: string) => role === 'CANTANTE');
+
+    if (!isAdmin && !isDirector && isCantante) {
+      // Para CANTANTES, verificar si tienen acceso según su tipo de voz
+      
+      // Buscar la canción en la base de datos
+      const song = await prisma.song.findFirst({
+        where: {
+          fileName: fileName,
+          isActive: true
+        }
+      });
+
+      if (!song) {
+        return res.status(404).json({ message: 'Archivo no encontrado en base de datos' });
+      }
+
+      // Si la canción es CORO u ORIGINAL, todos pueden acceder
+      if (song.voiceType === 'CORO' || song.voiceType === 'ORIGINAL') {
+        // Acceso permitido para CORO y ORIGINAL
+      } else {
+        // Verificar si el usuario tiene el tipo de voz de la canción
+        const userVoiceProfiles = await prisma.userVoiceProfile.findMany({
+          where: { userId },
+          select: { voiceType: true }
+        });
+
+        const userVoiceTypes = userVoiceProfiles.map(profile => profile.voiceType);
+        
+        if (!userVoiceTypes.includes(song.voiceType as any)) {
+          return res.status(403).json({ 
+            message: 'No tienes autorización para acceder a este archivo',
+            reason: `Esta canción es para tipo de voz ${song.voiceType} y tu no tienes ese tipo asignado`
+          });
+        }
+      }
     }
 
     // Configurar headers para audio streaming
     const stat = fs.statSync(filePath);
     const fileSize = stat.size;
     const range = req.headers.range;
+
+    // Agregar headers para evitar descarga directa
+    res.setHeader('Content-Disposition', 'inline');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Cache-Control', 'private, no-cache');
 
     if (range) {
       const parts = range.replace(/bytes=/, "").split("-");
@@ -742,7 +896,7 @@ router.get('/file/:fileName', async (req, res) => {
     }
   } catch (error) {
     console.error('Error serving audio file:', error);
-    res.status(500).json({ message: 'Error serving file' });
+    res.status(500).json({ message: 'Error sirviendo archivo' });
   }
 });
 

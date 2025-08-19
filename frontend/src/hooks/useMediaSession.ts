@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { usePlayerStore } from '../store/playerStore';
 import { usePlaylistStore } from '../store/playlistStore';
 import { useServerInfo } from './useServerInfo';
+import { getSongFileUrl } from '../config/api';
 
 export const useMediaSession = () => {
   const { 
@@ -208,10 +209,10 @@ export const useMediaSession = () => {
     };
   }, [currentTime, duration, currentSong, isPlaying]);
 
-  // Función auxiliar para construir URL de canción
+  // Función auxiliar para construir URL de canción con autenticación
   const buildSongUrl = (song: any) => {
     if (song.folderName) {
-      return `${serverInfo.audioBaseUrl}/${song.folderName}/${song.fileName}`;
+      return getSongFileUrl(song.folderName, song.fileName);
     } else {
       return `${serverInfo.audioBaseUrl}-root/${song.fileName}`;
     }

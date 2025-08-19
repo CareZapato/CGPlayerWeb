@@ -20,7 +20,17 @@
     "build": "cd backend && npm run build && cd ../frontend && npm run build",
     "start": "cd backend && npm start"
   },
-  "keywords": ["music", "player", "choir", "web", "react", "nodejs", "postgresql", "audio", "streaming"],
+  "keywords": [
+    "music",
+    "player",
+    "choir",
+    "web",
+    "react",
+    "nodejs",
+    "postgresql",
+    "audio",
+    "streaming"
+  ],
   "author": {
     "name": "CareZapato",
     "email": "pbarrerap1988@gmail.com",
@@ -29,5 +39,9 @@
   "license": "MIT",
   "devDependencies": {
     "concurrently": "^8.2.2"
+  },
+  "dependencies": {
+    "axios": "^1.11.0",
+    "colors": "^1.4.0"
   }
 }

@@ -8,6 +8,7 @@ export interface AuthRequest extends Request {
     email: string;
     roles: string[];
     locationId?: string;
+    voiceProfiles?: any[];
   };
   songFolderPath?: string;
   songFolderName?: string;
@@ -18,7 +19,13 @@ export const authenticateToken = async (req: AuthRequest, res: Response, next: N
   console.log(`🔐 [AUTH] Checking authentication for ${req.method} ${req.url}`);
   
   const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
+  let token = authHeader && authHeader.split(' ')[1];
+
+  // Para archivos de audio, también permitir token vía query parameter
+  if (!token && req.url.includes('/file/')) {
+    token = req.query.token as string;
+    console.log(`🔐 [AUTH] Token from query parameter for audio file`);
+  }
 
   if (!token) {
     console.log(`❌ [AUTH] No token provided`);
@@ -34,14 +41,16 @@ export const authenticateToken = async (req: AuthRequest, res: Response, next: N
     // Verificar que el usuario aún existe y obtener datos completos
     const user = await prisma.user.findUnique({
       where: { id: decoded.userId },
-      select: { 
-        id: true, 
-        email: true, 
-        isActive: true,
-        locationId: true,
+      include: { 
         roles: {
           select: {
             role: true
+          }
+        },
+        voiceProfiles: {
+          select: {
+            voiceType: true,
+            createdAt: true
           }
         }
       }
@@ -57,8 +66,9 @@ export const authenticateToken = async (req: AuthRequest, res: Response, next: N
     req.user = {
       id: user.id,
       email: user.email,
-      roles: user.roles.map(r => r.role),
-      locationId: user.locationId || undefined
+      roles: user.roles.map((r: any) => r.role),
+      locationId: user.locationId || undefined,
+      voiceProfiles: user.voiceProfiles || []
     };
 
     next();

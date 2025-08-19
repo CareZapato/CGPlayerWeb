@@ -244,6 +244,18 @@ router.post('/login', [
           { username: login }
         ],
         isActive: true
+      },
+      include: {
+        voiceProfiles: {
+          include: {
+            assignedByUser: {
+              select: {
+                firstName: true,
+                lastName: true
+              }
+            }
+          }
+        }
       }
     });
 
@@ -284,7 +296,7 @@ router.post('/login', [
 
     res.json({
       message: 'Login successful',
-      user: { ...userWithoutPassword, roles: formattedRoles },
+      user: { ...userWithoutPassword, roles: formattedRoles, voiceProfiles: user.voiceProfiles },
       token
     });
 
@@ -343,7 +355,7 @@ router.get('/me', async (req: Request, res: Response) => {
     }));
 
     res.json({ 
-      user: { ...userWithoutPassword, roles: formattedRoles }
+      user: { ...userWithoutPassword, roles: formattedRoles, voiceProfiles: user.voiceProfiles }
     });
 
   } catch (error) {

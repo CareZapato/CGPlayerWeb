@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { usePlayerStore } from '../../store/playerStore';
 import { usePlaylistStore } from '../../store/playlistStore';
 import { useServerInfo } from '../../hooks/useServerInfo';
+import { getSongFileUrl } from '../../config/api';
 import './SimplePlayer.css';
 
 const SimplePlayer: React.FC = () => {
@@ -89,7 +90,7 @@ const SimplePlayer: React.FC = () => {
         let songUrl: string;
         
         if ((nextSong as any).folderName) {
-          songUrl = `${serverInfo.audioBaseUrl}/${(nextSong as any).folderName}/${nextSong.fileName}`;
+          songUrl = getSongFileUrl((nextSong as any).folderName, nextSong.fileName);
         } else {
           songUrl = `${serverInfo.audioBaseUrl}-root/${nextSong.fileName}`;
         }
@@ -121,12 +122,12 @@ const SimplePlayer: React.FC = () => {
       if (audio.error?.code === 4 && currentSong) {
         console.log(`🔄 [SIMPLE-PLAYER] Attempting to reload with corrected URL...`);
         
-        // Construir URL alternativa usando serverInfo
+        // Construir URL alternativa usando función con autenticación
         let correctedUrl = '';
         const song = currentSong as any;
         
         if (song.folderName && song.fileName) {
-          correctedUrl = `${serverInfo.audioBaseUrl}/${song.folderName}/${song.fileName}`;
+          correctedUrl = getSongFileUrl(song.folderName, song.fileName);
         } else if (song.fileName) {
           correctedUrl = `${serverInfo.audioBaseUrl}-root/${song.fileName}`;
         } else if (song.url) {

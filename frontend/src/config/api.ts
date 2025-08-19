@@ -41,7 +41,15 @@ export const getFileUrl = (filePath: string): string => {
 };
 
 export const getSongFileUrl = (folderName: string, fileName: string): string => {
-  return `${API_CONFIG.BASE_URL}/api/songs/file/${folderName}/${fileName}`;
+  const baseUrl = `${API_CONFIG.BASE_URL}/api/songs/file/${folderName}/${fileName}`;
+  
+  // Obtener token del localStorage para autenticación
+  const token = localStorage.getItem('token');
+  if (token) {
+    return `${baseUrl}?token=${encodeURIComponent(token)}`;
+  }
+  
+  return baseUrl;
 };
 
 // Configuración global de URLs (legacy compatibility)

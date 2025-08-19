@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { usePlayerStore } from '../../store/playerStore';
 import { usePlaylistStore } from '../../store/playlistStore';
 import { useServerInfo } from '../../hooks/useServerInfo';
+import { getSongFileUrl } from '../../config/api';
 import { updateFavicon, resetFavicon } from '../../utils/favicon';
 import type { Song } from '../../types';
 import {
@@ -214,10 +215,10 @@ const BottomPlayer: React.FC = () => {
     })
   );
 
-  // Función para construir URL de canción
+  // Función para construir URL de canción con autenticación
   const buildSongUrl = (song: Song): string => {
     if ((song as any).folderName) {
-      return `${serverInfo.audioBaseUrl}/${(song as any).folderName}/${song.fileName}`;
+      return getSongFileUrl((song as any).folderName, song.fileName);
     } else {
       return `${serverInfo.audioBaseUrl}-root/${song.fileName}`;
     }
