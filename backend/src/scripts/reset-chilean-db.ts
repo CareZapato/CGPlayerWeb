@@ -249,6 +249,85 @@ async function resetChileanDatabase() {
       totalSingerCount += count;
     }
 
+    // Crear playlists de ejemplo
+    console.log('🎵 Creando playlists de ejemplo...');
+    
+    // Obtener algunos usuarios para crear playlists
+    const allUsers = await prisma.user.findMany({
+      where: { isActive: true },
+      take: 10
+    });
+
+    const playlistExamples = [
+      {
+        name: 'Canciones de Alabanza',
+        description: 'Selección de canciones para momentos de alabanza y adoración',
+        isPublic: true,
+        userId: allUsers[0]?.id
+      },
+      {
+        name: 'Himnos Tradicionales',
+        description: 'Himnos clásicos que nunca pasan de moda',
+        isPublic: true,
+        userId: allUsers[1]?.id
+      },
+      {
+        name: 'Música Navideña',
+        description: 'Villancicos y canciones para la temporada navideña',
+        isPublic: true,
+        userId: allUsers[2]?.id
+      },
+      {
+        name: 'Mi Lista Personal',
+        description: 'Mis canciones favoritas para practicar',
+        isPublic: false,
+        userId: allUsers[3]?.id
+      },
+      {
+        name: 'Ensayo Coro Principal',
+        description: 'Lista de canciones para el próximo ensayo general',
+        isPublic: true,
+        userId: allUsers[4]?.id
+      },
+      {
+        name: 'Canciones de Meditación',
+        description: 'Música suave para momentos de reflexión',
+        isPublic: true,
+        userId: allUsers[5]?.id
+      },
+      {
+        name: 'Repertorio Juvenil',
+        description: 'Canciones modernas para el grupo de jóvenes',
+        isPublic: true,
+        userId: allUsers[6]?.id
+      },
+      {
+        name: 'Práctica Personal - Soprano',
+        description: 'Ejercicios y canciones específicas para soprano',
+        isPublic: false,
+        userId: allUsers[7]?.id
+      }
+    ];
+
+    for (const playlistData of playlistExamples) {
+      if (playlistData.userId) {
+        try {
+          const playlist = await prisma.playlist.create({
+            data: {
+              name: playlistData.name,
+              description: playlistData.description,
+              isPublic: playlistData.isPublic,
+              userId: playlistData.userId,
+              imageUrl: null
+            } as any
+          });
+          console.log(`   ✅ Playlist "${playlist.name}" creada`);
+        } catch (error) {
+          console.log(`   ⚠️  Error creando playlist "${playlistData.name}":`, error);
+        }
+      }
+    }
+
     console.log('📊 Resumen final:');
     const totalUsers = await prisma.user.count();
     const totalLocations = await prisma.location.count();
@@ -258,6 +337,9 @@ async function resetChileanDatabase() {
     console.log(`   • ${totalLocations} ubicaciones chilenas`);
     console.log(`   • 288 cantantes distribuidos según especificación`);
     console.log(`   • 6 directores (que también son cantantes)`);
+    
+    const totalPlaylists = await prisma.playlist.count();
+    console.log(`   • ${totalPlaylists} playlists de ejemplo creadas`);
     console.log('✅ Database reset chileno completado exitosamente');
 
   } catch (error) {

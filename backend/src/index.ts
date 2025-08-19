@@ -10,6 +10,7 @@ import os from 'os';
 import authRoutes from './routes/authNew';
 import userRoutes from './routes/users';
 import songRoutes from './routes/songsImproved';
+import songsForPlaylistRoutes from './routes/songsForPlaylist';
 import playlistRoutes from './routes/playlists';
 import lyricRoutes from './routes/lyrics';
 import locationRoutes from './routes/locations';
@@ -200,6 +201,7 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs, {
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/songs', songRoutes);
+app.use('/api/songs', songsForPlaylistRoutes);
 app.use('/api/playlists', playlistRoutes);
 app.use('/api/lyrics', lyricRoutes);
 app.use('/api/locations', locationRoutes);

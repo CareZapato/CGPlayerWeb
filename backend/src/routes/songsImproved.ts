@@ -655,6 +655,57 @@ router.delete('/:id', authenticateToken, async (req: AuthRequest, res: Response)
   }
 });
 
+// Obtener canciones para playlists (filtradas por tipo de voz del usuario)
+router.get('/for-playlist', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user!.id;
+
+    // Obtener los tipos de voz del usuario
+    const userVoiceProfiles = await prisma.userVoiceProfile.findMany({
+      where: { userId },
+      select: { voiceType: true }
+    });
+
+    if (userVoiceProfiles.length === 0) {
+      return res.status(400).json({ message: 'Usuario no tiene tipos de voz asignados' });
+    }
+
+    // Extraer los tipos de voz
+    const voiceTypes = userVoiceProfiles.map(profile => profile.voiceType);
+
+    // Obtener canciones compatibles con los tipos de voz del usuario
+    const songs = await prisma.song.findMany({
+      where: {
+        voiceType: {
+          in: voiceTypes
+        }
+      },
+      select: {
+        id: true,
+        title: true,
+        artist: true,
+        duration: true,
+        voiceType: true,
+        uploader: {
+          select: {
+            firstName: true,
+            lastName: true
+          }
+        }
+      },
+      orderBy: [
+        { title: 'asc' },
+        { artist: 'asc' }
+      ]
+    });
+
+    res.json(songs);
+  } catch (error) {
+    console.error('Error fetching songs for playlist:', error);
+    res.status(500).json({ message: 'Error interno del servidor' });
+  }
+});
+
 // Obtener información del servidor para acceso móvil
 router.get('/info/server', (req, res) => {
   const PORT_NUMBER = Number(process.env.PORT) || 3001;

@@ -110,6 +110,7 @@ model Playlist {
   userId      String
   voiceType   VoiceType?
   isPublic    Boolean        @default(false)
+  imageUrl    String?        // Nueva campo para la imagen
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
   items       PlaylistItem[]

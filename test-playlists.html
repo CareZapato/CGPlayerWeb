@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test de Playlists - CGPlayerWeb</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .test-button:hover {
+            background: #2563eb;
+        }
+        .test-result {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+            background: #f3f4f6;
+            border-left: 4px solid #3b82f6;
+        }
+        .success {
+            border-left-color: #10b981;
+            background: #ecfdf5;
+        }
+        .error {
+            border-left-color: #ef4444;
+            background: #fef2f2;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            margin: 5px 0;
+        }
+        .playlist-item {
+            border: 1px solid #e5e7eb;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 4px;
+            background: #f9fafb;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎵 Test de Funcionalidades de Playlists</h1>
+
+    <!-- Autenticación -->
+    <div class="test-section">
+        <h3>🔐 Autenticación</h3>
+        <input type="text" id="username" placeholder="Usuario" value="maria.gonzalez">
+        <input type="password" id="password" placeholder="Contraseña" value="password123">
+        <button class="test-button" onclick="login()">Iniciar Sesión</button>
+        <div id="auth-result" class="test-result" style="display:none;"></div>
+    </div>
+
+    <!-- Gestión de Playlists -->
+    <div class="test-section">
+        <h3>📝 Crear Playlist</h3>
+        <input type="text" id="playlistName" placeholder="Nombre de la playlist" value="Mi Nueva Playlist">
+        <textarea id="playlistDescription" placeholder="Descripción" rows="3">Una playlist de prueba creada desde el test</textarea>
+        <label>
+            <input type="checkbox" id="isPublic"> Hacer pública
+        </label>
+        <br>
+        <button class="test-button" onclick="createPlaylist()">Crear Playlist</button>
+        <div id="create-result" class="test-result" style="display:none;"></div>
+    </div>
+
+    <!-- Listar Playlists -->
+    <div class="test-section">
+        <h3>📋 Listar Playlists</h3>
+        <button class="test-button" onclick="loadPlaylists()">Cargar Playlists</button>
+        <button class="test-button" onclick="loadMyPlaylists()">Mis Playlists</button>
+        <div id="playlists-result" class="test-result" style="display:none;"></div>
+        <div id="playlists-list"></div>
+    </div>
+
+    <!-- Buscar Playlists -->
+    <div class="test-section">
+        <h3>🔍 Buscar Playlists</h3>
+        <input type="text" id="searchTerm" placeholder="Buscar por nombre">
+        <input type="text" id="creatorSearch" placeholder="Buscar por creador">
+        <button class="test-button" onclick="searchPlaylists()">Buscar</button>
+        <div id="search-result" class="test-result" style="display:none;"></div>
+    </div>
+
+    <!-- Canciones para Playlists -->
+    <div class="test-section">
+        <h3>🎶 Canciones Disponibles</h3>
+        <button class="test-button" onclick="loadSongsForPlaylist()">Cargar Canciones para Playlist</button>
+        <div id="songs-result" class="test-result" style="display:none;"></div>
+        <div id="songs-list"></div>
+    </div>
+
+    <!-- Gestión de Canciones en Playlist -->
+    <div class="test-section">
+        <h3>➕ Gestión de Canciones</h3>
+        <input type="text" id="targetPlaylistId" placeholder="ID de Playlist">
+        <input type="text" id="targetSongId" placeholder="ID de Canción">
+        <button class="test-button" onclick="addSongToPlaylist()">Agregar Canción</button>
+        <button class="test-button" onclick="removeSongFromPlaylist()">Eliminar Canción</button>
+        <div id="song-management-result" class="test-result" style="display:none;"></div>
+    </div>
+
+    <script>
+        let token = '';
+
+        async function login() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+
+                const data = await response.json();
+                const resultDiv = document.getElementById('auth-result');
+                
+                if (response.ok) {
+                    token = data.token;
+                    localStorage.setItem('token', token);
+                    resultDiv.className = 'test-result success';
+                    resultDiv.innerHTML = `✅ Login exitoso! Usuario: ${data.user.firstName} ${data.user.lastName}`;
+                    resultDiv.style.display = 'block';
+                } else {
+                    resultDiv.className = 'test-result error';
+                    resultDiv.innerHTML = `❌ Error: ${data.message}`;
+                    resultDiv.style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                const resultDiv = document.getElementById('auth-result');
+                resultDiv.className = 'test-result error';
+                resultDiv.innerHTML = `❌ Error de conexión: ${error.message}`;
+                resultDiv.style.display = 'block';
+            }
+        }
+
+        async function createPlaylist() {
+            if (!token) {
+                alert('Por favor, inicia sesión primero');
+                return;
+            }
+
+            const name = document.getElementById('playlistName').value;
+            const description = document.getElementById('playlistDescription').value;
+            const isPublic = document.getElementById('isPublic').checked;
+
+            try {
+                const formData = new FormData();
+                formData.append('name', name);
+                formData.append('description', description);
+                formData.append('isPublic', isPublic.toString());
+
+                const response = await fetch('/api/playlists', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: formData
+                });
+
+                const data = await response.json();
+                const resultDiv = document.getElementById('create-result');
+                
+                if (response.ok) {
+                    resultDiv.className = 'test-result success';
+                    resultDiv.innerHTML = `✅ Playlist creada! ID: ${data.id}, Nombre: ${data.name}`;
+                    resultDiv.style.display = 'block';
+                } else {
+                    resultDiv.className = 'test-result error';
+                    resultDiv.innerHTML = `❌ Error: ${data.message}`;
+                    resultDiv.style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                const resultDiv = document.getElementById('create-result');
+                resultDiv.className = 'test-result error';
+                resultDiv.innerHTML = `❌ Error de conexión: ${error.message}`;
+                resultDiv.style.display = 'block';
+            }
+        }
+
+        async function loadPlaylists() {
+            if (!token) {
+                alert('Por favor, inicia sesión primero');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/playlists', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const data = await response.json();
+                const resultDiv = document.getElementById('playlists-result');
+                const listDiv = document.getElementById('playlists-list');
+                
+                if (response.ok) {
+                    resultDiv.className = 'test-result success';
+                    resultDiv.innerHTML = `✅ ${data.length} playlists cargadas`;
+                    resultDiv.style.display = 'block';
+
+                    listDiv.innerHTML = '';
+                    data.forEach(playlist => {
+                        const playlistDiv = document.createElement('div');
+                        playlistDiv.className = 'playlist-item';
+                        playlistDiv.innerHTML = `
+                            <strong>${playlist.name}</strong> - ${playlist.user.firstName} ${playlist.user.lastName}<br>
+                            <small>ID: ${playlist.id} | ${playlist.totalSongs} canciones | ${playlist.isPublic ? 'Público' : 'Privado'}</small><br>
+                            <small>${playlist.description || 'Sin descripción'}</small>
+                        `;
+                        listDiv.appendChild(playlistDiv);
+                    });
+                } else {
+                    resultDiv.className = 'test-result error';
+                    resultDiv.innerHTML = `❌ Error: ${data.message}`;
+                    resultDiv.style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                const resultDiv = document.getElementById('playlists-result');
+                resultDiv.className = 'test-result error';
+                resultDiv.innerHTML = `❌ Error de conexión: ${error.message}`;
+                resultDiv.style.display = 'block';
+            }
+        }
+
+        async function loadMyPlaylists() {
+            if (!token) {
+                alert('Por favor, inicia sesión primero');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/playlists/my', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const data = await response.json();
+                const resultDiv = document.getElementById('playlists-result');
+                const listDiv = document.getElementById('playlists-list');
+                
+                if (response.ok) {
+                    resultDiv.className = 'test-result success';
+                    resultDiv.innerHTML = `✅ ${data.length} playlists propias cargadas`;
+                    resultDiv.style.display = 'block';
+
+                    listDiv.innerHTML = '';
+                    data.forEach(playlist => {
+                        const playlistDiv = document.createElement('div');
+                        playlistDiv.className = 'playlist-item';
+                        playlistDiv.innerHTML = `
+                            <strong>${playlist.name}</strong><br>
+                            <small>ID: ${playlist.id} | ${playlist.totalSongs} canciones | ${playlist.isPublic ? 'Público' : 'Privado'}</small><br>
+                            <small>${playlist.description || 'Sin descripción'}</small>
+                        `;
+                        listDiv.appendChild(playlistDiv);
+                    });
+                } else {
+                    resultDiv.className = 'test-result error';
+                    resultDiv.innerHTML = `❌ Error: ${data.message}`;
+                    resultDiv.style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                const resultDiv = document.getElementById('playlists-result');
+                resultDiv.className = 'test-result error';
+                resultDiv.innerHTML = `❌ Error de conexión: ${error.message}`;
+                resultDiv.style.display = 'block';
+            }
+        }
+
+        async function searchPlaylists() {
+            if (!token) {
+                alert('Por favor, inicia sesión primero');
+                return;
+            }
+
+            const searchTerm = document.getElementById('searchTerm').value;
+            const creatorSearch = document.getElementById('creatorSearch').value;
+
+            if (!searchTerm && !creatorSearch) {
+                alert('Ingresa al menos un término de búsqueda');
+                return;
+            }
+
+            try {
+                const params = new URLSearchParams();
+                if (searchTerm) params.append('q', searchTerm);
+                if (creatorSearch) params.append('creator', creatorSearch);
+
+                const response = await fetch(`/api/playlists/search?${params}`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const data = await response.json();
+                const resultDiv = document.getElementById('search-result');
+                
+                if (response.ok) {
+                    resultDiv.className = 'test-result success';
+                    resultDiv.innerHTML = `✅ Búsqueda completada: ${data.length} resultados encontrados`;
+                    resultDiv.style.display = 'block';
+
+                    // Mostrar resultados en la lista de playlists
+                    const listDiv = document.getElementById('playlists-list');
+                    listDiv.innerHTML = '';
+                    data.forEach(playlist => {
+                        const playlistDiv = document.createElement('div');
+                        playlistDiv.className = 'playlist-item';
+                        playlistDiv.innerHTML = `
+                            <strong>${playlist.name}</strong> - ${playlist.user.firstName} ${playlist.user.lastName}<br>
+                            <small>ID: ${playlist.id} | ${playlist.totalSongs} canciones | ${playlist.isPublic ? 'Público' : 'Privado'}</small><br>
+                            <small>${playlist.description || 'Sin descripción'}</small>
+                        `;
+                        listDiv.appendChild(playlistDiv);
+                    });
+                } else {
+                    resultDiv.className = 'test-result error';
+                    resultDiv.innerHTML = `❌ Error: ${data.message}`;
+                    resultDiv.style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                const resultDiv = document.getElementById('search-result');
+                resultDiv.className = 'test-result error';
+                resultDiv.innerHTML = `❌ Error de conexión: ${error.message}`;
+                resultDiv.style.display = 'block';
+            }
+        }
+
+        async function loadSongsForPlaylist() {
+            if (!token) {
+                alert('Por favor, inicia sesión primero');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/songs/for-playlist', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const data = await response.json();
+                const resultDiv = document.getElementById('songs-result');
+                const listDiv = document.getElementById('songs-list');
+                
+                if (response.ok) {
+                    resultDiv.className = 'test-result success';
+                    resultDiv.innerHTML = `✅ ${data.length} canciones disponibles para tu tipo de voz`;
+                    resultDiv.style.display = 'block';
+
+                    listDiv.innerHTML = '';
+                    data.forEach(song => {
+                        const songDiv = document.createElement('div');
+                        songDiv.className = 'playlist-item';
+                        songDiv.innerHTML = `
+                            <strong>${song.title}</strong> - ${song.artist || 'Artista desconocido'}<br>
+                            <small>ID: ${song.id} | Tipo de voz: ${song.voiceType} | Subido por: ${song.uploader.firstName} ${song.uploader.lastName}</small>
+                        `;
+                        listDiv.appendChild(songDiv);
+                    });
+                } else {
+                    resultDiv.className = 'test-result error';
+                    resultDiv.innerHTML = `❌ Error: ${data.message}`;
+                    resultDiv.style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                const resultDiv = document.getElementById('songs-result');
+                resultDiv.className = 'test-result error';
+                resultDiv.innerHTML = `❌ Error de conexión: ${error.message}`;
+                resultDiv.style.display = 'block';
+            }
+        }
+
+        async function addSongToPlaylist() {
+            if (!token) {
+                alert('Por favor, inicia sesión primero');
+                return;
+            }
+
+            const playlistId = document.getElementById('targetPlaylistId').value;
+            const songId = document.getElementById('targetSongId').value;
+
+            if (!playlistId || !songId) {
+                alert('Por favor, ingresa el ID de la playlist y la canción');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/playlists/${playlistId}/songs`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ songId })
+                });
+
+                const data = await response.json();
+                const resultDiv = document.getElementById('song-management-result');
+                
+                if (response.ok) {
+                    resultDiv.className = 'test-result success';
+                    resultDiv.innerHTML = `✅ Canción agregada exitosamente a la playlist`;
+                    resultDiv.style.display = 'block';
+                } else {
+                    resultDiv.className = 'test-result error';
+                    resultDiv.innerHTML = `❌ Error: ${data.message}`;
+                    resultDiv.style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                const resultDiv = document.getElementById('song-management-result');
+                resultDiv.className = 'test-result error';
+                resultDiv.innerHTML = `❌ Error de conexión: ${error.message}`;
+                resultDiv.style.display = 'block';
+            }
+        }
+
+        async function removeSongFromPlaylist() {
+            if (!token) {
+                alert('Por favor, inicia sesión primero');
+                return;
+            }
+
+            const playlistId = document.getElementById('targetPlaylistId').value;
+            const songId = document.getElementById('targetSongId').value;
+
+            if (!playlistId || !songId) {
+                alert('Por favor, ingresa el ID de la playlist y la canción');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/playlists/${playlistId}/songs/${songId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const data = await response.json();
+                const resultDiv = document.getElementById('song-management-result');
+                
+                if (response.ok) {
+                    resultDiv.className = 'test-result success';
+                    resultDiv.innerHTML = `✅ Canción eliminada exitosamente de la playlist`;
+                    resultDiv.style.display = 'block';
+                } else {
+                    resultDiv.className = 'test-result error';
+                    resultDiv.innerHTML = `❌ Error: ${data.message}`;
+                    resultDiv.style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                const resultDiv = document.getElementById('song-management-result');
+                resultDiv.className = 'test-result error';
+                resultDiv.innerHTML = `❌ Error de conexión: ${error.message}`;
+                resultDiv.style.display = 'block';
+            }
+        }
+
+        // Auto-login si hay token en localStorage
+        window.onload = function() {
+            const savedToken = localStorage.getItem('token');
+            if (savedToken) {
+                token = savedToken;
+                const resultDiv = document.getElementById('auth-result');
+                resultDiv.className = 'test-result success';
+                resultDiv.innerHTML = `✅ Token encontrado en localStorage. Ya autenticado.`;
+                resultDiv.style.display = 'block';
+            }
+        };
+    </script>
+</body>
+</html>
