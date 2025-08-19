@@ -15,6 +15,92 @@ interface ChangelogEntry {
 
 const changelogData: ChangelogEntry[] = [
   {
+    version: '0.5.0',
+    date: '2025-08-18',
+    type: 'major',
+    title: 'Arquitectura y Refactorización Major - Localización Chilena',
+    highlights: [
+      'Sistema de roles jerárquico completo',
+      'Localización total a Chile con 6 sedes',
+      'Dashboard analytics avanzado e interactivo',
+      'Limpieza masiva de código',
+      'UI moderna reorganizada'
+    ],
+    changes: [
+      {
+        category: 'added',
+        items: [
+          'Sistema de roles jerárquico: ADMIN, DIRECTOR, CANTANTE con permisos específicos',
+          'Filtrado inteligente por sede: directores solo ven su sede asignada',
+          'Dashboard específico por rol con vistas personalizadas',
+          'Middleware de autorización con protección de rutas por rol y ubicación',
+          'JWT con información extendida: incluye rol y locationId para directores',
+          'Sistema dual para directores: pueden ser cantantes simultáneamente',
+          'Dashboard analytics avanzado con métricas en tiempo real',
+          'Gráfico de torta expandido con porcentajes al hacer hover',
+          'Cuadros estadísticos coloridos con paleta profesional e iconos',
+          'Icono de persona moderno para usuarios activos',
+          'Terminología "Sedes" en lugar de "Ubicaciones" para contexto chileno',
+          '6 Sedes chilenas principales: Santiago, Valparaíso, Viña del Mar, Valdivia, Antofagasta, Concepción',
+          'Distribución específica de 288 cantantes por sedes chilenas',
+          'Total de 345 usuarios: 1 admin + 6 directores + 288 cantantes + 50 inactivos',
+          'Base de datos con nombres y apellidos chilenos auténticos',
+          'Direcciones reales de ciudades chilenas',
+          'Teléfonos formato chileno: +56 9 XXXX XXXX para todos los usuarios',
+          'Script reset-chilean-db.ts para poblar la base de datos',
+          'Sistema de validación de archivos robusto',
+          'Limpieza automática de archivos temporales en caso de error'
+        ]
+      },
+      {
+        category: 'improved',
+        items: [
+          'Navegación desktop reorganizada: logo/título izquierda, menú centro, perfil derecha',
+          'Icono de changelog mejorado: DocumentText en lugar de QuestionMarkCircle',
+          'Paleta de colores aplicada a cuadros estadísticos',
+          'Diseño más vibrante eliminando aspecto pálido anterior',
+          'API optimizada con consultas paralelas para mejor rendimiento',
+          'UI responsive adaptativa para diferentes tipos de datos',
+          'Rutas consolidadas: authNew.ts, songsImproved.ts, uploadImproved.ts',
+          'Middleware de autenticación optimizado y consolidado',
+          'Conexión robusta de base de datos con verificación automática',
+          'Prisma optimizado con queries paralelas',
+          'Queries de base de datos más eficientes',
+          'Manejo robusto de errores en toda la aplicación',
+          'Prevención de pérdidas de memoria',
+          'Mejor experiencia de desarrollo con hot reload'
+        ]
+      },
+      {
+        category: 'fixed',
+        items: [
+          'Error TypeScript resuelto: eliminadas referencias a módulo inexistente "./scripts/auto-init"',
+          'Imports corregidos: añadido import correcto de prisma en index.ts',
+          'Limpieza de referencias a archivos eliminados',
+          'Compilación limpia: servidor inicia sin errores TypeScript',
+          'Validación de sesiones con filtrado correcto por rol y ubicación',
+          'Protección de rutas con middleware actualizado para nuevos roles',
+          'Sanitización mejorada de datos de entrada',
+          'Corrección de todos los errores de tipos TypeScript strict',
+          'Arreglo de problemas de módulos ES6 exports/imports',
+          'Corrección de paths y resolución de módulos'
+        ]
+      },
+      {
+        category: 'removed',
+        items: [
+          'Scripts de test eliminados: todos los archivos test-*.html y test-*.ts',
+          'Versiones antiguas removidas: archivos *_old.ts, *Fixed.ts no utilizados',
+          'Seeders duplicados: limpieza de basicSeed, enhancedSeed, newSystemSeed, simpleSeed',
+          'Archivos de migración obsoletos: migrate-system.bat/sh eliminados',
+          'Backups obsoletos: removido database_backup.sql y scripts de diagnóstico',
+          'Carpetas dist de compilación no versionadas',
+          'Dependencias no utilizadas actualizadas y limpiadas'
+        ]
+      }
+    ]
+  },
+  {
     version: '0.4.1',
     date: '2025-08-18',
     type: 'minor',
@@ -176,6 +262,7 @@ const ChangelogPage: React.FC = () => {
               <p><strong>Versión actual:</strong> {changelogData[0].version}</p>
               <p><strong>Última actualización:</strong> {new Date(changelogData[0].date).toLocaleDateString('es-ES')}</p>
               <p><strong>Tecnologías:</strong> React, TypeScript, Node.js, PostgreSQL, Prisma</p>
+              <p><strong>Nuevo en v0.5.0:</strong> Sistema de roles jerárquico, localización chilena completa</p>
             </div>
           </div>
           <div className="text-6xl">

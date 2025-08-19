@@ -49,7 +49,7 @@ function HomePage() {
           </Link>
 
           <Link
-            to="/songs"
+            to="/albums"
             className="bg-white rounded-lg p-6 shadow-lg hover:shadow-xl transition-shadow duration-300 border border-gray-200 hover:border-blue-300 group"
           >
             <div className="text-3xl mb-3 group-hover:scale-110 transition-transform duration-300">
@@ -91,39 +91,50 @@ function HomePage() {
 
       {/* Sistema Info */}
       <div className="bg-white rounded-lg p-6 shadow-lg border border-gray-200">
-        <h3 className="text-xl font-semibold text-gray-800 mb-4 flex items-center">
-          <span className="mr-2">🔧</span>
-          Información del Sistema
+        <h3 className="text-xl font-semibold text-gray-800 mb-6 flex items-center">
+          <span className="mr-2">�</span>
+          Información del Usuario
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="flex justify-between items-center">
-            <span className="text-gray-600">Usuario:</span>
-            <span className="font-semibold text-blue-600">{user.username}</span>
+        <div className="space-y-4">
+          <div className="flex items-center justify-between py-2 border-b border-gray-100">
+            <span className="text-gray-600 font-medium">Usuario</span>
+            <span className="font-semibold text-blue-600 bg-blue-50 px-3 py-1 rounded-full">
+              {user.username}
+            </span>
           </div>
-          <div className="flex justify-between items-center">
-            <span className="text-gray-600">Email:</span>
-            <span className="font-semibold text-blue-600">{user.email}</span>
+          <div className="flex items-center justify-between py-2 border-b border-gray-100">
+            <span className="text-gray-600 font-medium">Email</span>
+            <span className="font-semibold text-blue-600 bg-blue-50 px-3 py-1 rounded-full text-sm">
+              {user.email}
+            </span>
           </div>
-          <div className="flex justify-between items-center">
-            <span className="text-gray-600">Roles:</span>
-            <span className="font-semibold text-green-600">
+          <div className="flex items-center justify-between py-2 border-b border-gray-100">
+            <span className="text-gray-600 font-medium">Roles</span>
+            <span className="font-semibold text-green-600 bg-green-50 px-3 py-1 rounded-full">
               {user.roles?.map(r => r.role).join(', ') || 'Sin roles'}
             </span>
           </div>
-          <div className="flex justify-between items-center">
-            <span className="text-gray-600">Estado:</span>
-            <span className="font-semibold text-green-600">Activo</span>
+          <div className="flex items-center justify-between py-2">
+            <span className="text-gray-600 font-medium">Estado</span>
+            <span className="inline-flex items-center font-semibold text-green-600 bg-green-50 px-3 py-1 rounded-full">
+              <span className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></span>
+              Activo
+            </span>
           </div>
         </div>
       </div>
 
       {/* Footer Info */}
       <div className="mt-8 text-center">
-        <div className="bg-green-50 rounded-lg p-6 border border-green-200">
-          <h4 className="text-lg font-semibold text-green-800 mb-2">🎵 CGPlayerWeb v0.5.0</h4>
-          <p className="text-green-600 text-sm">✅ Sistema funcionando correctamente</p>
-          <p className="text-green-600 text-sm">✅ HomePage cargada exitosamente</p>
-          <p className="text-green-600 text-sm">✅ Export default funcionando</p>
+        <div className="bg-emerald-50 rounded-lg p-4 border border-emerald-200">
+          <div className="flex items-center justify-center space-x-3">
+            <div className="flex items-center">
+              <span className="w-3 h-3 bg-emerald-500 rounded-full mr-2 animate-pulse"></span>
+              <span className="text-emerald-700 font-medium">Base de Datos Conectada</span>
+            </div>
+            <span className="text-emerald-600">•</span>
+            <span className="text-emerald-600 text-sm font-medium">CGPlayer v0.5.0</span>
+          </div>
         </div>
       </div>
     </div>

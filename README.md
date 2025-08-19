@@ -275,18 +275,28 @@ La aplicación estará disponible en:
 
 ### 👥 Credenciales de Prueba
 
-Después de ejecutar `npx prisma db seed`, puedes usar estas credenciales:
+Después de ejecutar el script de población chileno (`npm run reset:chilean-db` o el seed), puedes usar estas credenciales:
 
 #### 👑 Administrador
 - **Email**: admin@cgplayer.com
 - **Password**: admin123
+- **Nombre**: Administrador Sistema
 
-#### 🎤 Cantantes
-- **soprano1@coro.com** / cantante123 - María González (Soprano)
-- **contralto1@coro.com** / cantante123 - Ana Martínez (Contralto)
-- **tenor1@coro.com** / cantante123 - Carlos López (Tenor)
-- **baritono1@coro.com** / cantante123 - Luis Rodríguez (Barítono)
-- **bajo1@coro.com** / cantante123 - Miguel Fernández (Bajo)
+#### � Directores (Sistema Dual: Director + Cantante)
+- **director1@cgplayer.com** / admin123 - Carlos González (Tenor) - Santiago
+- **director2@cgplayer.com** / admin123 - María Rodríguez (Barítono) - Valparaíso  
+- **director3@cgplayer.com** / admin123 - Pedro Martínez (Soprano) - Viña del Mar
+- **director4@cgplayer.com** / admin123 - Ana Silva (Mezzo-soprano) - Valdivia
+- **director5@cgplayer.com** / admin123 - José Muñoz (Bajo) - Antofagasta
+- **director6@cgplayer.com** / admin123 - Carmen Torres (Contralto) - Concepción
+
+#### 🎤 Cantantes Ejemplo
+- **cantante1@cgplayer.com** / admin123 - Cantante de Santiago
+- **cantante50@cgplayer.com** / admin123 - Cantante de Valparaíso
+- **cantante100@cgplayer.com** / admin123 - Cantante de Viña del Mar
+- **cantante200@cgplayer.com** / admin123 - Cantante de Antofagasta
+
+> **Nota**: El sistema cuenta con 345 usuarios totales: 1 admin + 6 directores + 288 cantantes activos + 50 usuarios inactivos distribuidos en 6 sedes chilenas.
 
 ### 🎵 Uso del Reproductor
 - **Reproducción**: Haz clic en cualquier canción para reproducirla
@@ -351,6 +361,111 @@ CGPlayerWeb incluye documentación completa de la API usando Swagger UI.
 - `GET /api/dashboard/recent-activity` - Actividad reciente
 
 ## 📝 Historial de Cambios
+
+### [0.5.0] - 2025-08-18
+
+#### 🏗️ Arquitectura y Refactorización Major
+
+##### 🔐 Sistema de Roles y Autenticación Robusto
+- **Roles jerárquicos**: Implementación completa de ADMIN, DIRECTOR, CANTANTE con permisos específicos
+- **Filtrado por sede**: Los directores solo ven datos de su sede asignada
+- **Dashboard específico por rol**: Cada tipo de usuario tiene vistas personalizadas
+- **Middleware de autorización**: Protección de rutas basada en roles y ubicación
+- **JWT con información extendida**: Tokens incluyen rol y locationId para directores
+- **Sistema dual para directores**: Pueden ser cantantes simultáneamente
+
+##### 📊 Dashboard Analytics Avanzado e Interactivo
+- **Métricas en tiempo real**: Estadísticas de usuarios, canciones, eventos y sedes
+- **Gráfico de torta expandido**: Doble de tamaño con porcentajes al hacer hover
+- **Cuadros estadísticos coloridos**: Paleta de colores profesional y iconos apropiados
+- **Icono de persona**: Para usuarios activos con diseño moderno
+- **Cambio de "Ubicaciones" a "Sedes"**: Terminología más apropiada para el contexto chileno
+- **Filtrado inteligente**: Admins ven todo, directores filtrado por sede
+- **API optimizada**: Consultas paralelas para mejor rendimiento
+- **UI responsive**: Interfaz adaptativa para diferentes tipos de datos
+
+##### 🎨 Interfaz de Usuario Moderna y Reorganizada
+- **Navegación desktop reorganizada**: 
+  - Logo y título alineados a la izquierda
+  - Opciones de menú centradas
+  - Changelog, usuario y logout alineados a la derecha
+- **Icono de changelog mejorado**: Reemplazado QuestionMarkCircle por DocumentText
+- **Paleta de colores aplicada**: Fondos coloridos para cuadros estadísticos
+- **Diseño más vibrante**: Eliminación del aspecto pálido anterior
+
+##### 🗂️ Gestión de Archivos Mejorada
+- **Sistema de subida robusto**: Manejo mejorado de archivos múltiples
+- **Validación de archivos**: Verificación de tipos y tamaños antes de la subida
+- **Limpieza automática**: Eliminación de archivos temporales en caso de error
+- **Organización**: Estructura de carpetas por canción con nombres únicos
+
+#### 🇨🇱 Localización Completa a Chile
+
+##### 🏛️ Datos Chilenos Auténticos
+- **6 Sedes principales**: Santiago, Valparaíso, Viña del Mar, Valdivia, Antofagasta, Concepción
+- **Distribución específica de 288 cantantes**:
+  - Santiago: 110 cantantes
+  - Valparaíso: 45 cantantes
+  - Viña del Mar: 38 cantantes
+  - Valdivia: 35 cantantes
+  - Antofagasta: 50 cantantes
+  - Concepción: 60 cantantes
+- **Total de usuarios**: 345 (1 admin + 6 directores + 288 cantantes + 50 inactivos)
+- **Nombres chilenos**: Base de datos con nombres y apellidos locales
+- **Direcciones reales**: Ubicaciones auténticas de cada ciudad
+- **Teléfonos chilenos**: Formato +56 9 XXXX XXXX para todos los usuarios
+
+##### 🔧 Script de Migración Chilena
+- **reset-chilean-db.ts**: Script completo para poblar la base de datos
+- **Roles duales**: Directores que también son cantantes con tipos de voz asignados
+- **Distribución automática**: Asignación inteligente de voces (Soprano, Alto, Tenor, Bajo)
+- **Datos de prueba**: Usuarios inactivos para testing completo
+
+#### 🧹 Limpieza Masiva de Código
+
+##### 📁 Eliminación de Archivos Obsoletos
+- **Scripts de test**: Eliminados todos los archivos test-*.html y test-*.ts
+- **Versiones antiguas**: Removidos archivos *_old.ts, *Fixed.ts no utilizados
+- **Seeders duplicados**: Limpieza de basicSeed, enhancedSeed, newSystemSeed, simpleSeed
+- **Archivos de migración**: Eliminados migrate-system.bat/sh ya obsoletos
+- **Backups obsoletos**: Removido database_backup.sql y scripts de diagnóstico
+- **Dist compilado**: Limpieza de carpetas de compilación no versionadas
+
+##### 🔧 Optimización de Estructura
+- **Rutas consolidadas**: Unificación en authNew.ts, songsImproved.ts, uploadImproved.ts
+- **Middleware optimizado**: Consolidación de middleware de autenticación
+- **Scripts útiles**: Mantenidos solo los scripts necesarios para el sistema
+- **Organización**: Estructura más limpia y mantenible
+
+#### 🛠️ Correcciones Técnicas Importantes
+
+##### 🔍 Resolución de Errores de Compilación
+- **Error TypeScript resuelto**: Eliminadas referencias a módulo inexistente './scripts/auto-init'
+- **Imports corregidos**: Añadido import correcto de prisma en index.ts
+- **Módulos no existentes**: Limpieza de todas las referencias a archivos eliminados
+- **Compilación limpia**: Servidor inicia sin errores TypeScript
+
+##### 🗄️ Base de Datos Optimizada
+- **Conexión robusta**: Verificación automática de estado en startup
+- **Prisma optimizado**: Queries paralelas para mejor rendimiento
+- **Limpieza de datos**: Eliminación de registros de prueba obsoletos
+- **Respaldo automático**: Sistema de backup antes de migraciones
+
+##### 🔒 Seguridad Mejorada
+- **Validación de sesiones**: Filtrado correcto por rol y ubicación
+- **Protección de rutas**: Middleware actualizado para nuevos roles
+- **Sanitización**: Limpieza de datos de entrada mejorada
+- **Logs de seguridad**: Registro de accesos y operaciones críticas
+- **TypeScript strict**: Corrección de todos los errores de tipos
+- **Exports/Imports**: Arreglo de problemas de módulos ES6
+- **Dependencies**: Actualización y limpieza de dependencias
+- **Module resolution**: Corrección de paths y resolución de módulos
+
+##### 🚀 Performance y Estabilidad
+- **Queries optimizadas**: Consultas de base de datos más eficientes
+- **Error handling**: Manejo robusto de errores en toda la aplicación
+- **Memory leaks**: Prevención de pérdidas de memoria
+- **Hot reload**: Mejor experiencia de desarrollo
 
 ### [0.4.1] - 2025-08-18
 
