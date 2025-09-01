@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Lyrics API v0.8.0 - CGPlayerWeb</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .container {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .endpoint {
+            background: white;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border-left: 4px solid #007acc;
+        }
+        .method {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 3px;
+            color: white;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        .get { background: #28a745; }
+        .post { background: #007bff; }
+        .put { background: #ffc107; color: #000; }
+        .delete { background: #dc3545; }
+        .test-section {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        button {
+            background: #007acc;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #005a9e; }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .result {
+            background: #f8f9fa;
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+        .error { border-left: 4px solid #dc3545; }
+        .success { border-left: 4px solid #28a745; }
+        input, textarea, select {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .form-group {
+            margin: 15px 0;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎵 Test Lyrics API v0.8.0 - CGPlayerWeb</h1>
+    
+    <div class="container">
+        <h2>📋 Sistema de Letras - Endpoints Disponibles</h2>
+        
+        <div class="endpoint">
+            <span class="method get">GET</span>
+            <strong>/api/lyrics/{songId}</strong>
+            <p>Obtener letras de una canción específica</p>
+        </div>
+        
+        <div class="endpoint">
+            <span class="method put">PUT</span>
+            <strong>/api/lyrics/{songId}/text</strong>
+            <p>Actualizar letras de texto (tipo TEXT)</p>
+        </div>
+        
+        <div class="endpoint">
+            <span class="method post">POST</span>
+            <strong>/api/lyrics/{songId}/file</strong>
+            <p>Subir archivo de letras (PDF, DOC, DOCX, TXT)</p>
+        </div>
+        
+        <div class="endpoint">
+            <span class="method delete">DELETE</span>
+            <strong>/api/lyrics/{songId}</strong>
+            <p>Eliminar letras de una canción</p>
+        </div>
+        
+        <div class="endpoint">
+            <span class="method get">GET</span>
+            <strong>/api/lyrics/{songId}/sync</strong>
+            <p>Obtener letras sincronizadas línea por línea</p>
+        </div>
+        
+        <div class="endpoint">
+            <span class="method put">PUT</span>
+            <strong>/api/lyrics/{songId}/sync</strong>
+            <p>Actualizar sincronización de letras</p>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h3>🔑 Configuración</h3>
+        <div class="form-group">
+            <label for="apiUrl">API URL:</label>
+            <input type="text" id="apiUrl" value="http://localhost:3001/api" placeholder="URL base de la API">
+        </div>
+        <div class="form-group">
+            <label for="authToken">Token de Autenticación:</label>
+            <input type="text" id="authToken" placeholder="Pega aquí tu token JWT" style="font-family: monospace;">
+        </div>
+        <button onclick="checkAuth()">🔍 Verificar Autenticación</button>
+    </div>
+
+    <div class="test-section">
+        <h3>🎵 Seleccionar Canción para Pruebas</h3>
+        <div class="form-group">
+            <label for="songId">ID de la Canción:</label>
+            <input type="text" id="songId" placeholder="ID de la canción">
+        </div>
+        <button onclick="loadSongs()">📜 Cargar Lista de Canciones</button>
+        <div id="songsResult" class="result" style="display: none;"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>👁️ Ver Letras</h3>
+        <button onclick="getLyrics()">📖 Obtener Letras</button>
+        <div id="lyricsResult" class="result" style="display: none;"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>📝 Letras de Texto</h3>
+        <div class="form-group">
+            <label for="textContent">Contenido de las letras:</label>
+            <textarea id="textContent" rows="8" placeholder="Escribe las letras aquí...">Verso 1:
+Esta es una canción de prueba
+Con letras sincronizadas
+Para el sistema v0.8.0
+
+Coro:
+CGPlayerWeb funciona bien
+Las letras se pueden ver
+En pantalla completa también
+
+Verso 2:
+Admins y directores pueden
+Editar las letras de texto
+Y subir archivos también</textarea>
+        </div>
+        <button onclick="updateTextLyrics()">💾 Guardar Letras de Texto</button>
+        <div id="textResult" class="result" style="display: none;"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>📄 Subir Archivo</h3>
+        <div class="form-group">
+            <label for="lyricsFile">Archivo de letras (PDF, DOC, DOCX, TXT):</label>
+            <input type="file" id="lyricsFile" accept=".pdf,.doc,.docx,.txt">
+        </div>
+        <button onclick="uploadFile()">📤 Subir Archivo</button>
+        <div id="fileResult" class="result" style="display: none;"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>🎯 Sincronización</h3>
+        <button onclick="getSyncedLyrics()">🔍 Ver Letras Sincronizadas</button>
+        <div id="syncResult" class="result" style="display: none;"></div>
+        
+        <div class="form-group">
+            <label>Datos de sincronización (JSON):</label>
+            <textarea id="syncData" rows="6" placeholder="JSON con datos de sincronización">[
+  {
+    "content": "Esta es una canción de prueba",
+    "startTime": 0,
+    "endTime": 3.5,
+    "lineNumber": 1
+  },
+  {
+    "content": "Con letras sincronizadas",
+    "startTime": 3.5,
+    "endTime": 7.0,
+    "lineNumber": 2
+  }
+]</textarea>
+        </div>
+        <button onclick="updateSync()">🎵 Actualizar Sincronización</button>
+        <div id="syncUpdateResult" class="result" style="display: none;"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>🗑️ Eliminar Letras</h3>
+        <button onclick="deleteLyrics()" style="background: #dc3545;">❌ Eliminar Letras</button>
+        <div id="deleteResult" class="result" style="display: none;"></div>
+    </div>
+
+    <script>
+        const API_BASE = () => document.getElementById('apiUrl').value;
+        const getAuthHeaders = () => {
+            const token = document.getElementById('authToken').value;
+            return {
+                'Content-Type': 'application/json',
+                'Authorization': token ? `Bearer ${token}` : ''
+            };
+        };
+
+        const getSongId = () => {
+            const songId = document.getElementById('songId').value;
+            if (!songId) {
+                alert('Por favor ingresa un ID de canción');
+                return null;
+            }
+            return songId;
+        };
+
+        const showResult = (elementId, data, isError = false) => {
+            const element = document.getElementById(elementId);
+            element.style.display = 'block';
+            element.className = `result ${isError ? 'error' : 'success'}`;
+            element.textContent = typeof data === 'object' ? JSON.stringify(data, null, 2) : data;
+        };
+
+        async function checkAuth() {
+            try {
+                const response = await fetch(`${API_BASE()}/auth/verify`, {
+                    headers: getAuthHeaders()
+                });
+                const data = await response.json();
+                showResult('authResult', data, !response.ok);
+            } catch (error) {
+                showResult('authResult', `Error: ${error.message}`, true);
+            }
+        }
+
+        async function loadSongs() {
+            try {
+                const response = await fetch(`${API_BASE()}/songs`, {
+                    headers: getAuthHeaders()
+                });
+                const data = await response.json();
+                showResult('songsResult', data, !response.ok);
+            } catch (error) {
+                showResult('songsResult', `Error: ${error.message}`, true);
+            }
+        }
+
+        async function getLyrics() {
+            const songId = getSongId();
+            if (!songId) return;
+
+            try {
+                const response = await fetch(`${API_BASE()}/lyrics/${songId}`, {
+                    headers: getAuthHeaders()
+                });
+                const data = await response.json();
+                showResult('lyricsResult', data, !response.ok);
+            } catch (error) {
+                showResult('lyricsResult', `Error: ${error.message}`, true);
+            }
+        }
+
+        async function updateTextLyrics() {
+            const songId = getSongId();
+            if (!songId) return;
+
+            const content = document.getElementById('textContent').value;
+            if (!content.trim()) {
+                alert('Por favor ingresa contenido para las letras');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE()}/lyrics/${songId}/text`, {
+                    method: 'PUT',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({ content })
+                });
+                const data = await response.json();
+                showResult('textResult', data, !response.ok);
+            } catch (error) {
+                showResult('textResult', `Error: ${error.message}`, true);
+            }
+        }
+
+        async function uploadFile() {
+            const songId = getSongId();
+            if (!songId) return;
+
+            const fileInput = document.getElementById('lyricsFile');
+            const file = fileInput.files[0];
+            if (!file) {
+                alert('Por favor selecciona un archivo');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('lyrics', file);
+
+            try {
+                const token = document.getElementById('authToken').value;
+                const response = await fetch(`${API_BASE()}/lyrics/${songId}/file`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': token ? `Bearer ${token}` : ''
+                    },
+                    body: formData
+                });
+                const data = await response.json();
+                showResult('fileResult', data, !response.ok);
+            } catch (error) {
+                showResult('fileResult', `Error: ${error.message}`, true);
+            }
+        }
+
+        async function getSyncedLyrics() {
+            const songId = getSongId();
+            if (!songId) return;
+
+            try {
+                const response = await fetch(`${API_BASE()}/lyrics/${songId}/sync`, {
+                    headers: getAuthHeaders()
+                });
+                const data = await response.json();
+                showResult('syncResult', data, !response.ok);
+            } catch (error) {
+                showResult('syncResult', `Error: ${error.message}`, true);
+            }
+        }
+
+        async function updateSync() {
+            const songId = getSongId();
+            if (!songId) return;
+
+            const syncDataText = document.getElementById('syncData').value;
+            if (!syncDataText.trim()) {
+                alert('Por favor ingresa datos de sincronización');
+                return;
+            }
+
+            try {
+                const syncData = JSON.parse(syncDataText);
+                const response = await fetch(`${API_BASE()}/lyrics/${songId}/sync`, {
+                    method: 'PUT',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({ syncData })
+                });
+                const data = await response.json();
+                showResult('syncUpdateResult', data, !response.ok);
+            } catch (error) {
+                showResult('syncUpdateResult', `Error: ${error.message}`, true);
+            }
+        }
+
+        async function deleteLyrics() {
+            const songId = getSongId();
+            if (!songId) return;
+
+            if (!confirm('¿Estás seguro de que quieres eliminar las letras?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE()}/lyrics/${songId}`, {
+                    method: 'DELETE',
+                    headers: getAuthHeaders()
+                });
+                const data = await response.json();
+                showResult('deleteResult', data, !response.ok);
+            } catch (error) {
+                showResult('deleteResult', `Error: ${error.message}`, true);
+            }
+        }
+
+        // Auto-focus en el primer input
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('authToken').focus();
+        });
+    </script>
+
+    <div style="margin-top: 40px; padding: 20px; background: #e9ecef; border-radius: 8px;">
+        <h3>📝 Notas de Testing v0.8.0</h3>
+        <ul>
+            <li><strong>Autenticación:</strong> Necesitas un token JWT válido para todas las operaciones</li>
+            <li><strong>Roles:</strong> Admin o Director para gestionar letras</li>
+            <li><strong>Archivos:</strong> PDF, DOC, DOCX, TXT hasta 10MB</li>
+            <li><strong>Sincronización:</strong> Tiempos en segundos (startTime, endTime)</li>
+            <li><strong>Tipos:</strong> TEXT (texto plano), PDF, DOC, DOCX</li>
+        </ul>
+    </div>
+</body>
+</html>

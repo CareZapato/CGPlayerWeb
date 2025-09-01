@@ -175,6 +175,9 @@ app.use((req, res, next) => {
 // Servir imágenes de playlists (solo imágenes, no archivos de audio)
 app.use('/uploads/images', express.static(path.join(__dirname, '../uploads/images')));
 
+// Servir archivos de letras (PDF, DOC, DOCX, TXT)
+app.use('/uploads/lyrics', express.static(path.join(__dirname, '../uploads/lyrics')));
+
 // Endpoints públicos (sin autenticación)
 app.get('/api/health', (req, res) => {
   const clientIP = req.headers['x-forwarded-for'] || req.connection.remoteAddress || req.socket.remoteAddress;

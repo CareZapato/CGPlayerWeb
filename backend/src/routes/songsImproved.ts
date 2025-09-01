@@ -1,12 +1,11 @@
 import express, { Response } from 'express';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { upload, multiUpload, handleMulterError, renameUploadedFiles, cleanupFiles, cleanupFolder } from '../middleware/uploadImproved';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../utils/prisma';
 import path from 'path';
 import fs from 'fs';
 import os from 'os';
 
-const prisma = new PrismaClient();
 const router = express.Router();
 
 // Log para verificar que el router se está cargando
@@ -172,19 +171,25 @@ router.post('/upload', authenticateToken, upload.single('audio'), handleMulterEr
   }
 });
 
-// Subir múltiples canciones con asignación de voces
-router.post('/multi-upload', authenticateToken, multiUpload.array('audio', 10), handleMulterError, async (req: AuthRequest, res: Response) => {
+// Subir múltiples canciones con asignación de voces y letras
+router.post('/multi-upload', authenticateToken, multiUpload.fields([
+  { name: 'audio', maxCount: 10 },
+  { name: 'lyrics', maxCount: 5 }
+]), handleMulterError, async (req: AuthRequest, res: Response) => {
   try {
-    const files = req.files as Express.Multer.File[];
+    const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+    const audioFiles = files.audio || [];
+    const lyricsFiles = files.lyrics || [];
     
-    if (!files || files.length === 0) {
+    if (!audioFiles || audioFiles.length === 0) {
       return res.status(400).json({ message: 'No audio files provided' });
     }
 
-    const { title, artist, album, genre, voiceAssignments } = req.body;
+    const { title, artist, album, genre, voiceAssignments, lyricsText } = req.body;
 
     if (!title) {
-      cleanupFiles(files);
+      if (audioFiles.length > 0) cleanupFiles(audioFiles);
+      if (lyricsFiles.length > 0) cleanupFiles(lyricsFiles);
       if (req.songFolderPath) {
         cleanupFolder(req.songFolderPath);
       }
@@ -198,7 +203,8 @@ router.post('/multi-upload', authenticateToken, multiUpload.array('audio', 10), 
         ? JSON.parse(voiceAssignments) 
         : voiceAssignments;
     } catch (error) {
-      cleanupFiles(files);
+      if (audioFiles.length > 0) cleanupFiles(audioFiles);
+      if (lyricsFiles.length > 0) cleanupFiles(lyricsFiles);
       if (req.songFolderPath) {
         cleanupFolder(req.songFolderPath);
       }
@@ -206,14 +212,15 @@ router.post('/multi-upload', authenticateToken, multiUpload.array('audio', 10), 
     }
 
     // Validar que todos los archivos tienen asignación de voz
-    const missingAssignments = files.filter(file => 
+    const missingAssignments = audioFiles.filter(file => 
       !parsedAssignments.find((assignment: any) => 
         assignment.filename === file.originalname && assignment.voiceType
       )
     );
 
     if (missingAssignments.length > 0) {
-      cleanupFiles(files);
+      if (audioFiles.length > 0) cleanupFiles(audioFiles);
+      if (lyricsFiles.length > 0) cleanupFiles(lyricsFiles);
       if (req.songFolderPath) {
         cleanupFolder(req.songFolderPath);
       }
@@ -223,7 +230,7 @@ router.post('/multi-upload', authenticateToken, multiUpload.array('audio', 10), 
     }
 
     // Renombrar archivos según tipo de voz
-    const renamedFiles = await renameUploadedFiles(files, title, undefined, req.songFolderName, parsedAssignments);
+    const renamedFiles = await renameUploadedFiles(audioFiles, title, undefined, req.songFolderName, parsedAssignments);
 
     // Crear canción padre primero (sin tipo de voz específico)
     const parentSong = await prisma.song.create({
@@ -234,7 +241,7 @@ router.post('/multi-upload', authenticateToken, multiUpload.array('audio', 10), 
         genre: genre || null,
         fileName: renamedFiles[0].fileName, // Usar el primer archivo como referencia
         filePath: `songs/${req.songFolderName}`, // Ruta a la carpeta
-        fileSize: files.reduce((total, file) => total + file.size, 0), // Suma de todos los archivos
+        fileSize: audioFiles.reduce((total, file) => total + file.size, 0), // Suma de todos los archivos
         mimeType: 'multitrack/folder', // Indicar que es un contenedor
         voiceType: null, // Sin tipo de voz específico
         uploadedBy: req.user!.id,
@@ -256,7 +263,7 @@ router.post('/multi-upload', authenticateToken, multiUpload.array('audio', 10), 
     
     for (let i = 0; i < renamedFiles.length; i++) {
       const file = renamedFiles[i];
-      const originalFile = files[i];
+      const originalFile = audioFiles[i];
       const assignment = parsedAssignments.find((a: any) => a.filename === originalFile.originalname);
       const relativePath = path.relative(path.join(__dirname, '../../uploads'), file.filePath);
       
@@ -294,16 +301,126 @@ router.post('/multi-upload', authenticateToken, multiUpload.array('audio', 10), 
       songs.push(song);
     }
 
+    // Manejar archivos de letras si existen
+    if (lyricsFiles && lyricsFiles.length > 0) {
+      for (const lyricsFile of lyricsFiles) {
+        // Determinar el tipo de archivo
+        const ext = path.extname(lyricsFile.originalname).toLowerCase();
+        let fileType: 'PDF' | 'DOC' | 'DOCX' | 'IMAGE_JPG' | 'IMAGE_PNG' | 'TEXT';
+        
+        switch (ext) {
+          case '.pdf':
+            fileType = 'PDF';
+            break;
+          case '.doc':
+            fileType = 'DOC';
+            break;
+          case '.docx':
+            fileType = 'DOCX';
+            break;
+          case '.jpg':
+          case '.jpeg':
+            fileType = 'IMAGE_JPG';
+            break;
+          case '.png':
+            fileType = 'IMAGE_PNG';
+            break;
+          case '.txt':
+          default:
+            fileType = 'TEXT';
+            break;
+        }
+
+        // Crear entrada en la base de datos para el archivo de letras
+        const lyricsFileModel = (prisma as any).lyricsFile;
+        await lyricsFileModel.create({
+          data: {
+            songId: parentSong.id,
+            fileName: lyricsFile.originalname,
+            filePath: `songs/${req.songFolderName}/${lyricsFile.filename}`,
+            fileSize: lyricsFile.size,
+            fileType: fileType,
+            mimeType: lyricsFile.mimetype,
+            uploadedBy: req.user!.id
+          }
+        });
+      }
+    }
+
+    // Manejar texto de letras si existe
+    if (lyricsText && lyricsText.trim()) {
+      const lyricModel = (prisma as any).lyric;
+      
+      // Dividir el texto por líneas/versos (saltos de línea)
+      const lines = lyricsText.trim().split(/\r?\n/).filter((line: string) => line.trim());
+      
+      // Tipos de voz para los que crear sincronizaciones
+      const voiceTypes = [
+        null, // Canción principal/original
+        'SOPRANO',
+        'CONTRALTO', 
+        'TENOR',
+        'BARITONO',
+        'BAJO',
+        'CORO'
+      ];
+      
+      console.log(`📝 [LYRICS] Creating lyrics for ${voiceTypes.length} voice types with ${lines.length} lines`);
+      
+      // Crear letras para cada tipo de voz
+      for (const voiceType of voiceTypes) {
+        // Crear una entrada principal con todo el texto
+        await lyricModel.create({
+          data: {
+            songId: parentSong.id,
+            content: lyricsText.trim(),
+            textContent: lyricsText.trim(),
+            lineNumber: 0, // Línea 0 para texto completo
+            startTime: 0,
+            endTime: 0,
+            voiceType: voiceType,
+            isTextLyrics: true,
+            createdBy: req.user!.id
+          }
+        });
+        
+        // Crear entradas individuales por línea para sincronización
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i].trim();
+          if (line) {
+            await lyricModel.create({
+              data: {
+                songId: parentSong.id,
+                content: line,
+                lineNumber: i + 1,
+                startTime: 0, // Por defecto 0, se sincronizará después
+                endTime: 0,   // Por defecto 0, se sincronizará después
+                voiceType: voiceType,
+                isTextLyrics: false, // Estas son para sincronización
+                createdBy: req.user!.id
+              }
+            });
+          }
+        }
+      }
+      
+      console.log(`✅ [LYRICS] Successfully created lyrics for all voice types`);
+    }
+
     res.status(201).json({
       message: `Successfully uploaded 1 song with ${songs.length} voice variations`,
       parentSong,
-      songs
+      songs,
+      lyricsFiles: lyricsFiles?.length || 0,
+      hasTextLyrics: !!(lyricsText && lyricsText.trim())
     });
 
   } catch (error) {
     // Limpiar archivos en caso de error
     if (req.files) {
-      cleanupFiles(req.files as Express.Multer.File[]);
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+      if (files.audio && files.audio.length > 0) cleanupFiles(files.audio);
+      if (files.lyrics && files.lyrics.length > 0) cleanupFiles(files.lyrics);
     }
     if (req.songFolderPath) {
       cleanupFolder(req.songFolderPath);

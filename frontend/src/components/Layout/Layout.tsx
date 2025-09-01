@@ -1,7 +1,7 @@
 import React from 'react';
 import ResponsiveNavigation from '../Navigation/ResponsiveNavigation';
 import AudioManager from '../AudioManager/AudioManager';
-import BottomPlayer from '../BottomPlayer/BottomPlayer';
+import StickyPlayer from '../Player/StickyPlayer';
 import './Layout.css';
 
 interface LayoutProps {
@@ -20,8 +20,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       {/* Audio Manager para manejar la reproducción global */}
       <AudioManager />
       
-      {/* Reproductor de barra inferior */}
-      <BottomPlayer />
+      {/* Reproductor principal */}
+      <StickyPlayer />
     </div>
   );
 };

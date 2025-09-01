@@ -175,7 +175,7 @@ const multiStorage = multer.diskStorage({
   }
 });
 
-// Filtro de archivos de audio mejorado
+// Filtro de archivos mejorado que permite audio y letras
 const fileFilter = (req: any, file: any, cb: any) => {
   console.log(`🎵 [FILE-FILTER] Checking file:`, {
     originalname: file.originalname,
@@ -184,7 +184,8 @@ const fileFilter = (req: any, file: any, cb: any) => {
     fieldname: file.fieldname
   });
 
-  const allowedMimes = [
+  // Archivos de audio permitidos
+  const allowedAudioMimes = [
     // MPEG Audio
     'audio/mpeg',
     'audio/mp3',
@@ -228,30 +229,64 @@ const fileFilter = (req: any, file: any, cb: any) => {
     // Fallback genérico
     'application/octet-stream' // Algunos archivos pueden venir con este MIME type
   ];
+
+  // Archivos de letras permitidos
+  const allowedLyricsMimes = [
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'text/plain',
+    'image/jpeg',
+    'image/jpg',
+    'image/png'
+  ];
   
-  // También verificar por extensión si el MIME type no es reconocido
-  const fileExtension = file.originalname.toLowerCase().split('.').pop();
-  const allowedExtensions = [
+  // Extensiones permitidas según tipo
+  const allowedAudioExtensions = [
     'mp3', 'm4a', 'wav', 'ogg', 'aac', 'flac', 'wma', 'webm', '3gp', 'amr'
   ];
   
-  const mimeAllowed = allowedMimes.includes(file.mimetype);
-  const extensionAllowed = allowedExtensions.includes(fileExtension);
+  const allowedLyricsExtensions = [
+    'pdf', 'doc', 'docx', 'txt', 'jpg', 'jpeg', 'png'
+  ];
+  
+  const fileExtension = file.originalname.toLowerCase().split('.').pop();
+  
+  let isValid = false;
+  let errorMessage = '';
+  
+  if (file.fieldname === 'audio') {
+    // Validar archivos de audio
+    const mimeAllowed = allowedAudioMimes.includes(file.mimetype);
+    const extensionAllowed = allowedAudioExtensions.includes(fileExtension);
+    isValid = mimeAllowed || extensionAllowed;
+    errorMessage = `Tipo de archivo no permitido: ${file.mimetype}. Solo se permiten archivos de audio.`;
+  } else if (file.fieldname === 'lyrics') {
+    // Validar archivos de letras
+    const mimeAllowed = allowedLyricsMimes.includes(file.mimetype);
+    const extensionAllowed = allowedLyricsExtensions.includes(fileExtension);
+    isValid = mimeAllowed || extensionAllowed;
+    errorMessage = `Tipo de archivo no permitido: ${file.mimetype}. Solo se permiten archivos PDF, DOC, DOCX, TXT, JPG y PNG para letras.`;
+  } else {
+    // Campo no reconocido
+    isValid = false;
+    errorMessage = `Campo no reconocido: ${file.fieldname}`;
+  }
   
   console.log(`🔍 [FILE-FILTER] Validation:`, {
+    fieldname: file.fieldname,
     mimetype: file.mimetype,
-    mimeAllowed,
     extension: fileExtension,
-    extensionAllowed,
-    finalDecision: mimeAllowed || extensionAllowed
+    isValid,
+    finalDecision: isValid
   });
   
-  if (mimeAllowed || extensionAllowed) {
+  if (isValid) {
     console.log(`✅ [FILE-FILTER] File accepted: ${file.originalname}`);
     cb(null, true);
   } else {
     console.log(`❌ [FILE-FILTER] File rejected: ${file.originalname} (${file.mimetype})`);
-    cb(new Error(`Tipo de archivo no permitido: ${file.mimetype}. Solo se permiten archivos de audio.`), false);
+    cb(new Error(errorMessage), false);
   }
 };
 

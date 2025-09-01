@@ -3,9 +3,11 @@ import { useAuthStore } from '../store/authStore';
 import { usePlayerStore } from '../store/playerStore';
 import { usePlaylistStore } from '../store/playlistStore';
 import { useServerInfo } from '../hooks/useServerInfo';
+import { useLyrics } from '../hooks/useLyrics';
 import { getApiUrl, getSongFileUrl } from '../config/api';
 import SongUpload from '../components/SongUpload';
 import MultiSongUpload from '../components/Upload/MultiSongUpload';
+import LyricsSynchronizer from '../components/LyricsSynchronizer';
 import type { Song } from '../types';
 
 interface SongWithVersions extends Song {
@@ -50,6 +52,11 @@ const SongsPage: React.FC = () => {
   const [uploadMode, setUploadMode] = useState<'single' | 'multi'>('single');
   const [selectedSong, setSelectedSong] = useState<SongWithVersions | null>(null);
   const [expandedSongs, setExpandedSongs] = useState<Set<string>>(new Set());
+  const [showLyricsSync, setShowLyricsSync] = useState(false);
+  const [syncingSong, setSyncingSong] = useState<SongWithVersions | null>(null);
+  const [syncProgress, setSyncProgress] = useState<string>('');
+  const [showAdvancedSync, setShowAdvancedSync] = useState(false);
+  const [advancedSyncSong, setAdvancedSyncSong] = useState<Song | null>(null);
 
   const canUpload = user?.roles?.some(r => ['ADMIN', 'CANTANTE'].includes(r.role)) || false;
 
@@ -345,6 +352,107 @@ const SongsPage: React.FC = () => {
     setExpandedSongs(newExpanded);
   };
 
+  const handleCreateLyricsSync = async (song: SongWithVersions) => {
+    setSyncingSong(song);
+    setShowLyricsSync(true);
+    setSyncProgress('Iniciando sincronización de letras...');
+
+    try {
+      // Obtener todas las versiones de la canción (incluida la principal)
+      const allVersions = [song, ...song.childVersions];
+      
+      setSyncProgress('Creando letras sincronizadas para todas las versiones...');
+
+      // Crear letras base para cada versión
+      for (const version of allVersions) {
+        if (!version.voiceType && version.childVersions && version.childVersions.length > 0) {
+          // Si es la canción principal que tiene versiones, saltarla
+          continue;
+        }
+
+        setSyncProgress(`Procesando ${version.title} - ${version.voiceType || 'General'}...`);
+
+        // Crear letras básicas con contenido específico para cada tipo de voz
+        const voiceTypeText = version.voiceType || 'General';
+        const lyricsContent = `Estrofa 1 - ${voiceTypeText}
+${version.title} verso 1
+${version.title} verso 2
+${version.title} verso 3
+
+Coro - ${voiceTypeText}
+${version.title} coro línea 1
+${version.title} coro línea 2
+
+Estrofa 2 - ${voiceTypeText}
+${version.title} verso 4
+${version.title} verso 5
+${version.title} verso 6
+
+Final - ${voiceTypeText}
+${version.title} final
+Fin de ${version.title}`;
+
+        try {
+          const response = await fetch(getApiUrl(`/api/lyrics/${version.id}/text`), {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              content: lyricsContent,
+              voiceType: version.voiceType
+            })
+          });
+
+          if (!response.ok) {
+            console.error(`Error al crear letras para ${version.title}:`, response.status);
+          } else {
+            const result = await response.json();
+            console.log(`✅ Letras creadas para ${version.title}:`, result);
+          }
+        } catch (error) {
+          console.error(`Error en la petición para ${version.title}:`, error);
+        }
+      }
+
+      setSyncProgress('¡Letras sincronizadas creadas exitosamente! Ahora puedes usar el sincronizador en el reproductor.');
+      
+      // Cerrar modal después de 3 segundos
+      setTimeout(() => {
+        setShowLyricsSync(false);
+        setSyncingSong(null);
+        setSyncProgress('');
+      }, 3000);
+
+    } catch (error) {
+      console.error('Error al crear sincronización de letras:', error);
+      setSyncProgress('Error al crear las letras sincronizadas');
+      
+      setTimeout(() => {
+        setShowLyricsSync(false);
+        setSyncingSong(null);
+        setSyncProgress('');
+      }, 3000);
+    }
+  };
+
+  // Función para abrir el sincronizador avanzado
+  const handleOpenAdvancedSync = (version: Song) => {
+    setAdvancedSyncSong(version);
+    setShowAdvancedSync(true);
+  };
+
+  const handleCloseAdvancedSync = () => {
+    setShowAdvancedSync(false);
+    setAdvancedSyncSong(null);
+  };
+
+  const handleSaveAdvancedSync = () => {
+    // Recargar las canciones para reflejar los cambios
+    fetchSongs();
+  };
+
   const handleUploadSuccess = () => {
     setShowUpload(false);
     setSelectedSong(null);
@@ -575,6 +683,19 @@ const SongsPage: React.FC = () => {
                     </button>
                   )}
 
+                  {/* Botón Crear Letras (solo para canciones principales sin parentSong) */}
+                  {canUpload && !song.parentSong && (
+                    <button
+                      onClick={() => handleCreateLyricsSync(song)}
+                      className="p-2 text-gray-400 hover:text-green-600 transition-colors bg-green-50 hover:bg-green-100 rounded-full border border-green-200"
+                      title="Crear letras con texto para todas las versiones"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                      </svg>
+                    </button>
+                  )}
+
                   {song.childVersions.length > 0 && (
                     <button
                       onClick={() => toggleSongExpansion(song.id)}
@@ -602,7 +723,7 @@ const SongsPage: React.FC = () => {
                   <div className="space-y-2">
                     {getFilteredVersions(song.childVersions).map((version) => (
                       <div key={version.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between bg-gray-50 rounded-lg p-3 gap-3">
-                        <div className="flex items-center space-x-3">
+                        <div className="flex items-center space-x-3 flex-1">
                           <button
                             onClick={() => handlePlaySong(version)}
                             className={`w-8 h-8 flex-shrink-0 rounded-full flex items-center justify-center transition-colors ${
@@ -630,6 +751,44 @@ const SongsPage: React.FC = () => {
                             </p>
                           </div>
                         </div>
+
+                        {/* Acciones para versiones individuales */}
+                        {canUpload && (
+                          <div className="flex items-center space-x-2">
+                            {/* Botón Agregar a Cola Individual */}
+                            <button
+                              onClick={() => {
+                                const songToAdd: Song = {
+                                  ...version,
+                                  filePath: version.filePath || `${version.folderName}/${version.fileName}`,
+                                  fileSize: version.fileSize || 0,
+                                  mimeType: version.mimeType || 'audio/mpeg',
+                                  uploadedBy: version.uploadedBy || (version.uploader ? `${version.uploader.firstName} ${version.uploader.lastName}` : 'Desconocido'),
+                                  isActive: version.isActive !== undefined ? version.isActive : true,
+                                  updatedAt: version.updatedAt || version.createdAt
+                                };
+                                addToQueue(songToAdd);
+                              }}
+                              className="p-1.5 text-gray-400 hover:text-blue-600 transition-colors bg-blue-50 hover:bg-blue-100 rounded-full border border-blue-200"
+                              title={`Agregar ${VOICE_TYPE_LABELS[version.voiceType!] || version.voiceType} a la cola`}
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                              </svg>
+                            </button>
+
+                            {/* Botón Sincronizar Letras (solo para variaciones) */}
+                            <button
+                              onClick={() => handleOpenAdvancedSync(version)}
+                              className="p-1.5 text-gray-400 hover:text-purple-600 transition-colors bg-purple-50 hover:bg-purple-100 rounded-full border border-purple-200"
+                              title={`Sincronizar letras para ${VOICE_TYPE_LABELS[version.voiceType!] || version.voiceType}`}
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                            </button>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -638,6 +797,59 @@ const SongsPage: React.FC = () => {
             </div>
           ))}
         </div>
+      )}
+
+      {/* Modal de Sincronización de Letras */}
+      {showLyricsSync && syncingSong && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div className="p-6">
+              <div className="flex items-center space-x-3 mb-4">
+                <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
+                  <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Sincronizando Letras
+                </h3>
+              </div>
+              
+              <p className="text-sm text-gray-600 mb-4">
+                Creando letras sincronizadas para: <span className="font-semibold">{syncingSong.title}</span>
+              </p>
+              
+              <div className="mb-4">
+                <div className="bg-gray-200 rounded-full h-2">
+                  <div className="bg-purple-600 h-2 rounded-full transition-all duration-300 animate-pulse" style={{ width: '100%' }}></div>
+                </div>
+              </div>
+              
+              <p className="text-sm text-gray-700 text-center">
+                {syncProgress}
+              </p>
+              
+              {syncProgress.includes('exitosamente') && (
+                <div className="mt-4 flex justify-center">
+                  <div className="text-green-600">
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Sincronizador Avanzado */}
+      {showAdvancedSync && advancedSyncSong && (
+        <LyricsSynchronizer
+          song={advancedSyncSong}
+          onClose={handleCloseAdvancedSync}
+          onSave={handleSaveAdvancedSync}
+        />
       )}
     </div>
   );

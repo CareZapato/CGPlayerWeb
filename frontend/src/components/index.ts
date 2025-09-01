@@ -4,6 +4,10 @@
 export { default as StickyPlayer } from './Player/StickyPlayer';
 export { default as SimplePlayer } from './Player/SimplePlayer';
 
+// Lyrics components (v0.8.0)
+export { LyricsDisplay } from './LyricsDisplay';
+export { default as LyricsSynchronizer } from './LyricsSynchronizer';
+
 // UI components
 export { default as SongCard } from './UI/SongCard';
 export { default as PlaylistPlayer } from './UI/PlaylistPlayer';

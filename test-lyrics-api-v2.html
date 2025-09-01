@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Lyrics API v0.8.0 - Segunda Iteración - CGPlayerWeb</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .container {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .endpoint {
+            background: white;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border-left: 4px solid #007acc;
+        }
+        .method {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 3px;
+            color: white;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        .get { background: #28a745; }
+        .post { background: #007bff; }
+        .put { background: #ffc107; color: #000; }
+        .delete { background: #dc3545; }
+        .test-section {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        button {
+            background: #007acc;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #005a9e; }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .result {
+            background: #f8f9fa;
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+        .error { border-left: 4px solid #dc3545; }
+        .success { border-left: 4px solid #28a745; }
+        input, textarea, select {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .form-group {
+            margin: 15px 0;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .new-feature {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: bold;
+            margin-left: 8px;
+        }
+        .voice-selector {
+            background: #e3f2fd;
+            border: 1px solid #2196f3;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎵 Test Lyrics API v0.8.0 - Segunda Iteración - CGPlayerWeb</h1>
+    
+    <div class="container">
+        <h2>📋 Sistema de Letras Avanzado - Nuevos Endpoints</h2>
+        <p><strong>✨ Novedad:</strong> Ahora cada variante de voz puede tener sus propias letras sincronizadas, mientras que los archivos se comparten entre todas las variantes.</p>
+        
+        <div class="endpoint">
+            <span class="method get">GET</span>
+            <strong>/api/lyrics/{songId}</strong>
+            <span class="new-feature">MEJORADO</span>
+            <p>Obtener letras de una canción con archivos y sincronizaciones por variante</p>
+            <small>Query params: <code>voiceType=SOPRANO|CONTRALTO|TENOR|BAJO|TODOS_LOS_CORISTAS|main</code></small>
+        </div>
+        
+        <div class="endpoint">
+            <span class="method put">PUT</span>
+            <strong>/api/lyrics/{songId}/text</strong>
+            <span class="new-feature">MEJORADO</span>
+            <p>Actualizar letras de texto para una variante específica</p>
+            <small>Body: <code>{ content: string, voiceType?: VoiceType|null }</code></small>
+        </div>
+        
+        <div class="endpoint">
+            <span class="method post">POST</span>
+            <strong>/api/lyrics/{songId}/file</strong>
+            <span class="new-feature">MEJORADO</span>
+            <p>Subir archivo de letras (PDF, DOC, DOCX, TXT, JPG, PNG) - Compartido entre variantes</p>
+        </div>
+        
+        <div class="endpoint">
+            <span class="method get">GET</span>
+            <strong>/api/lyrics/{songId}/sync</strong>
+            <span class="new-feature">MEJORADO</span>
+            <p>Obtener letras sincronizadas por variante de voz</p>
+            <small>Query params: <code>voiceType=SOPRANO|CONTRALTO|TENOR|BAJO|TODOS_LOS_CORISTAS|main</code></small>
+        </div>
+        
+        <div class="endpoint">
+            <span class="method put">PUT</span>
+            <strong>/api/lyrics/{songId}/sync</strong>
+            <span class="new-feature">MEJORADO</span>
+            <p>Actualizar sincronización de letras por variante</p>
+            <small>Body: <code>{ syncData: Lyric[], voiceType?: VoiceType|null }</code></small>
+        </div>
+        
+        <div class="endpoint">
+            <span class="method delete">DELETE</span>
+            <strong>/api/lyrics/{songId}/file/{fileId}</strong>
+            <span class="new-feature">NUEVO</span>
+            <p>Eliminar archivo específico de letras</p>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h3>🔑 Configuración</h3>
+        <div class="form-group">
+            <label for="apiUrl">API URL:</label>
+            <input type="text" id="apiUrl" value="http://localhost:3001/api" placeholder="URL base de la API">
+        </div>
+        <div class="form-group">
+            <label for="authToken">Token de Autenticación:</label>
+            <input type="text" id="authToken" placeholder="Pega aquí tu token JWT" style="font-family: monospace;">
+        </div>
+        <button onclick="checkAuth()">🔍 Verificar Autenticación</button>
+        <div id="authResult" class="result" style="display: none;"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>🎵 Seleccionar Canción para Pruebas</h3>
+        <div class="form-group">
+            <label for="songId">ID de la Canción:</label>
+            <input type="text" id="songId" placeholder="ID de la canción">
+        </div>
+        <button onclick="loadSongs()">📜 Cargar Lista de Canciones</button>
+        <div id="songsResult" class="result" style="display: none;"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>🎭 Selector de Variante de Voz</h3>
+        <div class="voice-selector">
+            <div class="form-group">
+                <label for="voiceType">Tipo de Voz:</label>
+                <select id="voiceType">
+                    <option value="">Canción Principal (sin variante)</option>
+                    <option value="SOPRANO">Soprano</option>
+                    <option value="CONTRALTO">Contralto</option>
+                    <option value="TENOR">Tenor</option>
+                    <option value="BAJO">Bajo</option>
+                    <option value="TODOS_LOS_CORISTAS">Todos los Coristas</option>
+                </select>
+            </div>
+            <p><strong>💡 Importante:</strong> Las letras de texto y sincronizaciones se guardan por separado para cada variante, pero los archivos se comparten entre todas.</p>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h3>👁️ Ver Letras</h3>
+        <button onclick="getLyrics()">📖 Obtener Letras (Todas)</button>
+        <button onclick="getLyricsWithVoice()">🎭 Obtener Letras por Variante</button>
+        <div id="lyricsResult" class="result" style="display: none;"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>📝 Letras de Texto por Variante</h3>
+        <div class="form-group">
+            <label for="textContent">Contenido de las letras:</label>
+            <textarea id="textContent" rows="8" placeholder="Escribe las letras para la variante seleccionada...">Letras para la variante seleccionada:
+
+Verso 1 (específico para esta voz):
+Esta es una canción de prueba
+Con letras diferenciadas por voz
+Para el sistema v0.8.0 segunda iteración
+
+Coro (adaptado para esta variante):
+CGPlayerWeb ahora funciona mejor
+Cada voz tiene sus letras propias
+Mientras que los archivos se comparten
+
+Verso 2 (personalizado):
+Admins y directores pueden
+Gestionar letras por cada variante
+Y subir archivos para todos</textarea>
+        </div>
+        <button onclick="updateTextLyrics()">💾 Guardar Letras por Variante</button>
+        <div id="textResult" class="result" style="display: none;"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>📄 Subir Archivos (Compartidos)</h3>
+        <div class="form-group">
+            <label for="lyricsFile">Archivo de letras (PDF, DOC, DOCX, TXT, JPG, PNG):</label>
+            <input type="file" id="lyricsFile" accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png">
+        </div>
+        <p><strong>📌 Nota:</strong> Los archivos subidos están disponibles para todas las variantes de la canción.</p>
+        <button onclick="uploadFile()">📤 Subir Archivo</button>
+        <div id="fileResult" class="result" style="display: none;"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>🎯 Sincronización por Variante</h3>
+        <button onclick="getSyncedLyrics()">🔍 Ver Letras Sincronizadas por Variante</button>
+        <div id="syncResult" class="result" style="display: none;"></div>
+        
+        <div class="form-group">
+            <label>Datos de sincronización por variante (JSON):</label>
+            <textarea id="syncData" rows="8" placeholder="JSON con datos de sincronización para la variante seleccionada">[
+  {
+    "content": "Línea específica para esta variante",
+    "startTime": 0,
+    "endTime": 3.5,
+    "lineNumber": 1
+  },
+  {
+    "content": "Segunda línea adaptada a esta voz",
+    "startTime": 3.5,
+    "endTime": 7.0,
+    "lineNumber": 2
+  },
+  {
+    "content": "Parte específica del coro para esta variante",
+    "startTime": 7.0,
+    "endTime": 11.0,
+    "lineNumber": 3
+  }
+]</textarea>
+        </div>
+        <button onclick="updateSync()">🎵 Actualizar Sincronización por Variante</button>
+        <div id="syncUpdateResult" class="result" style="display: none;"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>🗑️ Eliminar Letras</h3>
+        <button onclick="deleteLyrics()" style="background: #dc3545;">❌ Eliminar TODAS las Letras</button>
+        <div id="deleteResult" class="result" style="display: none;"></div>
+    </div>
+
+    <script>
+        const API_BASE = () => document.getElementById('apiUrl').value;
+        const getAuthHeaders = () => {
+            const token = document.getElementById('authToken').value;
+            return {
+                'Content-Type': 'application/json',
+                'Authorization': token ? `Bearer ${token}` : ''
+            };
+        };
+
+        const getSongId = () => {
+            const songId = document.getElementById('songId').value;
+            if (!songId) {
+                alert('Por favor ingresa un ID de canción');
+                return null;
+            }
+            return songId;
+        };
+
+        const getVoiceType = () => {
+            return document.getElementById('voiceType').value || null;
+        };
+
+        const getVoiceTypeLabel = () => {
+            const voiceType = getVoiceType();
+            if (!voiceType) return 'Canción Principal';
+            const options = {
+                'SOPRANO': 'Soprano',
+                'CONTRALTO': 'Contralto',
+                'TENOR': 'Tenor',
+                'BAJO': 'Bajo',
+                'TODOS_LOS_CORISTAS': 'Todos los Coristas'
+            };
+            return options[voiceType] || voiceType;
+        };
+
+        const showResult = (elementId, data, isError = false) => {
+            const element = document.getElementById(elementId);
+            element.style.display = 'block';
+            element.className = `result ${isError ? 'error' : 'success'}`;
+            element.textContent = typeof data === 'object' ? JSON.stringify(data, null, 2) : data;
+        };
+
+        async function checkAuth() {
+            try {
+                const response = await fetch(`${API_BASE()}/auth/verify`, {
+                    headers: getAuthHeaders()
+                });
+                const data = await response.json();
+                showResult('authResult', data, !response.ok);
+            } catch (error) {
+                showResult('authResult', `Error: ${error.message}`, true);
+            }
+        }
+
+        async function loadSongs() {
+            try {
+                const response = await fetch(`${API_BASE()}/songs`, {
+                    headers: getAuthHeaders()
+                });
+                const data = await response.json();
+                showResult('songsResult', data, !response.ok);
+            } catch (error) {
+                showResult('songsResult', `Error: ${error.message}`, true);
+            }
+        }
+
+        async function getLyrics() {
+            const songId = getSongId();
+            if (!songId) return;
+
+            try {
+                const response = await fetch(`${API_BASE()}/lyrics/${songId}`, {
+                    headers: getAuthHeaders()
+                });
+                const data = await response.json();
+                showResult('lyricsResult', data, !response.ok);
+            } catch (error) {
+                showResult('lyricsResult', `Error: ${error.message}`, true);
+            }
+        }
+
+        async function getLyricsWithVoice() {
+            const songId = getSongId();
+            if (!songId) return;
+
+            const voiceType = getVoiceType();
+            const queryParam = voiceType ? `?voiceType=${voiceType}` : '?voiceType=main';
+
+            try {
+                const response = await fetch(`${API_BASE()}/lyrics/${songId}${queryParam}`, {
+                    headers: getAuthHeaders()
+                });
+                const data = await response.json();
+                showResult('lyricsResult', {
+                    message: `Letras para: ${getVoiceTypeLabel()}`,
+                    data: data
+                }, !response.ok);
+            } catch (error) {
+                showResult('lyricsResult', `Error: ${error.message}`, true);
+            }
+        }
+
+        async function updateTextLyrics() {
+            const songId = getSongId();
+            if (!songId) return;
+
+            const content = document.getElementById('textContent').value;
+            if (!content.trim()) {
+                alert('Por favor ingresa contenido para las letras');
+                return;
+            }
+
+            const voiceType = getVoiceType();
+
+            try {
+                const response = await fetch(`${API_BASE()}/lyrics/${songId}/text`, {
+                    method: 'PUT',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({ content, voiceType })
+                });
+                const data = await response.json();
+                showResult('textResult', {
+                    message: `Letras actualizadas para: ${getVoiceTypeLabel()}`,
+                    data: data
+                }, !response.ok);
+            } catch (error) {
+                showResult('textResult', `Error: ${error.message}`, true);
+            }
+        }
+
+        async function uploadFile() {
+            const songId = getSongId();
+            if (!songId) return;
+
+            const fileInput = document.getElementById('lyricsFile');
+            const file = fileInput.files[0];
+            if (!file) {
+                alert('Por favor selecciona un archivo');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('lyrics', file);
+
+            try {
+                const token = document.getElementById('authToken').value;
+                const response = await fetch(`${API_BASE()}/lyrics/${songId}/file`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': token ? `Bearer ${token}` : ''
+                    },
+                    body: formData
+                });
+                const data = await response.json();
+                showResult('fileResult', {
+                    message: 'Archivo subido (compartido entre todas las variantes)',
+                    data: data
+                }, !response.ok);
+            } catch (error) {
+                showResult('fileResult', `Error: ${error.message}`, true);
+            }
+        }
+
+        async function getSyncedLyrics() {
+            const songId = getSongId();
+            if (!songId) return;
+
+            const voiceType = getVoiceType();
+            const queryParam = voiceType ? `?voiceType=${voiceType}` : '?voiceType=main';
+
+            try {
+                const response = await fetch(`${API_BASE()}/lyrics/${songId}/sync${queryParam}`, {
+                    headers: getAuthHeaders()
+                });
+                const data = await response.json();
+                showResult('syncResult', {
+                    message: `Sincronización para: ${getVoiceTypeLabel()}`,
+                    data: data
+                }, !response.ok);
+            } catch (error) {
+                showResult('syncResult', `Error: ${error.message}`, true);
+            }
+        }
+
+        async function updateSync() {
+            const songId = getSongId();
+            if (!songId) return;
+
+            const syncDataText = document.getElementById('syncData').value;
+            if (!syncDataText.trim()) {
+                alert('Por favor ingresa datos de sincronización');
+                return;
+            }
+
+            const voiceType = getVoiceType();
+
+            try {
+                const syncData = JSON.parse(syncDataText);
+                const response = await fetch(`${API_BASE()}/lyrics/${songId}/sync`, {
+                    method: 'PUT',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({ syncData, voiceType })
+                });
+                const data = await response.json();
+                showResult('syncUpdateResult', {
+                    message: `Sincronización actualizada para: ${getVoiceTypeLabel()}`,
+                    data: data
+                }, !response.ok);
+            } catch (error) {
+                showResult('syncUpdateResult', `Error: ${error.message}`, true);
+            }
+        }
+
+        async function deleteLyrics() {
+            const songId = getSongId();
+            if (!songId) return;
+
+            if (!confirm('¿Estás seguro de que quieres eliminar TODAS las letras (archivos y sincronizaciones de todas las variantes)?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE()}/lyrics/${songId}`, {
+                    method: 'DELETE',
+                    headers: getAuthHeaders()
+                });
+                const data = await response.json();
+                showResult('deleteResult', data, !response.ok);
+            } catch (error) {
+                showResult('deleteResult', `Error: ${error.message}`, true);
+            }
+        }
+
+        // Auto-focus en el primer input
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('authToken').focus();
+        });
+
+        // Actualizar interfaz cuando cambie el tipo de voz
+        document.getElementById('voiceType').addEventListener('change', () => {
+            const voiceLabel = getVoiceTypeLabel();
+            document.querySelector('textarea[placeholder*="variante"]').placeholder = 
+                `Escribe las letras para ${voiceLabel}...`;
+        });
+    </script>
+
+    <div style="margin-top: 40px; padding: 20px; background: #e9ecef; border-radius: 8px;">
+        <h3>📝 Notas de Testing v0.8.0 - Segunda Iteración</h3>
+        <ul>
+            <li><strong>🎭 Variantes por Voz:</strong> Cada tipo de voz puede tener letras de texto y sincronizaciones independientes</li>
+            <li><strong>📄 Archivos Compartidos:</strong> Los archivos (PDF, DOC, DOCX, TXT, JPG, PNG) son compartidos entre todas las variantes</li>
+            <li><strong>🎵 Canción Principal:</strong> Las letras sin variante específica se asocian a la canción principal</li>
+            <li><strong>🔄 Gestión Separada:</strong> Las sincronizaciones se manejan independientemente por variante</li>
+            <li><strong>🖼️ Nuevos Formatos:</strong> Soporte para imágenes JPG y PNG además de documentos</li>
+            <li><strong>⚡ API Mejorada:</strong> Endpoints actualizados con parámetros de voiceType</li>
+        </ul>
+    </div>
+</body>
+</html>

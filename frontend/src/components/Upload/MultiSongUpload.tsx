@@ -30,6 +30,8 @@ const MultiSongUpload: React.FC<MultiSongUploadProps> = ({ onUploadComplete, par
   // Estados
   const [files, setFiles] = useState<File[]>([]);
   const [voiceAssignments, setVoiceAssignments] = useState<VoiceAssignment[]>([]);
+  const [lyricsFiles, setLyricsFiles] = useState<File[]>([]);
+  const [lyricsText, setLyricsText] = useState('');
   const [metadata, setMetadata] = useState({
     title: '',
     artist: '',
@@ -55,7 +57,7 @@ const MultiSongUpload: React.FC<MultiSongUploadProps> = ({ onUploadComplete, par
     { value: 'ORIGINAL', label: 'Original', color: 'bg-gray-100 text-gray-800' }
   ];
 
-  // Configuración del dropzone
+  // Configuración del dropzone para archivos de audio
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     accept: {
       'audio/*': ['.mp3', '.wav', '.ogg', '.m4a', '.aac', '.flac']
@@ -96,6 +98,52 @@ const MultiSongUpload: React.FC<MultiSongUploadProps> = ({ onUploadComplete, par
     }, [])
   });
 
+  // Configuración del dropzone para archivos de letras
+  const { 
+    getRootProps: getLyricsRootProps, 
+    getInputProps: getLyricsInputProps, 
+    isDragActive: isLyricsDragActive 
+  } = useDropzone({
+    accept: {
+      'application/pdf': ['.pdf'],
+      'application/msword': ['.doc'],
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
+      'text/plain': ['.txt'],
+      'image/jpeg': ['.jpg', '.jpeg'],
+      'image/png': ['.png']
+    },
+    maxFiles: 5,
+    maxSize: 50 * 1024 * 1024, // 50MB
+    multiple: true,
+    noClick: false,
+    noKeyboard: false,
+    onDrop: useCallback((acceptedFiles: File[]) => {
+      const validFiles = acceptedFiles.filter(file => {
+        const isValidLyrics = ['.pdf', '.doc', '.docx', '.txt', '.jpg', '.jpeg', '.png']
+          .some(ext => file.name.toLowerCase().endsWith(ext)) || 
+          ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain', 'image/jpeg', 'image/png']
+          .includes(file.type);
+        
+        if (!isValidLyrics) {
+          toast.error(`${file.name} no es un formato de letras válido`);
+          return false;
+        }
+        
+        if (file.size > 50 * 1024 * 1024) {
+          toast.error(`${file.name} es muy grande (máximo 50MB)`);
+          return false;
+        }
+        
+        return true;
+      });
+
+      if (validFiles.length > 0) {
+        setLyricsFiles(prev => [...prev, ...validFiles]);
+        toast.success(`${validFiles.length} archivo(s) de letras agregado(s)`);
+      }
+    }, [])
+  });
+
   // Validaciones
   const allFilesAssigned = files.length > 0 && voiceAssignments.length === files.length && 
     voiceAssignments.every(assignment => assignment.voiceType);
@@ -109,6 +157,33 @@ const MultiSongUpload: React.FC<MultiSongUploadProps> = ({ onUploadComplete, par
           : assignment
       )
     );
+  };
+
+  // Funciones helper para archivos de letras
+  const removeLyricsFile = (filename: string) => {
+    setLyricsFiles(prev => prev.filter(file => file.name !== filename));
+  };
+
+  const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  const getLyricsFileIcon = (filename: string) => {
+    const ext = filename.toLowerCase().split('.').pop();
+    switch (ext) {
+      case 'pdf': return '📄';
+      case 'doc':
+      case 'docx': return '📝';
+      case 'txt': return '📃';
+      case 'jpg':
+      case 'jpeg':
+      case 'png': return '🖼️';
+      default: return '📎';
+    }
   };
 
   // Remover archivo
@@ -142,15 +217,31 @@ const MultiSongUpload: React.FC<MultiSongUploadProps> = ({ onUploadComplete, par
         formData.append('parentSongId', parentSongId);
       }
 
-      // Agregar todos los archivos
+      // Agregar todos los archivos de audio
       files.forEach((file, index) => {
-        console.log(`📎 Agregando archivo ${index + 1}:`, {
+        console.log(`📎 Agregando archivo de audio ${index + 1}:`, {
           name: file.name,
           size: file.size,
           type: file.type
         });
         formData.append('audio', file);
       });
+
+      // Agregar archivos de letras si existen
+      lyricsFiles.forEach((file, index) => {
+        console.log(`📝 Agregando archivo de letras ${index + 1}:`, {
+          name: file.name,
+          size: file.size,
+          type: file.type
+        });
+        formData.append('lyrics', file);
+      });
+
+      // Agregar texto de letras si existe
+      if (lyricsText.trim()) {
+        formData.append('lyricsText', lyricsText);
+        console.log('📄 Agregando texto de letras');
+      }
 
       // Debug del FormData
       console.log('📤 FormData preparado:', {
@@ -190,6 +281,8 @@ const MultiSongUpload: React.FC<MultiSongUploadProps> = ({ onUploadComplete, par
       // Limpiar estado
       setFiles([]);
       setVoiceAssignments([]);
+      setLyricsFiles([]);
+      setLyricsText('');
       setMetadata({ title: '', artist: '', album: '', genre: '' });
       setUploadProgress({ uploaded: 0, total: 0, percentage: 0 });
       
@@ -226,15 +319,6 @@ const MultiSongUpload: React.FC<MultiSongUploadProps> = ({ onUploadComplete, par
     }
 
     uploadMutation.mutate();
-  };
-
-  // Función para formatear el tamaño del archivo
-  const formatFileSize = (bytes: number): string => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
   return (
@@ -430,6 +514,103 @@ const MultiSongUpload: React.FC<MultiSongUploadProps> = ({ onUploadComplete, par
           </div>
         )}
 
+        {/* Sección de Letras */}
+        <div className="mt-8 space-y-6">
+          <div className="border-t pt-6">
+            <h3 className="text-lg font-semibold mb-4 text-gray-800 flex items-center">
+              📝 Agregar Letras
+              <span className="ml-2 text-sm font-normal text-gray-500">(Opcional)</span>
+            </h3>
+            
+            {/* Zona de arrastre para archivos de letras */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium mb-2">Archivos de letras (PDF, DOC, DOCX, TXT, JPG, PNG)</label>
+              <div
+                {...getLyricsRootProps()}
+                className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
+                  isLyricsDragActive 
+                    ? 'border-green-400 bg-green-50' 
+                    : 'border-gray-300 hover:border-gray-400'
+                }`}
+              >
+                <input {...getLyricsInputProps()} multiple accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png" />
+                <div className="space-y-2">
+                  <div className="text-3xl">📄</div>
+                  {isLyricsDragActive ? (
+                    <p className="text-green-600">Suelta los archivos de letras aquí...</p>
+                  ) : (
+                    <>
+                      <p className="text-gray-600">Arrastra archivos de letras aquí o haz clic para seleccionar</p>
+                      <p className="text-sm text-gray-500">
+                        PDF, DOC, DOCX, TXT, JPG, PNG • Máximo 5 archivos • 50MB por archivo
+                      </p>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Lista de archivos de letras */}
+            {lyricsFiles.length > 0 && (
+              <div className="mb-6">
+                <h4 className="font-medium mb-3">Archivos de letras ({lyricsFiles.length})</h4>
+                <div className="space-y-2 max-h-40 overflow-y-auto">
+                  {lyricsFiles.map((file, index) => (
+                    <div key={`lyrics-${file.name}-${index}`} className="flex items-center justify-between p-3 bg-gray-50 rounded-md">
+                      <div className="flex items-center space-x-3">
+                        <span className="text-2xl">{getLyricsFileIcon(file.name)}</span>
+                        <div>
+                          <p className="font-medium text-sm truncate">{file.name}</p>
+                          <p className="text-xs text-gray-500">{formatFileSize(file.size)}</p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => removeLyricsFile(file.name)}
+                        disabled={isUploading}
+                        className="text-red-500 hover:text-red-700 p-1 disabled:opacity-50"
+                        title="Remover archivo"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Área de texto para letras */}
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Texto de letras
+                <span className="text-xs text-gray-500 ml-1">(Se guardará como versión principal de la canción)</span>
+              </label>
+              <textarea
+                value={lyricsText}
+                onChange={(e) => setLyricsText(e.target.value)}
+                className="w-full h-32 border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-blue-500 resize-vertical"
+                placeholder="Escribe las letras de la canción aquí...
+
+Ejemplo:
+Verso 1:
+Amazing grace, how sweet the sound
+That saved a wretch like me
+I once was lost, but now I'm found
+Was blind, but now I see
+
+Coro:
+How sweet the sound
+That saved a wretch like me..."
+                disabled={isUploading}
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                💡 Las letras específicas para cada variante de voz se pueden configurar después de crear la canción.
+              </p>
+            </div>
+          </div>
+        </div>
+
         {/* Botones de acción */}
         <div className="mt-6">
           {/* Indicadores de validación */}
@@ -459,6 +640,8 @@ const MultiSongUpload: React.FC<MultiSongUploadProps> = ({ onUploadComplete, par
               onClick={() => {
                 setFiles([]);
                 setVoiceAssignments([]);
+                setLyricsFiles([]);
+                setLyricsText('');
                 setUploadProgress({ uploaded: 0, total: 0, percentage: 0 });
               }}
               disabled={files.length === 0 || isUploading}
