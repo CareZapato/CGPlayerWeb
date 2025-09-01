@@ -839,3 +839,107 @@
   background: rgba(255, 255, 255, 0.1);
   border-color: rgba(255, 255, 255, 0.2);
 }
+
+/* Estilos para drag & drop y controles adicionales */
+
+/* Controles de shuffle/repeat en desktop */
+.desktop-queue-controls {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+/* Controles de shuffle/repeat en móvil */
+.mobile-queue-controls {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  justify-content: center;
+}
+
+/* Badge para el botón de repeat one */
+.control-button__badge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  background: #3b82f6;
+  color: white;
+  font-size: 0.5rem;
+  font-weight: bold;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+/* Handle para arrastrar elementos */
+.desktop-queue-item__drag-handle {
+  cursor: grab;
+  padding: 0.25rem;
+  margin-right: 0.5rem;
+  border-radius: 0.25rem;
+  display: flex;
+  align-items: center;
+  transition: background-color 0.2s ease;
+}
+
+.desktop-queue-item__drag-handle:hover {
+  background-color: #f3f4f6;
+}
+
+.desktop-queue-item__drag-handle:active {
+  cursor: grabbing;
+}
+
+/* Estado de arrastre */
+.desktop-queue-item--dragging {
+  opacity: 0.5;
+  transform: rotate(5deg);
+}
+
+/* Botón de eliminar mejorado */
+.desktop-queue-item__remove,
+.queue-item__remove {
+  background: none;
+  border: none;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 0.25rem;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.desktop-queue-item__remove:hover,
+.queue-item__remove:hover {
+  color: #dc2626;
+  background-color: #fef2f2;
+}
+
+/* Header del panel de cola móvil */
+.queue-panel__header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+/* Control button activo */
+.control-button--active {
+  background-color: #3b82f6;
+  color: white;
+}
+
+.control-button--active:hover {
+  background-color: #2563eb;
+}
+
+/* Posición relativa para el badge */
+.control-button {
+  position: relative;
+}

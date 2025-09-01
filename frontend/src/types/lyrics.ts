@@ -61,6 +61,7 @@ export interface SongWithLyrics {
   title: string;
   artist?: string;
   voiceType?: VoiceType | null;
+  parentSongId?: string | null; // ID de la canción padre para variaciones
   hasLyricSync: boolean;
   lyricsFiles: LyricsFile[]; // Archivos compartidos entre variantes
   lyrics: Lyric[]; // Sincronizaciones por variante

@@ -108,27 +108,56 @@ router.get('/:songId', authenticateToken, async (req, res) => {
     const song = await (prisma as any).song.findUnique({
       where: { id: songId },
       include: {
-        lyricsFiles: {
-          where: { isActive: true },
-          orderBy: { createdAt: 'desc' }
-        },
-        lyrics: {
-          where: {
-            isActive: true,
-            ...(voiceType && voiceType !== 'main' ? { voiceType: voiceType as any } : 
-                voiceType === 'main' ? { voiceType: null } : {})
-          },
-          orderBy: [
-            { voiceType: 'asc' },
-            { createdAt: 'asc' }
-          ]
-        }
+        parentSong: true
       }
     });
 
     if (!song) {
       return res.status(404).json({ message: 'Canción no encontrada' });
     }
+
+    // Determinar el ID de la canción padre para buscar archivos
+    // Los archivos siempre están vinculados a la canción padre (sin voiceType)
+    const parentSongId = song.parentSongId || songId;
+
+    console.log('🔍 [LYRICS DEBUG] Song:', song.title);
+    console.log('🔍 [LYRICS DEBUG] Song ID:', songId);
+    console.log('🔍 [LYRICS DEBUG] Song voiceType:', song.voiceType);
+    console.log('🔍 [LYRICS DEBUG] Song parentSongId:', song.parentSongId);
+    console.log('🔍 [LYRICS DEBUG] Target parentSongId for files:', parentSongId);
+
+    // Buscar archivos de letras en la canción padre
+    const lyricsFiles = await (prisma as any).lyricsFile.findMany({
+      where: { 
+        songId: parentSongId,
+        isActive: true 
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    console.log('🔍 [LYRICS DEBUG] LyricsFiles found:', lyricsFiles.length);
+    lyricsFiles.forEach((file: any, index: number) => {
+      console.log(`🔍 [LYRICS DEBUG] File ${index + 1}:`, {
+        id: file.id,
+        fileName: file.fileName,
+        songId: file.songId,
+        fileType: file.fileType
+      });
+    });
+
+    // Buscar letras sincronizadas para esta canción específica
+    const lyrics = await (prisma as any).lyric.findMany({
+      where: {
+        songId: songId, // Las letras sync son específicas para cada variación
+        isActive: true,
+        ...(voiceType && voiceType !== 'main' ? { voiceType: voiceType as any } : 
+            voiceType === 'main' ? { voiceType: null } : {})
+      },
+      orderBy: [
+        { voiceType: 'asc' },
+        { createdAt: 'asc' }
+      ]
+    });
 
     res.json({
       success: true,
@@ -137,9 +166,10 @@ router.get('/:songId', authenticateToken, async (req, res) => {
         title: song.title,
         artist: song.artist,
         voiceType: song.voiceType,
-        hasLyricSync: (song as any).hasLyricSync,
-        lyricsFiles: (song as any).lyricsFiles,
-        lyrics: (song as any).lyrics
+        hasLyricSync: song.hasLyricSync,
+        lyricsFiles: lyricsFiles,
+        lyrics: lyrics,
+        parentSongId: song.parentSongId // Incluir información de la canción padre
       }
     });
   } catch (error) {
@@ -159,20 +189,27 @@ router.post('/:songId/file', authenticateToken, upload.single('lyrics'), async (
       return res.status(400).json({ message: 'No se proporcionó ningún archivo' });
     }
 
-    // Verificar que la canción existe
+    // Verificar que la canción existe y obtener información de la canción padre
     const song = await prisma.song.findUnique({
-      where: { id: songId }
+      where: { id: songId },
+      include: {
+        parentSong: true
+      }
     });
 
     if (!song) {
       return res.status(404).json({ message: 'Canción no encontrada' });
     }
 
-    // Crear registro del archivo en la base de datos
+    // Determinar el ID de la canción padre para vincular el archivo
+    // Los archivos siempre se vinculan a la canción padre (sin voiceType)
+    const targetSongId = song.parentSongId || songId;
+
+    // Crear registro del archivo en la base de datos vinculado a la canción padre
     const lyricsFileModel = (prisma as any).lyricsFile;
     const lyricsFile = await lyricsFileModel.create({
       data: {
-        songId,
+        songId: targetSongId, // Siempre vincular a la canción padre
         fileName: file.originalname,
         filePath: `/uploads/lyrics/${file.filename}`,
         fileSize: file.size,
@@ -185,7 +222,8 @@ router.post('/:songId/file', authenticateToken, upload.single('lyrics'), async (
     res.json({
       success: true,
       message: 'Archivo de letras subido exitosamente',
-      file: lyricsFile
+      file: lyricsFile,
+      linkedToParent: song.parentSongId ? true : false // Indicar si se vinculó a padre
     });
   } catch (error) {
     console.error('Error uploading lyrics file:', error);

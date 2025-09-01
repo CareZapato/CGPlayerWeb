@@ -4,15 +4,113 @@ import { usePlaylistStore } from '../../store/playlistStore';
 import { useMediaSession } from '../../hooks/useMediaSession';
 import { updateFavicon, resetFavicon } from '../../utils/favicon';
 import { useLyrics } from '../../hooks/useLyrics';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable
+} from '@dnd-kit/sortable';
+import {
+  CSS
+} from '@dnd-kit/utilities';
 import type { Song, VoiceType } from '../../types';
 import './StickyPlayer.css';
+
+// Componente para elemento sorteable de la cola
+interface SortableQueueItemProps {
+  song: Song;
+  index: number;
+  isCurrentSong: boolean;
+  onRemove: () => void;
+}
+
+const SortableQueueItem: React.FC<SortableQueueItemProps> = ({
+  song,
+  index,
+  isCurrentSong,
+  onRemove
+}) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging
+  } = useSortable({ 
+    id: `${song.id}-${index}`,
+    disabled: isCurrentSong // No permitir arrastrar la canción actual
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1
+  };
+
+  return (
+    <div 
+      ref={setNodeRef}
+      style={style}
+      className={`desktop-queue-item ${isCurrentSong ? 'desktop-queue-item--current' : ''} ${isDragging ? 'desktop-queue-item--dragging' : ''}`}
+    >
+      <div className="desktop-queue-item__info">
+        {/* Handle de arrastre */}
+        {!isCurrentSong && (
+          <div 
+            {...attributes} 
+            {...listeners}
+            className="desktop-queue-item__drag-handle"
+          >
+            <ArrowsUpDownIcon className="h-4 w-4 text-gray-400" />
+          </div>
+        )}
+        
+        <div className="song-info__avatar" style={{ width: '2rem', height: '2rem' }}>
+          <div className="song-info__avatar-circle" style={{ width: '2rem', height: '2rem' }}>
+            <span className="song-info__avatar-text" style={{ fontSize: '0.75rem' }}>
+              {song.title.charAt(0).toUpperCase()}
+            </span>
+          </div>
+        </div>
+        
+        <div className="flex-1 min-w-0">
+          <p className="desktop-queue-item__title">{song.title}</p>
+          {song.artist && (
+            <p className="desktop-queue-item__subtitle">{song.artist}</p>
+          )}
+        </div>
+        
+        {/* Botón de eliminar */}
+        {!isCurrentSong && (
+          <button
+            onClick={onRemove}
+            className="desktop-queue-item__remove"
+          >
+            <TrashIcon className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+    </div>
+  );
+};
 
 // Componente inline para evitar problemas de importación
 interface LyricsViewerInlineProps {
   song: Song;
+  isDesktop?: boolean;
 }
 
-const LyricsViewerInline: React.FC<LyricsViewerInlineProps> = ({ song }) => {
+const LyricsViewerInline: React.FC<LyricsViewerInlineProps> = ({ song, isDesktop = true }) => {
   const [displayMode, setDisplayMode] = useState<'sync' | 'files'>('sync');
   const [selectedVoiceType, setSelectedVoiceType] = useState<VoiceType | null>(null);
   const [activeLineIndex, setActiveLineIndex] = useState<number>(-1);
@@ -23,7 +121,7 @@ const LyricsViewerInline: React.FC<LyricsViewerInlineProps> = ({ song }) => {
     isLoading, 
     loadLyrics, 
     loadSyncedLyrics
-  } = useLyrics();
+  } = useLyrics(song?.id);
   
   const { currentTime, seekTo, isPlaying } = usePlayerStore();
   const activeLineRef = useRef<HTMLDivElement>(null);
@@ -31,27 +129,90 @@ const LyricsViewerInline: React.FC<LyricsViewerInlineProps> = ({ song }) => {
   // Cargar letras cuando cambie la canción
   useEffect(() => {
     if (song?.id) {
+      console.log('🎵 Loading lyrics for song:', song.title, 'ID:', song.id);
       loadLyrics(song.id);
       loadSyncedLyrics(song.id);
     }
   }, [song?.id, loadLyrics, loadSyncedLyrics]);
 
-  // Obtener letras filtradas por voiceType
-  const filteredLyrics = (Array.isArray(syncedLyrics) ? syncedLyrics : []).filter(lyric => 
-    lyric.voiceType === selectedVoiceType && !lyric.isTextLyrics
-  ).sort((a, b) => a.lineNumber - b.lineNumber);
+  // Debug: Log lyrics data when it changes
+  useEffect(() => {
+    if (lyrics) {
+      console.log('📄 [FRONTEND] Lyrics loaded:', lyrics);
+      console.log('📁 [FRONTEND] LyricsFiles count:', lyrics.lyricsFiles?.length || 0);
+      console.log('📁 [FRONTEND] LyricsFiles:', lyrics.lyricsFiles);
+      console.log('📁 [FRONTEND] Song parentSongId:', (lyrics as any).parentSongId);
+      console.log('📁 [FRONTEND] Song voiceType:', lyrics.voiceType);
+      console.log('📱 [FRONTEND] Device type:', isDesktop ? 'Desktop' : 'Mobile');
+      
+      // Debug específico para Don't Cry
+      if (song?.title?.toLowerCase().includes('cry')) {
+        console.log('🔍 [DON\'T CRY DEBUG] Full lyrics object:', JSON.stringify(lyrics, null, 2));
+        console.log('🔍 [DON\'T CRY DEBUG] Current song details:', {
+          id: song.id,
+          title: song.title,
+          voiceType: song.voiceType,
+          parentSongId: (song as any).parentSongId
+        });
+      }
+    }
+  }, [lyrics, song, isDesktop]);
 
-  // Verificar si hay sincronización
-  const hasSyncData = filteredLyrics.some(lyric => 
-    lyric.startTime !== undefined && lyric.startTime !== null && lyric.startTime > 0
-  );
+  // Obtener letras filtradas por voiceType
+  const filteredLyrics = (Array.isArray(syncedLyrics) ? syncedLyrics : []).filter(lyric => {
+    // Si no hay voiceType seleccionado, mostrar todas las letras
+    if (selectedVoiceType === null) {
+      return true;
+    }
+    // Si hay voiceType seleccionado, filtrar por ese tipo
+    return lyric.voiceType === selectedVoiceType;
+  }).sort((a, b) => a.lineNumber - b.lineNumber);
+
+  // Función para identificar si una canción tiene datos de sincronización válidos
+  const getSyncStatus = () => {
+    const hasAnyTimeData = filteredLyrics.some(lyric => 
+      lyric.startTime !== undefined && lyric.startTime !== null
+    );
+    
+    const hasRealSyncData = filteredLyrics.some(lyric => 
+      lyric.startTime !== undefined && lyric.startTime !== null && lyric.startTime > 0
+    );
+    
+    const hasZeroTimeData = filteredLyrics.some(lyric => 
+      lyric.startTime !== undefined && lyric.startTime !== null && lyric.startTime === 0
+    );
+    
+    return {
+      hasAnyTimeData,
+      hasRealSyncData,
+      hasZeroTimeData,
+      hasOnlyZeroTime: hasZeroTimeData && !hasRealSyncData
+    };
+  };
+  
+  const syncStatus = getSyncStatus();
+  
+  // Debug: Log sync status
+  useEffect(() => {
+    if (filteredLyrics.length > 0) {
+      console.log('🔄 [SYNC STATUS]', {
+        totalLyrics: filteredLyrics.length,
+        syncStatus,
+        songTitle: song?.title
+      });
+    }
+  }, [filteredLyrics, song?.title]);
+
+  // Separar letras sincronizadas de letras de texto
+  const syncedOnlyLyrics = filteredLyrics.filter(lyric => !lyric.isTextLyrics);
+  const textOnlyLyrics = filteredLyrics.filter(lyric => lyric.isTextLyrics);
 
   // Obtener archivos de letras de la canción principal
   const lyricsFiles = lyrics?.lyricsFiles || [];
 
-  // Encontrar línea activa
+  // Encontrar línea activa (solo si hay sincronización real con tiempo > 0)
   useEffect(() => {
-    if (!hasSyncData || !isPlaying) {
+    if (!syncStatus.hasRealSyncData || !isPlaying) {
       setActiveLineIndex(-1);
       return;
     }
@@ -67,7 +228,7 @@ const LyricsViewerInline: React.FC<LyricsViewerInlineProps> = ({ song }) => {
     if (activeIndex !== activeLineIndex) {
       setActiveLineIndex(activeIndex);
     }
-  }, [currentTime, filteredLyrics, hasSyncData, isPlaying, activeLineIndex]);
+  }, [currentTime, filteredLyrics, syncStatus.hasRealSyncData, isPlaying, activeLineIndex]);
 
   // Auto-scroll
   useEffect(() => {
@@ -108,7 +269,7 @@ const LyricsViewerInline: React.FC<LyricsViewerInlineProps> = ({ song }) => {
 
   const availableVoiceTypes = [...new Set(
     (Array.isArray(syncedLyrics) ? syncedLyrics : [])
-      .filter(l => l.voiceType !== null && !l.isTextLyrics)
+      .filter(l => l.voiceType !== null)
       .map(l => l.voiceType)
   )] as VoiceType[];
 
@@ -178,83 +339,278 @@ const LyricsViewerInline: React.FC<LyricsViewerInlineProps> = ({ song }) => {
       )}
 
       {/* Content */}
-      <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+      <div style={{ maxHeight: '500px', overflowY: 'auto' }} className="scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
         {displayMode === 'sync' ? (
-          // Synchronized lyrics
+          // Synchronized and text lyrics
           <div className="space-y-2">
             {filteredLyrics.length > 0 ? (
-              filteredLyrics.map((lyric, index) => (
-                <div
-                  key={lyric.id}
-                  ref={index === activeLineIndex ? activeLineRef : null}
-                  onClick={() => handleLineClick(lyric)}
-                  className={`p-3 rounded-lg transition-all border ${
-                    index === activeLineIndex && hasSyncData
-                      ? 'bg-blue-100 border-blue-300 text-blue-900 shadow-md'
-                      : hasSyncData && lyric.startTime !== undefined && lyric.startTime !== null && lyric.startTime > 0
-                        ? 'bg-gray-50 border-gray-200 hover:bg-gray-100 cursor-pointer hover:shadow-sm'
-                        : 'bg-white border-gray-200 text-gray-600'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <p className={`font-medium ${
-                        index === activeLineIndex && hasSyncData 
-                          ? 'text-blue-900' 
-                          : 'text-gray-900'
-                      }`}>
-                        {lyric.content}
-                      </p>
-                      {lyric.voiceType && (
-                        <div className="mt-1">
-                          <span className={`text-xs px-2 py-1 rounded ${getVoiceTypeColor(lyric.voiceType)}`}>
-                            {lyric.voiceType.replace('_', ' ')}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                    {hasSyncData && lyric.startTime !== undefined && lyric.startTime !== null && lyric.startTime > 0 && (
-                      <div className="flex items-center space-x-2">
-                        <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                          {formatTime(lyric.startTime)}
-                        </span>
-                        {index === activeLineIndex && (
-                          <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-                        )}
+              <>
+                {/* Mostrar advertencia si solo hay letras con tiempo 0 */}
+                {syncStatus.hasOnlyZeroTime && (
+                  <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                    <div className="flex items-center space-x-2">
+                      <div className="w-4 h-4 bg-amber-400 rounded-full flex items-center justify-center">
+                        <span className="text-xs text-white">!</span>
                       </div>
-                    )}
+                      <p className="text-sm text-amber-700">
+                        <strong>Letras sin sincronizar:</strong> Esta canción tiene letras pero sin tiempos de sincronización válidos.
+                      </p>
+                    </div>
                   </div>
-                </div>
-              ))
+                )}
+
+                {/* Mostrar advertencia si hay datos en BD pero no se ven */}
+                {syncedOnlyLyrics.length === 0 && textOnlyLyrics.length === 0 && (
+                  <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="flex items-center space-x-2">
+                      <div className="w-4 h-4 bg-blue-400 rounded-full flex items-center justify-center">
+                        <span className="text-xs text-white">i</span>
+                      </div>
+                      <p className="text-sm text-blue-700">
+                        <strong>Debug:</strong> No se encontraron letras sincronizadas en la respuesta del servidor.
+                      </p>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Mostrar letras sincronizadas */}
+                {syncedOnlyLyrics.length > 0 && (
+                  <div className="space-y-2">
+                    <h4 className="text-sm font-semibold text-gray-700 border-b pb-1">
+                      Letras Sincronizadas
+                    </h4>
+                    {syncedOnlyLyrics.map((lyric, index) => {
+                      // Determinar si es línea activa (solo para letras con tiempo real > 0)
+                      const isActiveLine = syncStatus.hasRealSyncData && 
+                        lyric.startTime !== undefined && 
+                        lyric.startTime !== null && 
+                        lyric.startTime > 0 &&
+                        currentTime >= lyric.startTime && 
+                        (syncedOnlyLyrics[index + 1]?.startTime === undefined || 
+                         syncedOnlyLyrics[index + 1]?.startTime === null || 
+                         currentTime < (syncedOnlyLyrics[index + 1]?.startTime || Infinity));
+                      
+                      // Determinar si tiene tiempo definido (incluso 0)
+                      const hasTimeData = lyric.startTime !== undefined && lyric.startTime !== null;
+                      const isZeroTime = hasTimeData && lyric.startTime === 0;
+                      const isValidTime = hasTimeData && (lyric.startTime || 0) > 0;
+                      
+                      return (
+                        <div
+                          key={lyric.id}
+                          ref={isActiveLine ? activeLineRef : null}
+                          onClick={() => handleLineClick(lyric)}
+                          className={`p-3 rounded-lg transition-all border ${
+                            isActiveLine
+                              ? 'bg-blue-100 border-blue-300 text-blue-900 shadow-md'
+                              : isValidTime
+                                ? 'bg-gray-50 border-gray-200 hover:bg-gray-100 cursor-pointer hover:shadow-sm'
+                                : isZeroTime
+                                  ? 'bg-amber-50 border-amber-200 text-gray-800'
+                                  : 'bg-white border-gray-200 text-gray-600'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <p className={`font-medium ${
+                                isActiveLine ? 'text-blue-900' : 'text-gray-900'
+                              }`}>
+                                {lyric.content}
+                              </p>
+                              {lyric.voiceType && (
+                                <div className="mt-1">
+                                  <span className={`text-xs px-2 py-1 rounded ${getVoiceTypeColor(lyric.voiceType)}`}>
+                                    {lyric.voiceType.replace('_', ' ')}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                            {hasTimeData && (
+                              <div className="flex items-center space-x-2">
+                                <span className={`text-xs px-2 py-1 rounded ${
+                                  isValidTime 
+                                    ? 'text-gray-500 bg-gray-100' 
+                                    : 'text-amber-700 bg-amber-100'
+                                }`}>
+                                  {formatTime(lyric.startTime || 0)}
+                                </span>
+                                {isZeroTime && (
+                                  <span className="text-xs text-amber-600 bg-amber-100 px-2 py-1 rounded">
+                                    Sin sincronizar
+                                  </span>
+                                )}
+                                {isActiveLine && (
+                                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+                
+                {/* Mostrar letras de texto */}
+                {textOnlyLyrics.length > 0 && (
+                  <div className="space-y-2 mt-4">
+                    <h4 className="text-sm font-semibold text-gray-700 border-b pb-1">
+                      Letras de Texto
+                    </h4>
+                    {textOnlyLyrics.map((lyric) => (
+                      <div
+                        key={lyric.id}
+                        className="p-3 rounded-lg border bg-yellow-50 border-yellow-200 text-gray-800"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <p className="font-medium text-gray-900">
+                              {lyric.content}
+                            </p>
+                            {lyric.voiceType && (
+                              <div className="mt-1">
+                                <span className={`text-xs px-2 py-1 rounded ${getVoiceTypeColor(lyric.voiceType)}`}>
+                                  {lyric.voiceType.replace('_', ' ')}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
             ) : (
               <div className="text-center text-gray-500 py-8">
-                <p>No hay letras sincronizadas disponibles</p>
+                <p>No hay letras disponibles</p>
+                <p className="text-sm mt-1">Prueba cambiar el filtro de voz o revisa los archivos de letras</p>
               </div>
             )}
           </div>
         ) : (
-          // Files mode
-          <div className="space-y-2">
+          // Files mode - Mejorado para mostrar PDFs e imágenes
+          <div className="space-y-3">
+            {/* Debug info para archivos */}
+            {song?.title?.toLowerCase().includes('cry') && (
+              <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-700">
+                  <strong>Debug - Don't Cry:</strong>
+                </p>
+                <p className="text-xs text-blue-600 mt-1">
+                  Archivos encontrados: {lyricsFiles.length}
+                </p>
+                <p className="text-xs text-blue-600">
+                  Song ID: {song?.id}
+                </p>
+                <p className="text-xs text-blue-600">
+                  Voice Type: {song?.voiceType || 'No definido'}
+                </p>
+                <p className="text-xs text-blue-600">
+                  Parent Song ID: {(lyrics as any)?.parentSongId || 'No definido'}
+                </p>
+              </div>
+            )}
+            
             {lyricsFiles.length > 0 ? (
-              lyricsFiles.map(file => (
-                <div
-                  key={file.id}
-                  className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer"
-                  onClick={() => window.open(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/lyrics/files/${file.id}`, '_blank')}
-                >
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-gray-900 truncate">
-                      {file.fileName}
-                    </p>
-                    <p className="text-sm text-gray-500">
-                      {file.fileType.replace('_', ' ')}
-                    </p>
+              lyricsFiles.map(file => {
+                // Construir URL del archivo con token de autenticación
+                const token = localStorage.getItem('token');
+                const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+                const fileUrl = `${baseUrl}/lyrics/files/${file.id}${token ? `?token=${token}` : ''}`;
+                
+                const isPDF = file.fileType === 'PDF';
+                const isImage = file.fileType === 'IMAGE_JPG' || file.fileType === 'IMAGE_PNG';
+                
+                return (
+                  <div
+                    key={file.id}
+                    className="border border-gray-200 rounded-lg overflow-hidden bg-white hover:shadow-md transition-shadow"
+                  >
+                    {/* Header del archivo */}
+                    <div className="p-3 bg-gray-50 border-b">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-3">
+                          <div className={`w-8 h-8 rounded flex items-center justify-center text-white text-sm font-bold ${
+                            isPDF ? 'bg-red-500' : isImage ? 'bg-green-500' : 'bg-blue-500'
+                          }`}>
+                            {isPDF ? 'PDF' : isImage ? 'IMG' : 'DOC'}
+                          </div>
+                          <div>
+                            <p className="font-medium text-gray-900 truncate">
+                              {file.fileName}
+                            </p>
+                            <p className="text-sm text-gray-500">
+                              {file.fileType.replace('_', ' ')}
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => window.open(fileUrl, '_blank')}
+                          className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
+                        >
+                          Abrir
+                        </button>
+                      </div>
+                    </div>
+                    
+                    {/* Preview del contenido */}
+                    <div className="p-3">
+                      {isPDF ? (
+                        <div className="bg-gray-100 rounded p-4 text-center">
+                          <p className="text-gray-600 mb-2">Vista previa de PDF</p>
+                          <iframe
+                            src={fileUrl}
+                            className="w-full h-80 border rounded"
+                            title={`PDF: ${file.fileName}`}
+                          />
+                        </div>
+                      ) : isImage ? (
+                        <div className="text-center">
+                          <img
+                            src={fileUrl}
+                            alt={file.fileName}
+                            className="max-w-full h-48 object-contain mx-auto rounded"
+                            onError={(e) => {
+                              const target = e.currentTarget as HTMLImageElement;
+                              const fallbackDiv = target.nextElementSibling as HTMLDivElement;
+                              target.style.display = 'none';
+                              if (fallbackDiv) {
+                                fallbackDiv.style.display = 'block';
+                              }
+                            }}
+                          />
+                          <div className="hidden bg-gray-100 rounded p-4 text-gray-600">
+                            No se pudo cargar la imagen
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="bg-gray-100 rounded p-4 text-center text-gray-600">
+                          Tipo de archivo no soportado para vista previa
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))
+                );
+              })
             ) : (
               <div className="text-center text-gray-500 py-8">
                 <p>No hay archivos de letras disponibles</p>
+                <p className="text-sm mt-1">Sube archivos PDF o imágenes con las letras</p>
+                
+                {/* Información adicional de debug */}
+                {song?.title?.toLowerCase().includes('cry') && (
+                  <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-left">
+                    <p className="text-sm text-red-700 font-semibold">Debug Info - Don't Cry:</p>
+                    <p className="text-xs text-red-600 mt-1">
+                      • Backend debería retornar archivos del padre<br/>
+                      • Song ID actual: {song?.id}<br/>
+                      • Voice Type: {song?.voiceType || 'ORIGINAL'}<br/>
+                      • Parent Song ID esperado: {(lyrics as any)?.parentSongId || 'No encontrado'}<br/>
+                      • Archivos en respuesta: {lyrics?.lyricsFiles?.length || 0}
+                    </p>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -263,7 +619,7 @@ const LyricsViewerInline: React.FC<LyricsViewerInlineProps> = ({ song }) => {
     </div>
   );
 };
-import { 
+import {
   PlayIcon,
   PauseIcon,
   BackwardIcon,
@@ -272,10 +628,14 @@ import {
   SpeakerXMarkIcon,
   QueueListIcon,
   DocumentTextIcon,
-  XMarkIcon
+  XMarkIcon,
+  ArrowsUpDownIcon,
+  ArrowPathIcon,
+  TrashIcon
 } from '@heroicons/react/24/outline';
-
-const StickyPlayer: React.FC = () => {
+import {
+  ArrowPathIcon as ArrowPathIconSolid
+} from '@heroicons/react/24/solid';const StickyPlayer: React.FC = () => {
   const {
     isPlaying,
     currentSong,
@@ -292,8 +652,22 @@ const StickyPlayer: React.FC = () => {
     queue,
     currentIndex,
     nextSong,
-    previousSong
+    previousSong,
+    isShuffled,
+    repeatMode,
+    toggleShuffle,
+    toggleRepeat,
+    moveInQueue,
+    removeFromQueue: removeFromQueueByID
   } = usePlaylistStore();
+
+  // Configurar sensores para drag & drop - debe estar antes de los useState
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   const [isMuted, setIsMuted] = useState(false);
   const [previousVolume, setPreviousVolume] = useState(volume);
@@ -378,6 +752,20 @@ const StickyPlayer: React.FC = () => {
     }
   };
 
+  // Manejar finalización del drag & drop
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (active.id !== over?.id && over) {
+      const oldIndex = queue.findIndex((song, index) => `${song.id}-${index}` === active.id);
+      const newIndex = queue.findIndex((song, index) => `${song.id}-${index}` === over.id);
+
+      if (oldIndex !== -1 && newIndex !== -1) {
+        moveInQueue(oldIndex, newIndex);
+      }
+    }
+  };
+
   const toggleMute = () => {
     if (isMuted) {
       setVolume(previousVolume);
@@ -390,8 +778,10 @@ const StickyPlayer: React.FC = () => {
   };
 
   const removeFromQueue = (index: number) => {
-    // Esta función debería estar implementada en el store
-    console.log('Removing song at index:', index);
+    const song = queue[index];
+    if (song) {
+      removeFromQueueByID(song.id);
+    }
   };
 
   return (
@@ -548,7 +938,7 @@ const StickyPlayer: React.FC = () => {
                 </h3>
               </div>
               <div className="desktop-lyrics-content">
-                <LyricsViewerInline song={currentSong} />
+                <LyricsViewerInline song={currentSong} isDesktop={isDesktop} />
               </div>
             </div>
             
@@ -558,81 +948,55 @@ const StickyPlayer: React.FC = () => {
                 <h4 className="text-lg font-semibold text-gray-900 mb-3">
                   Cola de reproducción ({queue.length})
                 </h4>
+                
+                {/* Controles de shuffle y repeat */}
+                <div className="desktop-queue-controls">
+                  <button
+                    onClick={toggleShuffle}
+                    className={`control-button ${isShuffled ? 'control-button--active' : ''}`}
+                    title="Reproducción aleatoria"
+                  >
+                    <ArrowsUpDownIcon className="control-button__icon" />
+                  </button>
+                  
+                  <button
+                    onClick={toggleRepeat}
+                    className={`control-button ${repeatMode !== 'off' ? 'control-button--active' : ''}`}
+                    title={`Repetir: ${repeatMode === 'off' ? 'desactivado' : repeatMode === 'all' ? 'toda la lista' : 'canción actual'}`}
+                  >
+                    {repeatMode === 'one' ? (
+                      <ArrowPathIconSolid className="control-button__icon" />
+                    ) : (
+                      <ArrowPathIcon className="control-button__icon" />
+                    )}
+                    {repeatMode === 'one' && (
+                      <span className="control-button__badge">1</span>
+                    )}
+                  </button>
+                </div>
               </div>
               
               <div className="desktop-queue-list">
-                {queue.map((song, index) => (
-                  <div 
-                    key={`${song.id}-${index}`}
-                    className={`desktop-queue-item ${index === currentIndex ? 'desktop-queue-item--current' : ''}`}
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleDragEnd}
+                >
+                  <SortableContext
+                    items={queue.map((song, index) => `${song.id}-${index}`)}
+                    strategy={verticalListSortingStrategy}
                   >
-                    <div className="desktop-queue-item__info">
-                      <div className="song-info__avatar" style={{ width: '2rem', height: '2rem' }}>
-                        <div className="song-info__avatar-circle" style={{ width: '2rem', height: '2rem' }}>
-                          <span className="song-info__avatar-text" style={{ fontSize: '0.75rem' }}>
-                            {song.title.charAt(0).toUpperCase()}
-                          </span>
-                        </div>
-                      </div>
-                      
-                      <div className="flex-1 min-w-0">
-                        <p className="desktop-queue-item__title">{song.title}</p>
-                        {song.artist && (
-                          <p className="desktop-queue-item__subtitle">{song.artist}</p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              
-              {/* Controles de reproducción en desktop expandido */}
-              <div className="desktop-controls">
-                <div className="desktop-controls__playback">
-                  <button
-                    onClick={handlePrevious}
-                    disabled={currentIndex <= 0 || queue.length <= 1}
-                    className="control-button"
-                  >
-                    <BackwardIcon className="control-button__icon" />
-                  </button>
-                  
-                  <button
-                    onClick={isPlaying ? pause : play}
-                    className="control-button control-button--primary"
-                  >
-                    {isPlaying ? (
-                      <PauseIcon className="control-button__icon" />
-                    ) : (
-                      <PlayIcon className="control-button__icon" style={{ marginLeft: '2px' }} />
-                    )}
-                  </button>
-                  
-                  <button
-                    onClick={handleNext}
-                    disabled={currentIndex >= queue.length - 1 || queue.length <= 1}
-                    className="control-button"
-                  >
-                    <ForwardIcon className="control-button__icon" />
-                  </button>
-                </div>
-                
-                {/* Barra de progreso en desktop expandido */}
-                <div className="desktop-progress">
-                  <div className="flex justify-between text-xs text-gray-600 mb-1">
-                    <span>{formatTime(currentTime)}</span>
-                    <span>{formatTime(duration)}</span>
-                  </div>
-                  <div 
-                    className="progress-bar cursor-pointer"
-                    onClick={handleProgressClick}
-                  >
-                    <div 
-                      className="progress-bar__fill"
-                      style={{ width: `${progressPercentage}%` }}
-                    />
-                  </div>
-                </div>
+                    {queue.map((song, index) => (
+                      <SortableQueueItem
+                        key={`${song.id}-${index}`}
+                        song={song}
+                        index={index}
+                        isCurrentSong={index === currentIndex}
+                        onRemove={() => removeFromQueue(index)}
+                      />
+                    ))}
+                  </SortableContext>
+                </DndContext>
               </div>
             </div>
           </div>
@@ -642,9 +1006,37 @@ const StickyPlayer: React.FC = () => {
       {/* Panel expandido de la cola (solo móvil) */}
       {isQueueVisible && !isDesktop && (
         <div className="queue-panel">
-          <h3 className="text-lg font-semibold text-gray-900 mb-3">
-            Cola de reproducción ({queue.length} canciones)
-          </h3>
+          <div className="queue-panel__header">
+            <h3 className="text-lg font-semibold text-gray-900 mb-3">
+              Cola de reproducción ({queue.length} canciones)
+            </h3>
+            
+            {/* Controles de shuffle y repeat móvil */}
+            <div className="mobile-queue-controls">
+              <button
+                onClick={toggleShuffle}
+                className={`control-button ${isShuffled ? 'control-button--active' : ''}`}
+                title="Reproducción aleatoria"
+              >
+                <ArrowsUpDownIcon className="control-button__icon" />
+              </button>
+              
+              <button
+                onClick={toggleRepeat}
+                className={`control-button ${repeatMode !== 'off' ? 'control-button--active' : ''}`}
+                title={`Repetir: ${repeatMode === 'off' ? 'desactivado' : repeatMode === 'all' ? 'toda la lista' : 'canción actual'}`}
+              >
+                {repeatMode === 'one' ? (
+                  <ArrowPathIconSolid className="control-button__icon" />
+                ) : (
+                  <ArrowPathIcon className="control-button__icon" />
+                )}
+                {repeatMode === 'one' && (
+                  <span className="control-button__badge">1</span>
+                )}
+              </button>
+            </div>
+          </div>
           
           <div className="space-y-2">
             {queue.map((song, index) => (
@@ -674,7 +1066,7 @@ const StickyPlayer: React.FC = () => {
                     onClick={() => removeFromQueue(index)}
                     className="queue-item__remove"
                   >
-                    ×
+                    <TrashIcon className="h-4 w-4" />
                   </button>
                 )}
               </div>
@@ -699,7 +1091,7 @@ const StickyPlayer: React.FC = () => {
           </div>
           
           <div className="p-4">
-            <LyricsViewerInline song={currentSong} />
+            <LyricsViewerInline song={currentSong} isDesktop={isDesktop} />
           </div>
         </div>
       )}
@@ -740,7 +1132,7 @@ const StickyPlayer: React.FC = () => {
           
           {/* Contenido de letras */}
           <div className="mobile-fullscreen-lyrics">
-            <LyricsViewerInline song={currentSong} />
+            <LyricsViewerInline song={currentSong} isDesktop={false} />
           </div>
           
           {/* Barra de progreso */}

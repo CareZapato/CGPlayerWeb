@@ -14,6 +14,8 @@ class LyricsService {
   // Obtener letras de una canción
   async getLyrics(songId: string): Promise<SongWithLyrics> {
     try {
+      console.log('🌐 [LYRICS SERVICE] Requesting lyrics for songId:', songId);
+      
       const response = await fetch(`${API_BASE_URL}/lyrics/${songId}`, {
         headers: this.getAuthHeaders()
       });
@@ -22,7 +24,36 @@ class LyricsService {
         throw new Error(`Error ${response.status}: ${response.statusText}`);
       }
       
-      return await response.json();
+      const data = await response.json();
+      console.log('🌐 [LYRICS SERVICE] Response received:', data);
+      
+      // El backend devuelve { success: true, song: {...} }
+      // Necesitamos extraer y transformar la respuesta
+      if (data.success && data.song) {
+        const songData = data.song;
+        
+        console.log('🌐 [LYRICS SERVICE] Song data:', songData);
+        console.log('🌐 [LYRICS SERVICE] LyricsFiles in song:', songData.lyricsFiles);
+        
+        // Transformar a la estructura esperada por el frontend
+        const transformedData: SongWithLyrics = {
+          id: songData.id,
+          title: songData.title,
+          artist: songData.artist,
+          voiceType: songData.voiceType,
+          parentSongId: songData.parentSongId,
+          hasLyricSync: songData.hasLyricSync,
+          lyricsFiles: songData.lyricsFiles || [],
+          lyrics: songData.lyrics || []
+        };
+        
+        console.log('🌐 [LYRICS SERVICE] Transformed data:', transformedData);
+        console.log('🌐 [LYRICS SERVICE] Final lyricsFiles count:', transformedData.lyricsFiles.length);
+        
+        return transformedData;
+      } else {
+        throw new Error('Invalid response format from backend');
+      }
     } catch (error) {
       console.error('Error fetching lyrics:', error);
       throw error;
@@ -98,6 +129,8 @@ class LyricsService {
   // Obtener líneas sincronizadas de letras
   async getSyncedLyrics(songId: string): Promise<Lyric[]> {
     try {
+      console.log('🌐 [LYRICS SERVICE] Requesting synced lyrics for songId:', songId);
+      
       const response = await fetch(`${API_BASE_URL}/lyrics/${songId}/sync`, {
         headers: this.getAuthHeaders()
       });
@@ -106,7 +139,20 @@ class LyricsService {
         throw new Error(`Error ${response.status}: ${response.statusText}`);
       }
       
-      return await response.json();
+      const data = await response.json();
+      console.log('🌐 [LYRICS SERVICE] Synced lyrics response:', data);
+      
+      // El backend puede devolver { success: true, lyrics: [...] } o directamente [...]
+      if (data.success && Array.isArray(data.lyrics)) {
+        console.log('🌐 [LYRICS SERVICE] Found synced lyrics:', data.lyrics.length);
+        return data.lyrics;
+      } else if (Array.isArray(data)) {
+        console.log('🌐 [LYRICS SERVICE] Direct array response:', data.length);
+        return data;
+      } else {
+        console.log('🌐 [LYRICS SERVICE] No synced lyrics found');
+        return [];
+      }
     } catch (error) {
       console.error('Error fetching synced lyrics:', error);
       throw error;
