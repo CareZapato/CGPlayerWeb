@@ -15,6 +15,57 @@ interface ChangelogEntry {
 
 const changelogData: ChangelogEntry[] = [
   {
+    version: '0.7.0',
+    date: '2025-09-01',
+    type: 'major',
+    title: 'Sistema de Playlists Completo - Nueva Funcionalidad Principal',
+    highlights: [
+      'Sistema completo de gestión de playlists',
+      'Reproductor con auto-play funcional',
+      'Interfaz moderna y responsive',
+      'Subida de imágenes para playlists',
+      'Sincronización en tiempo real'
+    ],
+    changes: [
+      {
+        category: 'added',
+        items: [
+          'Sistema completo de playlists: crear, editar, eliminar con metadatos',
+          'Subida de imágenes personalizadas para playlists (.png, .jpg, .jpeg)',
+          'Editor avanzado con búsqueda en tiempo real y gestión individual',
+          'Sistema de permisos: playlists públicas y privadas por usuario',
+          'API completa con CRUD y validaciones robustas',
+          'Integración total con sistema de cola de reproducción existente',
+          'Dashboard optimizado con estadísticas de playlists',
+          'Middleware para servido seguro de imágenes'
+        ]
+      },
+      {
+        category: 'fixed',
+        items: [
+          'CRÍTICO: Playlist auto-play ahora reproduce inmediatamente la primera canción',
+          'Corrección de autenticación usando getSongFileUrl() para URLs seguras',
+          'Resolución de errores 404 en carga de imágenes de playlists',
+          'Configuración correcta de express.static para servido de archivos',
+          'Sincronización perfecta con el sistema de colas de reproducción',
+          'Compatibilidad HTML5 audio con tokens JWT apropiados'
+        ]
+      },
+      {
+        category: 'improved',
+        items: [
+          'Interfaz con diseño cuadrado y grid responsivo optimizado',
+          'Navegación fluida con transiciones automáticas entre canciones',
+          'UI compacta con mejor aprovechamiento del espacio',
+          'Performance mejorado con consultas optimizadas',
+          'Debugging avanzado con logs detallados para troubleshooting',
+          'Gestión robusta de archivos con limpieza automática',
+          'Experiencia de usuario sin interrupciones desde creación hasta reproducción'
+        ]
+      }
+    ]
+  },
+  {
     version: '0.6.0',
     date: '2025-08-19',
     type: 'major',
@@ -244,7 +295,7 @@ const changelogData: ChangelogEntry[] = [
 ];
 
 const ChangelogPage: React.FC = () => {
-  const [expandedVersions, setExpandedVersions] = useState<string[]>(['0.4.1']);
+  const [expandedVersions, setExpandedVersions] = useState<string[]>(['0.7.0']);
 
   const toggleVersion = (version: string) => {
     setExpandedVersions(prev => 
@@ -307,7 +358,7 @@ const ChangelogPage: React.FC = () => {
               <p><strong>Versión actual:</strong> {changelogData[0].version}</p>
               <p><strong>Última actualización:</strong> {new Date(changelogData[0].date).toLocaleDateString('es-ES')}</p>
               <p><strong>Tecnologías:</strong> React, TypeScript, Node.js, PostgreSQL, Prisma</p>
-              <p><strong>Nuevo en v0.6.0:</strong> Reproductor de audio 100% funcional con autenticación JWT</p>
+              <p><strong>Nuevo en v0.7.0:</strong> Sistema completo de playlists con reproductor funcional y auto-play</p>
             </div>
           </div>
           <div className="text-6xl">
