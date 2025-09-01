@@ -8,9 +8,9 @@ interface ServerInfo {
 
 export const useServerInfo = () => {
   const [serverInfo, setServerInfo] = useState<ServerInfo>({
-    localIP: 'localhost',
-    port: 3001,
-    audioBaseUrl: 'http://localhost:3001/api/songs/file'
+    localIP: import.meta.env.VITE_SERVER_HOST || 'localhost',
+    port: parseInt(import.meta.env.VITE_SERVER_PORT) || 3001,
+    audioBaseUrl: `${import.meta.env.VITE_API_BASE_URL}/api/songs/file`
   });
   const [isLoading, setIsLoading] = useState(true);
 

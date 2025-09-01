@@ -172,6 +172,9 @@ app.use((req, res, next) => {
 // Los archivos de audio ahora solo se sirven a través de endpoints autenticados
 // app.use('/uploads', express.static(path.join(__dirname, '../../uploads')));
 
+// Servir imágenes de playlists (solo imágenes, no archivos de audio)
+app.use('/uploads/images', express.static(path.join(__dirname, '../uploads/images')));
+
 // Endpoints públicos (sin autenticación)
 app.get('/api/health', (req, res) => {
   const clientIP = req.headers['x-forwarded-for'] || req.connection.remoteAddress || req.socket.remoteAddress;

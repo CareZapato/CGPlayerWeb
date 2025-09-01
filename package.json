@@ -1,7 +1,7 @@
 {
   "name": "cgplayerweb",
-  "version": "0.6.0",
-  "description": "Aplicación web moderna para la gestión y reproducción de música coral con sistema de roles y ubicaciones",
+  "version": "0.7.0",
+  "description": "Aplicación web moderna para la gestión y reproducción de música coral con sistema de roles, ubicaciones y playlists completas",
   "main": "index.js",
   "repository": {
     "type": "git",
@@ -18,7 +18,9 @@
     "dev:frontend": "cd frontend && npm run dev -- --host 0.0.0.0",
     "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install",
     "build": "cd backend && npm run build && cd ../frontend && npm run build",
-    "start": "cd backend && npm start"
+    "start": "cd backend && npm start",
+    "update-ip": "node scripts/update-ip-references.js",
+    "config-ip": "start CONFIGURAR_IP.bat"
   },
   "keywords": [
     "music",

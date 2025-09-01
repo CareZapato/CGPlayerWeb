@@ -42,12 +42,12 @@ echo.
 echo ✅ CONFIGURACIÓN COMPLETADA
 echo.
 echo 📱 URLs para acceso móvil:
-echo    Frontend: http://192.168.1.17:5173
-echo    Backend API: http://192.168.1.17:3001/api
-echo    Diagnóstico: http://192.168.1.17:5173/diagnostico-completo.html
+echo    Frontend: http://192.168.1.11:5173
+echo    Backend API: http://192.168.1.11:3001/api
+echo    Diagnóstico: http://192.168.1.11:5173/diagnostico-completo.html
 echo.
 echo 🔧 Para verificar que funciona:
-echo    1. Abre http://192.168.1.17:5173/diagnostico-completo.html en tu móvil
+echo    1. Abre http://192.168.1.11:5173/diagnostico-completo.html en tu móvil
 echo    2. Ejecuta las pruebas desde el móvil
 echo    3. Todas las pruebas deben pasar ✅
 echo.

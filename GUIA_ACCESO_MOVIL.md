@@ -23,7 +23,7 @@ netsh advfirewall firewall add rule name="CGPlayerWeb Backend" dir=in action=all
 
 ## 2. 🌍 Verificar IP del PC servidor
 
-La IP actual detectada es: **192.168.1.17**
+La IP actual detectada es: **192.168.1.11**
 
 Para verificar manualmente:
 ```cmd
@@ -34,8 +34,8 @@ ipconfig | findstr IPv4
 
 Una vez abiertos los puertos:
 
-- **Frontend (App Web)**: `http://192.168.1.17:5173`
-- **Backend (API)**: `http://192.168.1.17:3001/api`
+- **Frontend (App Web)**: `http://192.168.1.11:5173`
+- **Backend (API)**: `http://192.168.1.11:3001/api`
 
 ## 4. 🔧 Verificar que los servicios estén ejecutándose
 
@@ -47,7 +47,7 @@ npm run dev
 Debe mostrar:
 ```
 ➜  Local:   http://localhost:5173/
-➜  Network: http://192.168.1.17:5173/   ← Esta es la URL para móviles
+➜  Network: http://192.168.1.11:5173/   ← Esta es la URL para móviles
 ```
 
 ## 5. 🧪 Probar conectividad
@@ -55,17 +55,17 @@ Debe mostrar:
 Desde otro PC en la misma red:
 ```bash
 # Verificar conectividad
-ping 192.168.1.17
+ping 192.168.1.11
 
 # Verificar puertos abiertos
-telnet 192.168.1.17 5173
-telnet 192.168.1.17 3001
+telnet 192.168.1.11 5173
+telnet 192.168.1.11 3001
 ```
 
 ## 6. 📱 Acceso desde móvil
 
 1. **Conectar el móvil a la misma WiFi**
-2. **Abrir navegador** y ir a: `http://192.168.1.17:5173`
+2. **Abrir navegador** y ir a: `http://192.168.1.11:5173`
 3. **Iniciar sesión** con las credenciales:
 
 ### 👥 Credenciales de prueba:

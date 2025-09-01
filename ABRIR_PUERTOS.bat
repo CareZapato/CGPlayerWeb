@@ -20,8 +20,8 @@ netsh advfirewall firewall add rule name="CGPlayerWeb Backend" dir=in action=all
 echo.
 echo ===============================================
 echo URLs para acceso desde otros dispositivos:
-echo Frontend: http://192.168.1.17:5173
-echo Backend:  http://192.168.1.17:3001/api
+echo Frontend: http://192.168.1.11:5173
+echo Backend:  http://192.168.1.11:3001/api
 echo ===============================================
 echo.
 echo ¡Puertos abiertos exitosamente!

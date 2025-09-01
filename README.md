@@ -1,15 +1,25 @@
 # CGPlayerWeb 🎵
 
-[![Version](https://img.shields.io/badge/version-0.6.0-blue.svg)](https://github.com/CareZapato/CGPlayerWeb/releases/tag/v0.6.0)
+[![Version](https://img.shields.io/badge/version-0.7.0-blue.svg)](https://github.com/CareZapato/CGPlayerWeb/releases/tag/v0.7.0)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
 [![React](https://img.shields.io/badge/React-19+-blue.svg)](https://reactjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5+-blue.svg)](https://www.typescriptlang.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15+-blue.svg)](https://www.postgresql.org/)
 
-**CGPlayerWeb** es una aplicación web moderna para la gestión y reproducción de música coral, diseñada específicamente para coros y grupos musicales chilenos. Permite la subida, organización y reproducción de pistas de audio con un sistema avanzado de roles, autenticación y gestión de sedes ubicadas a lo largo de Chile.
+**CGPlayerWeb** es una aplicación web moderna para la gestión y reproducción de música coral, diseñada específicamente para coros y grupos musicales chilenos. Permite la subida, organización y reproducción de pistas de audio con un sistema avanzado de roles, autenticación, gestión de sedes y **sistema completo de playlists** ubicadas a lo largo de Chile.
 
 ## 🚀 Características Principales
+
+### 🎼 **Sistema de Playlists Completo** *(NUEVO en v0.7.0)*
+- **Creación y gestión completa** de playlists con metadatos personalizados
+- **Editor avanzado** con búsqueda en tiempo real y gestión individual de canciones
+- **Imágenes personalizadas** con soporte para subida de imágenes (.png, .jpg, .jpeg)
+- **Reproducción automática** - Al dar play reproduce inmediatamente la primera canción
+- **Playlists públicas y privadas** con sistema de permisos por usuario
+- **Interfaz cuadrada moderna** con grid responsivo optimizado
+- **Integración total** con el sistema de cola y reproductor existente
+- **Gestión completa** - Editar, eliminar, cambiar configuraciones desde la interfaz
 
 ### 🎵 Gestión de Música
 - **Subida de archivos de audio** (MP3, M4A, WAV, FLAC) con validación robusta
@@ -83,6 +93,37 @@
 - **Base de datos PostgreSQL** para metadatos y relaciones
 - **Validación automática** de integridad entre archivos y BD
 - **Sistema de ubicaciones** para organización geográfica
+
+## 🎼 Sistema de Playlists Detallado *(v0.7.0)*
+
+### 📝 **Creación y Gestión**
+- **Editor completo**: Interfaz intuitiva para crear playlists con todos los metadatos
+- **Metadatos personalizables**: Nombre, descripción, visibilidad (pública/privada)
+- **Imágenes personalizadas**: Subida de imágenes con preview y validación automática
+- **Gestión de contenido**: Agregar/quitar canciones con búsqueda en tiempo real
+- **Permisos granulares**: Control de visibilidad y acceso por usuario
+
+### 🎯 **Reproducción Avanzada**
+- **Play inmediato**: Al presionar play, reproduce automáticamente la primera canción
+- **Integración con cola**: Funciona perfectamente con el sistema de cola existente
+- **Navegación automática**: Transición fluida entre canciones de la playlist
+- **Autenticación transparente**: URLs seguras con tokens JWT para audio protegido
+- **Compatibilidad total**: Misma experiencia que reproducción individual
+
+### 🎨 **Interfaz Moderna**
+- **Diseño cuadrado**: Formato square optimizado para mejor aprovechamiento visual
+- **Grid responsivo**: Adaptación automática según tamaño de pantalla
+  - `sm: 2 columnas | lg: 3 columnas | xl: 4 columnas | 2xl: 5 columnas`
+- **Imágenes centradas**: Visualización óptima con `object-cover object-center`
+- **UI compacta**: Elementos más densos para mostrar más información
+- **Gradientes elegantes**: Fallback visual cuando no hay imagen personalizada
+
+### 🔍 **Editor Avanzado**
+- **Búsqueda en tiempo real**: Filtro instantáneo con debounce optimizado (200ms)
+- **Vista dual**: Lista de canciones disponibles vs canciones en playlist
+- **Gestión individual**: Remover canciones específicas con confirmación
+- **Controles completos**: Editar nombre, descripción, imagen, eliminar playlist
+- **Validación robusta**: Verificación de permisos y existencia de archivos
 
 ## 🛠️ Tecnologías Utilizadas
 

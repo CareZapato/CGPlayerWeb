@@ -5,6 +5,111 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto se adhiere al [Versionado Semántico](https://semver.org/lang/es/).
 
+## [0.7.0] - 2025-09-01
+
+### 🎵 **NUEVA FUNCIONALIDAD PRINCIPAL: Sistema de Playlists Completo**
+
+#### 🎼 **Gestión Integral de Playlists**
+- **Creación de playlists**: Editor completo con metadatos (nombre, descripción, imagen, visibilidad)
+- **Gestión de contenido**: Agregar/quitar canciones con búsqueda en tiempo real
+- **Edición completa**: Modificar nombre, descripción, imagen y configuraciones
+- **Sistema de permisos**: Playlists públicas y privadas por usuario
+- **Subida de imágenes**: Soporte para imágenes personalizadas de playlist (.png, .jpg, .jpeg)
+- **Eliminación segura**: Confirmación y limpieza de archivos asociados
+
+#### 🎯 **Reproductor de Playlists Funcional**
+- **Reproducción automática**: Al dar play reproduce inmediatamente la primera canción
+- **Cola inteligente**: Integración completa con el sistema de cola de reproducción
+- **Navegación fluida**: Transición automática entre canciones de la playlist
+- **Autenticación de audio**: URLs seguras con tokens JWT para streaming protegido
+- **Compatibilidad total**: Funciona igual que la reproducción individual de canciones
+
+#### 🎨 **Interfaz Moderna y Responsive**
+- **Diseño cuadrado**: Playlists con formato square para mejor aprovechamiento del espacio
+- **Imágenes centradas**: `object-cover object-center` para visualización óptima
+- **Grid responsivo**: `sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5`
+- **Elementos compactos**: Reducción de padding en listas de canciones (p-2 vs p-4)
+- **UI optimizada**: Eliminación de subtítulos redundantes para mayor densidad visual
+
+#### 🔍 **Editor Avanzado de Playlists**
+- **Búsqueda en tiempo real**: Filtro de canciones con debounce de 200ms
+- **Gestión individual**: Remover canciones específicas de playlists
+- **Vista dual**: Lista de canciones disponibles y canciones en playlist
+- **Controles completos**: Editar, eliminar, cambiar imagen desde la interfaz
+- **Validación de datos**: Verificación de permisos y existencia de archivos
+
+### 📊 **Mejoras en Dashboard y Visualización**
+
+#### 🏗️ **Dashboard Optimizado**
+- **Información más clara**: Reorganización de métricas para mejor legibilidad
+- **Estadísticas de playlists**: Nuevas métricas para seguimiento de uso
+- **Filtrado por usuario**: Dashboard personalizado según rol y permisos
+- **Performance mejorado**: Consultas optimizadas para carga rápida de datos
+
+#### 🖼️ **Servido de Imágenes Corregido**
+- **Middleware estático**: Configuración correcta para imágenes de playlists
+- **Path resolution**: Corrección de rutas relativas en express.static
+- **Endpoint /uploads/images**: Servido seguro de imágenes sin autenticación
+- **Fallback a gradientes**: Visualización elegante cuando no hay imagen personalizada
+
+### 🔧 **Mejoras Técnicas y de Backend**
+
+#### 🗄️ **API de Playlists**
+- **CRUD completo**: Create, Read, Update, Delete con validaciones
+- **Multer integration**: Subida de archivos con límites y validación de tipos
+- **Autenticación robusta**: Middleware de auth en todas las rutas protegidas
+- **Gestión de archivos**: Limpieza automática de imágenes huérfanas
+- **Consultas optimizadas**: JOIN queries para mejor rendimiento
+
+#### 🎵 **Reproductor Mejorado**
+- **Función getSongFileUrl()**: Uso consistente del endpoint autenticado `/api/songs/file/`
+- **Debugging mejorado**: Logs detallados para troubleshooting de reproducción
+- **Error handling**: Manejo robusto de errores de red y archivos faltantes
+- **Compatibilidad HTML5**: Audio elements nativos con autenticación transparente
+
+### 🎯 **Experiencia de Usuario Mejorada**
+
+#### 📱 **Interfaz Responsive**
+- **Mejor uso del espacio**: Grid más denso con más columnas en pantallas grandes
+- **Navegación fluida**: Transiciones suaves entre diferentes vistas
+- **Feedback visual**: Estados de carga y confirmaciones claras
+- **Accesibilidad**: Etiquetas y controles apropiados para screen readers
+
+#### 🎼 **Gestión Musical**
+- **Workflow completo**: Desde creación hasta reproducción sin interrupciones
+- **Integración total**: Playlists funcionan igual que el resto del sistema
+- **Búsqueda avanzada**: Filtros por título, artista y otros metadatos
+- **Organización mejorada**: Herramientas para mantener colecciones ordenadas
+
+### 🐛 **Correcciones Críticas**
+
+#### 🔊 **Reproductor de Playlists**
+- **URL Construction**: Cambio de construcción manual a `getSongFileUrl()` 
+- **Authentication**: Corrección de tokens en requests de audio
+- **AutoPlay**: Implementación del patrón correcto para reproducción automática
+- **Queue Integration**: Sincronización perfecta con el sistema de colas existente
+
+#### 🖼️ **Imágenes de Playlists**
+- **404 Errors**: Resolución de errores 404 en carga de imágenes
+- **Static Middleware**: Configuración correcta del path en express.static
+- **File Serving**: Servido eficiente de archivos estáticos sin autenticación
+
+### 📝 **Documentación y Logging**
+
+#### 🔍 **Debugging**
+- **Console logs**: Información detallada para development
+- **Server logs**: Tracking de requests y errores
+- **Performance metrics**: Monitoreo de tiempos de respuesta
+- **User actions**: Logging de acciones importantes del usuario
+
+#### 📋 **Código Limpio**
+- **TypeScript strict**: Eliminación de errores de tipos
+- **Import optimization**: Organización de imports y exports
+- **Code organization**: Separación clara de responsabilidades
+- **Comment updates**: Documentación en línea actualizada
+
+---
+
 ## [0.6.0] - 2025-08-19
 
 ### 🎵 **SOLUCIÓN CRÍTICA: Reproductor de Audio Funcional**

@@ -43,9 +43,9 @@
    Diagnóstico: http://localhost:5173/diagnostico-completo.html
 
 📱 DESDE DISPOSITIVOS MOVILES (misma WiFi):
-   Frontend: http://192.168.1.17:5173
-   Backend: http://192.168.1.17:3001/api
-   Diagnóstico: http://192.168.1.17:5173/diagnostico-completo.html
+   Frontend: http://192.168.1.218:5173
+   Backend: http://192.168.1.218:3001/api
+   Diagnóstico: http://192.168.1.218:5173/diagnostico-completo.html
 
 ================================================================================
                            🧪 COMO PROBAR QUE FUNCIONA
@@ -59,10 +59,10 @@
 
 2. 📱 DESDE TU MOVIL:
    - Conecta el móvil a la misma red WiFi
-   - Abre: http://192.168.1.17:5173/diagnostico-completo.html
+   - Abre: http://192.168.1.218:5173/diagnostico-completo.html
    - Haz click en "🚀 Ejecutar Todas las Pruebas"
    - Todas las pruebas deben pasar ✅
-   - Si pasan, abre: http://192.168.1.17:5173
+   - Si pasan, abre: http://192.168.1.218:5173
    - Prueba subir archivos desde el móvil
 
 ================================================================================
@@ -121,9 +121,9 @@ OPCION 2 - SERVIDORES SEPARADOS (recomendado para debugging):
                               🎯 PRUEBA FINAL
 ================================================================================
 
-1. Abre http://192.168.1.17:5173/diagnostico-completo.html desde tu móvil
+1. Abre http://192.168.1.218:5173/diagnostico-completo.html desde tu móvil
 2. Ejecuta todas las pruebas - deben pasar ✅
-3. Ve a http://192.168.1.17:5173 desde tu móvil
+3. Ve a http://192.168.1.218:5173 desde tu móvil
 4. Inicia sesión con: admin@chilegospel.com / admin123
 5. Sube archivos múltiples - NO debe quedarse pegado
 6. Verifica que el timeline de audio sea más ancho

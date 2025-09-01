@@ -2,6 +2,7 @@ const { execSync } = require('child_process');
 const os = require('os');
 const fs = require('fs');
 const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '../frontend/.env') });
 
 function getLocalIP() {
   const interfaces = os.networkInterfaces();
@@ -18,29 +19,42 @@ function getLocalIP() {
   return 'localhost';
 }
 
-const localIP = getLocalIP();
+// Usar IP del .env o detectar automáticamente
+const configuredIP = process.env.VITE_SERVER_IP;
+const detectedIP = getLocalIP();
+const serverIP = configuredIP || detectedIP;
 
-console.log(`🌐 Detected local IP: ${localIP}`);
-console.log(`📱 Frontend will be available at: http://${localIP}:5173`);
-console.log(`🚀 Backend will be available at: http://${localIP}:3001`);
+console.log(`🌐 IP configurada en .env: ${configuredIP || 'No configurada'}`);
+console.log(`🌐 IP detectada automáticamente: ${detectedIP}`);
+console.log(`🌐 Usando IP: ${serverIP}`);
+console.log(`📱 Frontend disponible en: http://${serverIP}:5173`);
+console.log(`🚀 Backend disponible en: http://${serverIP}:3001`);
 
-// Update frontend .env
-const frontendEnvPath = path.join(__dirname, '../frontend/.env');
-const frontendEnvContent = `VITE_API_BASE_URL=http://${localIP}:3001
-VITE_SERVER_HOST=${localIP}
-VITE_SERVER_PORT=3001
-`;
+// Actualizar frontend .env solo si la IP cambió
+if (configuredIP !== serverIP) {
+  console.log(`📝 Actualizando frontend .env con nueva IP: ${serverIP}`);
+  
+  const frontendEnvPath = path.join(__dirname, '../frontend/.env');
+  let envContent = fs.readFileSync(frontendEnvPath, 'utf8');
+  
+  // Actualizar la IP del servidor
+  envContent = envContent.replace(
+    /VITE_SERVER_IP=.*/,
+    `VITE_SERVER_IP=${serverIP}`
+  );
+  
+  fs.writeFileSync(frontendEnvPath, envContent);
+}
 
-fs.writeFileSync(frontendEnvPath, frontendEnvContent);
-
-// Update backend .env
+// Actualizar backend .env
+console.log(`📝 Actualizando backend .env...`);
 const backendEnvPath = path.join(__dirname, '../backend/.env');
 let backendEnvContent = fs.readFileSync(backendEnvPath, 'utf8');
 
-// Update CORS_ORIGINS to include the new IP
+// Actualizar IP del servidor en backend
 backendEnvContent = backendEnvContent.replace(
-  /CORS_ORIGINS=.*/,
-  `CORS_ORIGINS=http://localhost:5173,http://${localIP}:5173`
+  /SERVER_IP=.*/,
+  `SERVER_IP=${serverIP}`
 );
 
 // Ensure HOST is set to 0.0.0.0
@@ -52,7 +66,14 @@ if (!backendEnvContent.includes('HOST=')) {
 
 fs.writeFileSync(backendEnvPath, backendEnvContent);
 
-console.log(`✅ Environment configured for network access`);
-console.log(`🔧 Updated .env files with IP: ${localIP}`);
-console.log(`📋 CORS configured for: localhost and ${localIP}`);
-console.log(`🎯 Access from other devices: http://${localIP}:5173`);
+console.log(`✅ Configuración de entorno actualizada`);
+console.log(`🔧 Archivos .env actualizados con IP: ${serverIP}`);
+console.log(`📋 CORS configurado para: localhost y ${serverIP}`);
+console.log(`🎯 Acceso desde otros dispositivos: http://${serverIP}:5173`);
+console.log(`📚 API documentación: http://${serverIP}:3001/api-docs`);
+
+// Mostrar instrucciones para cambiar IP manualmente
+console.log('\n📝 Para cambiar la IP manualmente:');
+console.log(`   1. Edita frontend/.env y cambia VITE_SERVER_IP=${serverIP}`);
+console.log(`   2. Edita backend/.env y cambia SERVER_IP=${serverIP}`);
+console.log('   3. Reinicia los servidores');
