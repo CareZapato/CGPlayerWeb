@@ -386,7 +386,7 @@ const LyricsViewerInline: React.FC<LyricsViewerInlineProps> = ({ song, isDesktop
               : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
           }`}
         >
-          Texto Sincronizado
+          📝 Letras Sincronizadas
         </button>
         <button
           onClick={() => setDisplayMode('files')}
@@ -396,7 +396,7 @@ const LyricsViewerInline: React.FC<LyricsViewerInlineProps> = ({ song, isDesktop
               : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
           }`}
         >
-          Archivos ({lyricsFiles.length})
+          📁 Archivos ({lyricsFiles.length})
         </button>
       </div>
 
@@ -411,7 +411,7 @@ const LyricsViewerInline: React.FC<LyricsViewerInlineProps> = ({ song, isDesktop
                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             }`}
           >
-            General
+            Todas las Voces
           </button>
           {availableVoiceTypes.map(vType => (
             <button
@@ -496,7 +496,7 @@ const LyricsViewerInline: React.FC<LyricsViewerInlineProps> = ({ song, isDesktop
                             isActiveLine
                               ? 'bg-blue-100 border-blue-300 text-blue-900 shadow-md'
                               : isValidTime
-                                ? 'bg-gray-50 border-gray-200 hover:bg-gray-100 cursor-pointer hover:shadow-sm'
+                                ? 'bg-gray-50 border-gray-200 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-900 cursor-pointer hover:shadow-sm'
                                 : isStaticLyric
                                   ? 'bg-green-50 border-green-200 text-gray-800'
                                   : 'bg-white border-gray-200 text-gray-600'
@@ -581,90 +581,71 @@ const LyricsViewerInline: React.FC<LyricsViewerInlineProps> = ({ song, isDesktop
             )}
           </div>
         ) : (
-          // Files mode - Mejorado para mostrar PDFs e imágenes
+          // Files mode - Lista de todos los archivos disponibles
           <div className="space-y-3 h-full flex flex-col">
             
             {lyricsFiles.length > 0 ? (
-              (() => {
-                // Solo mostrar el primer archivo para ocupar toda la altura
-                const file = lyricsFiles[0];
-                // Construir URL del archivo usando configService
-                const fileUrl = configService.buildFileUrl(`/lyrics/files/${file.id}`, true);
+              <div className="space-y-2">
+                <h4 className="text-sm font-semibold text-gray-700 border-b pb-2 mb-3">
+                  📁 Archivos de Letras ({lyricsFiles.length})
+                </h4>
                 
-                console.log('🔗 [FILE URL DEBUG]', {
-                  hostname: window.location.hostname,
-                  apiBaseUrl: configService.getApiBaseUrl(),
-                  fileUrl,
-                  hasToken: !!localStorage.getItem('token')
-                });
-                
-                const isPDF = file.fileType === 'PDF';
-                const isImage = file.fileType === 'IMAGE_JPG' || file.fileType === 'IMAGE_PNG';
-                
-                return (
-                  <div
-                    key={file.id}
-                    className="border border-gray-200 rounded-lg overflow-hidden bg-white hover:shadow-md transition-shadow flex flex-col h-full"
-                  >
-                    {/* Header del archivo */}
-                    <div className="p-3 bg-gray-50 border-b">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-3">
-                          <div className={`w-8 h-8 rounded flex items-center justify-center text-white text-sm font-bold ${
-                            isPDF ? 'bg-red-500' : isImage ? 'bg-green-500' : 'bg-blue-500'
-                          }`}>
-                            {isPDF ? 'PDF' : isImage ? 'IMG' : 'DOC'}
-                          </div>
-                          <div>
+                {lyricsFiles.map((file) => {
+                  // Construir URL del archivo usando configService
+                  const fileUrl = configService.buildFileUrl(`/lyrics/files/${file.id}`, true);
+                  
+                  const isPDF = file.fileType === 'PDF';
+                  const isImage = file.fileType === 'IMAGE_JPG' || file.fileType === 'IMAGE_PNG';
+                  const isDoc = file.fileType === 'DOC' || file.fileType === 'DOCX';
+                  
+                  // Función para obtener el icono y color del archivo
+                  const getFileIcon = () => {
+                    if (isPDF) return { icon: '📄', color: 'bg-red-500', label: 'PDF' };
+                    if (isImage) return { icon: '🖼️', color: 'bg-green-500', label: 'IMG' };
+                    if (isDoc) return { icon: '📋', color: 'bg-blue-500', label: 'DOC' };
+                    return { icon: '📁', color: 'bg-gray-500', label: 'FILE' };
+                  };
+                  
+                  const fileIcon = getFileIcon();
+                  
+                  return (
+                    <div
+                      key={file.id}
+                      className="border border-gray-200 rounded-lg p-3 bg-white hover:shadow-md hover:border-blue-300 transition-all cursor-pointer"
+                      onClick={() => window.open(fileUrl, '_blank')}
+                    >
+                      <div className="flex items-center space-x-3">
+                        {/* Icono del archivo */}
+                        <div className={`w-10 h-10 rounded-lg ${fileIcon.color} flex items-center justify-center text-white text-lg flex-shrink-0`}>
+                          {fileIcon.icon}
+                        </div>
+                        
+                        {/* Información del archivo */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center space-x-2">
                             <p className="font-medium text-gray-900 truncate">
                               {file.fileName}
                             </p>
-                            <p className="text-sm text-gray-500">
-                              {file.fileType.replace('_', ' ')}
-                            </p>
+                            <span className={`px-2 py-1 text-xs rounded ${fileIcon.color} text-white font-medium`}>
+                              {fileIcon.label}
+                            </span>
                           </div>
+                          <p className="text-sm text-gray-500 mt-1">
+                            {file.fileType.replace('_', ' ')} • Haz clic para abrir en nueva pestaña
+                          </p>
                         </div>
-                        <button
-                          onClick={() => window.open(fileUrl, '_blank')}
-                          className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
-                        >
-                          Abrir
-                        </button>
+                        
+                        {/* Flecha indicadora */}
+                        <div className="flex-shrink-0 text-gray-400">
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                          </svg>
+                        </div>
                       </div>
                     </div>
-                    
-                    {/* Preview del contenido */}
-                    <div className={`${isPDF ? 'flex-1 flex flex-col' : 'p-3'}`}>
-                      {isPDF ? (
-                        <PDFViewer fileUrl={fileUrl} fileName={file.fileName} />
-                      ) : isImage ? (
-                        <div className="text-center">
-                          <img
-                            src={fileUrl}
-                            alt={file.fileName}
-                            className="max-w-full h-48 object-contain mx-auto rounded"
-                            onError={(e) => {
-                              const target = e.currentTarget as HTMLImageElement;
-                              const fallbackDiv = target.nextElementSibling as HTMLDivElement;
-                              target.style.display = 'none';
-                              if (fallbackDiv) {
-                                fallbackDiv.style.display = 'block';
-                              }
-                            }}
-                          />
-                          <div className="hidden bg-gray-100 rounded p-4 text-gray-600">
-                            No se pudo cargar la imagen
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="bg-gray-100 rounded p-4 text-center text-gray-600">
-                          Tipo de archivo no soportado para vista previa
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })()
+                  );
+                })}
+              </div>
             ) : (
               <div className="text-center text-gray-500 py-8">
                 <p>No hay archivos de letras disponibles</p>

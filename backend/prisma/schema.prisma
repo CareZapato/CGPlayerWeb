@@ -156,21 +156,22 @@ model PlaylistItem {
 }
 
 model Lyric {
-  id          String     @id @default(cuid())
-  songId      String
-  content     String     // Línea de letra o fragmento
-  startTime   Float?     // Tiempo de inicio en segundos (para sincronización)
-  endTime     Float?     // Tiempo de fin en segundos (para sincronización)
-  lineNumber  Int        // Número de línea en la letra
-  voiceType   VoiceType? // Para qué tipo de voz es esta sincronización (null = canción principal)
-  textContent String?    // Contenido de texto completo (para tipo TEXT)
-  isTextLyrics Boolean   @default(false) // True si son letras de texto completas
-  createdBy   String
-  isActive    Boolean    @default(true)
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-  creator     User       @relation(fields: [createdBy], references: [id])
-  song        Song       @relation(fields: [songId], references: [id], onDelete: Cascade)
+  id            String     @id @default(cuid())
+  songId        String
+  content       String     // Línea de letra o fragmento
+  startTime     Float?     // Tiempo de inicio en segundos (para sincronización)
+  endTime       Float?     // Tiempo de fin en segundos (para sincronización)
+  lineNumber    Int        // Número de línea en la letra
+  voiceType     VoiceType? // Para qué tipo de voz es esta sincronización (null = canción principal)
+  textContent   String?    // Contenido de texto completo (para tipo TEXT)
+  isTextLyrics  Boolean    @default(false) // True si son letras de texto completas
+  isSynchronized Boolean   @default(false) // True si esta letra tiene sincronización temporal real (startTime > 0)
+  createdBy     String
+  isActive      Boolean    @default(true)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  creator       User       @relation(fields: [createdBy], references: [id])
+  song          Song       @relation(fields: [songId], references: [id], onDelete: Cascade)
 
   @@unique([songId, lineNumber, voiceType])
   @@map("lyrics")

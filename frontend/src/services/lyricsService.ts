@@ -154,15 +154,29 @@ class LyricsService {
       const data = await response.json();
       console.log('🌐 [LYRICS SERVICE] Synced lyrics response:', data);
       
-      // El backend puede devolver { success: true, lyrics: [...] } o directamente [...]
-      if (data.success && Array.isArray(data.lyrics)) {
-        console.log('🌐 [LYRICS SERVICE] Found synced lyrics:', data.lyrics.length);
-        return data.lyrics;
+      // El backend puede devolver { success: true, lyrics: [...] } o { lyrics: [...] }
+      let lyricsArray = null;
+      
+      if (data.success && data.lyrics && Array.isArray(data.lyrics)) {
+        lyricsArray = data.lyrics;
+        console.log('🌐 [LYRICS SERVICE] Found synced lyrics (success format):', lyricsArray.length);
+      } else if (data.lyrics && Array.isArray(data.lyrics)) {
+        lyricsArray = data.lyrics;
+        console.log('🌐 [LYRICS SERVICE] Found synced lyrics (direct format):', lyricsArray.length);
       } else if (Array.isArray(data)) {
-        console.log('🌐 [LYRICS SERVICE] Direct array response:', data.length);
-        return data;
+        lyricsArray = data;
+        console.log('🌐 [LYRICS SERVICE] Direct array response:', lyricsArray.length);
+      }
+      
+      if (lyricsArray) {
+        console.log('🌐 [LYRICS SERVICE] Sample lyrics:', lyricsArray.slice(0, 2).map((l: any) => ({
+          content: l.content?.substring(0, 30) + '...',
+          startTime: l.startTime,
+          isSynchronized: l.isSynchronized
+        })));
+        return lyricsArray;
       } else {
-        console.log('🌐 [LYRICS SERVICE] No synced lyrics found');
+        console.log('🌐 [LYRICS SERVICE] No synced lyrics found - data structure:', Object.keys(data));
         return [];
       }
     } catch (error) {

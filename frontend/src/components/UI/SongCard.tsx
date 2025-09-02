@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { usePlaylistStore } from '../../store/playlistStore';
 import { usePlayerStore } from '../../store/playerStore';
+import { useAuthStore } from '../../store/authStore';
 import { useServerInfo } from '../../hooks/useServerInfo';
 import { getSongFileUrl } from '../../config/api';
 import { LyricsDisplay } from '../LyricsDisplay';
@@ -16,10 +17,30 @@ interface SongCardProps {
 
 const SongCard: React.FC<SongCardProps> = ({ song, color, onClick }) => {
   const { addToQueue, replaceQueueAndPlay } = usePlaylistStore();
+  const { user } = useAuthStore();
   const { serverInfo } = useServerInfo();
   const [showMenu, setShowMenu] = useState(false);
   const [showLyrics, setShowLyrics] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  // Función para filtrar versiones según los voice types del usuario
+  const getFilteredVersions = (versions: Song[]) => {
+    // Si el usuario es ADMIN o DIRECTOR, puede ver todas las versiones
+    const isAdmin = user?.roles?.some(r => r.role === 'ADMIN') || false;
+    const isDirector = user?.roles?.some(r => r.role === 'DIRECTOR') || false;
+    
+    if (isAdmin || isDirector) {
+      return versions;
+    }
+
+    // Si es CANTANTE, filtrar por sus voice types + CORO + ORIGINAL
+    const userVoiceTypes = user?.voiceProfiles?.map(vp => vp.voiceType) || [];
+    const allowedVoiceTypes = [...userVoiceTypes, 'CORO', 'ORIGINAL'];
+    
+    return versions.filter(version => 
+      version.voiceType && allowedVoiceTypes.includes(version.voiceType)
+    );
+  };
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -70,7 +91,7 @@ const SongCard: React.FC<SongCardProps> = ({ song, color, onClick }) => {
       
       if (variations.length > 0) {
         // Filtrar y convertir variaciones a objetos Song completos
-        const playableVariations: Song[] = variations
+        const allVariations: Song[] = variations
           .filter((v: any) => v.fileName && v.folderName && v.voiceType)
           .map((v: any) => ({
             id: v.id,
@@ -91,10 +112,14 @@ const SongCard: React.FC<SongCardProps> = ({ song, color, onClick }) => {
             updatedAt: v.updatedAt || v.createdAt,
             uploader: v.uploader || song.uploader
           } as Song));
+
+        // Aplicar filtrado de usuario
+        const playableVariations = getFilteredVersions(allVariations);
         
-        console.log(`🔥 [SONG-CARD] Variaciones reproducibles para agregar:`, playableVariations.length);
+        console.log(`🔥 [SONG-CARD] Variaciones totales: ${allVariations.length}, filtradas para agregar: ${playableVariations.length}`);
+        console.log(`🔥 [SONG-CARD] Usuario: ${user?.roles?.map(r => r.role).join(', ')}, VoiceTypes: ${user?.voiceProfiles?.map(vp => vp.voiceType).join(', ')}`);
         
-        // Agregar todas las variaciones a la cola
+        // Agregar todas las variaciones filtradas a la cola
         playableVariations.forEach(variation => {
           addToQueue(variation);
           console.log(`✅ [SONG-CARD] Variación agregada a la cola:`, variation.title, variation.voiceType);
@@ -137,7 +162,7 @@ const SongCard: React.FC<SongCardProps> = ({ song, color, onClick }) => {
       
       if (variations.length > 0) {
         // Filtrar y convertir variaciones a objetos Song completos
-        const playableVariations: Song[] = variations
+        const allVariations: Song[] = variations
           .filter((v: any) => v.fileName && v.folderName)
           .map((v: any) => ({
             id: v.id,
@@ -158,16 +183,21 @@ const SongCard: React.FC<SongCardProps> = ({ song, color, onClick }) => {
             updatedAt: v.updatedAt || v.createdAt,
             uploader: v.uploader || song.uploader
           } as Song));
+
+        // Aplicar filtrado de usuario
+        const playableVariations = getFilteredVersions(allVariations);
         
-        console.log(`🎵 [SONG-CARD] Variaciones reproducibles:`, playableVariations.length);
+        console.log(`🎵 [SONG-CARD] Variaciones totales: ${allVariations.length}, filtradas: ${playableVariations.length}`);
+        console.log(`🎵 [SONG-CARD] Usuario: ${user?.roles?.map(r => r.role).join(', ')}, VoiceTypes: ${user?.voiceProfiles?.map(vp => vp.voiceType).join(', ')}`);
+        console.log(`🎵 [SONG-CARD] Variaciones disponibles: ${playableVariations.map(v => `${v.title} (${v.voiceType})`).join(', ')}`);
         
         if (playableVariations.length > 0) {
-          // Limpiar la cola y agregar todas las variaciones
+          // Limpiar la cola y agregar todas las variaciones filtradas
           replaceQueueAndPlay(playableVariations, 0);
-          
+
           // Reproducir la primera variación usando la API del playerStore
           const firstSong = playableVariations[0];
-          
+
           // Construir URL correcta para archivos de audio con autenticación
           let songUrl: string;
           if (firstSong.folderName) {
@@ -177,9 +207,9 @@ const SongCard: React.FC<SongCardProps> = ({ song, color, onClick }) => {
             // Archivo en carpeta raíz - usar endpoint específico
             songUrl = `${serverInfo.audioBaseUrl}-root/${firstSong.fileName}`;
           }
-          
+
           console.log(`🎵 [SONG-CARD] URL construida:`, songUrl);
-          
+
           const { playSong } = usePlayerStore.getState();
           playSong({
             id: firstSong.id,
@@ -188,7 +218,7 @@ const SongCard: React.FC<SongCardProps> = ({ song, color, onClick }) => {
             url: songUrl,
             duration: firstSong.duration || 0
           });
-          
+
           console.log(`🎵 [SONG-CARD] Cola reemplazada y reproduciendo:`, firstSong.title, firstSong.voiceType);
           console.log(`🎵 [SONG-CARD] Total de variaciones en cola:`, playableVariations.length);
         } else {

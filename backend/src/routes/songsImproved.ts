@@ -354,25 +354,25 @@ router.post('/multi-upload', authenticateToken, multiUpload.fields([
       // Dividir el texto por líneas/versos (saltos de línea)
       const lines = lyricsText.trim().split(/\r?\n/).filter((line: string) => line.trim());
       
-      // Tipos de voz para los que crear sincronizaciones
-      const voiceTypes = [
-        null, // Canción principal/original
-        'SOPRANO',
-        'CONTRALTO', 
-        'TENOR',
-        'BARITONO',
-        'BAJO',
-        'CORO'
-      ];
+      // CORREGIDO: Solo crear letras para las variantes subidas, NO para la canción padre
+      const songsToCreateLyricsFor = songs.map(song => ({ 
+        songId: song.id, 
+        voiceType: song.voiceType 
+      })); // Solo variantes que realmente existen
       
-      console.log(`📝 [LYRICS] Creating lyrics for ${voiceTypes.length} voice types with ${lines.length} lines`);
+      console.log(`📝 [LYRICS] Creating lyrics for ${songsToCreateLyricsFor.length} existing songs with ${lines.length} lines`);
+      console.log(`🎯 [LYRICS] Target songs:`, songsToCreateLyricsFor.map(s => `${s.voiceType || 'null'} (${s.songId})`).join(', '));
       
-      // Crear letras para cada tipo de voz
-      for (const voiceType of voiceTypes) {
+      // Crear letras solo para songs que realmente existen
+      for (const songTarget of songsToCreateLyricsFor) {
+        const { songId, voiceType } = songTarget;
+        
+        console.log(`📝 [LYRICS] Creating lyrics for songId: ${songId}, voiceType: ${voiceType || 'null'}`);
+        
         // Crear una entrada principal con todo el texto
         await lyricModel.create({
           data: {
-            songId: parentSong.id,
+            songId: songId, // CORREGIDO: Usar el songId específico de cada variante
             content: lyricsText.trim(),
             textContent: lyricsText.trim(),
             lineNumber: 0, // Línea 0 para texto completo
@@ -390,7 +390,7 @@ router.post('/multi-upload', authenticateToken, multiUpload.fields([
           if (line) {
             await lyricModel.create({
               data: {
-                songId: parentSong.id,
+                songId: songId, // CORREGIDO: Usar el songId específico de cada variante
                 content: line,
                 lineNumber: i + 1,
                 startTime: 0, // Por defecto 0, se sincronizará después
@@ -402,9 +402,11 @@ router.post('/multi-upload', authenticateToken, multiUpload.fields([
             });
           }
         }
+        
+        console.log(`✅ [LYRICS] Created ${lines.length + 1} lyrics for songId: ${songId}, voiceType: ${voiceType || 'null'}`);
       }
       
-      console.log(`✅ [LYRICS] Successfully created lyrics for all voice types`);
+      console.log(`✅ [LYRICS] Successfully created lyrics for all existing songs`);
     }
 
     res.status(201).json({
@@ -427,6 +429,172 @@ router.post('/multi-upload', authenticateToken, multiUpload.fields([
     }
     console.error('Error in multi-upload:', error);
     res.status(500).json({ message: 'Failed to upload songs' });
+  }
+});
+
+/**
+ * @swagger
+ * /songs:
+ *   post:
+ *     summary: Crear canción con variantes por tipo de voz
+ *     tags: [Songs]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - title
+ *               - voiceTypes
+ *               - locationId
+ *             properties:
+ *               title:
+ *                 type: string
+ *                 description: Título de la canción
+ *               artist:
+ *                 type: string
+ *                 description: Artista
+ *               album:
+ *                 type: string
+ *                 description: Álbum
+ *               genre:
+ *                 type: string
+ *                 description: Género musical
+ *               originalKey:
+ *                 type: string
+ *                 description: Tonalidad original
+ *               currentKey:
+ *                 type: string
+ *                 description: Tonalidad actual
+ *               tempo:
+ *                 type: number
+ *                 description: Tempo en BPM
+ *               timeSignature:
+ *                 type: string
+ *                 description: Compás
+ *               locationId:
+ *                 type: string
+ *                 description: ID de la ubicación
+ *               voiceTypes:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   enum: [SOPRANO, CONTRALTO, TENOR, BARITONO, BAJO, CORO, ORIGINAL]
+ *                 description: Tipos de voz para crear variantes
+ *     responses:
+ *       201:
+ *         description: Canción y variantes creadas exitosamente
+ *       400:
+ *         description: Datos inválidos
+ *       401:
+ *         description: No autorizado
+ */
+router.post('/', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const { 
+      title, 
+      artist, 
+      album, 
+      genre, 
+      locationId,
+      voiceTypes 
+    } = req.body;
+
+    if (!title) {
+      return res.status(400).json({ message: 'Título es requerido' });
+    }
+
+    if (!voiceTypes || !Array.isArray(voiceTypes) || voiceTypes.length === 0) {
+      return res.status(400).json({ message: 'Al menos un tipo de voz es requerido' });
+    }
+
+    // Verificar que el usuario tiene una ubicación asignada
+    const user = await prisma.user.findUnique({
+      where: { id: req.user!.id },
+      select: { locationId: true }
+    });
+
+    const finalLocationId = locationId || user?.locationId;
+    
+    if (!finalLocationId) {
+      return res.status(400).json({ message: 'ID de ubicación es requerido' });
+    }
+
+    // Verificar que la ubicación existe
+    const location = await prisma.location.findUnique({
+      where: { id: finalLocationId }
+    });
+
+    if (!location) {
+      return res.status(400).json({ message: 'Ubicación no encontrada' });
+    }
+
+    console.log(`🎵 [SONGS] Creating song with variants: ${title}`);
+    console.log(`🎭 [SONGS] Voice types: ${voiceTypes.join(', ')}`);
+
+    // Crear la canción padre (sin archivo de audio, solo metadatos)
+    const parentSong = await prisma.song.create({
+      data: {
+        title: title,
+        artist: artist || null,
+        album: album || null,
+        genre: genre || null,
+        fileName: '', // Sin archivo para el padre
+        filePath: '', // Sin archivo para el padre
+        fileSize: 0,
+        mimeType: 'application/json', // Metadatos
+        uploadedBy: req.user!.id,
+        voiceType: null, // Sin tipo de voz específico para el padre
+        parentSongId: null // Es la canción padre
+      }
+    });
+
+    console.log(`✅ [SONGS] Parent song created: ${parentSong.id}`);
+
+    // Crear las variantes para cada tipo de voz
+    const variants = [];
+    for (const voiceType of voiceTypes) {
+      console.log(`🎭 [SONGS] Creating variant for ${voiceType}...`);
+      
+      const variant = await prisma.song.create({
+        data: {
+          title: `${title} (${voiceType})`,
+          artist: artist || null,
+          album: album || null,
+          genre: genre || null,
+          fileName: '', // Sin archivo inicialmente
+          filePath: '', // Sin archivo inicialmente
+          fileSize: 0,
+          mimeType: 'application/json', // Metadatos
+          uploadedBy: req.user!.id,
+          voiceType: voiceType,
+          parentSongId: parentSong.id // Vincular al padre
+        }
+      });
+
+      variants.push(variant);
+      console.log(`✅ [SONGS] ${voiceType} variant created: ${variant.id}`);
+    }
+
+    console.log(`🎉 [SONGS] Successfully created song with ${variants.length} variants`);
+
+    res.status(201).json({
+      message: 'Canción y variantes creadas exitosamente',
+      id: parentSong.id,
+      title: parentSong.title,
+      variants: variants.map(v => ({
+        id: v.id,
+        title: v.title,
+        voiceType: v.voiceType
+      }))
+    });
+
+  } catch (error) {
+    console.error('Error creating song with variants:', error);
+    res.status(500).json({ message: 'Error interno del servidor' });
   }
 });
 
@@ -707,6 +875,71 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res: Response) =>
   } catch (error) {
     console.error('Error fetching song:', error);
     res.status(500).json({ message: 'Failed to fetch song' });
+  }
+});
+
+// Obtener archivos de letras de una canción
+router.get('/:id/lyrics-files', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const lyricsFiles = await prisma.lyricsFile.findMany({
+      where: {
+        songId: id,
+        isActive: true
+      },
+      include: {
+        uploader: {
+          select: {
+            firstName: true,
+            lastName: true
+          }
+        }
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    });
+
+    res.json({ lyricsFiles });
+  } catch (error) {
+    console.error('Error fetching lyrics files:', error);
+    res.status(500).json({ message: 'Failed to fetch lyrics files' });
+  }
+});
+
+// Servir archivos de letras estáticamente
+router.get('/:id/lyrics-files/:fileId', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const { fileId } = req.params;
+
+    const lyricsFile = await prisma.lyricsFile.findUnique({
+      where: {
+        id: fileId,
+        isActive: true
+      }
+    });
+
+    if (!lyricsFile) {
+      return res.status(404).json({ message: 'Lyrics file not found' });
+    }
+
+    const filePath = path.join(process.cwd(), 'uploads', lyricsFile.filePath);
+    
+    // Check if file exists
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ message: 'File not found on disk' });
+    }
+
+    // Set appropriate headers
+    res.setHeader('Content-Type', lyricsFile.mimeType);
+    res.setHeader('Content-Disposition', `inline; filename="${lyricsFile.fileName}"`);
+    
+    // Send file
+    res.sendFile(filePath);
+  } catch (error) {
+    console.error('Error serving lyrics file:', error);
+    res.status(500).json({ message: 'Failed to serve file' });
   }
 });
 

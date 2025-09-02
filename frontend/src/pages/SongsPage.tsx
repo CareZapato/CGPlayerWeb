@@ -252,8 +252,8 @@ const SongsPage: React.FC = () => {
   };
 
   const playVersionsFromAPI = (versions: any[]) => {
-    // Convertir versiones al formato correcto para el reproductor
-    const songsToQueue: Song[] = versions.map((version: any) => ({
+    // Aplicar el mismo filtrado que en el resto de la aplicación
+    const allVariations: Song[] = versions.map((version: any) => ({
       ...version,
       filePath: version.filePath || `${version.folderName}/${version.fileName}`,
       fileSize: version.fileSize || 0,
@@ -263,13 +263,17 @@ const SongsPage: React.FC = () => {
       updatedAt: version.updatedAt || version.createdAt
     }));
 
+    // Aplicar filtrado de usuario
+    const songsToQueue = getFilteredVersions(allVariations);
+
     if (songsToQueue.length === 0) {
-      console.log('❌ No hay versiones válidas para reproducir desde API');
+      console.log('❌ No hay versiones válidas para reproducir desde API para este usuario');
       return;
     }
 
-    console.log('🎵 Configurando cola con versiones de API:', { 
-      total: songsToQueue.length,
+    console.log('🎵 Configurando cola con versiones de API filtradas:', { 
+      total: allVariations.length,
+      filtered: songsToQueue.length,
       titles: songsToQueue.map(s => `${s.title} (${VOICE_TYPE_LABELS[s.voiceType!] || s.voiceType})`)
     });
 

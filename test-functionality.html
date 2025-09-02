@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test CGPlayer Functionality</title>
+</head>
+<body>
+    <h1>CGPlayer Functionality Test</h1>
+    
+    <h2>1. Test Album Song Playback</h2>
+    <p>Go to: <a href="http://192.168.1.11:5173/albums" target="_blank">Albums Page</a></p>
+    <p>Instructions: Click on "Blood" card, then click "Play" button and verify it starts playing.</p>
+    
+    <h2>2. Test Lyrics Display</h2>
+    <p>Instructions: After playing a song, check if lyrics appear in the player at the bottom.</p>
+    
+    <h2>3. Test Queue Adding</h2>
+    <p>Instructions: Click on a song card's menu (three dots) and select "Add to Queue".</p>
+    
+    <script>
+        // Simple JavaScript to test API endpoints
+        async function testAPI() {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                console.log('No token found. Please login first.');
+                return;
+            }
+            
+            console.log('🧪 Testing API endpoints...');
+            
+            // Test songs endpoint
+            try {
+                const songsResponse = await fetch('http://192.168.1.11:3001/api/songs?includeVersions=false', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                const songsData = await songsResponse.json();
+                console.log('✅ Songs API working:', songsData.songs?.length || 0, 'songs found');
+                
+                if (songsData.songs && songsData.songs.length > 0) {
+                    const firstSong = songsData.songs[0];
+                    console.log('🎵 Testing first song:', firstSong.title, 'ID:', firstSong.id);
+                    
+                    // Test versions endpoint
+                    const versionsResponse = await fetch(`http://192.168.1.11:3001/api/songs/${firstSong.id}/versions`, {
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    const versionsData = await versionsResponse.json();
+                    console.log('✅ Versions API working:', versionsData.versions?.length || 0, 'versions found');
+                    
+                    // Test lyrics endpoint
+                    const lyricsResponse = await fetch(`http://192.168.1.11:3001/api/lyrics/${firstSong.id}`, {
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    const lyricsData = await lyricsResponse.json();
+                    console.log('✅ Lyrics API working:', lyricsData.success ? 'Success' : 'Failed');
+                    
+                    // Test synced lyrics endpoint
+                    const syncedResponse = await fetch(`http://192.168.1.11:3001/api/lyrics/${firstSong.id}/sync`, {
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    const syncedData = await syncedResponse.json();
+                    console.log('✅ Synced Lyrics API working:', Array.isArray(syncedData.lyrics) ? syncedData.lyrics.length + ' lyrics' : 'No lyrics');
+                }
+            } catch (error) {
+                console.error('❌ API Test failed:', error);
+            }
+        }
+        
+        // Auto-run test when page loads
+        window.addEventListener('load', () => {
+            setTimeout(testAPI, 1000);
+        });
+    </script>
+</body>
+</html>

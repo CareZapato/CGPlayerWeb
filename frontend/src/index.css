@@ -48,6 +48,105 @@
     @apply bg-white rounded-lg shadow-md p-6;
   }
 
+  /* Letras estilo Spotify con gradiente 3D */
+  .lyrics-container {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 20px;
+    padding: 2rem;
+    box-shadow: 
+      0 20px 40px -12px rgba(0, 0, 0, 0.25),
+      inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .lyrics-line {
+    @apply mb-4 px-6 py-4 rounded-xl transition-all duration-300 cursor-default;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(8px);
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 1.1rem;
+    line-height: 1.6;
+    font-weight: 500;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    box-shadow: 
+      0 4px 15px -3px rgba(0, 0, 0, 0.1),
+      inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  }
+
+  .lyrics-line:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.3);
+    transform: translateY(-2px);
+    box-shadow: 
+      0 8px 25px -5px rgba(0, 0, 0, 0.2),
+      inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    color: rgba(255, 255, 255, 1);
+  }
+
+  .lyrics-line.active {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.2));
+    border-color: rgba(255, 255, 255, 0.4);
+    color: #ffffff;
+    font-weight: 600;
+    transform: translateY(-3px) scale(1.02);
+    box-shadow: 
+      0 12px 35px -8px rgba(0, 0, 0, 0.3),
+      inset 0 2px 0 rgba(255, 255, 255, 0.3);
+  }
+
+  .lyrics-voice-tag {
+    @apply inline-block px-3 py-1 rounded-full text-xs font-semibold mt-2;
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(4px);
+  }
+
+  .lyrics-header {
+    @apply mb-6 text-center;
+    color: rgba(255, 255, 255, 0.95);
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  }
+
+  .lyrics-header h3 {
+    @apply text-2xl font-bold mb-2;
+    background: linear-gradient(135deg, #ffffff, rgba(255, 255, 255, 0.8));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .lyrics-header p {
+    @apply text-lg opacity-90;
+  }
+
+  .lyrics-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+  }
+
+  .lyrics-scrollbar::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .lyrics-scrollbar::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+  }
+
+  .lyrics-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 4px;
+    transition: background 0.3s ease;
+  }
+
+  .lyrics-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.5);
+  }
+}
+
   .floating-player {
     @apply fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-50;
   }
@@ -119,7 +218,6 @@
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
-}
 
 @layer utilities {
   .text-shadow {
