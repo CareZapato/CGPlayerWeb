@@ -137,6 +137,34 @@ const LyricsViewerInline: React.FC<LyricsViewerInlineProps> = ({ song, isDesktop
   const [selectedVoiceType, setSelectedVoiceType] = useState<VoiceType | null>(null);
   const [activeLineIndex, setActiveLineIndex] = useState<number>(-1);
   
+  // Función para alternar entre sync y files en móvil
+  const toggleMobileDisplayMode = () => {
+    setDisplayMode(displayMode === 'sync' ? 'files' : 'sync');
+  };
+
+  // Función para obtener el icono del modo de display actual
+  const getMobileDisplayIcon = () => {
+    if (displayMode === 'sync') {
+      return {
+        icon: (
+          <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+        ),
+        title: 'Letras Sincronizadas'
+      };
+    } else {
+      return {
+        icon: (
+          <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+          </svg>
+        ),
+        title: 'Archivos'
+      };
+    }
+  };
+  
   const { 
     lyrics, 
     syncedLyrics, 
@@ -376,28 +404,43 @@ const LyricsViewerInline: React.FC<LyricsViewerInlineProps> = ({ song, isDesktop
 
   return (
     <div className="h-full flex flex-col" style={{ height: '100%' }}>
-      {/* Mode selector */}
-      <div className="flex space-x-2 mb-2 flex-shrink-0">
-        <button
-          onClick={() => setDisplayMode('sync')}
-          className={`px-3 py-1 text-xs rounded ${
-            displayMode === 'sync'
-              ? 'bg-blue-100 text-blue-700'
-              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-          }`}
-        >
-          📝 Letras Sincronizadas
-        </button>
-        <button
-          onClick={() => setDisplayMode('files')}
-          className={`px-3 py-1 text-xs rounded ${
-            displayMode === 'files'
-              ? 'bg-blue-100 text-blue-700'
-              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-          }`}
-        >
-          📁 Archivos ({lyricsFiles.length})
-        </button>
+      {/* Mode selector - Diferentes estilos para desktop y móvil */}
+      <div className={`flex space-x-1 mb-2 flex-shrink-0 ${isDesktop ? 'justify-start' : 'justify-center'}`}>
+        {isDesktop ? (
+          <>
+            <button
+              onClick={() => setDisplayMode('sync')}
+              className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                displayMode === 'sync'
+                  ? 'bg-white bg-opacity-20 text-white'
+                  : 'bg-white bg-opacity-10 text-white text-opacity-70 hover:bg-opacity-15'
+              }`}
+              title="Letras Sincronizadas"
+            >
+              Letras Sincronizadas
+            </button>
+            <button
+              onClick={() => setDisplayMode('files')}
+              className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                displayMode === 'files'
+                  ? 'bg-white bg-opacity-20 text-white'
+                  : 'bg-white bg-opacity-10 text-white text-opacity-70 hover:bg-opacity-15'
+              }`}
+              title="Archivos"
+            >
+              Archivos
+            </button>
+          </>
+        ) : (
+          <button
+            onClick={toggleMobileDisplayMode}
+            className="px-4 py-2 rounded-lg transition-all bg-white bg-opacity-20 text-white flex items-center space-x-2"
+            title={getMobileDisplayIcon().title}
+          >
+            {getMobileDisplayIcon().icon}
+            <span className="text-sm font-medium">{getMobileDisplayIcon().title}</span>
+          </button>
+        )}
       </div>
 
 
@@ -793,6 +836,66 @@ const StickyPlayer: React.FC = () => {
   // No mostrar el reproductor si no hay canción actual
   if (!currentSong) return null;
 
+  // Función para alternar entre shuffle y repeat
+  const togglePlaybackMode = () => {
+    if (!isShuffled && repeatMode === 'off') {
+      // Activar shuffle
+      toggleShuffle();
+    } else if (isShuffled && repeatMode === 'off') {
+      // Cambiar de shuffle a repeat all
+      toggleShuffle(); // Desactivar shuffle
+      toggleRepeat(); // Activar repeat (pasará a 'all')
+    } else if (!isShuffled && repeatMode === 'all') {
+      // Cambiar de repeat all a repeat one
+      toggleRepeat(); // Pasará a 'one'
+    } else if (!isShuffled && repeatMode === 'one') {
+      // Volver al estado inicial (todo desactivado)
+      toggleRepeat(); // Pasará a 'off'
+    }
+  };
+
+  // Función para obtener el icono y título del modo de reproducción actual
+  const getPlaybackModeIcon = () => {
+    if (isShuffled) {
+      return {
+        icon: (
+          <svg className="mobile-control-icon mobile-control-icon--small" viewBox="0 0 24 24">
+            <path d="M14 7h2.5l-.5-.5 1.4-1.4L21 8.7l-3.6 3.6-1.4-1.4.5-.5H14v-3.4zm-2 10h2.5l-.5.5 1.4 1.4L21 15.3l-3.6-3.6-1.4 1.4.5.5H12v3.4zm-8-2L15.3 3l1.4 1.4L5.4 15.8 4 14.4zm0-10L15.3 21l1.4-1.4L5.4 8.2 4 9.6z"/>
+          </svg>
+        ),
+        title: 'Aleatorio activado'
+      };
+    } else if (repeatMode === 'all') {
+      return {
+        icon: (
+          <svg className="mobile-control-icon mobile-control-icon--small" viewBox="0 0 24 24">
+            <path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"/>
+          </svg>
+        ),
+        title: 'Repetir lista'
+      };
+    } else if (repeatMode === 'one') {
+      return {
+        icon: (
+          <svg className="mobile-control-icon mobile-control-icon--small" viewBox="0 0 24 24">
+            <path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"/>
+            <text x="12" y="16" textAnchor="middle" fontSize="8" fill="currentColor">1</text>
+          </svg>
+        ),
+        title: 'Repetir canción'
+      };
+    } else {
+      return {
+        icon: (
+          <svg className="mobile-control-icon mobile-control-icon--small" viewBox="0 0 24 24">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+          </svg>
+        ),
+        title: 'Reproducción normal'
+      };
+    }
+  };
+
   const formatTime = (time: number) => {
     const minutes = Math.floor(time / 60);
     const seconds = Math.floor(time % 60);
@@ -966,30 +1069,36 @@ const StickyPlayer: React.FC = () => {
             </div>
           </div>
 
-          {/* Botón de cola / expandir reproductor */}
-          <button
-            onClick={() => {
-              if (isDesktop) {
-                setIsExpandedDesktop(!isExpandedDesktop);
-              } else {
-                setIsQueueVisible(!isQueueVisible);
-              }
-            }}
-            className={`control-button ${(isDesktop && isExpandedDesktop) || (!isDesktop && isQueueVisible) ? 'control-button--active' : ''}`}
-            title={isDesktop ? "Expandir reproductor" : "Ver cola de reproducción"}
-          >
-            <QueueListIcon className="control-button__icon" />
-          </button>
-
-          {/* Botón de letras - solo en móvil */}
-          {!isDesktop && (
+          {/* Botón de cola / expandir reproductor - solo en desktop */}
+          {isDesktop && (
             <button
-              onClick={() => setIsFullscreenLyrics(!isFullscreenLyrics)}
-              className={`control-button ${isFullscreenLyrics ? 'control-button--active' : ''}`}
-              title="Ver letras en pantalla completa"
+              onClick={() => setIsExpandedDesktop(!isExpandedDesktop)}
+              className={`control-button ${isExpandedDesktop ? 'control-button--active' : ''}`}
+              title="Expandir reproductor"
             >
-              <DocumentTextIcon className="control-button__icon" />
+              <QueueListIcon className="control-button__icon" />
             </button>
+          )}
+
+          {/* Botones móviles */}
+          {!isDesktop && (
+            <>
+              <button
+                onClick={() => setIsQueueVisible(!isQueueVisible)}
+                className={`control-button ${isQueueVisible ? 'control-button--active' : ''}`}
+                title="Ver cola de reproducción"
+              >
+                <QueueListIcon className="control-button__icon" />
+              </button>
+              
+              <button
+                onClick={() => setIsFullscreenLyrics(!isFullscreenLyrics)}
+                className={`control-button ${isFullscreenLyrics ? 'control-button--active' : ''}`}
+                title="Ver letras en pantalla completa"
+              >
+                <DocumentTextIcon className="control-button__icon" />
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -1012,14 +1121,6 @@ const StickyPlayer: React.FC = () => {
             background: 'white'
           }}
         >
-          {/* Botón de cerrar flotante */}
-          <button
-            onClick={() => setIsExpandedDesktop(false)}
-            className="fixed top-4 right-4 z-50 p-2 bg-black bg-opacity-50 text-white hover:bg-opacity-70 rounded-full transition-all"
-            title="Cerrar vista expandida"
-          >
-            <XMarkIcon className="h-6 w-6" />
-          </button>
           
           <div 
             className="desktop-expanded-content"
@@ -1240,35 +1341,30 @@ const StickyPlayer: React.FC = () => {
       {/* Vista de pantalla completa para letras (móvil) */}
       {isFullscreenLyrics && (
         <div className="mobile-fullscreen-player">
-          {/* Header minimalista */}
+          {/* Header con info de la canción */}
           <div className="mobile-fullscreen-header">
+            <div className="mobile-fullscreen-song-info">
+              <div className="mobile-fullscreen-song-avatar">
+                <span>{currentSong.title.charAt(0).toUpperCase()}</span>
+              </div>
+              <div className="mobile-fullscreen-song-details">
+                <h2 className="mobile-fullscreen-song-title">{currentSong.title}</h2>
+                <p className="mobile-fullscreen-song-artist">
+                  {currentSong.artist || 'Coro Gregorio'}
+                </p>
+              </div>
+            </div>
             <button
               onClick={() => setIsFullscreenLyrics(false)}
               className="mobile-fullscreen-close"
             >
-              <XMarkIcon className="h-6 w-6" />
+              ✕
             </button>
           </div>
           
-          {/* Imagen/Avatar de la canción */}
-          <div className="mobile-fullscreen-artwork">
-            <div className="mobile-fullscreen-artwork__circle">
-              <span className="mobile-fullscreen-artwork__text">
-                {currentSong.title.charAt(0).toUpperCase()}
-              </span>
-            </div>
-          </div>
-          
-          {/* Información de la canción */}
-          <div className="mobile-fullscreen-info">
-            <h1 className="mobile-fullscreen-title">
-              {currentSong.title}
-            </h1>
-            {currentSong.artist && (
-              <p className="mobile-fullscreen-artist">
-                {currentSong.artist}
-              </p>
-            )}
+          {/* Mensaje de estado si no están sincronizadas */}
+          <div className="mobile-fullscreen-status">
+            <p>Estas letras no están sincronizadas aún.</p>
           </div>
           
           {/* Contenido de letras */}
@@ -1278,6 +1374,10 @@ const StickyPlayer: React.FC = () => {
           
           {/* Barra de progreso */}
           <div className="mobile-fullscreen-progress">
+            <div className="mobile-fullscreen-progress__time">
+              <span>{formatTime(currentTime)}</span>
+              <span>{formatTime(duration)}</span>
+            </div>
             <div 
               className="mobile-fullscreen-progress__bar"
               onClick={handleProgressClick}
@@ -1287,40 +1387,75 @@ const StickyPlayer: React.FC = () => {
                 style={{ width: `${progressPercentage}%` }}
               />
             </div>
-            <div className="mobile-fullscreen-progress__time">
-              <span>{formatTime(currentTime)}</span>
-              <span>{formatTime(duration)}</span>
-            </div>
           </div>
           
-          {/* Controles de reproducción */}
+          {/* Controles de reproducción modernos minimalistas */}
           <div className="mobile-fullscreen-controls">
-            <button
-              onClick={handlePrevious}
-              className="mobile-fullscreen-control mobile-fullscreen-control--secondary"
-              disabled={currentIndex === 0}
-            >
-              <BackwardIcon className="h-8 w-8" />
-            </button>
 
-            <button
-              onClick={isPlaying ? pause : play}
-              className="mobile-fullscreen-control mobile-fullscreen-control--primary"
-            >
-              {isPlaying ? (
-                <PauseIcon className="h-12 w-12" />
-              ) : (
-                <PlayIcon className="h-12 w-12" />
-              )}
-            </button>
 
-            <button
-              onClick={handleNext}
-              className="mobile-fullscreen-control mobile-fullscreen-control--secondary"
-              disabled={currentIndex === queue.length - 1}
-            >
-              <ForwardIcon className="h-8 w-8" />
-            </button>
+            {/* Controles principales */}
+            <div className="mobile-fullscreen-controls-main">
+              {/* Control consolidado de modo de reproducción */}
+              <button
+                onClick={togglePlaybackMode}
+                className={`mobile-fullscreen-control mobile-fullscreen-control--small ${
+                  isShuffled || repeatMode !== 'off' ? 'mobile-fullscreen-control--active' : ''
+                }`}
+                title={getPlaybackModeIcon().title}
+              >
+                {getPlaybackModeIcon().icon}
+              </button>
+
+              <button
+                onClick={handlePrevious}
+                className="mobile-fullscreen-control mobile-fullscreen-control--secondary"
+                disabled={currentIndex === 0}
+              >
+                <svg className="mobile-control-icon mobile-control-icon--large" viewBox="0 0 24 24">
+                  <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/>
+                </svg>
+              </button>
+
+              <button
+                onClick={isPlaying ? pause : play}
+                className="mobile-fullscreen-control mobile-fullscreen-control--primary"
+              >
+                {isPlaying ? (
+                  <svg className="mobile-control-icon mobile-control-icon--primary" viewBox="0 0 24 24">
+                    <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+                  </svg>
+                ) : (
+                  <svg className="mobile-control-icon mobile-control-icon--primary" viewBox="0 0 24 24">
+                    <path d="M8 5v14l11-7z"/>
+                  </svg>
+                )}
+              </button>
+
+              <button
+                onClick={handleNext}
+                className="mobile-fullscreen-control mobile-fullscreen-control--secondary"
+                disabled={currentIndex === queue.length - 1}
+              >
+                <svg className="mobile-control-icon mobile-control-icon--large" viewBox="0 0 24 24">
+                  <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/>
+                </svg>
+              </button>
+
+              {/* Botón de cola de reproducción */}
+              <button
+                onClick={() => setIsQueueVisible(!isQueueVisible)}
+                className={`mobile-fullscreen-control mobile-fullscreen-control--small ${
+                  isQueueVisible ? 'mobile-fullscreen-control--active' : ''
+                }`}
+                title="Cola de reproducción"
+              >
+                <svg className="mobile-control-icon mobile-control-icon--small" viewBox="0 0 24 24">
+                  <path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z"/>
+                </svg>
+              </button>
+            </div>
+            
+
           </div>
         </div>
       )}
