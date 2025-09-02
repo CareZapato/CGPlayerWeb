@@ -3,7 +3,6 @@ import { useAuthStore } from '../store/authStore';
 import { usePlayerStore } from '../store/playerStore';
 import { usePlaylistStore } from '../store/playlistStore';
 import { useServerInfo } from '../hooks/useServerInfo';
-import { useLyrics } from '../hooks/useLyrics';
 import { getApiUrl, getSongFileUrl } from '../config/api';
 import SongUpload from '../components/SongUpload';
 import MultiSongUpload from '../components/Upload/MultiSongUpload';

@@ -9,23 +9,16 @@ const SimplePlayer: React.FC = () => {
   const { 
     currentSong, 
     isPlaying, 
-    currentTime, 
-    duration, 
     volume,
     setAudioRef,
     setCurrentTime,
     setDuration,
-    play,
     pause,
-    setVolume,
-    seekTo,
     setCurrentSong
   } = usePlayerStore();
   
   const {
-    queue,
-    nextSong: getNextSong,
-    previousSong: getPreviousSong
+    nextSong: getNextSong
   } = usePlaylistStore();
 
   const { serverInfo } = useServerInfo();

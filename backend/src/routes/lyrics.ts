@@ -20,15 +20,27 @@ router.get('/files/:fileId', authenticateToken, async (req, res) => {
       return res.status(404).json({ message: 'Archivo no encontrado' });
     }
     
-    const filePath = path.join(__dirname, '../../uploads/lyrics', path.basename(lyricsFile.filePath));
+    // Construir la ruta correcta del archivo
+    const filePath = path.join(__dirname, '../../uploads', lyricsFile.filePath);
+    
+    console.log('📄 [LYRICS FILE] Looking for file:', {
+      fileId,
+      fileName: lyricsFile.fileName,
+      storedPath: lyricsFile.filePath,
+      fullPath: filePath,
+      exists: fs.existsSync(filePath)
+    });
     
     if (!fs.existsSync(filePath)) {
+      console.log('❌ [LYRICS FILE] File not found at path:', filePath);
       return res.status(404).json({ message: 'Archivo físico no encontrado' });
     }
     
     // Establecer headers apropiados
     res.setHeader('Content-Type', lyricsFile.mimeType);
     res.setHeader('Content-Disposition', `inline; filename="${lyricsFile.fileName}"`);
+    
+    console.log('✅ [LYRICS FILE] Serving file successfully');
     
     // Enviar archivo
     res.sendFile(filePath);
@@ -244,28 +256,37 @@ router.put('/:songId/text', authenticateToken, async (req, res) => {
 
     // Verificar que la canción existe
     const song = await prisma.song.findUnique({
-      where: { id: songId }
+      where: { id: songId },
+      select: { 
+        id: true, 
+        title: true, 
+        voiceType: true, 
+        parentSongId: true 
+      }
     });
 
     if (!song) {
       return res.status(404).json({ message: 'Canción no encontrada' });
     }
 
+    console.log(`📝 [LYRICS TEXT] Saving lyrics for song: ${song.title} (${song.voiceType || 'GENERAL'})`);
+    console.log(`📝 [LYRICS TEXT] Song ID: ${songId}, VoiceType param: ${voiceType}, isTextOnly: ${isTextOnly}`);
+
     // Si es solo texto (no sincronización), crear una entrada de texto simple
     if (isTextOnly) {
-      // Eliminar letras de texto existentes para este voiceType
+      // Eliminar letras de texto existentes para este voiceType en ESTA canción específica
       await (prisma as any).lyric.deleteMany({
         where: {
-          songId,
+          songId, // Usar el songId específico (variante), no el padre
           voiceType,
           isTextLyrics: true
         }
       });
 
-      // Crear entrada de texto completo
+      // Crear entrada de texto completo para ESTA canción específica
       const textLyric = await (prisma as any).lyric.create({
         data: {
-          songId,
+          songId, // Usar el songId específico (variante), no el padre
           content: 'Letras completas', // Título descriptivo
           textContent: content, // Contenido completo
           startTime: null,
@@ -277,7 +298,7 @@ router.put('/:songId/text', authenticateToken, async (req, res) => {
         }
       });
 
-      console.log(`📝 Texto de letras guardado para ${voiceType || 'general'}`);
+      console.log(`✅ [LYRICS TEXT] Text lyrics saved for ${song.voiceType || 'general'} in song ${songId}`);
       return res.json({ 
         success: true, 
         message: 'Letras de texto guardadas exitosamente',
@@ -285,62 +306,41 @@ router.put('/:songId/text', authenticateToken, async (req, res) => {
       });
     }
 
-    // Resto del código para sincronización...
-    // Verificar si es la primera vez que se guardan letras para esta canción
-    const existingLyrics = await (prisma as any).lyric.findMany({
+    // Para sincronización: dividir el contenido en líneas y crear entradas individuales
+    console.log(`🎵 [LYRICS TEXT] Creating sync entries for song ${songId}`);
+
+    // Eliminar letras existentes para sincronización en ESTA canción específica
+    await (prisma as any).lyric.deleteMany({
       where: {
-        songId,
-        isTextLyrics: false, // Solo sincronizaciones
-        startTime: {
-          not: 0 // Solo las que ya tienen sincronización real
-        }
+        songId, // Usar el songId específico (variante), no el padre
+        voiceType: voiceType,
+        isTextLyrics: false
       }
     });
 
-    const isFirstTimeSync = existingLyrics.length === 0;
+    // Dividir el contenido en líneas
+    const lines = content.split('\n').filter(line => line.trim() !== '');
 
-    // Si es la primera vez, crear letras sincronizadas para todos los voice types
-    if (isFirstTimeSync) {
-      console.log(`🎵 Primera sincronización para canción ${songId}, creando para todos los voiceTypes`);
-
-      // Lista de todos los voice types posibles
-      const allVoiceTypes = [null, 'SOPRANO', 'CONTRALTO', 'TENOR', 'BARITONO', 'BAJO', 'CORO'];
-
-      // Dividir el contenido en líneas
-      const lines = content.split('\n').filter(line => line.trim() !== '');
-
-      for (const vType of allVoiceTypes) {
-        // Primero eliminar letras existentes para este voiceType
-        await (prisma as any).lyric.deleteMany({
-          where: {
-            songId,
-            voiceType: vType,
-            isTextLyrics: false
-          }
-        });
-
-        // Crear nuevas entradas para cada línea
-        for (let i = 0; i < lines.length; i++) {
-          await (prisma as any).lyric.create({
-            data: {
-              songId,
-              content: lines[i],
-              startTime: 0, // Tiempo inicial en 0 para sincronización posterior
-              endTime: 0,
-              lineNumber: i + 1,
-              voiceType: vType,
-              isTextLyrics: false,
-              createdBy: userId
-            }
-          });
+    // Crear nuevas entradas para cada línea para ESTA canción específica
+    for (let i = 0; i < lines.length; i++) {
+      await (prisma as any).lyric.create({
+        data: {
+          songId, // Usar el songId específico (variante), no el padre
+          content: lines[i],
+          startTime: 0, // Tiempo inicial en 0 para sincronización posterior
+          endTime: 0,
+          lineNumber: i + 1,
+          voiceType: voiceType,
+          isTextLyrics: false,
+          createdBy: userId
         }
-      }
+      });
     }
 
     // Buscar o crear entrada de letra de texto para esta variante específica
     const existingTextLyric = await (prisma as any).lyric.findFirst({
       where: {
-        songId,
+        songId, // Usar el songId específico (variante), no el padre
         voiceType: voiceType,
         isTextLyrics: true
       }
@@ -361,7 +361,7 @@ router.put('/:songId/text', authenticateToken, async (req, res) => {
       // Crear nueva
       textLyric = await (prisma as any).lyric.create({
         data: {
-          songId,
+          songId, // Usar el songId específico (variante), no el padre
           content: content.substring(0, 255), // Preview
           textContent: content, // Contenido completo
           lineNumber: 0, // Línea 0 para letras de texto completas
@@ -377,6 +377,8 @@ router.put('/:songId/text', authenticateToken, async (req, res) => {
       where: { id: songId },
       data: { hasLyricSync: true }
     });
+
+    console.log(`✅ [LYRICS TEXT] Lyrics successfully saved for song ${songId} (${song.voiceType || 'GENERAL'})`);
 
     res.json({
       success: true,
@@ -395,23 +397,83 @@ router.get('/:songId/sync', authenticateToken, async (req, res) => {
     const { songId } = req.params;
     const { voiceType } = req.query;
 
-    const lyrics = await (prisma as any).lyric.findMany({
+    console.log(`🔍 [LYRICS SYNC] Fetching lyrics for song ${songId}, voiceType: ${voiceType}`);
+
+    // Primero buscar letras sincronizadas (isTextLyrics: false)
+    const syncedLyrics = await (prisma as any).lyric.findMany({
       where: {
-        songId,
+        songId, // Buscar solo en esta canción específica
         isActive: true,
-        isTextLyrics: false, // Solo sincronizaciones, no letras de texto completas
+        isTextLyrics: false,
         ...(voiceType && voiceType !== 'main' ? { voiceType: voiceType as any } : 
             voiceType === 'main' ? { voiceType: null } : {})
       },
       orderBy: [
         { voiceType: 'asc' },
-        { createdAt: 'asc' }
+        { lineNumber: 'asc' },
+        { startTime: 'asc' }
       ]
     });
 
+    console.log(`🎵 [LYRICS SYNC] Found ${syncedLyrics.length} synced lyrics`);
+
+    // Si no hay letras sincronizadas, buscar letras de texto estáticas
+    if (syncedLyrics.length === 0) {
+      console.log(`📝 [LYRICS SYNC] No synced lyrics found, searching for text lyrics...`);
+      
+      const textLyrics = await (prisma as any).lyric.findMany({
+        where: {
+          songId, // Buscar solo en esta canción específica
+          isActive: true,
+          isTextLyrics: true,
+          ...(voiceType && voiceType !== 'main' ? { voiceType: voiceType as any } : 
+              voiceType === 'main' ? { voiceType: null } : {})
+        },
+        orderBy: [
+          { voiceType: 'asc' },
+          { lineNumber: 'asc' },
+          { createdAt: 'asc' }
+        ]
+      });
+
+      console.log(`📝 [LYRICS SYNC] Found ${textLyrics.length} text lyrics`);
+
+      // Convertir letras de texto a formato sincronizado con tiempo=0
+      const convertedLyrics = textLyrics.flatMap((lyric: any) => {
+        if (lyric.textContent) {
+          const lines = lyric.textContent.split('\n').filter((line: string) => line.trim());
+          return lines.map((line: string, index: number) => ({
+            id: `${lyric.id}_line_${index}`,
+            songId: lyric.songId,
+            content: line.trim(),
+            textContent: null,
+            startTime: 0,
+            endTime: 0,
+            lineNumber: index + 1,
+            voiceType: lyric.voiceType,
+            isTextLyrics: false, // Marcar como sincronizada para compatibilidad frontend
+            isActive: true,
+            createdAt: lyric.createdAt,
+            updatedAt: lyric.updatedAt,
+            createdBy: lyric.createdBy
+          }));
+        }
+        return [];
+      });
+
+      console.log(`� [LYRICS SYNC] Converted ${convertedLyrics.length} text lyrics to sync format for song ${songId}`);
+
+      return res.json({
+        success: true,
+        lyrics: convertedLyrics
+      });
+    }
+
+    console.log(`✅ [LYRICS SYNC] Returning ${syncedLyrics.length} synced lyrics for song ${songId}`);
+
     res.json({
       success: true,
-      lyrics
+      lyrics: syncedLyrics
     });
   } catch (error) {
     console.error('Error fetching synced lyrics:', error);

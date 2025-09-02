@@ -21,10 +21,10 @@ export const authenticateToken = async (req: AuthRequest, res: Response, next: N
   const authHeader = req.headers['authorization'];
   let token = authHeader && authHeader.split(' ')[1];
 
-  // Para archivos de audio, también permitir token vía query parameter
-  if (!token && req.url.includes('/file/')) {
+  // Para archivos de audio y letras, también permitir token vía query parameter
+  if (!token && (req.url.includes('/file/') || req.url.includes('/files/'))) {
     token = req.query.token as string;
-    console.log(`🔐 [AUTH] Token from query parameter for audio file`);
+    console.log(`🔐 [AUTH] Token from query parameter for file`);
   }
 
   if (!token) {

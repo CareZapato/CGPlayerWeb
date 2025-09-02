@@ -148,15 +148,6 @@ const DashboardPage: React.FC = () => {
     })) || [];
   };
 
-  // Get current location for director info
-  const getCurrentLocation = () => {
-    const targetLocationId = pinnedLocation || hoveredLocation?.locationId;
-    if (targetLocationId && data) {
-      return data.locations.find(loc => loc.locationId === targetLocationId);
-    }
-    return null;
-  };
-
   const getVoiceTypeColor = (voiceType: string) => {
     const colors = {
       'SOPRANO': '#EC4899',

@@ -1,6 +1,5 @@
 import type { LyricsUploadResponse, SongWithLyrics, Lyric, LyricsSyncData, VoiceType } from '../types/lyrics';
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+import configService from './configService';
 
 class LyricsService {
   private getAuthHeaders() {
@@ -11,16 +10,29 @@ class LyricsService {
     };
   }
 
+  private handleAuthError(response: Response) {
+    if (response.status === 401) {
+      console.warn('🔐 [AUTH] Token inválido o expirado, limpiando localStorage');
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      // Redireccionar al login si estamos en una página que requiere autenticación
+      if (window.location.pathname !== '/login' && window.location.pathname !== '/') {
+        window.location.href = '/login';
+      }
+    }
+  }
+
   // Obtener letras de una canción
   async getLyrics(songId: string): Promise<SongWithLyrics> {
     try {
       console.log('🌐 [LYRICS SERVICE] Requesting lyrics for songId:', songId);
       
-      const response = await fetch(`${API_BASE_URL}/lyrics/${songId}`, {
+      const response = await fetch(`${configService.getApiBaseUrl()}/lyrics/${songId}`, {
         headers: this.getAuthHeaders()
       });
       
       if (!response.ok) {
+        this.handleAuthError(response);
         throw new Error(`Error ${response.status}: ${response.statusText}`);
       }
       
@@ -63,7 +75,7 @@ class LyricsService {
   // Actualizar letras de texto (tipo TEXT)
   async updateTextLyrics(songId: string, content: string, voiceType?: VoiceType | null): Promise<SongWithLyrics> {
     try {
-      const response = await fetch(`${API_BASE_URL}/lyrics/${songId}/text`, {
+      const response = await fetch(`${configService.getApiBaseUrl()}/lyrics/${songId}/text`, {
         method: 'PUT',
         headers: this.getAuthHeaders(),
         body: JSON.stringify({ content, voiceType })
@@ -87,7 +99,7 @@ class LyricsService {
       const formData = new FormData();
       formData.append('lyrics', file);
       
-      const response = await fetch(`${API_BASE_URL}/lyrics/${songId}/file`, {
+      const response = await fetch(`${configService.getApiBaseUrl()}/lyrics/${songId}/file`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -110,7 +122,7 @@ class LyricsService {
   // Eliminar letras
   async deleteLyrics(songId: string): Promise<{ success: boolean; message: string }> {
     try {
-      const response = await fetch(`${API_BASE_URL}/lyrics/${songId}`, {
+      const response = await fetch(`${configService.getApiBaseUrl()}/lyrics/${songId}`, {
         method: 'DELETE',
         headers: this.getAuthHeaders()
       });
@@ -131,7 +143,7 @@ class LyricsService {
     try {
       console.log('🌐 [LYRICS SERVICE] Requesting synced lyrics for songId:', songId);
       
-      const response = await fetch(`${API_BASE_URL}/lyrics/${songId}/sync`, {
+      const response = await fetch(`${configService.getApiBaseUrl()}/lyrics/${songId}/sync`, {
         headers: this.getAuthHeaders()
       });
       
@@ -162,7 +174,7 @@ class LyricsService {
   // Actualizar sincronización de letras
   async updateLyricsSync(songId: string, syncData: LyricsSyncData[]): Promise<Lyric[]> {
     try {
-      const response = await fetch(`${API_BASE_URL}/lyrics/${songId}/sync`, {
+      const response = await fetch(`${configService.getApiBaseUrl()}/lyrics/${songId}/sync`, {
         method: 'PUT',
         headers: this.getAuthHeaders(),
         body: JSON.stringify({ syncData })

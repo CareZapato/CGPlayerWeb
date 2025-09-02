@@ -17,7 +17,7 @@ const VOICE_TYPES: { value: VoiceType | null; label: string }[] = [
   { value: 'CONTRALTO', label: 'Contralto' },
   { value: 'TENOR', label: 'Tenor' },
   { value: 'BAJO', label: 'Bajo' },
-  { value: 'TODOS_LOS_CORISTAS', label: 'Todos los Coristas' }
+  { value: 'CORO', label: 'Coro' }
 ];
 
 export function LyricsManagementAdvanced({ 

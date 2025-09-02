@@ -227,6 +227,10 @@ async function main() {
       const ubicacionesCiudad = locations.filter(loc => loc.city === ciudad);
 
       for (let i = 0; i < cantidad; i++) {
+        // Determinar si el usuario estará activo (70-90% activos)
+        const activePercentage = 0.7 + (Math.random() * 0.2); // Entre 70% y 90%
+        const isActive = Math.random() < activePercentage;
+        
         // Determinar género (50/50)
         const isMan = Math.random() < 0.5;
         const firstName = isMan ? getRandomElement(nombresHombres) : getRandomElement(nombresMujeres);
@@ -258,7 +262,7 @@ async function main() {
             firstName,
             lastName: fullLastName,
             password: cantantePassword,
-            isActive: true,
+            isActive: isActive,
             locationId: ubicacion.id
           }
         });
@@ -362,6 +366,17 @@ async function main() {
       GROUP BY genero
     `;
 
+    const activeStats = await prisma.$queryRaw`
+      SELECT 
+        u."isActive",
+        COUNT(*) as cantidad
+      FROM users u
+      INNER JOIN user_roles ur ON u.id = ur."userId"
+      WHERE ur.role = 'CANTANTE'
+      GROUP BY u."isActive"
+      ORDER BY u."isActive" DESC
+    `;
+
     console.log('\n🎉 ¡Seed definitivo completado exitosamente!');
     console.log('==================================================');
     console.log(`👥 Total usuarios: ${stats[0].total_usuarios}`);
@@ -384,6 +399,14 @@ async function main() {
     console.log('\n👫 Distribución por género:');
     genderStats.forEach((stat) => {
       console.log(`   ${stat.genero}: ${stat.cantidad} cantantes`);
+    });
+
+    console.log('\n🔄 Estado de usuarios (cantantes):');
+    const totalCantantes = activeStats.reduce((sum, stat) => sum + Number(stat.cantidad), 0);
+    activeStats.forEach((stat) => {
+      const percentage = ((Number(stat.cantidad) / totalCantantes) * 100).toFixed(1);
+      const estado = stat.isActive ? 'Activos' : 'Inactivos';
+      console.log(`   ${estado}: ${stat.cantidad} cantantes (${percentage}%)`);
     });
 
     console.log('\n🔐 Credenciales de acceso:');

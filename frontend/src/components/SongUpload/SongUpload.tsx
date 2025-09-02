@@ -19,7 +19,7 @@ interface SongUploadProps {
 
 const SongUpload: React.FC<SongUploadProps> = ({ parentSong, onUploadSuccess, onClose }) => {
   const [isUploading, setIsUploading] = useState(false);
-  const { user } = useAuthStore();
+  useAuthStore(); // Para verificar autenticación
   const queryClient = useQueryClient();
 
   const uploadMutation = useMutation({

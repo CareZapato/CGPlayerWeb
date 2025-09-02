@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
 import { useLyrics } from '../hooks/useLyrics';
-import { LyricsType } from '../types/lyrics';
 // import { LyricsViewer } from './LyricsViewer'; // Temporalmente comentado
 
 interface LyricsManagementProps {
@@ -41,10 +40,14 @@ export function LyricsManagement({
 
   // Actualizar el contenido de texto cuando cambien las letras
   useEffect(() => {
-    if (lyrics?.lyricsContent) {
-      setTextContent(lyrics.lyricsContent);
+    // Buscar letras de texto de la canción principal
+    const textLyric = lyrics?.lyrics?.find(
+      l => l.voiceType === null && l.isTextLyrics && l.textContent
+    );
+    if (textLyric?.textContent) {
+      setTextContent(textLyric.textContent);
     }
-  }, [lyrics?.lyricsContent]);
+  }, [lyrics?.lyrics]);
 
   const handleTextSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -252,7 +255,12 @@ export function LyricsManagement({
             <div className="flex justify-end space-x-3">
               <button
                 type="button"
-                onClick={() => setTextContent(lyrics?.lyricsContent || '')}
+                onClick={() => {
+                  const textLyric = lyrics?.lyrics?.find(
+                    l => l.voiceType === null && l.isTextLyrics && l.textContent
+                  );
+                  setTextContent(textLyric?.textContent || '');
+                }}
                 className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 disabled={isSubmitting}
               >
@@ -301,19 +309,23 @@ export function LyricsManagement({
               </div>
             </div>
 
-            {lyrics?.lyricsFileName && (
+            {lyrics?.lyricsFiles && lyrics.lyricsFiles.length > 0 && (
               <div className="bg-gray-50 rounded-lg p-4">
-                <h4 className="text-sm font-medium text-gray-900 mb-2">Archivo actual</h4>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center">
-                    <div className="text-blue-500 mr-2">
-                      {lyrics.lyricsType === LyricsType.PDF ? '📄' : '📝'}
+                <h4 className="text-sm font-medium text-gray-900 mb-2">Archivos cargados</h4>
+                <div className="space-y-2">
+                  {lyrics.lyricsFiles.map((file) => (
+                    <div key={file.id} className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <div className="text-blue-500 mr-2">
+                          {file.fileType === 'PDF' ? '📄' : '📝'}
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">{file.fileName}</p>
+                          <p className="text-xs text-gray-500">Tipo: {file.fileType}</p>
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">{lyrics.lyricsFileName}</p>
-                      <p className="text-xs text-gray-500">Tipo: {lyrics.lyricsType}</p>
-                    </div>
-                  </div>
+                  ))}
                 </div>
               </div>
             )}
