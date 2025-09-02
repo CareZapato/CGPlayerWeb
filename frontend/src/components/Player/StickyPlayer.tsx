@@ -400,183 +400,71 @@ const LyricsViewerInline: React.FC<LyricsViewerInlineProps> = ({ song, isDesktop
         </button>
       </div>
 
-      {/* Voice type selector for sync mode */}
-      {displayMode === 'sync' && availableVoiceTypes.length > 0 && (
-        <div className="flex flex-wrap gap-1 mb-2 flex-shrink-0">
-          <button
-            onClick={() => setSelectedVoiceType(null)}
-            className={`px-2 py-1 text-xs rounded ${
-              selectedVoiceType === null
-                ? 'bg-gray-200 text-gray-800'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
-          >
-            Todas las Voces
-          </button>
-          {availableVoiceTypes.map(vType => (
-            <button
-              key={vType}
-              onClick={() => setSelectedVoiceType(vType)}
-              className={`px-2 py-1 text-xs rounded ${
-                selectedVoiceType === vType
-                  ? getVoiceTypeColor(vType)
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              {vType.replace('_', ' ')}
-            </button>
-          ))}
-        </div>
-      )}
+
 
       {/* Content */}
       <div style={{ height: '100%', overflowY: 'auto' }} className="flex-1 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
         {displayMode === 'sync' ? (
-          // Synchronized and text lyrics
-          <div className="space-y-2">
+          // Synchronized lyrics - Spotify style
+          <div 
+            className="min-h-full"
+            style={{
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              padding: '2rem 1.5rem',
+              borderRadius: '12px'
+            }}
+          >
             {filteredLyrics.length > 0 ? (
-              <>
-                {/* Mostrar advertencia si solo hay letras con tiempo 0 */}
-                {syncStatus.hasOnlyZeroTime && (
-                  <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
-                    <div className="flex items-center space-x-2">
-                      <div className="w-4 h-4 bg-green-400 rounded-full flex items-center justify-center">
-                        <span className="text-xs text-white">📝</span>
-                      </div>
-                      <p className="text-sm text-green-700">
-                        <strong>Letras estáticas:</strong> Esta canción tiene letras guardadas que se muestran de forma fija (sin seguimiento de tiempo).
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {/* Mostrar advertencia si hay datos en BD pero no se ven */}
-                {syncedOnlyLyrics.length === 0 && textOnlyLyrics.length === 0 && (
-                  <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                    <div className="flex items-center space-x-2">
-                      <div className="w-4 h-4 bg-blue-400 rounded-full flex items-center justify-center">
-                        <span className="text-xs text-white">i</span>
-                      </div>
-                      <p className="text-sm text-blue-700">
-                        <strong>Debug:</strong> No se encontraron letras sincronizadas en la respuesta del servidor.
-                      </p>
-                    </div>
-                  </div>
-                )}
-                
-                {/* Mostrar letras sincronizadas (incluye letras con tiempo 0) */}
-                {syncedOnlyLyrics.length > 0 && (
-                  <div className="space-y-2">
-                    <h4 className="text-sm font-semibold text-gray-700 border-b pb-1">
-                      {syncStatus.hasOnlyZeroTime ? 'Letras Estáticas (Sin Sincronización)' : 'Letras Sincronizadas'}
-                    </h4>
-                    {syncedOnlyLyrics.map((lyric, index) => {
-                      // Determinar si es línea activa (solo para letras con tiempo real > 0)
-                      const isActiveLine = syncStatus.hasRealSyncData && 
-                        lyric.startTime !== undefined && 
-                        lyric.startTime !== null && 
-                        lyric.startTime > 0 &&
-                        currentTime >= lyric.startTime && 
-                        (syncedOnlyLyrics[index + 1]?.startTime === undefined || 
-                         syncedOnlyLyrics[index + 1]?.startTime === null || 
-                         currentTime < (syncedOnlyLyrics[index + 1]?.startTime || Infinity));
-                      
-                      // Determinar si tiene tiempo definido (incluso 0)
-                      const hasTimeData = lyric.startTime !== undefined && lyric.startTime !== null;
-                      const isZeroTime = hasTimeData && lyric.startTime === 0;
-                      const isValidTime = hasTimeData && (lyric.startTime || 0) > 0;
-                      const isStaticLyric = !hasTimeData || isZeroTime; // Sin tiempo o tiempo 0
-                      
-                      return (
-                        <div
-                          key={lyric.id}
-                          ref={isActiveLine ? activeLineRef : null}
-                          onClick={() => handleLineClick(lyric)}
-                          className={`p-3 rounded-lg transition-all border ${
-                            isActiveLine
-                              ? 'bg-blue-100 border-blue-300 text-blue-900 shadow-md'
-                              : isValidTime
-                                ? 'bg-gray-50 border-gray-200 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-900 cursor-pointer hover:shadow-sm'
-                                : isStaticLyric
-                                  ? 'bg-green-50 border-green-200 text-gray-800'
-                                  : 'bg-white border-gray-200 text-gray-600'
-                          }`}
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="flex-1">
-                              <p className={`font-medium ${
-                                isActiveLine ? 'text-blue-900' : 'text-gray-900'
-                              }`}>
-                                {lyric.content}
-                              </p>
-                              {lyric.voiceType && (
-                                <div className="mt-1">
-                                  <span className={`text-xs px-2 py-1 rounded ${getVoiceTypeColor(lyric.voiceType)}`}>
-                                    {lyric.voiceType.replace('_', ' ')}
-                                  </span>
-                                </div>
-                              )}
-                            </div>
-                            {(hasTimeData || isStaticLyric) && (
-                              <div className="flex items-center space-x-2">
-                                <span className={`text-xs px-2 py-1 rounded ${
-                                  isValidTime 
-                                    ? 'text-gray-500 bg-gray-100' 
-                                    : 'text-green-700 bg-green-100'
-                                }`}>
-                                  {isStaticLyric ? 'Estática' : formatTime(lyric.startTime || 0)}
-                                </span>
-                                {isStaticLyric && (
-                                  <span className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded">
-                                    📝 Letra fija
-                                  </span>
-                                )}
-                                {isActiveLine && (
-                                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-                
-                {/* Mostrar letras de texto */}
-                {textOnlyLyrics.length > 0 && (
-                  <div className="space-y-2 mt-4">
-                    <h4 className="text-sm font-semibold text-gray-700 border-b pb-1">
-                      Letras de Texto
-                    </h4>
-                    {textOnlyLyrics.map((lyric) => (
-                      <div
-                        key={lyric.id}
-                        className="p-3 rounded-lg border bg-yellow-50 border-yellow-200 text-gray-800"
+              <div className="space-y-6">
+                {syncedOnlyLyrics.map((lyric, index) => {
+                  // Determinar si es línea activa (solo para letras con tiempo real > 0)
+                  const isActiveLine = syncStatus.hasRealSyncData && 
+                    lyric.startTime !== undefined && 
+                    lyric.startTime !== null && 
+                    lyric.startTime > 0 &&
+                    currentTime >= lyric.startTime && 
+                    (syncedOnlyLyrics[index + 1]?.startTime === undefined || 
+                     syncedOnlyLyrics[index + 1]?.startTime === null || 
+                     currentTime < (syncedOnlyLyrics[index + 1]?.startTime || Infinity));
+                  
+                  // Determinar si tiene tiempo definido (incluso 0)
+                  const hasTimeData = lyric.startTime !== undefined && lyric.startTime !== null;
+                  const isValidTime = hasTimeData && (lyric.startTime || 0) > 0;
+                  
+                  return (
+                    <div
+                      key={lyric.id}
+                      ref={isActiveLine ? activeLineRef : null}
+                      onClick={() => handleLineClick(lyric)}
+                      className={`transition-all duration-300 ${
+                        isValidTime ? 'cursor-pointer' : ''
+                      }`}
+                      style={{
+                        transform: isActiveLine ? 'scale(1.05)' : 'scale(1)',
+                        opacity: isActiveLine ? 1 : 0.7
+                      }}
+                    >
+                      <p 
+                        className={`text-lg md:text-xl lg:text-2xl font-medium leading-relaxed ${
+                          isActiveLine 
+                            ? 'text-white font-semibold text-shadow-lg' 
+                            : 'text-white text-opacity-80'
+                        }`}
+                        style={{
+                          textShadow: isActiveLine ? '0 2px 4px rgba(0,0,0,0.3)' : 'none',
+                          lineHeight: '1.6'
+                        }}
                       >
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1">
-                            <p className="font-medium text-gray-900">
-                              {lyric.content}
-                            </p>
-                            {lyric.voiceType && (
-                              <div className="mt-1">
-                                <span className={`text-xs px-2 py-1 rounded ${getVoiceTypeColor(lyric.voiceType)}`}>
-                                  {lyric.voiceType.replace('_', ' ')}
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </>
+                        {lyric.content}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
             ) : (
-              <div className="text-center text-gray-500 py-8">
-                <p>No hay letras disponibles</p>
-                <p className="text-sm mt-1">Prueba cambiar el filtro de voz o revisa los archivos de letras</p>
+              <div className="text-center text-white text-opacity-80 py-8">
+                <p className="text-lg">No hay letras disponibles</p>
+                <p className="text-sm mt-2 text-white text-opacity-60">Revisa los archivos de letras</p>
               </div>
             )}
           </div>
@@ -1093,20 +981,16 @@ const StickyPlayer: React.FC = () => {
             <QueueListIcon className="control-button__icon" />
           </button>
 
-          {/* Botón de letras - comportamiento diferente en desktop vs móvil */}
-          <button
-            onClick={() => {
-              if (isDesktop) {
-                setIsLyricsVisible(!isLyricsVisible);
-              } else {
-                setIsFullscreenLyrics(!isFullscreenLyrics);
-              }
-            }}
-            className={`control-button ${(isDesktop && isLyricsVisible) || (!isDesktop && isFullscreenLyrics) ? 'control-button--active' : ''}`}
-            title={isDesktop ? "Ver letras en panel lateral" : "Ver letras en pantalla completa"}
-          >
-            <DocumentTextIcon className="control-button__icon" />
-          </button>
+          {/* Botón de letras - solo en móvil */}
+          {!isDesktop && (
+            <button
+              onClick={() => setIsFullscreenLyrics(!isFullscreenLyrics)}
+              className={`control-button ${isFullscreenLyrics ? 'control-button--active' : ''}`}
+              title="Ver letras en pantalla completa"
+            >
+              <DocumentTextIcon className="control-button__icon" />
+            </button>
+          )}
         </div>
       </div>
 
