@@ -272,21 +272,49 @@ router.put('/:songId/text', authenticateToken, async (req, res) => {
     console.log(`📝 [LYRICS TEXT] Saving lyrics for song: ${song.title} (${song.voiceType || 'GENERAL'})`);
     console.log(`📝 [LYRICS TEXT] Song ID: ${songId}, VoiceType param: ${voiceType}, isTextOnly: ${isTextOnly}`);
 
+    // Si se especifica un voiceType diferente al de la canción actual, buscar la variante correcta
+    let targetSongId = songId;
+    if (voiceType && voiceType !== song.voiceType) {
+      console.log(`🔍 [LYRICS TEXT] Looking for ${voiceType} variant of song ${song.title}`);
+      
+      // Buscar la variante que corresponde al voiceType especificado
+      const parentId = song.parentSongId || songId; // Si es variante, usar parentSongId; si es padre, usar su propio ID
+      
+      const targetVariant = await prisma.song.findFirst({
+        where: {
+          OR: [
+            { parentSongId: parentId, voiceType: voiceType },
+            { id: parentId, voiceType: voiceType } // En caso de que el padre tenga el voiceType buscado
+          ]
+        },
+        select: { id: true, title: true, voiceType: true }
+      });
+
+      if (targetVariant) {
+        targetSongId = targetVariant.id;
+        console.log(`✅ [LYRICS TEXT] Found ${voiceType} variant: ${targetVariant.title} (${targetVariant.id})`);
+      } else {
+        console.log(`⚠️ [LYRICS TEXT] No ${voiceType} variant found, using original song ${songId}`);
+      }
+    }
+
+    console.log(`📝 [LYRICS TEXT] Target songId for saving: ${targetSongId}`);
+
     // Si es solo texto (no sincronización), crear una entrada de texto simple
     if (isTextOnly) {
-      // Eliminar letras de texto existentes para este voiceType en ESTA canción específica
+      // Eliminar letras de texto existentes para este voiceType en la canción correcta
       await (prisma as any).lyric.deleteMany({
         where: {
-          songId, // Usar el songId específico (variante), no el padre
+          songId: targetSongId, // Usar el songId específico de la variante correcta
           voiceType,
           isTextLyrics: true
         }
       });
 
-      // Crear entrada de texto completo para ESTA canción específica
+      // Crear entrada de texto completo para la canción correcta
       const textLyric = await (prisma as any).lyric.create({
         data: {
-          songId, // Usar el songId específico (variante), no el padre
+          songId: targetSongId, // Usar el songId específico de la variante correcta
           content: 'Letras completas', // Título descriptivo
           textContent: content, // Contenido completo
           startTime: null,
@@ -298,7 +326,7 @@ router.put('/:songId/text', authenticateToken, async (req, res) => {
         }
       });
 
-      console.log(`✅ [LYRICS TEXT] Text lyrics saved for ${song.voiceType || 'general'} in song ${songId}`);
+      console.log(`✅ [LYRICS TEXT] Text lyrics saved for ${voiceType || 'general'} in song ${targetSongId}`);
       return res.json({ 
         success: true, 
         message: 'Letras de texto guardadas exitosamente',
@@ -307,12 +335,12 @@ router.put('/:songId/text', authenticateToken, async (req, res) => {
     }
 
     // Para sincronización: dividir el contenido en líneas y crear entradas individuales
-    console.log(`🎵 [LYRICS TEXT] Creating sync entries for song ${songId}`);
+    console.log(`🎵 [LYRICS TEXT] Creating sync entries for song ${targetSongId}`);
 
-    // Eliminar letras existentes para sincronización en ESTA canción específica
+    // Eliminar letras existentes para sincronización en la canción correcta
     await (prisma as any).lyric.deleteMany({
       where: {
-        songId, // Usar el songId específico (variante), no el padre
+        songId: targetSongId, // Usar el songId específico de la variante correcta
         voiceType: voiceType,
         isTextLyrics: false
       }
@@ -321,11 +349,11 @@ router.put('/:songId/text', authenticateToken, async (req, res) => {
     // Dividir el contenido en líneas
     const lines = content.split('\n').filter(line => line.trim() !== '');
 
-    // Crear nuevas entradas para cada línea para ESTA canción específica
+    // Crear nuevas entradas para cada línea para la canción correcta
     for (let i = 0; i < lines.length; i++) {
       await (prisma as any).lyric.create({
         data: {
-          songId, // Usar el songId específico (variante), no el padre
+          songId: targetSongId, // Usar el songId específico de la variante correcta
           content: lines[i],
           startTime: 0, // Tiempo inicial en 0 para sincronización posterior
           endTime: 0,
@@ -340,7 +368,7 @@ router.put('/:songId/text', authenticateToken, async (req, res) => {
     // Buscar o crear entrada de letra de texto para esta variante específica
     const existingTextLyric = await (prisma as any).lyric.findFirst({
       where: {
-        songId, // Usar el songId específico (variante), no el padre
+        songId: targetSongId, // Usar el songId específico de la variante correcta
         voiceType: voiceType,
         isTextLyrics: true
       }
@@ -361,7 +389,7 @@ router.put('/:songId/text', authenticateToken, async (req, res) => {
       // Crear nueva
       textLyric = await (prisma as any).lyric.create({
         data: {
-          songId, // Usar el songId específico (variante), no el padre
+          songId: targetSongId, // Usar el songId específico de la variante correcta
           content: content.substring(0, 255), // Preview
           textContent: content, // Contenido completo
           lineNumber: 0, // Línea 0 para letras de texto completas
@@ -374,11 +402,11 @@ router.put('/:songId/text', authenticateToken, async (req, res) => {
 
     // Actualizar flag de sincronización si es necesario
     await (prisma as any).song.update({
-      where: { id: songId },
+      where: { id: targetSongId },
       data: { hasLyricSync: true }
     });
 
-    console.log(`✅ [LYRICS TEXT] Lyrics successfully saved for song ${songId} (${song.voiceType || 'GENERAL'})`);
+    console.log(`✅ [LYRICS TEXT] Lyrics successfully saved for song ${targetSongId} (${voiceType || 'GENERAL'})`);
 
     res.json({
       success: true,
