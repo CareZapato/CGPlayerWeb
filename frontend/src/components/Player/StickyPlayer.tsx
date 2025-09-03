@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { usePlayerStore } from '../../store/playerStore';
 import { usePlaylistStore } from '../../store/playlistStore';
 import { useMediaSession } from '../../hooks/useMediaSession';
@@ -131,17 +131,20 @@ interface LyricsViewerInlineProps {
   song: Song;
   isDesktop?: boolean;
   showSyncButton?: boolean;
+  autoSyncEnabled: boolean;
+  toggleAutoSync: () => void;
+  onSyncStatusChange?: (hasSyncedLyrics: boolean) => void; // Nueva prop para reportar estado
 }
 
-const LyricsViewerInline: React.FC<LyricsViewerInlineProps> = ({ song, isDesktop = true }) => {
+const LyricsViewerInline: React.FC<LyricsViewerInlineProps> = ({ 
+  song, 
+  isDesktop = true, 
+  autoSyncEnabled,
+  toggleAutoSync,
+  onSyncStatusChange 
+}) => {
   const [displayMode, setDisplayMode] = useState<'sync' | 'files'>('sync');
   const [activeLineIndex, setActiveLineIndex] = useState<number>(-1);
-  
-  // Estado del sincronizador automático
-  const [autoSyncEnabled, setAutoSyncEnabled] = useState(() => {
-    const saved = localStorage.getItem('lyrics-auto-sync');
-    return saved !== null ? JSON.parse(saved) : true;
-  });
   
   // Función para alternar entre sync y files en móvil
   const toggleMobileDisplayMode = () => {
@@ -149,11 +152,7 @@ const LyricsViewerInline: React.FC<LyricsViewerInlineProps> = ({ song, isDesktop
   };
 
   // Función para toggle del sincronizador automático
-  const toggleAutoSync = () => {
-    const newValue = !autoSyncEnabled;
-    setAutoSyncEnabled(newValue);
-    localStorage.setItem('lyrics-auto-sync', JSON.stringify(newValue));
-  };
+  // (removida - ahora viene como prop desde StickyPlayer)
 
   // Función para obtener el icono del modo de display actual
   const getMobileDisplayIcon = () => {
@@ -314,8 +313,14 @@ const LyricsViewerInline: React.FC<LyricsViewerInlineProps> = ({ song, isDesktop
           voiceType: l.voiceType
         }))
       });
+      
+      // REPORTAR ESTADO DE SINCRONIZACIÓN AL COMPONENTE PADRE
+      if (onSyncStatusChange) {
+        console.log('📡 [SYNC REPORT] Reportando al StickyPlayer:', syncStatus.hasRealSyncData);
+        onSyncStatusChange(syncStatus.hasRealSyncData);
+      }
     }
-  }, [filteredLyrics, song?.title, syncStatus]);
+  }, [filteredLyrics, song?.title, syncStatus, onSyncStatusChange]);
 
   // Separar letras por sincronización - YA NO FILTRAR POR isTextLyrics
   const syncedLyrics_withTime = filteredLyrics.filter(lyric => 
@@ -690,6 +695,28 @@ const StickyPlayer: React.FC = () => {
   const [isExpandedDesktop, setIsExpandedDesktop] = useState(false);
   const [isFullscreenQueue, setIsFullscreenQueue] = useState(false); // Nueva variable para cola en fullscreen móvil
 
+  // Estado del sincronizador automático - movido desde LyricsViewerInline
+  const [autoSyncEnabled, setAutoSyncEnabled] = useState(() => {
+    const saved = localStorage.getItem('lyrics-auto-sync');
+    return saved !== null ? JSON.parse(saved) : true;
+  });
+
+  // Estado para recibir el estado de sincronización desde LyricsViewerInline
+  const [hasSyncedLyrics, setHasSyncedLyrics] = useState(false);
+
+  // Función para toggle del sincronizador automático
+  const toggleAutoSync = () => {
+    const newValue = !autoSyncEnabled;
+    setAutoSyncEnabled(newValue);
+    localStorage.setItem('lyrics-auto-sync', JSON.stringify(newValue));
+  };
+
+  // Callback para recibir el estado de sincronización desde LyricsViewerInline
+  const handleSyncStatusChange = (syncStatus: boolean) => {
+    console.log('🔄 [SYNC STATUS RECEIVED] Recibido desde LyricsViewerInline:', syncStatus);
+    setHasSyncedLyrics(syncStatus);
+  };
+
   const progressRef = useRef<HTMLDivElement>(null);
 
   // Detectar si estamos en desktop o móvil
@@ -743,49 +770,6 @@ const StickyPlayer: React.FC = () => {
 
   // Configurar Media Session API para controles nativos en móvil
   useMediaSession();
-
-  // Hook para obtener estado de sincronización de letras (para mostrar en móvil)
-  const { syncedLyrics } = useLyrics(currentSong?.id);
-  const hasSyncedLyrics = useMemo(() => {
-    if (!Array.isArray(syncedLyrics) || syncedLyrics.length === 0) {
-      console.log('🔍 [SYNC CHECK] No lyrics found or empty array');
-      return false;
-    }
-    
-    console.log('🔍 [SYNC CHECK] Checking synchronized status for:', currentSong?.title);
-    console.log('🔍 [SYNC CHECK] Current song ID:', currentSong?.id);
-    console.log('🔍 [SYNC CHECK] Total lyrics:', syncedLyrics.length);
-    
-    // Filtrar letras por lineNumber > 0 (igual que en LyricsViewerInline)
-    const filteredSyncedLyrics = syncedLyrics.filter(lyric => lyric.lineNumber > 0);
-    
-    // Usar método confiable: verificar startTime > 0 
-    const lyricsWithTime = filteredSyncedLyrics.filter(lyric => 
-      lyric.startTime !== undefined && 
-      lyric.startTime !== null && 
-      lyric.startTime > 0
-    );
-    console.log('🔍 [SYNC CHECK] Filtered lyrics (lineNumber > 0):', filteredSyncedLyrics.length);
-    console.log('🔍 [SYNC CHECK] Lyrics with startTime > 0:', lyricsWithTime.length);
-    
-    filteredSyncedLyrics.slice(0, 3).forEach((lyric, index) => {
-      console.log(`🔍 [SYNC CHECK] Lyric ${index + 1}:`, {
-        content: lyric.content?.substring(0, 30) + '...',
-        hasIsSynchronized: 'isSynchronized' in lyric,
-        isSynchronized: lyric.isSynchronized,
-        startTime: lyric.startTime,
-        lineNumber: lyric.lineNumber,
-        voiceType: lyric.voiceType
-      });
-    });
-    
-    // Considerar sincronizada si hay letras con startTime > 0
-    const hasSynchronizedLyrics = lyricsWithTime.length > 0;
-    console.log('🔍 [SYNC CHECK] Final result - Has synchronized lyrics:', hasSynchronizedLyrics);
-    console.log('🔍 [SYNC CHECK] This will be used for mobile message display');
-    
-    return hasSynchronizedLyrics;
-  }, [syncedLyrics, currentSong?.title, currentSong?.id]);
 
   // Manejar scroll del body cuando se abre pantalla completa de letras
   useEffect(() => {
@@ -1162,7 +1146,13 @@ const StickyPlayer: React.FC = () => {
                   overflow: 'auto'
                 }}
               >
-                <LyricsViewerInline song={currentSong} isDesktop={isDesktop} />
+                <LyricsViewerInline 
+                  song={currentSong} 
+                  isDesktop={isDesktop}
+                  autoSyncEnabled={autoSyncEnabled}
+                  toggleAutoSync={toggleAutoSync}
+                  onSyncStatusChange={handleSyncStatusChange}
+                />
               </div>
             </div>
             
@@ -1339,7 +1329,13 @@ const StickyPlayer: React.FC = () => {
           </div>
           
           <div className="p-4">
-            <LyricsViewerInline song={currentSong} isDesktop={isDesktop} />
+            <LyricsViewerInline 
+              song={currentSong} 
+              isDesktop={isDesktop}
+              autoSyncEnabled={autoSyncEnabled}
+              toggleAutoSync={toggleAutoSync}
+              onSyncStatusChange={handleSyncStatusChange}
+            />
           </div>
         </div>
       )}
@@ -1368,8 +1364,22 @@ const StickyPlayer: React.FC = () => {
             </button>
           </div>
           
-          {/* Mensaje de estado si no están sincronizadas - solo mostrar si realmente no están sincronizadas */}
-          {!hasSyncedLyrics && (
+          {/* Mensaje de estado si no están sincronizadas - SOLO mostrar si:
+              1. Auto-sync está habilitado Y
+              2. Realmente no están sincronizadas
+          */}
+          {(() => {
+            // LOG INMEDIATO AL RENDERIZAR
+            console.log('🚨 [RENDER DECISION] ===== DECISIÓN DE MOSTRAR MENSAJE =====');
+            console.log('🚨 [RENDER DECISION] autoSyncEnabled:', autoSyncEnabled);
+            console.log('🚨 [RENDER DECISION] hasSyncedLyrics:', hasSyncedLyrics);
+            console.log('🚨 [RENDER DECISION] !hasSyncedLyrics:', !hasSyncedLyrics);
+            console.log('🚨 [RENDER DECISION] Condición completa (autoSyncEnabled && !hasSyncedLyrics):', autoSyncEnabled && !hasSyncedLyrics);
+            console.log('🚨 [RENDER DECISION] ¿Mostrar mensaje?:', autoSyncEnabled && !hasSyncedLyrics);
+            console.log('🚨 [RENDER DECISION] ================================================');
+            
+            return autoSyncEnabled && !hasSyncedLyrics;
+          })() && (
             <div className="mobile-fullscreen-status">
               <p>Estas letras no están sincronizadas aún.</p>
             </div>
@@ -1377,7 +1387,13 @@ const StickyPlayer: React.FC = () => {
           
           {/* Contenido de letras */}
           <div className="mobile-fullscreen-lyrics">
-            <LyricsViewerInline song={currentSong} isDesktop={false} />
+            <LyricsViewerInline 
+              song={currentSong} 
+              isDesktop={false}
+              autoSyncEnabled={autoSyncEnabled}
+              toggleAutoSync={toggleAutoSync}
+              onSyncStatusChange={handleSyncStatusChange}
+            />
           </div>
           
           {/* Barra de progreso */}
