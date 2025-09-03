@@ -7,6 +7,31 @@ import { prisma } from '../utils/prisma';
 
 const router = express.Router();
 
+// Interfaces para TypeScript
+interface SongVariant {
+  id: string;
+  title: string;
+  voiceType: string | null;
+  parentSongId: string | null;
+}
+
+interface LyricsEntry {
+  id: string;
+  text: string;
+  tiempo: number;
+  voiceType: string | null;
+  isTextLyrics: boolean;
+}
+
+interface LyricsFile {
+  id: string;
+  fileName: string;
+  mimeType: string;
+  size: number;
+  createdAt: Date;
+  filePath: string;
+}
+
 // GET /api/lyrics/files/:fileId - Servir archivo de letras
 router.get('/files/:fileId', authenticateToken, async (req, res) => {
   try {
@@ -186,22 +211,22 @@ router.put('/:songId/text', authenticateToken, async (req, res) => {
       });
       
       console.log(`📋 [LYRICS TEXT] Found ${allVariants.length} total songs (including parent):`);
-      allVariants.forEach(variant => {
+      allVariants.forEach((variant: SongVariant) => {
         console.log(`  - ${variant.title} (${variant.id}) - voiceType: ${variant.voiceType || 'NULL'} - parent: ${variant.parentSongId || 'NO'}`);
       });
       
       // Buscar la variante específica que corresponde al voiceType
-      const targetVariant = allVariants.find(variant => variant.voiceType === targetVoiceType);
+      const targetVariant = allVariants.find((variant: SongVariant) => variant.voiceType === targetVoiceType);
       
       if (targetVariant) {
         targetSongId = targetVariant.id;
         console.log(`✅ [LYRICS TEXT] Found exact match - ${targetVoiceType} variant: ${targetVariant.title} (${targetVariant.id})`);
       } else {
         console.log(`⚠️ [LYRICS TEXT] No exact ${targetVoiceType} variant found in ${allVariants.length} variants`);
-        console.log(`⚠️ [LYRICS TEXT] Available voice types: ${allVariants.map(v => v.voiceType || 'NULL').join(', ')}`);
+        console.log(`⚠️ [LYRICS TEXT] Available voice types: ${allVariants.map((v: SongVariant) => v.voiceType || 'NULL').join(', ')}`);
         return res.status(404).json({ 
           message: `No se encontró variante para el tipo de voz ${targetVoiceType}`,
-          availableVoiceTypes: allVariants.map(v => v.voiceType).filter(Boolean)
+          availableVoiceTypes: allVariants.map((v: SongVariant) => v.voiceType).filter(Boolean)
         });
       }
     } else {
@@ -335,7 +360,8 @@ router.put('/:songId/text', authenticateToken, async (req, res) => {
     
   } catch (error) {
     console.error('Error saving lyrics text:', error);
-    res.status(500).json({ message: 'Error interno del servidor', error: error.message });
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    res.status(500).json({ message: 'Error interno del servidor', error: errorMessage });
   }
 });
 
@@ -384,12 +410,12 @@ router.get('/:songId/sync', authenticateToken, async (req, res) => {
       });
       
       console.log(`📋 [LYRICS SYNC] Found ${allVariants.length} total songs (including parent):`);
-      allVariants.forEach(variant => {
+      allVariants.forEach((variant: SongVariant) => {
         console.log(`  - ${variant.title} (${variant.id}) - voiceType: ${variant.voiceType || 'NULL'} - parent: ${variant.parentSongId || 'NO'}`);
       });
       
       // Buscar la variante específica que corresponde al voiceType
-      const targetVariant = allVariants.find(variant => variant.voiceType === targetVoiceType);
+      const targetVariant = allVariants.find((variant: SongVariant) => variant.voiceType === targetVoiceType);
       
       if (targetVariant) {
         targetSongId = targetVariant.id;
@@ -419,13 +445,13 @@ router.get('/:songId/sync', authenticateToken, async (req, res) => {
     console.log(`📋 [LYRICS SYNC] Found ${lyrics.length} lyrics entries`);
     
     if (lyrics.length > 0) {
-      lyrics.forEach((lyric, index) => {
+      lyrics.forEach((lyric: LyricsEntry, index: number) => {
         console.log(`  [${index + 1}] "${lyric.text}" (tiempo: ${lyric.tiempo}s, voiceType: ${lyric.voiceType}, isText: ${lyric.isTextLyrics})`);
       });
     }
     
     res.json({
-      lyrics: lyrics.map(lyric => ({
+      lyrics: lyrics.map((lyric: LyricsEntry) => ({
         id: lyric.id,
         text: lyric.text,
         tiempo: lyric.tiempo,
@@ -453,7 +479,7 @@ router.get('/:songId/files', authenticateToken, async (req, res) => {
       orderBy: { createdAt: 'desc' }
     });
     
-    const filesWithUrls = files.map(file => ({
+    const filesWithUrls = files.map((file: LyricsFile) => ({
       id: file.id,
       fileName: file.fileName,
       mimeType: file.mimeType,
