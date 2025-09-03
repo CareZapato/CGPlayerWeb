@@ -637,6 +637,7 @@ const StickyPlayer: React.FC = () => {
   const [isLyricsVisible, setIsLyricsVisible] = useState(false);
   const [isFullscreenLyrics, setIsFullscreenLyrics] = useState(false);
   const [isExpandedDesktop, setIsExpandedDesktop] = useState(false);
+  const [isFullscreenQueue, setIsFullscreenQueue] = useState(false); // Nueva variable para cola en fullscreen móvil
 
   const progressRef = useRef<HTMLDivElement>(null);
 
@@ -654,6 +655,31 @@ const StickyPlayer: React.FC = () => {
 
   // Configurar Media Session API para controles nativos en móvil
   useMediaSession();
+
+  // Manejar scroll del body cuando se abre pantalla completa de letras
+  useEffect(() => {
+    if (isFullscreenLyrics) {
+      // Prevenir scroll del body en pantalla completa
+      document.body.style.overflow = 'hidden';
+      document.body.style.position = 'fixed';
+      document.body.style.width = '100%';
+      document.body.style.height = '100%';
+    } else {
+      // Restaurar scroll del body
+      document.body.style.overflow = '';
+      document.body.style.position = '';
+      document.body.style.width = '';
+      document.body.style.height = '';
+    }
+
+    // Cleanup al desmontar el componente
+    return () => {
+      document.body.style.overflow = '';
+      document.body.style.position = '';
+      document.body.style.width = '';
+      document.body.style.height = '';
+    };
+  }, [isFullscreenLyrics]);
 
   // Actualizar título de la página con el nombre de la canción
   useEffect(() => {
@@ -1290,9 +1316,9 @@ const StickyPlayer: React.FC = () => {
 
               {/* Botón de cola de reproducción */}
               <button
-                onClick={() => setIsQueueVisible(!isQueueVisible)}
+                onClick={() => setIsFullscreenQueue(!isFullscreenQueue)}
                 className={`mobile-fullscreen-control mobile-fullscreen-control--small ${
-                  isQueueVisible ? 'mobile-fullscreen-control--active' : ''
+                  isFullscreenQueue ? 'mobile-fullscreen-control--active' : ''
                 }`}
                 title="Cola de reproducción"
               >
@@ -1303,6 +1329,63 @@ const StickyPlayer: React.FC = () => {
             </div>
             
 
+          </div>
+        </div>
+      )}
+
+      {/* Cola de reproducción en pantalla completa para móvil */}
+      {isFullscreenQueue && !isDesktop && (
+        <div className="mobile-fullscreen-queue">
+          <div className="mobile-fullscreen-queue__header">
+            <h2 className="mobile-fullscreen-queue__title">Cola de reproducción</h2>
+            <button
+              onClick={() => setIsFullscreenQueue(false)}
+              className="mobile-fullscreen-queue__close"
+            >
+              ✕
+            </button>
+          </div>
+          
+          <div className="mobile-fullscreen-queue__content">
+            {queue.map((song, index) => (
+              <div
+                key={`${song.id}-${index}`}
+                className={`mobile-fullscreen-queue__item ${
+                  index === currentIndex ? 'mobile-fullscreen-queue__item--current' : ''
+                }`}
+                onClick={() => {
+                  if (index !== currentIndex) {
+                    console.log(`🎵 [QUEUE] Playing song at index ${index}:`, song.title);
+                    setCurrentIndex(index);
+                    setCurrentSong(song, currentPlaylist || undefined, index);
+                  }
+                }}
+                style={{ cursor: index !== currentIndex ? 'pointer' : 'default' }}
+              >
+                <div className="mobile-fullscreen-queue__avatar">
+                  <span>{song.title.charAt(0).toUpperCase()}</span>
+                </div>
+                
+                <div className="mobile-fullscreen-queue__info">
+                  <h3 className="mobile-fullscreen-queue__title-song">{song.title}</h3>
+                  {song.artist && (
+                    <p className="mobile-fullscreen-queue__artist">{song.artist}</p>
+                  )}
+                </div>
+
+                {index !== currentIndex && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeFromQueue(index);
+                    }}
+                    className="mobile-fullscreen-queue__remove"
+                  >
+                    <TrashIcon className="h-5 w-5" />
+                  </button>
+                )}
+              </div>
+            ))}
           </div>
         </div>
       )}

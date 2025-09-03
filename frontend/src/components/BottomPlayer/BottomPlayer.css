@@ -28,9 +28,12 @@
   backdrop-filter: var(--bottom-player-backdrop);
   border-top: 1px solid var(--bottom-player-border);
   box-shadow: var(--bottom-player-shadow);
-  z-index: 1000;
+  z-index: 1000; /* Asegurar que esté SOBRE la playlist */
   transition: all 0.3s ease;
   user-select: none;
+  /* Asegurar que esté siempre visible y no se pueda tapar */
+  position: fixed;
+  pointer-events: auto;
 }
 
 .bottom-player--expanded {
@@ -404,10 +407,13 @@
   border-radius: 12px 12px 0 0;
   box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.15);
   backdrop-filter: blur(20px);
-  z-index: 1001;
+  z-index: 999; /* MENOR que el reproductor principal (1000) */
   display: flex;
   flex-direction: column;
   animation: slideUpIn 0.3s ease;
+  /* Evitar que se pueda mover por encima del reproductor */
+  pointer-events: auto;
+  touch-action: pan-y; /* Solo permitir scroll vertical */
 }
 
 @keyframes slideUpIn {
@@ -768,6 +774,22 @@
     width: 100%;
     right: 0;
     left: 0;
+    /* Ajustar altura para móvil - no tapar reproductor */
+    max-height: calc(100vh - var(--bottom-player-height) - 80px);
+    bottom: calc(var(--bottom-player-height) + 10px);
+    /* Añadir margen lateral para mejor separación */
+    margin: 0 8px;
+    border-radius: 16px 16px 0 0;
+    /* Mejorar shadow para mejor separación visual */
+    box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.2);
+    /* CRÍTICO: Z-index menor que el reproductor principal */
+    z-index: 998;
+    /* Evitar que se pueda arrastrar sobre el reproductor */
+    transform: translateZ(0); /* Forzar capa de composición */
+    will-change: transform;
+    /* Limitar interacciones para evitar drag que tape reproductor */
+    overscroll-behavior: contain;
+    touch-action: pan-y; /* Solo scroll vertical dentro del panel */
   }
   
   .bottom-player__controls {
@@ -807,6 +829,20 @@
     box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
     z-index: 1000;
   }
+  
+  /* Añadir indicador visual de que no tapa el reproductor */
+  .bottom-player__playlist-panel::before {
+    content: '';
+    position: absolute;
+    bottom: calc(-1 * var(--bottom-player-height) - 20px);
+    left: 50%;
+    transform: translateX(-50%);
+    width: 40px;
+    height: 4px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 2px;
+    pointer-events: none;
+  }
 }
 
 @media (max-width: 480px) {
@@ -830,6 +866,22 @@
   .bottom-player__title {
     font-size: 14px;
     font-weight: 700;
+  }
+  
+  /* Playlist panel en pantallas muy pequeñas */
+  .bottom-player__playlist-panel {
+    margin: 0 4px;
+    max-height: calc(100vh - var(--bottom-player-height) - 100px);
+    bottom: calc(var(--bottom-player-height) + 8px);
+  }
+  
+  /* Reducir padding en elementos de playlist */
+  .bottom-player__playlist-item {
+    padding: 12px 8px;
+  }
+  
+  .bottom-player__playlist-header {
+    padding: 12px 16px;
   }
 }
 
