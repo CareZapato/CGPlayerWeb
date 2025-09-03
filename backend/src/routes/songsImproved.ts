@@ -9,7 +9,6 @@ import os from 'os';
 const router = express.Router();
 
 // Log para verificar que el router se está cargando
-console.log('🎵 [SONGS ROUTER] Loading songsImproved router...');
 
 // Obtener IP local para acceso móvil
 const getLocalIP = (): string => {
@@ -360,14 +359,9 @@ router.post('/multi-upload', authenticateToken, multiUpload.fields([
         voiceType: song.voiceType 
       })); // Solo variantes que realmente existen
       
-      console.log(`📝 [LYRICS] Creating lyrics for ${songsToCreateLyricsFor.length} existing songs with ${lines.length} lines`);
-      console.log(`🎯 [LYRICS] Target songs:`, songsToCreateLyricsFor.map(s => `${s.voiceType || 'null'} (${s.songId})`).join(', '));
-      
       // Crear letras solo para songs que realmente existen
       for (const songTarget of songsToCreateLyricsFor) {
         const { songId, voiceType } = songTarget;
-        
-        console.log(`📝 [LYRICS] Creating lyrics for songId: ${songId}, voiceType: ${voiceType || 'null'}`);
         
         // Crear una entrada principal con todo el texto
         await lyricModel.create({
@@ -403,10 +397,8 @@ router.post('/multi-upload', authenticateToken, multiUpload.fields([
           }
         }
         
-        console.log(`✅ [LYRICS] Created ${lines.length + 1} lyrics for songId: ${songId}, voiceType: ${voiceType || 'null'}`);
-      }
+        }
       
-      console.log(`✅ [LYRICS] Successfully created lyrics for all existing songs`);
     }
 
     res.status(201).json({
@@ -532,9 +524,6 @@ router.post('/', authenticateToken, async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ message: 'Ubicación no encontrada' });
     }
 
-    console.log(`🎵 [SONGS] Creating song with variants: ${title}`);
-    console.log(`🎭 [SONGS] Voice types: ${voiceTypes.join(', ')}`);
-
     // Crear la canción padre (sin archivo de audio, solo metadatos)
     const parentSong = await prisma.song.create({
       data: {
@@ -552,12 +541,9 @@ router.post('/', authenticateToken, async (req: AuthRequest, res: Response) => {
       }
     });
 
-    console.log(`✅ [SONGS] Parent song created: ${parentSong.id}`);
-
     // Crear las variantes para cada tipo de voz
     const variants = [];
     for (const voiceType of voiceTypes) {
-      console.log(`🎭 [SONGS] Creating variant for ${voiceType}...`);
       
       const variant = await prisma.song.create({
         data: {
@@ -576,10 +562,7 @@ router.post('/', authenticateToken, async (req: AuthRequest, res: Response) => {
       });
 
       variants.push(variant);
-      console.log(`✅ [SONGS] ${voiceType} variant created: ${variant.id}`);
     }
-
-    console.log(`🎉 [SONGS] Successfully created song with ${variants.length} variants`);
 
     res.status(201).json({
       message: 'Canción y variantes creadas exitosamente',
@@ -658,9 +641,6 @@ router.get('/', authenticateToken, async (req: AuthRequest, res: Response) => {
     const isDirector = userRoles.some((role: string) => role === 'DIRECTOR');
     const isCantante = userRoles.some((role: string) => role === 'CANTANTE');
 
-    console.log('🎵 [SONGS] User:', userId, 'Roles:', userRoles);
-    console.log('🎵 [SONGS] Voice Profiles:', userVoiceProfiles.map((vp: any) => vp.voiceType));
-
     let whereClause: any = {
       isActive: true,
       ...(includeVersions === 'false' ? { parentSongId: null } : {})
@@ -673,8 +653,6 @@ router.get('/', authenticateToken, async (req: AuthRequest, res: Response) => {
         
         // Agregar CORO y ORIGINAL - todos pueden verlos
         const allowedVoiceTypes = [...userVoiceTypes, 'CORO', 'ORIGINAL'];
-        
-        console.log('🎵 [SONGS] Filtering by voice types:', allowedVoiceTypes);
         
         // Solo mostrar canciones que:
         // 1. Tienen parentId (son variaciones) Y tienen voiceType permitido
@@ -694,7 +672,6 @@ router.get('/', authenticateToken, async (req: AuthRequest, res: Response) => {
         };
       } else {
         // Si no tiene tipos de voz asignados, solo mostrar CORO y ORIGINAL
-        console.log('🎵 [SONGS] No voice profiles, only showing CORO and ORIGINAL');
         whereClause = {
           ...whereClause,
           OR: [
@@ -710,7 +687,6 @@ router.get('/', authenticateToken, async (req: AuthRequest, res: Response) => {
         };
       }
     } else {
-      console.log('🎵 [SONGS] User is ADMIN/DIRECTOR, showing all songs');
     }
     
     const songs = await prisma.song.findMany({
@@ -754,15 +730,11 @@ router.get('/', authenticateToken, async (req: AuthRequest, res: Response) => {
 
 // Obtener canciones para playlists (filtradas por tipo de voz del usuario)
 router.get('/for-playlist', authenticateToken, async (req: AuthRequest, res: Response) => {
-  console.log('🎵 [FOR-PLAYLIST] Endpoint called!');
   try {
     const userId = req.user!.id;
     const userRoles = req.user!.roles || [];
     const userVoiceProfiles = req.user!.voiceProfiles || [];
     const { search = '' } = req.query;
-    
-    console.log('🎵 [FOR-PLAYLIST] User:', userId, 'Roles:', userRoles, 'Search:', search);
-    console.log('🎵 [FOR-PLAYLIST] Voice Profiles:', userVoiceProfiles.map((vp: any) => vp.voiceType));
     
     // Verificar si el usuario es ADMIN o DIRECTOR
     const isAdmin = userRoles.some((role: string) => role === 'ADMIN');
@@ -789,17 +761,14 @@ router.get('/for-playlist', authenticateToken, async (req: AuthRequest, res: Res
       if (userVoiceProfiles.length === 0) {
         // Si no tiene tipos asignados, solo mostrar CORO y ORIGINAL
         whereClause.voiceType = { in: ['CORO', 'ORIGINAL'] };
-        console.log('🎵 [FOR-PLAYLIST] No voice profiles found, only showing CORO and ORIGINAL');
-      } else {
+        } else {
         // Extraer los tipos de voz del usuario y agregar CORO y ORIGINAL
         const userVoiceTypes = userVoiceProfiles.map((profile: any) => profile.voiceType);
         const allowedVoiceTypes = [...userVoiceTypes, 'CORO', 'ORIGINAL'];
         whereClause.voiceType = { in: allowedVoiceTypes };
-        console.log('🎵 [FOR-PLAYLIST] Filtering by voice types:', allowedVoiceTypes);
-      }
+        }
     } else {
-      console.log('🎵 [FOR-PLAYLIST] User is ADMIN/DIRECTOR, showing all songs');
-    }
+      }
 
     // Obtener canciones compatibles
     const songs = await prisma.song.findMany({
@@ -970,8 +939,6 @@ router.get('/:id/versions', authenticateToken, async (req: AuthRequest, res: Res
       if (user?.voiceProfiles) {
         const userVoiceTypes = user.voiceProfiles.map(vp => vp.voiceType as any);
         allowedVoiceTypes = [...userVoiceTypes, 'CORO', 'ORIGINAL'];
-        console.log(`🎵 [VERSIONS] User: ${userId} Voice Profiles: [`, userVoiceTypes.map(vt => `'${vt}'`).join(', '), ']');
-        console.log(`🎵 [VERSIONS] Filtering by voice types: [`, allowedVoiceTypes.map(vt => `'${vt}'`).join(', '), ']');
       } else {
         allowedVoiceTypes = ['CORO', 'ORIGINAL']; // Solo CORO y ORIGINAL por defecto
       }

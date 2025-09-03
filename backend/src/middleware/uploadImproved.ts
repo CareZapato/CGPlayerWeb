@@ -34,16 +34,11 @@ export const prepareSongFolder = (req: any, res: any, next: any) => {
     const folderName = generateFolderName(req.body.title);
     const folderPath = path.join(__dirname, '../../uploads/songs', folderName);
     
-    console.log(`📂 [PREPARE-FOLDER] Creating song folder:`, {
-      title: req.body.title,
-      folderName,
-      folderPath
-    });
+    
     
     // Crear la carpeta
     if (!fs.existsSync(folderPath)) {
       fs.mkdirSync(folderPath, { recursive: true });
-      console.log(`✅ [PREPARE-FOLDER] Folder created successfully`);
     }
     
     // Agregar información de carpeta al request
@@ -78,16 +73,11 @@ const storage = multer.diskStorage({
       const folderName = generateFolderName(title);
       const folderPath = path.join(__dirname, '../../uploads/songs', folderName);
       
-      console.log(`📂 [STORAGE] Creating folder for song:`, {
-        title,
-        folderName,
-        folderPath
-      });
+      
       
       // Crear la carpeta si no existe
       if (!fs.existsSync(folderPath)) {
         fs.mkdirSync(folderPath, { recursive: true });
-        console.log(`✅ [STORAGE] Folder created successfully`);
       }
       
       // Agregar información de carpeta al request
@@ -106,7 +96,6 @@ const storage = multer.diskStorage({
       fs.mkdirSync(uploadsDir, { recursive: true });
     }
     
-    console.log(`📂 [STORAGE] Using fallback folder: ${uploadsDir}`);
     cb(null, uploadsDir);
   },
   filename: (req, file, cb) => {
@@ -136,16 +125,10 @@ const multiStorage = multer.diskStorage({
       
       const folderPath = path.join(__dirname, '../../uploads/songs', folderName);
       
-      console.log(`📂 [MULTI-STORAGE] Using folder for song:`, {
-        title,
-        folderName,
-        folderPath
-      });
       
       // Crear la carpeta si no existe
       if (!fs.existsSync(folderPath)) {
         fs.mkdirSync(folderPath, { recursive: true });
-        console.log(`✅ [MULTI-STORAGE] Folder created successfully`);
       }
       
       // Agregar información de carpeta al request
@@ -162,7 +145,6 @@ const multiStorage = multer.diskStorage({
       fs.mkdirSync(uploadsDir, { recursive: true });
     }
     
-    console.log(`📂 [MULTI-STORAGE] Using fallback folder: ${uploadsDir}`);
     cb(null, uploadsDir);
   },
   filename: (req, file, cb) => {
@@ -177,13 +159,7 @@ const multiStorage = multer.diskStorage({
 
 // Filtro de archivos mejorado que permite audio y letras
 const fileFilter = (req: any, file: any, cb: any) => {
-  console.log(`🎵 [FILE-FILTER] Checking file:`, {
-    originalname: file.originalname,
-    mimetype: file.mimetype,
-    size: file.size,
-    fieldname: file.fieldname
-  });
-
+  
   // Archivos de audio permitidos
   const allowedAudioMimes = [
     // MPEG Audio
@@ -273,16 +249,9 @@ const fileFilter = (req: any, file: any, cb: any) => {
     errorMessage = `Campo no reconocido: ${file.fieldname}`;
   }
   
-  console.log(`🔍 [FILE-FILTER] Validation:`, {
-    fieldname: file.fieldname,
-    mimetype: file.mimetype,
-    extension: fileExtension,
-    isValid,
-    finalDecision: isValid
-  });
+
   
   if (isValid) {
-    console.log(`✅ [FILE-FILTER] File accepted: ${file.originalname}`);
     cb(null, true);
   } else {
     console.log(`❌ [FILE-FILTER] File rejected: ${file.originalname} (${file.mimetype})`);
@@ -311,13 +280,7 @@ export const multiUpload = multer({
 
 // Manejo de errores de multer
 export const handleMulterError = (err: any, req: Request, res: Response, next: NextFunction) => {
-  console.log(`🔥 [MULTER] Error occurred:`, {
-    errorType: err.constructor.name,
-    message: err.message,
-    code: err.code,
-    field: err.field,
-    stack: err.stack?.split('\n')[0] // Solo la primera línea del stack
-  });
+  
 
   if (err instanceof multer.MulterError) {
     if (err.code === 'LIMIT_FILE_SIZE') {
@@ -357,14 +320,7 @@ export const renameUploadedFiles = async (
   folderName?: string,
   voiceAssignments?: any[]
 ): Promise<{ filePath: string; fileName: string; folderName?: string }[]> => {
-  console.log(`🗂️ [RENAME-FILES] Starting file renaming process:`, {
-    filesCount: files.length,
-    title,
-    voiceType,
-    folderName: folderName || 'NOT_PROVIDED',
-    folderNameType: typeof folderName,
-    voiceAssignmentsCount: voiceAssignments?.length || 0
-  });
+  
   
   const results = [];
   
@@ -373,38 +329,26 @@ export const renameUploadedFiles = async (
     const originalName = path.parse(file.originalname);
     const extension = originalName.ext;
     
-    console.log(`📁 [RENAME-FILES] Processing file ${i + 1}/${files.length}:`, {
-      originalName: file.originalname,
-      currentPath: file.path,
-      extension
-    });
+    
     
     // Para subida múltiple, usar asignaciones de voz
     let finalVoiceType = voiceType;
     if (voiceAssignments) {
       const assignment = voiceAssignments.find((a: any) => a.filename === file.originalname);
       finalVoiceType = assignment?.voiceType;
-      console.log(`🎤 [RENAME-FILES] Voice assignment found:`, {
-        filename: file.originalname,
-        voiceType: finalVoiceType,
-        assignment
-      });
+      
     }
     
     // Generar nuevo nombre con patrón título_tipovoz.extensión
     const newFileName = generateFileName(title, finalVoiceType, extension);
-    console.log(`📝 [RENAME-FILES] Generated filename:`, {
-      originalName: file.originalname,
-      newFileName,
-      voiceType: finalVoiceType
-    });
+    
     
     let finalPath: string;
     let finalFileName: string;
     let finalFolderName: string | undefined;
     
     if (folderName) {
-      console.log(`📂 [RENAME-FILES] Using existing folder structure:`, { folderName });
+      
       // El archivo ya está en la carpeta correcta (creada por el storage)
       // Solo necesitamos renombrarlo en la misma ubicación
       const currentDir = path.dirname(file.path);
@@ -412,30 +356,16 @@ export const renameUploadedFiles = async (
       finalFileName = newFileName;
       finalFolderName = folderName;
       
-      console.log(`📂 [RENAME-FILES] File will be renamed in place:`, {
-        currentDir,
-        finalPath,
-        finalFileName,
-        finalFolderName
-      });
+      
     } else {
-      console.log(`📂 [RENAME-FILES] No folder specified, keeping in root`);
       // Mantener en la carpeta raíz de uploads/songs
       finalPath = path.join(path.dirname(file.path), newFileName);
       finalFileName = newFileName;
     }
     
-    console.log(`🔄 [RENAME-FILES] File movement:`, {
-      from: file.path,
-      to: finalPath,
-      fileName: finalFileName,
-      folderName: finalFolderName
-    });
-    
     // Renombrar archivo
     try {
       fs.renameSync(file.path, finalPath);
-      console.log(`✅ [RENAME-FILES] File moved successfully`);
     } catch (error) {
       console.error(`❌ [RENAME-FILES] Error moving file:`, error);
       throw error;
@@ -447,11 +377,6 @@ export const renameUploadedFiles = async (
       folderName: finalFolderName
     });
   }
-  
-  console.log(`✅ [RENAME-FILES] Process completed:`, {
-    totalFiles: results.length,
-    results: results.map(r => ({ fileName: r.fileName, folderName: r.folderName }))
-  });
   
   return results;
 };

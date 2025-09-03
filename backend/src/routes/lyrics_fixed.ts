@@ -48,13 +48,6 @@ router.get('/files/:fileId', authenticateToken, async (req, res) => {
     // Construir la ruta correcta del archivo
     const filePath = path.join(__dirname, '../../uploads', lyricsFile.filePath);
     
-    console.log('📄 [LYRICS FILE] Looking for file:', {
-      fileId,
-      fileName: lyricsFile.fileName,
-      storedPath: lyricsFile.filePath,
-      fullPath: filePath,
-      exists: fs.existsSync(filePath)
-    });
     
     if (!fs.existsSync(filePath)) {
       console.log('❌ [LYRICS FILE] File not found at path:', filePath);
@@ -65,7 +58,6 @@ router.get('/files/:fileId', authenticateToken, async (req, res) => {
     res.setHeader('Content-Type', lyricsFile.mimeType);
     res.setHeader('Content-Disposition', `inline; filename="${lyricsFile.fileName}"`);
     
-    console.log('✅ [LYRICS FILE] Serving file successfully');
     
     // Enviar archivo
     res.sendFile(filePath);
@@ -136,12 +128,6 @@ router.post('/:songId/upload', authenticateToken, upload.single('lyricsFile'), a
       }
     });
     
-    console.log('✅ [LYRICS UPLOAD] File uploaded successfully:', {
-      songId,
-      fileName: file.originalname,
-      fileId: lyricsFile.id,
-      path: lyricsFile.filePath
-    });
     
     res.json({
       message: 'Archivo subido exitosamente',
@@ -165,8 +151,6 @@ router.put('/:songId/text', authenticateToken, async (req, res) => {
     const { songId } = req.params;
     const { text, voiceType } = req.body;
     
-    console.log(`🎵 [LYRICS TEXT] Starting lyrics save process for song: ${songId}, voiceType: ${voiceType}`);
-    
     if (!text || typeof text !== 'string') {
       return res.status(400).json({ message: 'Texto de letras requerido' });
     }
@@ -184,15 +168,12 @@ router.put('/:songId/text', authenticateToken, async (req, res) => {
       return res.status(404).json({ message: 'Canción no encontrada' });
     }
     
-    console.log(`📊 [LYRICS TEXT] Found song: ${song.title} (id: ${song.id}, voiceType: ${song.voiceType})`);
-    
     // LÓGICA CRUCIAL: Determinar el songId correcto para guardar las letras
     let targetSongId = songId;
     const targetVoiceType = voiceType;
     
     // Si la canción actual es un padre (voiceType = null), necesitamos encontrar la variante específica
     if (!song.voiceType) {
-      console.log(`🔍 [LYRICS TEXT] Song is parent, searching for ${targetVoiceType} variant...`);
       
       // Buscar todas las variantes de esta canción padre
       const allVariants = await (prisma as any).song.findMany({
@@ -210,30 +191,19 @@ router.put('/:songId/text', authenticateToken, async (req, res) => {
         }
       });
       
-      console.log(`📋 [LYRICS TEXT] Found ${allVariants.length} total songs (including parent):`);
-      allVariants.forEach((variant: SongVariant) => {
-        console.log(`  - ${variant.title} (${variant.id}) - voiceType: ${variant.voiceType || 'NULL'} - parent: ${variant.parentSongId || 'NO'}`);
-      });
-      
       // Buscar la variante específica que corresponde al voiceType
       const targetVariant = allVariants.find((variant: SongVariant) => variant.voiceType === targetVoiceType);
       
       if (targetVariant) {
         targetSongId = targetVariant.id;
-        console.log(`✅ [LYRICS TEXT] Found exact match - ${targetVoiceType} variant: ${targetVariant.title} (${targetVariant.id})`);
-      } else {
-        console.log(`⚠️ [LYRICS TEXT] No exact ${targetVoiceType} variant found in ${allVariants.length} variants`);
-        console.log(`⚠️ [LYRICS TEXT] Available voice types: ${allVariants.map((v: SongVariant) => v.voiceType || 'NULL').join(', ')}`);
+        } else {
         return res.status(404).json({ 
           message: `No se encontró variante para el tipo de voz ${targetVoiceType}`,
           availableVoiceTypes: allVariants.map((v: SongVariant) => v.voiceType).filter(Boolean)
         });
       }
     } else {
-      console.log(`📝 [LYRICS TEXT] Song already has voiceType: ${song.voiceType}, using current songId: ${songId}`);
     }
-    
-    console.log(`📝 [LYRICS TEXT] FINAL TARGET: songId=${targetSongId}, voiceType=${targetVoiceType}`);
     
     // Detectar si es texto simple o formato de sincronización
     const linesWithTime = text.split('\n').filter(line => {
@@ -243,12 +213,9 @@ router.put('/:songId/text', authenticateToken, async (req, res) => {
     
     const isTextOnly = linesWithTime.length === 0;
     
-    console.log(`📋 [LYRICS TEXT] Content analysis: ${linesWithTime.length} lines with timing, isTextOnly: ${isTextOnly}`);
-    
     // Si es solo texto (no sincronización), crear una entrada de texto simple
     if (isTextOnly) {
-      console.log(`🎵 [LYRICS TEXT] Creating text-only lyrics for song ${targetSongId}`);
-      
+       
       // Eliminar letras de texto existentes para este voiceType en la canción correcta
       await (prisma as any).lyric.deleteMany({
         where: {
@@ -257,8 +224,6 @@ router.put('/:songId/text', authenticateToken, async (req, res) => {
           isTextLyrics: true
         }
       });
-      
-      console.log(`🗑️ [LYRICS TEXT] Deleted existing text lyrics for songId: ${targetSongId}, voiceType: ${targetVoiceType}`);
       
       // Crear nueva entrada de texto
       const lyric = await (prisma as any).lyric.create({
@@ -270,8 +235,6 @@ router.put('/:songId/text', authenticateToken, async (req, res) => {
           isTextLyrics: true
         }
       });
-      
-      console.log(`✅ [LYRICS TEXT] Created text lyrics: ${lyric.id} for songId: ${targetSongId}, voiceType: ${targetVoiceType}`);
       
       return res.json({
         message: 'Letras guardadas como texto',
@@ -286,7 +249,6 @@ router.put('/:songId/text', authenticateToken, async (req, res) => {
     }
     
     // Si tiene formato de tiempo, procesarlo como letras sincronizadas
-    console.log(`🎵 [LYRICS TEXT] Creating sync entries for song ${targetSongId}`);
     
     // Eliminar entradas existentes para esta canción y voiceType
     await (prisma as any).lyric.deleteMany({
@@ -296,7 +258,6 @@ router.put('/:songId/text', authenticateToken, async (req, res) => {
       }
     });
     
-    console.log(`🗑️ [LYRICS TEXT] Deleted existing sync lyrics for songId: ${targetSongId}, voiceType: ${targetVoiceType}`);
     
     const lines = text.split('\n');
     const createdLyrics = [];
@@ -324,8 +285,7 @@ router.put('/:songId/text', authenticateToken, async (req, res) => {
         });
         
         createdLyrics.push(lyric);
-        console.log(`📝 [LYRICS TEXT] Created sync lyric: "${lyricsText}" at ${tiempo}s for songId: ${targetSongId}, voiceType: ${targetVoiceType}`);
-      } else {
+        } else {
         // Si no tiene formato de tiempo, crear como texto simple con tiempo 0
         const lyric = await (prisma as any).lyric.create({
           data: {
@@ -338,11 +298,9 @@ router.put('/:songId/text', authenticateToken, async (req, res) => {
         });
         
         createdLyrics.push(lyric);
-        console.log(`📝 [LYRICS TEXT] Created text lyric without timing: "${trimmed}" for songId: ${targetSongId}, voiceType: ${targetVoiceType}`);
-      }
+        }
     }
     
-    console.log(`✅ [LYRICS TEXT] Successfully created ${createdLyrics.length} lyrics entries for songId: ${targetSongId}, voiceType: ${targetVoiceType}`);
     
     res.json({
       message: 'Letras guardadas exitosamente',
@@ -371,8 +329,6 @@ router.get('/:songId/sync', authenticateToken, async (req, res) => {
     const { songId } = req.params;
     const { voiceType } = req.query;
     
-    console.log(`🎵 [LYRICS SYNC] Requesting lyrics for songId: ${songId}, voiceType: ${voiceType}`);
-    
     // Verificar que la canción existe
     const song = await (prisma as any).song.findUnique({
       where: { id: songId }
@@ -382,8 +338,6 @@ router.get('/:songId/sync', authenticateToken, async (req, res) => {
       return res.status(404).json({ message: 'Canción no encontrada' });
     }
     
-    console.log(`📊 [LYRICS SYNC] Found song: ${song.title} (id: ${song.id}, voiceType: ${song.voiceType})`);
-    
     // LÓGICA CRUCIAL: Determinar desde qué songId buscar las letras
     let targetSongId = songId;
     const targetVoiceType = voiceType;
@@ -391,7 +345,6 @@ router.get('/:songId/sync', authenticateToken, async (req, res) => {
     // Si la canción actual es un padre (voiceType = null) y se especifica un voiceType,
     // necesitamos encontrar la variante específica
     if (!song.voiceType && voiceType) {
-      console.log(`🔍 [LYRICS SYNC] Song is parent, searching for ${targetVoiceType} variant...`);
       
       // Buscar todas las variantes de esta canción padre
       const allVariants = await (prisma as any).song.findMany({
@@ -409,24 +362,16 @@ router.get('/:songId/sync', authenticateToken, async (req, res) => {
         }
       });
       
-      console.log(`📋 [LYRICS SYNC] Found ${allVariants.length} total songs (including parent):`);
-      allVariants.forEach((variant: SongVariant) => {
-        console.log(`  - ${variant.title} (${variant.id}) - voiceType: ${variant.voiceType || 'NULL'} - parent: ${variant.parentSongId || 'NO'}`);
-      });
       
       // Buscar la variante específica que corresponde al voiceType
       const targetVariant = allVariants.find((variant: SongVariant) => variant.voiceType === targetVoiceType);
       
       if (targetVariant) {
         targetSongId = targetVariant.id;
-        console.log(`✅ [LYRICS SYNC] Found exact match - ${targetVoiceType} variant: ${targetVariant.title} (${targetVariant.id})`);
-      } else {
-        console.log(`⚠️ [LYRICS SYNC] No exact ${targetVoiceType} variant found`);
+        } else {
         // No retornar error, buscar en el song original
       }
     }
-    
-    console.log(`📝 [LYRICS SYNC] SEARCHING IN: songId=${targetSongId}, voiceType=${targetVoiceType}`);
     
     // Buscar letras para la canción específica y tipo de voz
     const whereClause: any = {
@@ -442,12 +387,9 @@ router.get('/:songId/sync', authenticateToken, async (req, res) => {
       orderBy: { tiempo: 'asc' }
     });
     
-    console.log(`📋 [LYRICS SYNC] Found ${lyrics.length} lyrics entries`);
-    
     if (lyrics.length > 0) {
       lyrics.forEach((lyric: LyricsEntry, index: number) => {
-        console.log(`  [${index + 1}] "${lyric.text}" (tiempo: ${lyric.tiempo}s, voiceType: ${lyric.voiceType}, isText: ${lyric.isTextLyrics})`);
-      });
+        });
     }
     
     res.json({

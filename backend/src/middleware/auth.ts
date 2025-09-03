@@ -16,7 +16,7 @@ export interface AuthRequest extends Request {
 }
 
 export const authenticateToken = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  console.log(`🔐 [AUTH] Checking authentication for ${req.method} ${req.url}`);
+  
   
   const authHeader = req.headers['authorization'];
   let token = authHeader && authHeader.split(' ')[1];
@@ -24,7 +24,6 @@ export const authenticateToken = async (req: AuthRequest, res: Response, next: N
   // Para archivos de audio y letras, también permitir token vía query parameter
   if (!token && (req.url.includes('/file/') || req.url.includes('/files/'))) {
     token = req.query.token as string;
-    console.log(`🔐 [AUTH] Token from query parameter for file`);
   }
 
   if (!token) {
@@ -32,11 +31,9 @@ export const authenticateToken = async (req: AuthRequest, res: Response, next: N
     return res.status(401).json({ message: 'Access token required' });
   }
 
-  console.log(`🔑 [AUTH] Token found, verifying...`);
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
-    console.log(`✅ [AUTH] Token verified for user ID: ${decoded.userId}`);
     
     // Verificar que el usuario aún existe y obtener datos completos
     const user = await prisma.user.findUnique({
@@ -61,8 +58,6 @@ export const authenticateToken = async (req: AuthRequest, res: Response, next: N
       return res.status(401).json({ message: 'User not found or inactive' });
     }
     
-    console.log(`👤 [AUTH] User authenticated: ${user.email} (${user.roles.map(r => r.role).join(', ')})`);
-
     req.user = {
       id: user.id,
       email: user.email,

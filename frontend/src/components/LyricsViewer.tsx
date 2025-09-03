@@ -418,7 +418,7 @@ const LyricsViewer: React.FC<LyricsViewerProps> = ({
             <div className="space-y-3">
               {displayLyrics.length > 0 ? (
                 displayLyrics.map((lyric, index) => {
-                  // Determinar si es línea activa (resaltado temporal)
+                  // Determinar si es línea activa (resaltado temporal por tiempo)
                   const isActiveNow = autoSync && index === activeLineIndex && hasSyncData;
                   
                   // Debug para verificar isHighlighted
@@ -432,8 +432,11 @@ const LyricsViewer: React.FC<LyricsViewerProps> = ({
                   const baseBorderColor = isHighlighted ? 'border-purple-300' : 'border-gray-300';
                   const baseTextColor = isHighlighted ? 'text-purple-900' : 'text-gray-600';
                   
-                  // EFECTOS DE RESALTADO TEMPORAL - SOLO ZOOM Y SOMBRA
-                  const activeEffects = isActiveNow ? 'shadow-xl transform scale-110' : '';
+                  // EFECTOS DE RESALTADO TEMPORAL - ZOOM Y SOMBRA PARA LÍNEA ACTIVA
+                  // El zoom se aplica SIEMPRE que sea la línea activa, independiente de highlighted
+                  const activeEffects = isActiveNow 
+                    ? 'shadow-xl transform scale-110 border-yellow-400 bg-gradient-to-r from-yellow-100 to-yellow-200' 
+                    : '';
                   
                   // Agregar interactividad si tiene sync
                   const hasSync = autoSync && hasSyncData && lyric.startTime !== undefined && lyric.startTime !== null && lyric.startTime > 0;
@@ -444,7 +447,9 @@ const LyricsViewer: React.FC<LyricsViewerProps> = ({
                     key={lyric.id}
                     ref={index === activeLineIndex ? activeLineRef : null}
                     onClick={() => handleLineClick(lyric)}
-                    className={`p-6 mx-2 rounded-xl transition-all duration-300 border-2 ${baseBackgroundColor} ${baseBorderColor} ${activeEffects} ${hoverEffects} ${
+                    className={`p-6 mx-2 rounded-xl transition-all duration-300 border-2 ${
+                      isActiveNow ? activeEffects : `${baseBackgroundColor} ${baseBorderColor}`
+                    } ${hoverEffects} ${
                       selectedVoiceType && lyric.voiceType === selectedVoiceType
                         ? `border-l-8 ${getVoiceTypeColor(lyric.voiceType).replace('bg-', 'border-').replace('-50', '-400')}`
                         : ''
@@ -452,9 +457,16 @@ const LyricsViewer: React.FC<LyricsViewerProps> = ({
                   >
                     {/* Contenido principal de la letra - CENTRADO */}
                     <div className="flex justify-center items-center w-full">
-                      <p className={`text-center ${baseTextColor} text-lg font-bold leading-relaxed mx-auto ${
-                        // Responsive text sizing
-                        'sm:text-base md:text-lg lg:text-xl'
+                      <p className={`text-center font-bold leading-relaxed mx-auto ${
+                        // Color dinámico: activo = negro destacado, normal = según highlighted
+                        isActiveNow 
+                          ? 'text-gray-900' 
+                          : baseTextColor
+                      } ${
+                        // Tamaño dinámico: activo = más grande, normal = responsivo
+                        isActiveNow 
+                          ? 'text-xl sm:text-2xl md:text-3xl lg:text-4xl' 
+                          : 'text-lg sm:text-base md:text-lg lg:text-xl'
                       }`}>
                         {lyric.content}
                       </p>

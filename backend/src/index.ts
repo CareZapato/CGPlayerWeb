@@ -39,9 +39,6 @@ const PORT_NUMBER = Number(process.env.PORT) || 3001;
 const HOST = process.env.HOST || '0.0.0.0';
 const LOCAL_IP = getLocalIP();
 
-console.log(`🌐 Server starting on ${HOST}:${PORT_NUMBER}`);
-console.log(`📱 Local access: http://localhost:${PORT_NUMBER}`);
-console.log(`🌍 Network access: http://${LOCAL_IP}:${PORT_NUMBER}`);
 
 const app = express();
 
@@ -83,7 +80,6 @@ app.use(cors({
       return callback(null, true);
     }
     
-    console.log(`🚫 CORS blocked origin: ${origin}`);
     callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
@@ -111,12 +107,7 @@ app.use(limiter);
 app.use((req, res, next) => {
   // Log para debug de requests desde dispositivos externos
   if (req.headers.origin && !req.headers.origin.includes('localhost')) {
-    console.log('🌍 Request from external device:', {
-      origin: req.headers.origin,
-      method: req.method,
-      url: req.url,
-      userAgent: req.headers['user-agent']?.substring(0, 50) + '...'
-    });
+    
   }
   
   // Responder a preflight requests
@@ -136,23 +127,14 @@ app.use((req, res, next) => {
   const timestamp = new Date().toISOString();
   const clientIP = req.headers['x-forwarded-for'] || req.connection.remoteAddress || req.socket.remoteAddress;
   
-  console.log(`\n🌐 [${timestamp}] ${req.method} ${req.url}`);
-  console.log(`   📍 Client: ${clientIP}`);
-  console.log(`   📋 Headers:`, {
-    'content-type': req.headers['content-type'],
-    'content-length': req.headers['content-length'],
-    'authorization': req.headers.authorization ? 'Bearer ***' : 'None',
-    'user-agent': req.headers['user-agent']?.substring(0, 50) + '...'
-  });
   
   if (req.body && Object.keys(req.body).length > 0) {
-    console.log(`   📦 Body keys:`, Object.keys(req.body));
+    
   }
   
   // Override res.json to log responses
   const originalJson = res.json;
   res.json = function(body) {
-    console.log(`   ✅ Response ${res.statusCode}:`, typeof body === 'object' ? Object.keys(body) : body);
     return originalJson.call(this, body);
   };
   
@@ -181,7 +163,7 @@ app.use('/uploads/lyrics', express.static(path.join(__dirname, '../uploads/lyric
 // Endpoints públicos (sin autenticación)
 app.get('/api/health', (req, res) => {
   const clientIP = req.headers['x-forwarded-for'] || req.connection.remoteAddress || req.socket.remoteAddress;
-  console.log('🏥 Health check desde:', clientIP);
+  
   res.json({ 
     status: 'OK', 
     timestamp: new Date().toISOString(),
@@ -192,7 +174,6 @@ app.get('/api/health', (req, res) => {
 });
 
 app.get('/api/ping', (req, res) => {
-  console.log('🏓 Ping desde:', req.headers['x-forwarded-for'] || req.connection.remoteAddress);
   res.send('pong');
 });
 
@@ -238,35 +219,25 @@ app.use('*', (req, res) => {
 });
 
 app.listen(PORT_NUMBER, HOST, async () => {
-  console.log(`🎵 CGPlayerWeb Backend running on port ${PORT_NUMBER}`);
-  console.log(`📡 API URL: http://localhost:${PORT_NUMBER}/api`);
-  console.log(`🌐 Network API URL: http://${LOCAL_IP}:${PORT_NUMBER}/api`);
-  console.log(`📁 Uploads URL: http://localhost:${PORT_NUMBER}/uploads`);
-  console.log(`🎵 Network Uploads URL: http://${LOCAL_IP}:${PORT_NUMBER}/uploads`);
-  console.log(`🔒 CORS origins: ${allowedOrigins.join(', ')}`);
+
   
   // Verificar conexión a base de datos
-  console.log('🔍 Verificando estado de la base de datos...');
   try {
     await prisma.$connect();
     const userCount = await prisma.user.count();
     const locationCount = await prisma.location.count();
-    console.log('✅ Base de datos conectada correctamente');
-    console.log(`✅ Base de datos ya contiene ${userCount} usuarios y ${locationCount} ubicaciones`);
-  } catch (error) {
+    } catch (error) {
     console.error('❌ Error conectando a base de datos:', error);
   }
 });
 
 // Manejo graceful del cierre del proceso
 process.on('SIGINT', async () => {
-  console.log('\n🔄 Cerrando servidor...');
   await prisma.$disconnect();
   process.exit(0);
 });
 
 process.on('SIGTERM', async () => {
-  console.log('\n🔄 Cerrando servidor...');
   await prisma.$disconnect();
   process.exit(0);
 });

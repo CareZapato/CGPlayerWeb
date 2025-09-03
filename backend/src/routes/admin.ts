@@ -101,7 +101,6 @@ function generateUsername(firstName: string, lastName: string): string {
 // Endpoint para resetear la base de datos (solo ADMIN)
 router.post('/reset', authenticateToken, requireRole(['ADMIN']), async (req: AuthRequest, res: Response) => {
   try {
-    console.log('🔄 Iniciando reset completo de la base de datos...');
 
     // Eliminar todas las tablas en orden correcto (respetando foreign keys)
     await prisma.$executeRaw`TRUNCATE TABLE event_songs CASCADE`;
@@ -117,7 +116,6 @@ router.post('/reset', authenticateToken, requireRole(['ADMIN']), async (req: Aut
     await prisma.$executeRaw`TRUNCATE TABLE users CASCADE`;
     await prisma.$executeRaw`TRUNCATE TABLE locations CASCADE`;
 
-    console.log('✅ Todas las tablas han sido vaciadas');
 
     res.json({
       success: true,
@@ -191,10 +189,8 @@ router.post('/reset', authenticateToken, requireRole(['ADMIN']), async (req: Aut
 // Endpoint para sembrar datos
 router.post('/seed', authenticateToken, requireRole(['ADMIN']), async (req: AuthRequest, res: Response) => {
   try {
-    console.log('🌱 Iniciando seed de datos...');
 
     // 1. Crear ubicaciones
-    console.log('📍 Creando ubicaciones...');
     const locations: any[] = [];
 
     const locationData = [
@@ -222,7 +218,6 @@ router.post('/seed', authenticateToken, requireRole(['ADMIN']), async (req: Auth
     }
 
     // 2. Crear usuario administrador principal
-    console.log('👤 Creando usuario administrador...');
     const hashedAdminPassword = await bcrypt.hash('admin123', 10);
     
     const admin = await prisma.user.create({
@@ -243,7 +238,6 @@ router.post('/seed', authenticateToken, requireRole(['ADMIN']), async (req: Auth
     `;
 
     // 3. Crear usuario admin-cantante
-    console.log('🎤 Creando usuario admin-cantante...');
     const hashedAdminSingerPassword = await bcrypt.hash('admincantante123', 10);
     
     const adminSinger = await prisma.user.create({
@@ -272,11 +266,9 @@ router.post('/seed', authenticateToken, requireRole(['ADMIN']), async (req: Auth
     `;
 
     // 4. Crear cantantes distribuidos por ciudades
-    console.log('🎵 Creando 215 cantantes...');
     let cantantesCreados = 0;
 
     for (const [ciudad, cantidad] of Object.entries(distribucionCiudades)) {
-      console.log(`   📍 Creando ${cantidad} cantantes en ${ciudad}...`);
       
       const ubicacionesCiudad = locations.filter(loc => 
         loc.city === ciudad || (ciudad === 'Valparaíso' && loc.city === 'Valparaíso')
@@ -336,7 +328,6 @@ router.post('/seed', authenticateToken, requireRole(['ADMIN']), async (req: Auth
     }
 
     // 5. Crear algunos eventos base
-    console.log('📅 Creando eventos base...');
     const eventos = [
       {
         title: 'Concierto de Navidad 2025',
@@ -374,7 +365,6 @@ router.post('/seed', authenticateToken, requireRole(['ADMIN']), async (req: Auth
       prisma.event.count()
     ]);
 
-    console.log('✅ Seed completado exitosamente');
 
     res.json({
       success: true,
