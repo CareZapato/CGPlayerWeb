@@ -415,18 +415,31 @@ const LyricsSynchronizer: React.FC<LyricsSynchronizerProps> = ({ song, onClose, 
           startTime: undefined,
           endTime: undefined,
           lineNumber: 0,
-          voiceType: song.voiceType || undefined
-        },
-        // Líneas 1 en adelante: Segmentos individuales
-        ...highlightedLines.map((line, index) => ({
-          content: line.content,
-          startTime: line.startTime || undefined,
-          endTime: line.endTime || undefined,
-          lineNumber: index + 1, // Renumerar desde 1
           voiceType: song.voiceType || undefined,
-          isHighlighted: line.isHighlighted // Guardar estado ON/OFF en isHighlighted
-        }))
+          isHighlighted: false // Línea 0 nunca es highlighted
+        },
+        // Líneas 1 en adelante: TODAS las líneas (highlighted y no highlighted)
+        ...lyricsLines
+          .filter(line => line.lineNumber > 0) // Omitir línea 0 si existe
+          .map((line, index) => ({
+            content: line.content,
+            startTime: line.startTime || undefined,
+            endTime: line.endTime || undefined,
+            lineNumber: index + 1, // Renumerar desde 1
+            voiceType: song.voiceType || undefined,
+            // isHighlighted solo TRUE para la variación actual
+            isHighlighted: line.isHighlighted,
+            // Información para el backend sobre la variación actual
+            currentVoiceType: song.voiceType || undefined
+          }))
       ];
+
+      console.log('🎵 Guardando sincronización:', {
+        songId: song.id,
+        currentVoiceType: song.voiceType,
+        totalLines: syncData.length - 1, // -1 por línea 0
+        highlightedCount: syncData.filter(d => d.isHighlighted).length
+      });
 
       const result = await updateSyncWithVariants(syncData, song.id);
       

@@ -763,14 +763,14 @@ router.put('/:songId/sync-variants', authenticateToken, async (req, res) => {
           isSynchronized: (syncEntry.startTime || 0) > 0,
           isTextLyrics: true,
           isActive: true, // Campo para estado general
-          isHighlighted: (syncEntry as any).isActive !== false, // Usar isActive del frontend para determinar si se canta
+          isHighlighted: syncEntry.isHighlighted === true, // Usar el valor exacto del frontend
           createdBy: (req as any).user?.id || 'system'
         }
       });
       
       createdLyrics.push(lyric);
       
-      console.log(`📝 [LYRICS SYNC VARIANTS] Created lyric line ${syncEntry.lineNumber}: "${syncEntry.content}" (${syncEntry.startTime || 0}s) - highlighted: ${lyric.isHighlighted}`);
+      console.log(`📝 [LYRICS SYNC VARIANTS] Created lyric line ${syncEntry.lineNumber}: "${syncEntry.content}" (${syncEntry.startTime || 0}s) - highlighted: ${syncEntry.isHighlighted === true}`);
     }
 
     // Actualizar el estado hasLyricSync de la canción
@@ -838,7 +838,7 @@ router.put('/:songId/sync-variants', authenticateToken, async (req, res) => {
             }
           });
 
-          // Crear nuevas letras para esta variante - COPIAR TODOS LOS TIEMPOS Y DATOS
+          // Crear nuevas letras para esta variante - COPIAR TIEMPOS PERO isHighlighted = false
           for (const [index, syncEntry] of syncData.entries()) {
             await prisma.lyric.create({
               data: {
@@ -851,7 +851,7 @@ router.put('/:songId/sync-variants', authenticateToken, async (req, res) => {
                 isSynchronized: (syncEntry.startTime || 0) > 0, // Mantener sincronización
                 isTextLyrics: true,
                 isActive: true, // Por defecto todas las líneas activas para otras variantes
-                isHighlighted: true, // Por defecto todas destacadas, se personalizará luego
+                isHighlighted: false, // FALSE para otras variantes - no participan por defecto
                 createdBy: (req as any).user?.id || 'system'
               }
             });

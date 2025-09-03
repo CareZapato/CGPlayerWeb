@@ -37,7 +37,15 @@ const LyricsViewer: React.FC<LyricsViewerProps> = ({
 }) => {
   const [isExpanded, setIsExpanded] = useState(true); // Empezar expandido cuando se integra en el reproductor
   const [displayMode, setDisplayMode] = useState<'sync' | 'files'>('sync');
-  const [selectedVoiceType, setSelectedVoiceType] = useState<VoiceType | null>(voiceType);
+  // Usar el voiceType de la canción (variación actual) o el prop como fallback
+  const [selectedVoiceType, setSelectedVoiceType] = useState<VoiceType | null>(song?.voiceType || voiceType);
+
+  // Actualizar selectedVoiceType cuando cambie la canción
+  useEffect(() => {
+    if (song?.voiceType) {
+      setSelectedVoiceType(song.voiceType);
+    }
+  }, [song?.voiceType]);
   const [activeLineIndex, setActiveLineIndex] = useState<number>(-1);
   const [autoScroll, setAutoScroll] = useState<boolean>(true);
   const [autoSync, setAutoSync] = useState<boolean>(() => {
@@ -65,27 +73,34 @@ const LyricsViewer: React.FC<LyricsViewerProps> = ({
     }
   }, [song?.id, loadLyrics, loadSyncedLyrics]);
 
-  // Obtener letras filtradas por voiceType
-  const filteredLyrics = syncedLyrics.filter(lyric => 
-    lyric.voiceType === selectedVoiceType && 
-    lyric.lineNumber > 0 // Filtrar línea 0 de respaldo
-  ).sort((a, b) => a.lineNumber - b.lineNumber);
+  // Obtener letras filtradas por voiceType - TODAS las líneas
+  const filteredLyrics = syncedLyrics.filter(lyric => {
+    // Si no hay voiceType seleccionado, mostrar la primera variación disponible
+    const targetVoiceType = selectedVoiceType || syncedLyrics.find(l => l.voiceType && l.lineNumber > 0)?.voiceType;
+    
+    return lyric.voiceType === targetVoiceType && 
+           lyric.lineNumber > 0; // Filtrar línea 0 de respaldo
+  }).sort((a, b) => a.lineNumber - b.lineNumber);
 
-  // Para modo sincronizado, filtrar solo las destacadas
-  const syncedFilteredLyrics = filteredLyrics.filter(lyric => 
-    lyric.isHighlighted === true
-  );
+  // Debug para ver qué datos tenemos
+  useEffect(() => {
+    console.log('🎵 LyricsViewer Debug:', {
+      songId: song?.id,
+      selectedVoiceType,
+      syncedLyricsCount: syncedLyrics.length,
+      filteredLyricsCount: filteredLyrics.length,
+      syncedLyrics: syncedLyrics.slice(0, 3), // Primeros 3 para debug
+      filteredLyrics: filteredLyrics.slice(0, 3)
+    });
+  }, [song?.id, selectedVoiceType, syncedLyrics.length, filteredLyrics.length]);
 
-  // Verificar si hay sincronización en las líneas destacadas
-  const hasSyncData = syncedFilteredLyrics.some(lyric => 
+  // Verificar si hay sincronización en cualquier línea
+  const hasSyncData = filteredLyrics.some(lyric => 
     lyric.startTime !== undefined && lyric.startTime !== null && lyric.startTime > 0
   );
 
-  // Si no tiene sincronización pero hay letras, mostrar modo estático
-  const hasStaticData = filteredLyrics.length > 0;
-
-  // Elegir qué letras mostrar según el modo
-  const displayLyrics = autoSync && hasSyncData ? syncedFilteredLyrics : filteredLyrics;
+  // Siempre usar todas las líneas filtradas
+  const displayLyrics = filteredLyrics;
 
   // Obtener archivos de letras de la canción principal
   const lyricsFiles = lyrics?.lyricsFiles || [];
@@ -326,41 +341,27 @@ const LyricsViewer: React.FC<LyricsViewerProps> = ({
           {displayMode === 'sync' ? (
             // Synchronized lyrics
             <div className="space-y-2">
-              {filteredLyrics.length > 0 ? (
-                // Mostrar letras según el modo
-                !hasSyncData && hasStaticData && !autoSync ? (
-                  // Modo estático sin sincronización: mostrar todas las líneas opacas
-                  filteredLyrics.map((lyric, index) => (
-                    <div
-                      key={`static-${lyric.id}`}
-                      className="p-3 rounded-lg bg-white border border-gray-200 text-gray-700"
-                      style={{ opacity: 0.8 }}
-                    >
-                      <p className="font-medium text-gray-800">{lyric.content}</p>
-                      {lyric.voiceType && (
-                        <div className="mt-1">
-                          <span className={`text-xs px-2 py-1 rounded ${getVoiceTypeColor(lyric.voiceType)}`}>
-                            {lyric.voiceType.replace('_', ' ')}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  ))
-                ) : (
-                  // Modo sincronizado o normal
-                  filteredLyrics.map((lyric, index) => (
+              {displayLyrics.length > 0 ? (
+                displayLyrics.map((lyric, index) => (
                   <div
                     key={lyric.id}
                     ref={index === activeLineIndex ? activeLineRef : null}
                     onClick={() => handleLineClick(lyric)}
                     className={`p-3 rounded-lg transition-all border ${
+                      // Línea activa en auto-sync con tiempo actual
                       autoSync && index === activeLineIndex && hasSyncData
-                        ? 'bg-blue-100 border-blue-300 text-blue-900 shadow-md'
+                        ? lyric.isHighlighted 
+                          ? 'bg-purple-100 border-purple-300 text-purple-900 shadow-md' // Morado elegante para highlighted activa
+                          : 'bg-blue-100 border-blue-300 text-blue-900 shadow-md'     // Azul para no-highlighted activa
+                        // Líneas con sincronización disponibles
                         : autoSync && hasSyncData && lyric.startTime !== undefined && lyric.startTime !== null && lyric.startTime > 0
-                          ? 'bg-gray-50 border-gray-200 hover:bg-gray-100 cursor-pointer hover:shadow-sm'
-                          : !autoSync
-                            ? 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
-                            : 'bg-white border-gray-200 text-gray-600'
+                          ? lyric.isHighlighted
+                            ? 'bg-purple-50 border-purple-200 hover:bg-purple-100 cursor-pointer hover:shadow-sm text-purple-800' // Morado elegante para highlighted
+                            : 'bg-gray-50 border-gray-200 hover:bg-gray-100 cursor-pointer hover:shadow-sm text-gray-700'        // Opaco para no-highlighted
+                        // Modo estático o sin sincronización
+                        : lyric.isHighlighted
+                          ? 'bg-purple-50 border-purple-200 text-purple-800' // Morado elegante para highlighted estático
+                          : 'bg-white border-gray-200 text-gray-600'         // Opaco para no-highlighted estático
                     } ${
                       selectedVoiceType && lyric.voiceType === selectedVoiceType
                         ? `border-l-4 ${getVoiceTypeColor(lyric.voiceType).replace('bg-', 'border-').replace('-50', '-300')}`
@@ -370,23 +371,30 @@ const LyricsViewer: React.FC<LyricsViewerProps> = ({
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
                         <p className={`font-medium ${
+                          // Texto activo en auto-sync
                           autoSync && index === activeLineIndex && hasSyncData 
-                            ? 'text-blue-900' 
-                            : autoSync && hasSyncData && lyric.startTime !== undefined && lyric.startTime !== null && lyric.startTime > 0
-                              ? 'text-gray-900'
-                              : !autoSync
-                                ? 'text-gray-800'
-                                : 'text-gray-600'
+                            ? lyric.isHighlighted 
+                              ? 'text-purple-900' 
+                              : 'text-blue-900'
+                            // Texto normal según estado
+                            : lyric.isHighlighted
+                              ? 'text-purple-800' // Morado elegante para highlighted
+                              : 'text-gray-600'   // Opaco para no-highlighted
                         }`}>
                           {lyric.content}
                         </p>
-                        {lyric.voiceType && (
-                          <div className="mt-1">
+                        <div className="mt-1 flex items-center space-x-2">
+                          {lyric.voiceType && (
                             <span className={`text-xs px-2 py-1 rounded ${getVoiceTypeColor(lyric.voiceType)}`}>
                               {lyric.voiceType.replace('_', ' ')}
                             </span>
-                          </div>
-                        )}
+                          )}
+                          {lyric.isHighlighted && (
+                            <span className="text-xs px-2 py-1 rounded bg-purple-100 text-purple-700">
+                              ♪ Participa
+                            </span>
+                          )}
+                        </div>
                       </div>
                       {autoSync && hasSyncData && lyric.startTime !== undefined && lyric.startTime !== null && lyric.startTime > 0 && (
                         <div className="flex items-center space-x-2">
@@ -394,14 +402,15 @@ const LyricsViewer: React.FC<LyricsViewerProps> = ({
                             {formatTime(lyric.startTime)}
                           </span>
                           {index === activeLineIndex && (
-                            <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                            <div className={`w-2 h-2 rounded-full animate-pulse ${
+                              lyric.isHighlighted ? 'bg-purple-500' : 'bg-blue-500'
+                            }`}></div>
                           )}
                         </div>
                       )}
                     </div>
                   </div>
                 ))
-                )
               ) : (
                 <div className="text-center text-gray-500 py-8">
                   <MusicalNoteIcon className="h-12 w-12 mx-auto mb-2 text-gray-300" />
