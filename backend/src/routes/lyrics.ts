@@ -762,14 +762,15 @@ router.put('/:songId/sync-variants', authenticateToken, async (req, res) => {
           voiceType: currentVoiceType,
           isSynchronized: (syncEntry.startTime || 0) > 0,
           isTextLyrics: true,
-          isActive: (syncEntry as any).isActive !== false, // Usar isActive del frontend para determinar si se canta
+          isActive: true, // Campo para estado general
+          isHighlighted: (syncEntry as any).isActive !== false, // Usar isActive del frontend para determinar si se canta
           createdBy: (req as any).user?.id || 'system'
         }
       });
       
       createdLyrics.push(lyric);
       
-      console.log(`📝 [LYRICS SYNC VARIANTS] Created lyric line ${syncEntry.lineNumber}: "${syncEntry.content}" (${syncEntry.startTime || 0}s) - active: ${lyric.isActive}`);
+      console.log(`📝 [LYRICS SYNC VARIANTS] Created lyric line ${syncEntry.lineNumber}: "${syncEntry.content}" (${syncEntry.startTime || 0}s) - highlighted: ${lyric.isHighlighted}`);
     }
 
     // Actualizar el estado hasLyricSync de la canción
@@ -850,6 +851,7 @@ router.put('/:songId/sync-variants', authenticateToken, async (req, res) => {
                 isSynchronized: (syncEntry.startTime || 0) > 0, // Mantener sincronización
                 isTextLyrics: true,
                 isActive: true, // Por defecto todas las líneas activas para otras variantes
+                isHighlighted: true, // Por defecto todas destacadas, se personalizará luego
                 createdBy: (req as any).user?.id || 'system'
               }
             });

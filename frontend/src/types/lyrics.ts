@@ -49,8 +49,10 @@ export interface Lyric {
   voiceType?: VoiceType | null; // null = canción principal
   textContent?: string | null; // Para letras completas de texto
   isTextLyrics: boolean; // True si son letras de texto completas
+  isSynchronized?: boolean; // True si tiene sincronización temporal real
   createdBy: string;
-  isActive: boolean;
+  isActive: boolean; // Estado general
+  isHighlighted: boolean; // True si esta línea debe ser resaltada/cantada por esta voz
   createdAt: string;
   updatedAt: string;
 }

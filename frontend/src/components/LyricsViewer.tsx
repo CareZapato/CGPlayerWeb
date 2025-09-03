@@ -69,13 +69,16 @@ const LyricsViewer: React.FC<LyricsViewerProps> = ({
   const filteredLyrics = syncedLyrics.filter(lyric => 
     lyric.voiceType === selectedVoiceType && 
     lyric.lineNumber > 0 && // Filtrar línea 0 de respaldo
-    lyric.isActive !== false // Mostrar solo líneas activas (que canta esta voz)
+    lyric.isHighlighted !== false // Mostrar solo líneas destacadas (que canta esta voz)
   ).sort((a, b) => a.lineNumber - b.lineNumber);
 
   // Verificar si hay sincronización
   const hasSyncData = filteredLyrics.some(lyric => 
     lyric.startTime !== undefined && lyric.startTime !== null && lyric.startTime > 0
   );
+
+  // Si no tiene sincronización pero hay letras, mostrar modo estático
+  const hasStaticData = filteredLyrics.length > 0;
 
   // Obtener archivos de letras de la canción principal
   const lyricsFiles = lyrics?.lyricsFiles || [];
@@ -317,7 +320,28 @@ const LyricsViewer: React.FC<LyricsViewerProps> = ({
             // Synchronized lyrics
             <div className="space-y-2">
               {filteredLyrics.length > 0 ? (
-                filteredLyrics.map((lyric, index) => (
+                // Mostrar letras según el modo
+                !hasSyncData && hasStaticData && !autoSync ? (
+                  // Modo estático sin sincronización: mostrar todas las líneas opacas
+                  filteredLyrics.map((lyric, index) => (
+                    <div
+                      key={`static-${lyric.id}`}
+                      className="p-3 rounded-lg bg-white border border-gray-200 text-gray-700"
+                      style={{ opacity: 0.8 }}
+                    >
+                      <p className="font-medium text-gray-800">{lyric.content}</p>
+                      {lyric.voiceType && (
+                        <div className="mt-1">
+                          <span className={`text-xs px-2 py-1 rounded ${getVoiceTypeColor(lyric.voiceType)}`}>
+                            {lyric.voiceType.replace('_', ' ')}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  ))
+                ) : (
+                  // Modo sincronizado o normal
+                  filteredLyrics.map((lyric, index) => (
                   <div
                     key={lyric.id}
                     ref={index === activeLineIndex ? activeLineRef : null}
@@ -370,6 +394,7 @@ const LyricsViewer: React.FC<LyricsViewerProps> = ({
                     </div>
                   </div>
                 ))
+                )
               ) : (
                 <div className="text-center text-gray-500 py-8">
                   <MusicalNoteIcon className="h-12 w-12 mx-auto mb-2 text-gray-300" />

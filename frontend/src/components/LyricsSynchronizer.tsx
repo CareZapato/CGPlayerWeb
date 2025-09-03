@@ -18,7 +18,7 @@ interface LyricLine {
   endTime: number | null;
   lineNumber: number;
   isSelected: boolean;
-  isActive: boolean; // Nueva propiedad para indicar si esta voz canta en esta línea
+  isHighlighted: boolean; // Nueva propiedad para indicar si esta voz canta en esta línea
   isCurrent: boolean; // Nueva propiedad para la línea actualmente seleccionada
 }
 
@@ -53,7 +53,7 @@ const LyricsSynchronizer: React.FC<LyricsSynchronizerProps> = ({ song, onClose, 
           endTime: lyric.endTime || null,
           lineNumber: lyric.lineNumber,
           isSelected: false,
-          isActive: true, // Por defecto todas las líneas están activas
+          isHighlighted: lyric.isHighlighted !== false, // Por defecto todas las líneas están destacadas
           isCurrent: index === 0 // La primera línea (línea 1) es la actual por defecto
         }));
       
@@ -124,7 +124,7 @@ const LyricsSynchronizer: React.FC<LyricsSynchronizerProps> = ({ song, onClose, 
     const timeToMark = currentTime === 0 && currentLineIndex > 0 ? 0.1 : currentTime;
     
     setLyricsLines(prev => prev.map((line, index) => {
-      if (index === currentLineIndex && line.isActive) {
+      if (index === currentLineIndex && line.isHighlighted) {
         return { 
           ...line, 
           startTime: timeToMark, 
@@ -259,7 +259,7 @@ const LyricsSynchronizer: React.FC<LyricsSynchronizerProps> = ({ song, onClose, 
       endTime: null,
       lineNumber: newLineNumber,
       isSelected: false,
-      isActive: true,
+      isHighlighted: true,
       isCurrent: false
     };
 
@@ -292,15 +292,15 @@ const LyricsSynchronizer: React.FC<LyricsSynchronizerProps> = ({ song, onClose, 
     ));
   };
 
-  const toggleLineActive = (lineIndex: number) => {
+  const toggleLineHighlighted = (lineIndex: number) => {
     setLyricsLines(prev => prev.map((line, index) => {
       if (index === lineIndex) {
         return { 
           ...line, 
-          isActive: !line.isActive,
+          isHighlighted: !line.isHighlighted,
           // Si se desactiva, limpiar los tiempos
-          startTime: !line.isActive ? line.startTime : null,
-          endTime: !line.isActive ? line.endTime : null
+          startTime: !line.isHighlighted ? line.startTime : null,
+          endTime: !line.isHighlighted ? line.endTime : null
         };
       }
       return line;
@@ -320,16 +320,16 @@ const LyricsSynchronizer: React.FC<LyricsSynchronizerProps> = ({ song, onClose, 
     setIsSaving(true);
     try {
       // Preparar datos de sincronización con numeración correcta
-      const activeLines = lyricsLines.filter(line => line.isActive);
+      const highlightedLines = lyricsLines.filter(line => line.isHighlighted);
       
-      if (activeLines.length === 0) {
-        alert('Debes marcar al menos una línea como activa antes de guardar.');
+      if (highlightedLines.length === 0) {
+        alert('Debes marcar al menos una línea como destacada antes de guardar.');
         setIsSaving(false);
         return;
       }
       
       // Crear línea 0 con toda la letra como respaldo
-      const fullLyrics = activeLines.map(line => line.content).join(' ');
+      const fullLyrics = highlightedLines.map(line => line.content).join(' ');
       
       const syncData = [
         // Línea 0: Letra completa como respaldo
@@ -341,13 +341,13 @@ const LyricsSynchronizer: React.FC<LyricsSynchronizerProps> = ({ song, onClose, 
           voiceType: song.voiceType || undefined
         },
         // Líneas 1 en adelante: Segmentos individuales
-        ...activeLines.map((line, index) => ({
+        ...highlightedLines.map((line, index) => ({
           content: line.content,
           startTime: line.startTime || undefined,
           endTime: line.endTime || undefined,
           lineNumber: index + 1, // Renumerar desde 1
           voiceType: song.voiceType || undefined,
-          isActive: line.isActive // Enviar estado de si esta voz canta en esta línea
+          isActive: line.isHighlighted // Enviar estado de si esta voz canta en esta línea
         }))
       ];
 
@@ -475,7 +475,7 @@ const LyricsSynchronizer: React.FC<LyricsSynchronizerProps> = ({ song, onClose, 
                   className={`p-4 border rounded-lg transition-all duration-300 cursor-pointer ${
                     line.isCurrent
                       ? 'border-purple-500 bg-purple-100 shadow-lg transform scale-105'
-                      : !line.isActive 
+                      : !line.isHighlighted 
                         ? 'border-gray-300 bg-gray-100 opacity-60'
                         : line.startTime !== null 
                           ? 'border-green-300 bg-green-50'
@@ -494,7 +494,7 @@ const LyricsSynchronizer: React.FC<LyricsSynchronizerProps> = ({ song, onClose, 
                         className={`w-full resize-none bg-transparent border-none focus:outline-none font-medium text-lg leading-relaxed ${
                           line.isCurrent 
                             ? 'text-purple-900 font-bold' 
-                            : !line.isActive 
+                            : !line.isHighlighted 
                               ? 'text-gray-400' 
                               : 'text-gray-900'
                         }`}
@@ -534,20 +534,20 @@ const LyricsSynchronizer: React.FC<LyricsSynchronizerProps> = ({ song, onClose, 
                     {/* Botón indicador a la derecha */}
                     <div className="flex-shrink-0">
                       <button
-                        onClick={() => toggleLineActive(index)}
+                        onClick={() => toggleLineHighlighted(index)}
                         className={`w-16 h-16 rounded-full border-2 transition-all duration-300 flex items-center justify-center ${
-                          line.isActive
+                          line.isHighlighted
                             ? 'bg-purple-500 border-purple-600 text-white shadow-lg hover:bg-purple-600'
                             : 'bg-gray-200 border-gray-300 text-gray-500 hover:bg-gray-300'
                         }`}
-                        title={line.isActive ? 'Esta voz canta aquí' : 'Esta voz no canta aquí'}
+                        title={line.isHighlighted ? 'Esta voz canta aquí' : 'Esta voz no canta aquí'}
                       >
                         <div className="text-center">
                           <div className="text-xs font-bold">
-                            {line.isActive ? '🎤' : '🔇'}
+                            {line.isHighlighted ? '🎤' : '🔇'}
                           </div>
                           <div className="text-xs mt-1">
-                            {line.isActive ? 'ON' : 'OFF'}
+                            {line.isHighlighted ? 'ON' : 'OFF'}
                           </div>
                         </div>
                       </button>
@@ -575,10 +575,10 @@ const LyricsSynchronizer: React.FC<LyricsSynchronizerProps> = ({ song, onClose, 
         <div className="flex items-center justify-between p-6 border-t border-gray-200">
           <div className="text-sm text-gray-600">
             <div>
-              {lyricsLines.filter(line => line.isActive).length} líneas activas de {lyricsLines.length} total
+              {lyricsLines.filter(line => line.isHighlighted).length} líneas destacadas de {lyricsLines.length} total
             </div>
             <div>
-              {lyricsLines.filter(line => line.isActive && line.startTime !== null).length} líneas sincronizadas
+              {lyricsLines.filter(line => line.isHighlighted && line.startTime !== null).length} líneas sincronizadas
             </div>
           </div>
           

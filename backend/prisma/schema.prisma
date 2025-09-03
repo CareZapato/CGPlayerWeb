@@ -14,11 +14,11 @@ model User {
   password              String
   firstName             String
   lastName              String
-  phone                 String?
   isActive              Boolean            @default(true)
   createdAt             DateTime           @default(now())
   updatedAt             DateTime           @updatedAt
   locationId            String?
+  phone                 String?
   lyricContributions    Lyric[]
   lyricsFileUploads     LyricsFile[]       @relation("LyricsFileUploader")
   playlists             Playlist[]
@@ -79,11 +79,10 @@ model Song {
   voiceType     VoiceType?
   coverColor    String?
   folderName    String?
-  // Campos para archivos de letras (compartidos entre variantes)
-  lyricsFiles   LyricsFile[]     // Archivos de letras (PDF, IMG, DOC) compartidos
-  hasLyricSync  Boolean          @default(false) // Si tiene sincronización de letras
+  hasLyricSync  Boolean          @default(false)
   eventSongs    EventSong[]
-  lyrics        Lyric[]          // Sincronizaciones por variante
+  lyrics        Lyric[]
+  lyricsFiles   LyricsFile[]
   playlistItems PlaylistItem[]
   soloists      Soloist[]
   assignments   SongAssignment[]
@@ -94,21 +93,20 @@ model Song {
   @@map("songs")
 }
 
-// Nuevo modelo para archivos de letras (compartidos entre todas las variantes)
 model LyricsFile {
-  id          String          @id @default(cuid())
-  songId      String
-  fileName    String          // Nombre original del archivo
-  filePath    String          // Ruta del archivo en el sistema
-  fileSize    Int             // Tamaño del archivo en bytes
-  mimeType    String          // tipo MIME del archivo
-  fileType    LyricsFileType  // Tipo categorizado del archivo
-  uploadedBy  String
-  isActive    Boolean         @default(true)
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
-  song        Song            @relation(fields: [songId], references: [id], onDelete: Cascade)
-  uploader    User            @relation("LyricsFileUploader", fields: [uploadedBy], references: [id])
+  id         String         @id @default(cuid())
+  songId     String
+  fileName   String
+  filePath   String
+  fileSize   Int
+  mimeType   String
+  fileType   LyricsFileType
+  uploadedBy String
+  isActive   Boolean        @default(true)
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+  song       Song           @relation(fields: [songId], references: [id], onDelete: Cascade)
+  uploader   User           @relation("LyricsFileUploader", fields: [uploadedBy], references: [id])
 
   @@map("lyrics_files")
 }
@@ -133,9 +131,9 @@ model Playlist {
   userId      String
   voiceType   VoiceType?
   isPublic    Boolean        @default(false)
-  imageUrl    String?        // Nueva campo para la imagen
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
+  imageUrl    String?
   items       PlaylistItem[]
   user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -156,22 +154,23 @@ model PlaylistItem {
 }
 
 model Lyric {
-  id            String     @id @default(cuid())
-  songId        String
-  content       String     // Línea de letra o fragmento
-  startTime     Float?     // Tiempo de inicio en segundos (para sincronización)
-  endTime       Float?     // Tiempo de fin en segundos (para sincronización)
-  lineNumber    Int        // Número de línea en la letra
-  voiceType     VoiceType? // Para qué tipo de voz es esta sincronización (null = canción principal)
-  textContent   String?    // Contenido de texto completo (para tipo TEXT)
-  isTextLyrics  Boolean    @default(false) // True si son letras de texto completas
-  isSynchronized Boolean   @default(false) // True si esta letra tiene sincronización temporal real (startTime > 0)
-  createdBy     String
-  isActive      Boolean    @default(true)
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
-  creator       User       @relation(fields: [createdBy], references: [id])
-  song          Song       @relation(fields: [songId], references: [id], onDelete: Cascade)
+  id             String     @id @default(cuid())
+  songId         String
+  content        String
+  voiceType      VoiceType?
+  createdBy      String
+  isActive       Boolean    @default(true)
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  endTime        Float?
+  lineNumber     Int
+  startTime      Float?
+  isTextLyrics   Boolean    @default(false)
+  textContent    String?
+  isSynchronized Boolean    @default(false)
+  isHighlighted  Boolean    @default(true)
+  creator        User       @relation(fields: [createdBy], references: [id])
+  song           Song       @relation(fields: [songId], references: [id], onDelete: Cascade)
 
   @@unique([songId, lineNumber, voiceType])
   @@map("lyrics")
@@ -280,12 +279,11 @@ enum LyricsType {
   DOCX
 }
 
-// Nuevo enum para tipos específicos de archivos de letras
 enum LyricsFileType {
-  PDF        // Documentos PDF
-  DOC        // Documentos Word (.doc)
-  DOCX       // Documentos Word (.docx)
-  IMAGE_JPG  // Imágenes JPEG
-  IMAGE_PNG  // Imágenes PNG
-  TEXT       // Archivos de texto plano
+  PDF
+  DOC
+  DOCX
+  IMAGE_JPG
+  IMAGE_PNG
+  TEXT
 }
