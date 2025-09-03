@@ -68,17 +68,24 @@ const LyricsViewer: React.FC<LyricsViewerProps> = ({
   // Obtener letras filtradas por voiceType
   const filteredLyrics = syncedLyrics.filter(lyric => 
     lyric.voiceType === selectedVoiceType && 
-    lyric.lineNumber > 0 && // Filtrar línea 0 de respaldo
-    lyric.isHighlighted !== false // Mostrar solo líneas destacadas (que canta esta voz)
+    lyric.lineNumber > 0 // Filtrar línea 0 de respaldo
   ).sort((a, b) => a.lineNumber - b.lineNumber);
 
-  // Verificar si hay sincronización
-  const hasSyncData = filteredLyrics.some(lyric => 
+  // Para modo sincronizado, filtrar solo las destacadas
+  const syncedFilteredLyrics = filteredLyrics.filter(lyric => 
+    lyric.isHighlighted === true
+  );
+
+  // Verificar si hay sincronización en las líneas destacadas
+  const hasSyncData = syncedFilteredLyrics.some(lyric => 
     lyric.startTime !== undefined && lyric.startTime !== null && lyric.startTime > 0
   );
 
   // Si no tiene sincronización pero hay letras, mostrar modo estático
   const hasStaticData = filteredLyrics.length > 0;
+
+  // Elegir qué letras mostrar según el modo
+  const displayLyrics = autoSync && hasSyncData ? syncedFilteredLyrics : filteredLyrics;
 
   // Obtener archivos de letras de la canción principal
   const lyricsFiles = lyrics?.lyricsFiles || [];
@@ -97,8 +104,8 @@ const LyricsViewer: React.FC<LyricsViewerProps> = ({
       return;
     }
 
-    const activeIndex = filteredLyrics.findIndex((lyric, index) => {
-      const nextLyric = filteredLyrics[index + 1];
+    const activeIndex = displayLyrics.findIndex((lyric, index) => {
+      const nextLyric = displayLyrics[index + 1];
       const currentStart = lyric.startTime || 0;
       const currentEnd = lyric.endTime || 0;
       const nextStart = nextLyric?.startTime || Infinity;
@@ -116,7 +123,7 @@ const LyricsViewer: React.FC<LyricsViewerProps> = ({
     if (activeIndex !== activeLineIndex) {
       setActiveLineIndex(activeIndex);
     }
-  }, [currentTime, filteredLyrics, hasSyncData, isPlaying, activeLineIndex, autoSync]);
+  }, [currentTime, displayLyrics, hasSyncData, isPlaying, activeLineIndex, autoSync]);
 
   // Auto-scroll a línea activa
   useEffect(() => {

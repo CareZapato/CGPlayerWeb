@@ -34,6 +34,8 @@ const LyricsSynchronizer: React.FC<LyricsSynchronizerProps> = ({ song, onClose, 
   const [currentLineIndex, setCurrentLineIndex] = useState(0);
   const [longPressTimer, setLongPressTimer] = useState<NodeJS.Timeout | null>(null);
   const [longPressTarget, setLongPressTarget] = useState<number | null>(null);
+  const [countdown, setCountdown] = useState<number | null>(null);
+  const [isCountingDown, setIsCountingDown] = useState(false);
 
   useEffect(() => {
     if (song.id) {
@@ -68,11 +70,38 @@ const LyricsSynchronizer: React.FC<LyricsSynchronizerProps> = ({ song, onClose, 
     const updateTime = () => setCurrentTime(audio.currentTime);
     const updateDuration = () => setDuration(audio.duration);
 
+    // Actualización más frecuente del tiempo con requestAnimationFrame
+    let animationId: number;
+    const updateTimeFrequently = () => {
+      if (audio && !audio.paused && !audio.ended) {
+        setCurrentTime(audio.currentTime);
+      }
+      animationId = requestAnimationFrame(updateTimeFrequently);
+    };
+
+    audio.addEventListener('play', () => {
+      updateTimeFrequently(); // Iniciar actualización frecuente al reproducir
+    });
+    
+    audio.addEventListener('pause', () => {
+      if (animationId) {
+        cancelAnimationFrame(animationId); // Detener actualización al pausar
+      }
+    });
+
     audio.addEventListener('timeupdate', updateTime);
     audio.addEventListener('loadedmetadata', updateDuration);
-    audio.addEventListener('ended', () => setIsPlaying(false));
+    audio.addEventListener('ended', () => {
+      setIsPlaying(false);
+      if (animationId) {
+        cancelAnimationFrame(animationId);
+      }
+    });
 
     return () => {
+      if (animationId) {
+        cancelAnimationFrame(animationId);
+      }
       audio.removeEventListener('timeupdate', updateTime);
       audio.removeEventListener('loadedmetadata', updateDuration);
       audio.removeEventListener('ended', () => setIsPlaying(false));
@@ -98,16 +127,44 @@ const LyricsSynchronizer: React.FC<LyricsSynchronizerProps> = ({ song, onClose, 
     return () => window.removeEventListener('keydown', handleKeyPress);
   }, [currentLineIndex, lyricsLines]);
 
+  // Función para iniciar countdown antes del play
+  const startCountdownAndPlay = (audioAction: () => void) => {
+    if (isCountingDown) return; // Evitar múltiples countdowns
+    
+    setIsCountingDown(true);
+    setCountdown(3);
+    
+    // Countdown 3-2-1 súper rápido (250ms)
+    const countdownInterval = setInterval(() => {
+      setCountdown(prev => {
+        if (prev === null || prev <= 1) {
+          clearInterval(countdownInterval);
+          setIsCountingDown(false);
+          setCountdown(null);
+          // Ejecutar acción de audio después del countdown
+          audioAction();
+          return null;
+        }
+        return prev - 1;
+      });
+    }, 500); // Súper rápido: 0.25 segundos
+  };
+
   const togglePlay = () => {
     const audio = audioRef.current;
     if (!audio) return;
 
     if (isPlaying) {
+      // Si está reproduciendo, pausar inmediatamente sin countdown
       audio.pause();
+      setIsPlaying(false);
     } else {
-      audio.play();
+      // Si no está reproduciendo, iniciar countdown antes de play
+      startCountdownAndPlay(() => {
+        audio.play();
+        setIsPlaying(true);
+      });
     }
-    setIsPlaying(!isPlaying);
   };
 
   const handleSeek = (time: number) => {
@@ -118,16 +175,26 @@ const LyricsSynchronizer: React.FC<LyricsSynchronizerProps> = ({ song, onClose, 
     }
   };
 
-  // Nueva función para marcado dinámico con spacebar
+  // Nueva función para marcado dinámico con spacebar (sin countdown)
   const markCurrentLineAndAdvance = () => {
-    // Asegurar que el tiempo no sea 0 (excepto si realmente es el inicio)
-    const timeToMark = currentTime === 0 && currentLineIndex > 0 ? 0.1 : currentTime;
+    if (isCountingDown) return; // No marcar durante countdown
     
-    setLyricsLines(prev => prev.map((line, index) => {
+    // Obtener tiempo exacto directamente del audio element (más preciso)
+    const audio = audioRef.current;
+    if (!audio) return;
+    
+    const exactTime = audio.currentTime; // Tiempo exacto del reproductor
+    
+    // Actualizar también el estado para que se vea en tiempo real
+    setCurrentTime(exactTime);
+    
+    console.log('Tiempo capturado:', exactTime.toFixed(3), 'segundos'); // Para debug con más precisión
+    
+    setLyricsLines(prevLines => prevLines.map((line, index) => {
       if (index === currentLineIndex && line.isHighlighted) {
         return { 
           ...line, 
-          startTime: timeToMark, 
+          startTime: exactTime, // Tiempo exacto sin corrección
           isSelected: true,
           isCurrent: false
         };
@@ -218,35 +285,45 @@ const LyricsSynchronizer: React.FC<LyricsSynchronizerProps> = ({ song, onClose, 
     
     if (!audio) return;
     
-    if (line.startTime !== null) {
-      // Si la línea tiene tiempo, ir a ese tiempo
-      audio.currentTime = line.startTime;
-      setCurrentTime(line.startTime);
-    } else {
-      // Si no tiene tiempo, calcular estimado basado en líneas anteriores
-      const previousSyncedLine = lyricsLines
-        .slice(0, lineIndex)
-        .reverse()
-        .find(l => l.startTime !== null);
-      
-      if (previousSyncedLine && previousSyncedLine.startTime !== null) {
-        audio.currentTime = previousSyncedLine.startTime;
-        setCurrentTime(previousSyncedLine.startTime);
+    // Preparar la configuración pero ejecutar después del countdown
+    const setupAndPlay = () => {
+      if (line.startTime !== null) {
+        // Si la línea tiene tiempo, ir a ese tiempo
+        audio.currentTime = line.startTime;
+        setCurrentTime(line.startTime);
+      } else {
+        // Si no tiene tiempo, calcular estimado basado en líneas anteriores
+        const previousSyncedLine = lyricsLines
+          .slice(0, lineIndex)
+          .reverse()
+          .find(l => l.startTime !== null);
+        
+        if (previousSyncedLine && previousSyncedLine.startTime !== null) {
+          audio.currentTime = previousSyncedLine.startTime;
+          setCurrentTime(previousSyncedLine.startTime);
+        }
       }
-    }
-    
-    // Establecer como línea actual y preparar para continuar sincronización
-    setCurrentLineIndex(lineIndex);
-    setLyricsLines(prev => prev.map((line, index) => ({
-      ...line,
-      isCurrent: index === lineIndex
-    })));
-    
-    // Reproducir si no está reproduciendo
-    if (!isPlaying) {
+      
+      // Establecer como línea actual y preparar para continuar sincronización
+      setCurrentLineIndex(lineIndex);
+      setLyricsLines(prev => prev.map((line, index) => ({
+        ...line,
+        isCurrent: index === lineIndex
+      })));
+      
+      // Reproducir
       audio.play();
       setIsPlaying(true);
+    };
+
+    // Si ya está reproduciendo, pausar y luego usar countdown
+    if (isPlaying) {
+      audio.pause();
+      setIsPlaying(false);
     }
+    
+    // Iniciar countdown antes de reproducir
+    startCountdownAndPlay(setupAndPlay);
   };
 
   // Función para insertar nueva línea
@@ -347,7 +424,7 @@ const LyricsSynchronizer: React.FC<LyricsSynchronizerProps> = ({ song, onClose, 
           endTime: line.endTime || undefined,
           lineNumber: index + 1, // Renumerar desde 1
           voiceType: song.voiceType || undefined,
-          isActive: line.isHighlighted // Enviar estado de si esta voz canta en esta línea
+          isHighlighted: line.isHighlighted // Guardar estado ON/OFF en isHighlighted
         }))
       ];
 
@@ -454,6 +531,26 @@ const LyricsSynchronizer: React.FC<LyricsSynchronizerProps> = ({ song, onClose, 
               Línea {currentLineIndex + 1} de {lyricsLines.length}
             </div>
           </div>
+
+          {/* Countdown Visual */}
+          {isCountingDown && countdown !== null && (
+            <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 pointer-events-none">
+              <div className="text-center">
+                <div className="text-8xl font-bold text-white mb-4 animate-bounce">
+                  {countdown}
+                </div>
+                <div className="text-2xl text-white">
+                  ¡Prepárate para sincronizar!
+                </div>
+                <div className="text-lg text-gray-300 mt-2">
+                  Presiona ESPACIO para marcar cada línea
+                </div>
+                <div className="text-md text-gray-400 mt-1">
+                  Línea actual: "{lyricsLines[currentLineIndex]?.content || ''}"
+                </div>
+              </div>
+            </div>
+          )}
           
           <div className="flex space-x-2 mt-3">
             <button
