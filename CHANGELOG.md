@@ -5,6 +5,104 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto se adhiere al [Versionado Semántico](https://semver.org/lang/es/).
 
+## [0.8.0] - 2025-09-03
+
+### 🎵 **NUEVA FUNCIONALIDAD PRINCIPAL: Sistema de Letras Sincronizadas Avanzado**
+
+#### 🎼 **Visualizador de Letras Inteligente**
+- **Sincronización automática en tiempo real**: Las letras se resaltan automáticamente siguiendo la reproducción de audio
+- **Sistema dual de colores**: Letras highlighted (púrpura) para participación del coro, letras normales (gris) para referencia
+- **Interface minimalista**: Solo texto elegante, sin cuadros o decoraciones que distraigan
+- **Effectos visuales sutiles**: Resaltado temporal con zoom de 10% y efecto 3D discreto
+- **Visibilidad completa**: Todas las letras siempre visibles, con énfasis visual en las importantes
+- **Sin elementos distractivos**: Eliminación de badges, tiempos, y puntos indicadores
+
+#### 🔄 **Sistema de Sincronización Mejorado**
+- **Duración extendida**: Mínimo 2 segundos por línea, 5 segundos para la última línea
+- **Lógica de cálculo refinada**: Búsqueda inteligente del siguiente segmento para determinar duración
+- **Scroll automático**: Seguimiento suave de la línea activa con centrado automático
+- **Autosync toggle**: Control total del usuario sobre la sincronización automática
+- **Debugging avanzado**: Logs detallados para troubleshooting y optimización
+
+#### 🎨 **Diseño y Experiencia de Usuario**
+- **Responsive completo**: Funciona perfectamente en desktop y móvil
+- **Tipografía elegante**: Tamaños de fuente responsivos (sm:text-base md:text-lg lg:text-xl)
+- **Negrita condicional**: Solo cuando una línea está activa para máximo contraste
+- **Centramiento perfecto**: Texto completamente centrado con flexbox
+- **Transiciones suaves**: Animaciones de 300ms para cambios visuales fluidos
+
+#### 🔧 **Mejoras Técnicas Backend**
+- **Campo isHighlighted**: Implementación completa en base de datos para marcado de líneas
+- **API de sincronización**: Endpoint `/api/songs/:id/lyrics/sync` con campo isHighlighted incluido
+- **Filtrado inteligente**: Solo líneas con lineNumber > 0 para evitar datos de respaldo
+- **Componente correcto**: Identificación y corrección en `LyricsViewerInline` dentro de `StickyPlayer.tsx`
+- **Optimización de consultas**: Mejores queries para rendimiento en tiempo real
+
+### 🎯 **Correcciones Críticas del Sistema de Letras**
+
+#### 🔍 **Identificación del Componente Correcto**
+- **DevTools analysis**: Identificación correcta de `LyricsViewerInline` como componente activo
+- **Archivo correcto**: Modificaciones aplicadas en `StickyPlayer.tsx` en lugar de `LyricsViewer.tsx`
+- **Scope apropiado**: Cambios aplicados donde realmente se renderizan las letras
+
+#### 🎨 **Refinamiento Visual**
+- **Eliminación de backgrounds**: Remoción de cuadros morados que quitaban elegancia
+- **Zoom sutil**: Reducción a 10% para efecto notorio pero no intrusivo
+- **Efectos 3D mínimos**: Solo sombra textual muy suave para profundidad
+- **Color preservation**: Los colores base nunca cambian durante el resaltado
+
+#### 📱 **Optimización Mobile y Desktop**
+- **Detección de dispositivo**: Prop `isDesktop` para ajustes específicos por plataforma
+- **Tamaños adaptivos**: Escalado apropiado según tamaño de pantalla
+- **Touch optimization**: Mejor experiencia táctil en dispositivos móviles
+
+### 🔧 **Mejoras Técnicas y de Arquitectura**
+
+#### ⚡ **Performance del Visualizador**
+- **useEffect optimizado**: Lógica de sincronización más eficiente con dependencias correctas
+- **Cálculo de duración inteligente**: Algoritmo mejorado para determinar tiempo de resaltado
+- **Scroll suave**: Implementación optimizada de `scrollIntoView` con `behavior: 'smooth'`
+- **Estado limpio**: Mejor manejo del estado `activeLineIndex` para evitar renders innecesarios
+
+#### 🗄️ **Integración con Backend Existente**
+- **Compatibilidad total**: Funciona con el sistema de playlists y reproductor existente
+- **Reutilización de código**: Aprovecha hooks y stores ya implementados (`useLyrics`, `usePlayerStore`)
+- **API consistency**: Usa endpoints existentes con extensión para isHighlighted
+
+### 🎯 **Experiencia de Usuario Mejorada**
+
+#### 🎵 **Uso en Vivo para Coros**
+- **Visibilidad optimizada**: Solo información relevante visible durante la presentación
+- **Distracción mínima**: Interface completamente limpia y enfocada
+- **Participación clara**: Identificación inmediata de cuándo cantar
+- **Flujo natural**: Transiciones que no interrumpen la concentración
+
+#### 📱 **Accesibilidad y Usabilidad**
+- **Contraste mejorado**: Diferenciación clara entre letras highlighted y normales
+- **Legibilidad óptima**: Tamaños de fuente apropiados para distancias de lectura
+- **Navegación intuitiva**: Click en líneas para navegación manual
+- **Feedback visual**: Indicaciones claras del estado actual de reproducción
+
+### 🐛 **Correcciones de Bugs y Estabilidad**
+
+#### 🔧 **Fixes del Sistema de Letras**
+- **Duración de resaltado**: Correción de resaltado de solo 1 segundo a duración apropiada
+- **Preservación de colores**: Eliminación de cambios de color durante resaltado temporal
+- **Component targeting**: Aplicación de cambios en el componente correcto según DevTools
+- **Visual cleanup**: Remoción de elementos visuales innecesarios (puntos, badges, tiempos)
+
+#### 📊 **Optimizaciones de Rendering**
+- **Re-render reduction**: Optimización de componentes para menor carga de CPU
+- **Memory efficiency**: Mejor gestión de estado para prevenir memory leaks
+- **Scroll performance**: Implementación eficiente de auto-scroll sin lag
+
+### 📝 **Documentación y Debugging**
+
+#### 🔍 **Debugging Tools**
+- **Console logging**: Información detallada de sincronización y estados
+- **DevTools integration**: Mejor identificación de componentes y props
+- **Performance monitoring**: Logs de timing para optimización continua
+
 ## [0.7.0] - 2025-09-01
 
 ### 🎵 **NUEVA FUNCIONALIDAD PRINCIPAL: Sistema de Playlists Completo**

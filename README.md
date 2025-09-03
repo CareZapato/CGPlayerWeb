@@ -1,6 +1,6 @@
 # CGPlayerWeb 🎵
 
-[![Version](https://img.shields.io/badge/version-0.7.0-blue.svg)](https://github.com/CareZapato/CGPlayerWeb/releases/tag/v0.7.0)
+[![Version](https://img.shields.io/badge/version-0.8.0-blue.svg)](https://github.com/CareZapato/CGPlayerWeb/releases/tag/v0.8.0)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
 [![React](https://img.shields.io/badge/React-19+-blue.svg)](https://reactjs.org/)
@@ -11,7 +11,17 @@
 
 ## 🚀 Características Principales
 
-### 🎼 **Sistema de Playlists Completo** *(NUEVO en v0.7.0)*
+### 🎼 **Sistema de Letras Sincronizadas Avanzado** *(NUEVO en v0.8.0)*
+- **Visualizador de letras inteligente** con sincronización automática en tiempo real
+- **Sistema dual de colores** - Letras highlighted (púrpura) para participación del coro
+- **Efectos visuales elegantes** - Resaltado temporal con zoom sutil y efecto 3D
+- **Interface minimalista** - Solo texto, sin decoraciones que distraigan
+- **Synchronización precisa** - Duración extendida entre segmentos para mejor experiencia
+- **Compatibilidad total** - Funciona en desktop y móvil con diseño responsive
+- **Autosync inteligente** - Seguimiento automático de letras con scroll suave
+- **Campo isHighlighted** - Sistema backend completo para marcado de líneas importantes
+
+### 🎼 **Sistema de Playlists Completo** *(v0.7.0)*
 - **Creación y gestión completa** de playlists con metadatos personalizados
 - **Editor avanzado** con búsqueda en tiempo real y gestión individual de canciones
 - **Imágenes personalizadas** con soporte para subida de imágenes (.png, .jpg, .jpeg)

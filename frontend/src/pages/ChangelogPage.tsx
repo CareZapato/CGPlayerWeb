@@ -15,6 +15,67 @@ interface ChangelogEntry {
 
 const changelogData: ChangelogEntry[] = [
   {
+    version: '0.8.0',
+    date: '2025-09-03',
+    type: 'major',
+    title: 'Sistema de Letras Sincronizadas Avanzado - Nueva Funcionalidad Principal',
+    highlights: [
+      'Visualizador de letras inteligente con sincronización automática',
+      'Sistema dual de colores para participación del coro',
+      'Interface minimalista sin distracciones',
+      'Efectos visuales elegantes con zoom sutil',
+      'Compatibilidad total desktop y móvil'
+    ],
+    changes: [
+      {
+        category: 'added',
+        items: [
+          'Sistema completo de letras sincronizadas con auto-seguimiento en tiempo real',
+          'Visualizador inteligente con colores diferenciados (púrpura para coro, gris para referencia)',
+          'Interface minimalista: solo texto elegante, sin cuadros o decoraciones',
+          'Effectos visuales sutiles: zoom 10% y efecto 3D discreto durante resaltado',
+          'Campo isHighlighted en backend para marcado de líneas importantes',
+          'API de sincronización extendida con soporte para isHighlighted',
+          'Scroll automático con seguimiento suave de línea activa',
+          'Sistema de duración inteligente: mínimo 2-5 segundos por línea'
+        ]
+      },
+      {
+        category: 'improved',
+        items: [
+          'Lógica de sincronización refinada con cálculo de duración entre segmentos',
+          'Tipografía responsive con tamaños adaptativos (sm/md/lg/xl)',
+          'Negrita condicional: solo cuando línea está activa',
+          'Performance optimizado con useEffect mejorado y dependencias correctas',
+          'Centramiento perfecto del texto con flexbox',
+          'Transiciones suaves de 300ms para cambios visuales fluidos'
+        ]
+      },
+      {
+        category: 'fixed',
+        items: [
+          'CRÍTICO: Identificación correcta del componente LyricsViewerInline en DevTools',
+          'Duración de resaltado corregida de 1 segundo a duración apropiada',
+          'Preservación de colores base durante resaltado temporal',
+          'Eliminación de cuadros morados que quitaban elegancia',
+          'Remoción de elementos distractivos (badges, tiempos, puntos indicadores)',
+          'Aplicación de cambios en archivo correcto (StickyPlayer.tsx)',
+          'Visibilidad de todas las letras (highlighted y normales)'
+        ]
+      },
+      {
+        category: 'removed',
+        items: [
+          'Backgrounds y bordes de contenedores de letras',
+          'Badges "Participa" y información de tiempo',
+          'Puntos indicadores durante resaltado',
+          'Efectos 3D excesivos y sombras intrusivas',
+          'Elementos visuales que distraían durante presentaciones en vivo'
+        ]
+      }
+    ]
+  },
+  {
     version: '0.7.0',
     date: '2025-09-01',
     type: 'major',
@@ -295,7 +356,7 @@ const changelogData: ChangelogEntry[] = [
 ];
 
 const ChangelogPage: React.FC = () => {
-  const [expandedVersions, setExpandedVersions] = useState<string[]>(['0.7.0']);
+  const [expandedVersions, setExpandedVersions] = useState<string[]>(['0.8.0']);
 
   const toggleVersion = (version: string) => {
     setExpandedVersions(prev => 
@@ -358,7 +419,7 @@ const ChangelogPage: React.FC = () => {
               <p><strong>Versión actual:</strong> {changelogData[0].version}</p>
               <p><strong>Última actualización:</strong> {new Date(changelogData[0].date).toLocaleDateString('es-ES')}</p>
               <p><strong>Tecnologías:</strong> React, TypeScript, Node.js, PostgreSQL, Prisma</p>
-              <p><strong>Nuevo en v0.7.0:</strong> Sistema completo de playlists con reproductor funcional y auto-play</p>
+              <p><strong>Nuevo en v0.8.0:</strong> Sistema avanzado de letras sincronizadas con visualizador inteligente y efectos elegantes</p>
             </div>
           </div>
           <div className="text-6xl">
