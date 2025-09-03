@@ -35,6 +35,14 @@ const LyricsViewer: React.FC<LyricsViewerProps> = ({
   voiceType = null, 
   className = '' 
 }) => {
+  console.log('🎵 [LYRICS VIEWER] Component rendered with:', {
+    songId: song?.id,
+    songTitle: song?.title,
+    songVoiceType: song?.voiceType,
+    propVoiceType: voiceType,
+    className
+  });
+
   const [isExpanded, setIsExpanded] = useState(true); // Empezar expandido cuando se integra en el reproductor
   const [displayMode, setDisplayMode] = useState<'sync' | 'files'>('sync');
   // Usar el voiceType de la canción (variación actual) o el prop como fallback
@@ -43,6 +51,7 @@ const LyricsViewer: React.FC<LyricsViewerProps> = ({
   // Actualizar selectedVoiceType cuando cambie la canción
   useEffect(() => {
     if (song?.voiceType) {
+      console.log('🎵 [LYRICS VIEWER] Updating selectedVoiceType from', selectedVoiceType, 'to', song.voiceType);
       setSelectedVoiceType(song.voiceType);
     }
   }, [song?.voiceType]);
@@ -68,36 +77,77 @@ const LyricsViewer: React.FC<LyricsViewerProps> = ({
   // Cargar letras cuando cambie la canción
   useEffect(() => {
     if (song?.id) {
+      console.log('🔄 [LYRICS VIEWER] Loading lyrics for song:', {
+        songId: song.id,
+        songTitle: song.title,
+        songVoiceType: song.voiceType
+      });
       loadLyrics(song.id);
       loadSyncedLyrics(song.id);
+    } else {
+      console.log('🔄 [LYRICS VIEWER] No song provided');
     }
   }, [song?.id, loadLyrics, loadSyncedLyrics]);
 
   // Obtener letras filtradas por voiceType - TODAS las líneas
   const filteredLyrics = syncedLyrics.filter(lyric => {
-    // Si no hay voiceType seleccionado, mostrar la primera variación disponible
-    const targetVoiceType = selectedVoiceType || syncedLyrics.find(l => l.voiceType && l.lineNumber > 0)?.voiceType;
+    // Usar el voiceType seleccionado o el de la canción
+    const targetVoiceType = selectedVoiceType || song?.voiceType;
     
-    return lyric.voiceType === targetVoiceType && 
-           lyric.lineNumber > 0; // Filtrar línea 0 de respaldo
+    const passes = lyric.voiceType === targetVoiceType && lyric.lineNumber > 0;
+    
+    if (!passes && lyric.voiceType === targetVoiceType) {
+      console.log('🔍 Filtering OUT lyric (lineNumber <= 0):', {
+        lyricId: lyric.id,
+        lineNumber: lyric.lineNumber,
+        content: lyric.content?.substring(0, 30) + '...'
+      });
+    }
+    
+    return passes;
   }).sort((a, b) => a.lineNumber - b.lineNumber);
+
+  console.log('🎵 [FILTER RESULT]', {
+    targetVoiceType: selectedVoiceType || song?.voiceType,
+    totalSynced: syncedLyrics.length,
+    filtered: filteredLyrics.length,
+    firstFewFiltered: filteredLyrics.slice(0, 3).map(l => ({ line: l.lineNumber, time: l.startTime, content: l.content?.substring(0, 20) }))
+  });
 
   // Debug para ver qué datos tenemos
   useEffect(() => {
     console.log('🎵 LyricsViewer Debug:', {
       songId: song?.id,
+      songVoiceType: song?.voiceType,
       selectedVoiceType,
       syncedLyricsCount: syncedLyrics.length,
       filteredLyricsCount: filteredLyrics.length,
-      syncedLyrics: syncedLyrics.slice(0, 3), // Primeros 3 para debug
-      filteredLyrics: filteredLyrics.slice(0, 3)
+      syncedLyrics: syncedLyrics.slice(0, 5), // Primeros 5 para debug
+      filteredLyrics: filteredLyrics.slice(0, 5),
+      isLoading,
+      availableVoiceTypes
     });
-  }, [song?.id, selectedVoiceType, syncedLyrics.length, filteredLyrics.length]);
+    
+    // Log extra para debug
+    if (syncedLyrics.length > 0) {
+      console.log('📝 First synced lyric sample:', syncedLyrics[0]);
+    }
+  }, [song?.id, selectedVoiceType, syncedLyrics.length, filteredLyrics.length, isLoading]);
 
   // Verificar si hay sincronización en cualquier línea
   const hasSyncData = filteredLyrics.some(lyric => 
-    lyric.startTime !== undefined && lyric.startTime !== null && lyric.startTime > 0
+    lyric.startTime !== undefined && 
+    lyric.startTime !== null && 
+    lyric.startTime > 0 &&
+    lyric.lineNumber > 0 // Asegurar que no sea línea 0
   );
+
+  console.log('🔍 [SYNC DATA CHECK]', {
+    filteredCount: filteredLyrics.length,
+    hasSyncData,
+    syncedLines: filteredLyrics.filter(l => l.startTime && l.startTime > 0 && l.lineNumber > 0).length,
+    sampleTimes: filteredLyrics.slice(1, 4).map(l => ({ line: l.lineNumber, time: l.startTime, content: l.content?.substring(0, 20) + '...' }))
+  });
 
   // Siempre usar todas las líneas filtradas
   const displayLyrics = filteredLyrics;
@@ -414,6 +464,16 @@ const LyricsViewer: React.FC<LyricsViewerProps> = ({
               ) : (
                 <div className="text-center text-gray-500 py-8">
                   <MusicalNoteIcon className="h-12 w-12 mx-auto mb-2 text-gray-300" />
+                  <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded text-xs text-left">
+                    <strong>Debug Info:</strong><br/>
+                    Song ID: {song?.id}<br/>
+                    Song VoiceType: {song?.voiceType}<br/>
+                    Selected VoiceType: {selectedVoiceType}<br/>
+                    Total syncedLyrics: {syncedLyrics.length}<br/>
+                    Filtered lyrics: {filteredLyrics.length}<br/>
+                    Available voiceTypes: {availableVoiceTypes.join(', ')}<br/>
+                    Has sync data: {hasSyncData ? 'Yes' : 'No'}
+                  </div>
                   {availableVoiceTypes.length > 0 ? (
                     <div>
                       <p>Letras disponibles para {selectedVoiceType || 'esta variante'}</p>

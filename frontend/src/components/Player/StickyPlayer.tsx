@@ -246,8 +246,9 @@ const LyricsViewerInline: React.FC<LyricsViewerInlineProps> = ({ song, isDesktop
     }
   }, [syncedLyrics, song?.title, song?.id, song?.voiceType, isLoading]);
 
-  // Obtener letras filtradas por voiceType
+  // Obtener letras filtradas por voiceType y filtrar línea 0
   const filteredLyrics = (Array.isArray(syncedLyrics) ? syncedLyrics : [])
+    .filter(lyric => lyric.lineNumber > 0) // Omitir línea 0 de respaldo
     .sort((a, b) => a.lineNumber - b.lineNumber);
 
   // Debug: Log filtering process
@@ -315,22 +316,25 @@ const LyricsViewerInline: React.FC<LyricsViewerInlineProps> = ({ song, isDesktop
     }
   }, [filteredLyrics, song?.title, syncStatus]);
 
-  // Separar letras sincronizadas de letras de texto
-  const syncedOnlyLyrics = filteredLyrics.filter(lyric => !lyric.isTextLyrics);
-  const textOnlyLyrics = filteredLyrics.filter(lyric => lyric.isTextLyrics);
+  // Separar letras por sincronización - YA NO FILTRAR POR isTextLyrics
+  const syncedLyrics_withTime = filteredLyrics.filter(lyric => 
+    lyric.startTime !== undefined && lyric.startTime !== null && lyric.startTime > 0
+  );
+  const allLyricsForDisplay = filteredLyrics; // Mostrar todas las líneas
 
   // Debug: Log separated lyrics
   useEffect(() => {
     if (filteredLyrics.length > 0) {
       console.log('📝 [LYRICS SEPARATION]', {
         totalFiltered: filteredLyrics.length,
-        syncedOnly: syncedOnlyLyrics.length,
-        textOnly: textOnlyLyrics.length,
-        syncedWithZeroTime: syncedOnlyLyrics.filter(l => l.startTime === 0).length,
-        songTitle: song?.title
+        syncedWithTime: syncedLyrics_withTime.length,
+        allForDisplay: allLyricsForDisplay.length,
+        songTitle: song?.title,
+        autoSyncEnabled,
+        syncStatus
       });
     }
-  }, [syncedOnlyLyrics, textOnlyLyrics, filteredLyrics, song?.title]);
+  }, [filteredLyrics, syncedLyrics_withTime, allLyricsForDisplay, song?.title, autoSyncEnabled, syncStatus]);
 
   // Obtener archivos de letras de la canción principal
   const lyricsFiles = lyrics?.lyricsFiles || [];
@@ -342,8 +346,8 @@ const LyricsViewerInline: React.FC<LyricsViewerInlineProps> = ({ song, isDesktop
       return;
     }
 
-    const activeIndex = syncedOnlyLyrics.findIndex((lyric, index) => {
-      const nextLyric = syncedOnlyLyrics[index + 1];
+    const activeIndex = syncedLyrics_withTime.findIndex((lyric: any, index: number) => {
+      const nextLyric = syncedLyrics_withTime[index + 1];
       const currentStart = lyric.startTime || 0;
       const nextStart = nextLyric?.startTime || Infinity;
       
@@ -353,7 +357,7 @@ const LyricsViewerInline: React.FC<LyricsViewerInlineProps> = ({ song, isDesktop
     if (activeIndex !== activeLineIndex) {
       setActiveLineIndex(activeIndex);
     }
-  }, [currentTime, syncedOnlyLyrics, syncStatus.hasRealSyncData, isPlaying, activeLineIndex, autoSyncEnabled]);
+  }, [currentTime, syncedLyrics_withTime, syncStatus.hasRealSyncData, isPlaying, activeLineIndex, autoSyncEnabled]);
 
   // Auto-scroll
   useEffect(() => {
@@ -450,41 +454,51 @@ const LyricsViewerInline: React.FC<LyricsViewerInlineProps> = ({ song, isDesktop
             <div className="min-h-full bg-gradient-to-br from-purple-50 via-indigo-50 to-purple-100 rounded-lg p-6">
               {filteredLyrics.length > 0 ? (
                 <div className="relative">
-                  {/* Líneas sincronizadas (desde línea 1, omitiendo línea 0) */}
+                  {/* Mostrar todas las líneas (sincronizadas o no) */}
                   <div className="space-y-1">
-                    {syncedOnlyLyrics.slice(1).map((lyric, index) => {
-                      // Ajustar el índice porque slice(1) omite el primer elemento
-                      const adjustedIndex = index + 1;
-                      
-                      // Determinar si es línea activa usando activeLineIndex ajustado
+                    {allLyricsForDisplay.map((lyric: any, index: number) => {
+                      // Determinar si es línea activa
                       const isActiveLine = autoSyncEnabled && 
                         syncStatus.hasRealSyncData && 
-                        adjustedIndex === activeLineIndex;
+                        lyric.startTime !== undefined &&
+                        lyric.startTime !== null &&
+                        lyric.startTime > 0 &&
+                        Math.abs(currentTime - lyric.startTime) < 1; // Margen de 1 segundo
                       
                       // Determinar si tiene tiempo definido (incluso 0)
                       const hasTimeData = lyric.startTime !== undefined && lyric.startTime !== null;
                       const isValidTime = hasTimeData && (lyric.startTime || 0) > 0;
+                      
+                      // Colores según estado
+                      const isHighlighted = lyric.isHighlighted === true;
                       
                       return (
                         <div
                           key={lyric.id}
                           ref={isActiveLine ? activeLineRef : null}
                           onClick={() => handleLineClick(lyric)}
-                          className={`lyrics-line transition-all duration-500 cursor-pointer py-2 px-3 rounded-md ${
+                          className={`lyrics-line transition-all duration-500 py-2 px-3 rounded-md ${
                             isActiveLine 
-                              ? 'lyrics-line--active bg-purple-200/60 text-purple-900 font-semibold transform scale-105 shadow-lg' 
-                              : 'text-gray-700 hover:text-purple-600 hover:bg-white/40'
+                              ? (isHighlighted 
+                                  ? 'lyrics-line--active bg-purple-200/60 text-purple-900 font-semibold transform scale-105 shadow-lg' 
+                                  : 'lyrics-line--active bg-blue-200/60 text-blue-900 font-semibold transform scale-105 shadow-lg')
+                              : (isHighlighted
+                                  ? 'text-purple-700 hover:text-purple-600 hover:bg-purple-50/40 cursor-pointer' 
+                                  : 'text-gray-600 hover:text-gray-700 hover:bg-white/40')
                           } ${isValidTime ? 'cursor-pointer' : ''}`}
                         >
                           <p 
                             className={`text-lg leading-relaxed transition-all duration-300 ${
                               isActiveLine 
-                                ? 'text-purple-900 font-bold text-xl' 
-                                : 'text-gray-700 font-medium'
+                                ? (isHighlighted ? 'text-purple-900 font-bold text-xl' : 'text-blue-900 font-bold text-xl')
+                                : (isHighlighted ? 'text-purple-700 font-medium' : 'text-gray-600 font-normal')
                             }`}
                             style={{ lineHeight: '1.8' }}
                           >
                             {lyric.content}
+                            {isHighlighted && (
+                              <span className="ml-2 text-xs px-2 py-1 bg-purple-100 text-purple-700 rounded">♪</span>
+                            )}
                           </p>
                         </div>
                       );
