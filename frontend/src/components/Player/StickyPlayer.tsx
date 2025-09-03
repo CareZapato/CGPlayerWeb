@@ -134,7 +134,7 @@ interface LyricsViewerInlineProps {
 
 const LyricsViewerInline: React.FC<LyricsViewerInlineProps> = ({ song, isDesktop = true }) => {
   const [displayMode, setDisplayMode] = useState<'sync' | 'files'>('sync');
-  const [selectedVoiceType, setSelectedVoiceType] = useState<VoiceType | null>(null);
+  const [selectedVoiceType] = useState<VoiceType | null>(null);
   const [activeLineIndex, setActiveLineIndex] = useState<number>(-1);
   
   // Función para alternar entre sync y files en móvil
@@ -365,33 +365,6 @@ const LyricsViewerInline: React.FC<LyricsViewerInlineProps> = ({ song, isDesktop
     }
   };
 
-  const formatTime = (seconds: number) => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = Math.floor(seconds % 60);
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-  };
-
-  const getVoiceTypeColor = (vType: VoiceType | null) => {
-    const colors: Record<string, string> = {
-      SOPRANO: 'text-pink-600 bg-pink-50',
-      CONTRALTO: 'text-purple-600 bg-purple-50', 
-      TENOR: 'text-blue-600 bg-blue-50',
-      BAJO: 'text-green-600 bg-green-50',
-      BARITONO: 'text-yellow-600 bg-yellow-50',
-      MESOSOPRANO: 'text-rose-600 bg-rose-50',
-      CORO: 'text-indigo-600 bg-indigo-50',
-      ORIGINAL: 'text-gray-600 bg-gray-50'
-    };
-    if (!vType) return 'text-gray-600 bg-gray-50';
-    return colors[vType] || 'text-gray-600 bg-gray-50';
-  };
-
-  const availableVoiceTypes = [...new Set(
-    (Array.isArray(syncedLyrics) ? syncedLyrics : [])
-      .filter(l => l.voiceType !== null)
-      .map(l => l.voiceType)
-  )] as VoiceType[];
-
   if (isLoading) {
     return (
       <div className="animate-pulse p-4">
@@ -620,132 +593,6 @@ import {
 import {
   ArrowPathIcon as ArrowPathIconSolid
 } from '@heroicons/react/24/solid';
-
-// Componente para visualizar PDFs con autenticación
-interface PDFViewerProps {
-  fileUrl: string;
-  fileName: string;
-}
-
-const PDFViewer: React.FC<PDFViewerProps> = ({ fileUrl, fileName }) => {
-  const [pdfBlob, setPdfBlob] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [isMobile, setIsMobile] = useState(false);
-
-  useEffect(() => {
-    // Detectar si es móvil
-    const userAgent = navigator.userAgent.toLowerCase();
-    const mobile = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/.test(userAgent);
-    setIsMobile(mobile);
-  }, []);
-
-  useEffect(() => {
-    const loadPDF = async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
-
-        // En móvil, usar directamente la URL con token
-        if (isMobile) {
-          setPdfBlob(fileUrl);
-          setIsLoading(false);
-          return;
-        }
-
-        // En PC, usar fetch para cargar como blob
-        const token = localStorage.getItem('token');
-        const response = await fetch(fileUrl, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-
-        if (!response.ok) {
-          throw new Error(`Error ${response.status}: ${response.statusText}`);
-        }
-
-        const blob = await response.blob();
-        const blobUrl = URL.createObjectURL(blob);
-        setPdfBlob(blobUrl);
-      } catch (err) {
-        console.error('Error loading PDF:', err);
-        setError(err instanceof Error ? err.message : 'Error cargando PDF');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadPDF();
-
-    // Cleanup: revoke blob URL when component unmounts
-    return () => {
-      if (pdfBlob && !isMobile) {
-        URL.revokeObjectURL(pdfBlob);
-      }
-    };
-  }, [fileUrl, isMobile]);
-
-  if (isLoading) {
-    return (
-      <div className="bg-gray-100 rounded p-4 text-center">
-        <p className="text-gray-600">Cargando PDF...</p>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="bg-red-50 rounded p-4 text-center">
-        <p className="text-red-600 mb-2">Error cargando PDF</p>
-        <p className="text-sm text-red-500">{error}</p>
-        <button 
-          onClick={() => window.open(fileUrl, '_blank')}
-          className="mt-2 px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700"
-        >
-          Abrir en nueva pestaña
-        </button>
-      </div>
-    );
-  }
-
-  // Para móvil, mostrar solo el botón de abrir
-  if (isMobile) {
-    return (
-      <div className="bg-gray-100 rounded p-4 text-center">
-        <div className="mb-3">
-          <div className="text-4xl mb-2">📄</div>
-          <p className="text-gray-700 font-medium">{fileName}</p>
-          <p className="text-gray-500 text-sm">PDF disponible</p>
-        </div>
-        <button 
-          onClick={() => window.open(fileUrl, '_blank')}
-          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
-        >
-          📄 Abrir PDF
-        </button>
-      </div>
-    );
-  }
-
-  return (
-    <div className="h-full w-full flex flex-col" style={{ height: '100vh', minHeight: '100vh' }}>
-      <iframe
-        src={`${pdfBlob}#toolbar=0&navpanes=0&scrollbar=1&view=FitH`}
-        className="w-full border-0 flex-1"
-        title={`PDF: ${fileName}`}
-        style={{ 
-          height: '100vh', 
-          minHeight: '100vh',
-          width: '100%',
-          border: 'none',
-          margin: 0,
-          padding: 0
-        }}
-      />
-    </div>
-  );
-};
 
 const StickyPlayer: React.FC = () => {
   const {

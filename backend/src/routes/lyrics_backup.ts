@@ -322,17 +322,6 @@ router.put('/:songId/text', authenticateToken, async (req, res) => {
       console.log(`⚠️ [LYRICS TEXT] Available voice types: ${allVariants.map(v => v.voiceType || 'NULL').join(', ')}`);
       return res.status(404).json({ 
         message: `No se encontró variante para el tipo de voz ${targetVoiceType}`,
-    // Buscar la variante específica que corresponde al voiceType
-    const targetVariant = allVariants.find(variant => variant.voiceType === targetVoiceType);
-    
-    if (targetVariant) {
-      targetSongId = targetVariant.id;
-      console.log(`✅ [LYRICS TEXT] Found exact match - ${targetVoiceType} variant: ${targetVariant.title} (${targetVariant.id})`);
-    } else {
-      console.log(`⚠️ [LYRICS TEXT] No exact ${targetVoiceType} variant found in ${allVariants.length} variants`);
-      console.log(`⚠️ [LYRICS TEXT] Available voice types: ${allVariants.map(v => v.voiceType || 'NULL').join(', ')}`);
-      return res.status(404).json({ 
-        message: `No se encontró variante para el tipo de voz ${targetVoiceType}`,
         availableVoiceTypes: allVariants.map(v => v.voiceType).filter(Boolean)
       });
     }
