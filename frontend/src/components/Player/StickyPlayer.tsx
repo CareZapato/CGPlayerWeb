@@ -130,16 +130,30 @@ const SortableQueueItem: React.FC<SortableQueueItemProps> = ({
 interface LyricsViewerInlineProps {
   song: Song;
   isDesktop?: boolean;
+  showSyncButton?: boolean;
 }
 
-const LyricsViewerInline: React.FC<LyricsViewerInlineProps> = ({ song, isDesktop = true }) => {
+const LyricsViewerInline: React.FC<LyricsViewerInlineProps> = ({ song, isDesktop = true, showSyncButton = true }) => {
   const [displayMode, setDisplayMode] = useState<'sync' | 'files'>('sync');
   const [selectedVoiceType] = useState<VoiceType | null>(null);
   const [activeLineIndex, setActiveLineIndex] = useState<number>(-1);
   
+  // Estado del sincronizador automático
+  const [autoSyncEnabled, setAutoSyncEnabled] = useState(() => {
+    const saved = localStorage.getItem('lyrics-auto-sync');
+    return saved !== null ? JSON.parse(saved) : true;
+  });
+  
   // Función para alternar entre sync y files en móvil
   const toggleMobileDisplayMode = () => {
     setDisplayMode(displayMode === 'sync' ? 'files' : 'sync');
+  };
+
+  // Función para toggle del sincronizador automático
+  const toggleAutoSync = () => {
+    const newValue = !autoSyncEnabled;
+    setAutoSyncEnabled(newValue);
+    localStorage.setItem('lyrics-auto-sync', JSON.stringify(newValue));
   };
 
   // Función para obtener el icono del modo de display actual
@@ -329,15 +343,15 @@ const LyricsViewerInline: React.FC<LyricsViewerInlineProps> = ({ song, isDesktop
   // Obtener archivos de letras de la canción principal
   const lyricsFiles = lyrics?.lyricsFiles || [];
 
-  // Encontrar línea activa (solo si hay sincronización real con tiempo > 0)
+  // Encontrar línea activa (solo si hay sincronización real con tiempo > 0 y autoSync está habilitado)
   useEffect(() => {
-    if (!syncStatus.hasRealSyncData || !isPlaying) {
+    if (!autoSyncEnabled || !syncStatus.hasRealSyncData || !isPlaying) {
       setActiveLineIndex(-1);
       return;
     }
 
-    const activeIndex = filteredLyrics.findIndex((lyric, index) => {
-      const nextLyric = filteredLyrics[index + 1];
+    const activeIndex = syncedOnlyLyrics.findIndex((lyric, index) => {
+      const nextLyric = syncedOnlyLyrics[index + 1];
       const currentStart = lyric.startTime || 0;
       const nextStart = nextLyric?.startTime || Infinity;
       
@@ -347,7 +361,7 @@ const LyricsViewerInline: React.FC<LyricsViewerInlineProps> = ({ song, isDesktop
     if (activeIndex !== activeLineIndex) {
       setActiveLineIndex(activeIndex);
     }
-  }, [currentTime, filteredLyrics, syncStatus.hasRealSyncData, isPlaying, activeLineIndex]);
+  }, [currentTime, syncedOnlyLyrics, syncStatus.hasRealSyncData, isPlaying, activeLineIndex, autoSyncEnabled]);
 
   // Auto-scroll
   useEffect(() => {
@@ -378,40 +392,58 @@ const LyricsViewerInline: React.FC<LyricsViewerInlineProps> = ({ song, isDesktop
   return (
     <div className="h-full flex flex-col" style={{ height: '100%' }}>
       {/* Mode selector - Diferentes estilos para desktop y móvil */}
-      <div className={`flex space-x-1 mb-2 flex-shrink-0 ${isDesktop ? 'justify-start' : 'justify-center'}`}>
-        {isDesktop ? (
-          <>
+      <div className={`flex space-x-1 mb-2 flex-shrink-0 ${isDesktop ? 'justify-between' : 'justify-center'}`}>
+        <div className="flex space-x-1">
+          {isDesktop ? (
+            <>
+              <button
+                onClick={() => setDisplayMode('sync')}
+                className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                  displayMode === 'sync'
+                    ? 'bg-white bg-opacity-20 text-white'
+                    : 'bg-white bg-opacity-10 text-white text-opacity-70 hover:bg-opacity-15'
+                }`}
+                title="Letras Sincronizadas"
+              >
+                Letras Sincronizadas
+              </button>
+              <button
+                onClick={() => setDisplayMode('files')}
+                className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                  displayMode === 'files'
+                    ? 'bg-white bg-opacity-20 text-white'
+                    : 'bg-white bg-opacity-10 text-white text-opacity-70 hover:bg-opacity-15'
+                }`}
+                title="Archivos"
+              >
+                Archivos
+              </button>
+            </>
+          ) : (
             <button
-              onClick={() => setDisplayMode('sync')}
-              className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
-                displayMode === 'sync'
-                  ? 'bg-white bg-opacity-20 text-white'
-                  : 'bg-white bg-opacity-10 text-white text-opacity-70 hover:bg-opacity-15'
-              }`}
-              title="Letras Sincronizadas"
+              onClick={toggleMobileDisplayMode}
+              className="px-4 py-2 rounded-lg transition-all bg-white bg-opacity-20 text-white flex items-center space-x-2"
+              title={getMobileDisplayIcon().title}
             >
-              Letras Sincronizadas
+              {getMobileDisplayIcon().icon}
+              <span className="text-sm font-medium">{getMobileDisplayIcon().title}</span>
             </button>
-            <button
-              onClick={() => setDisplayMode('files')}
-              className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
-                displayMode === 'files'
-                  ? 'bg-white bg-opacity-20 text-white'
-                  : 'bg-white bg-opacity-10 text-white text-opacity-70 hover:bg-opacity-15'
-              }`}
-              title="Archivos"
-            >
-              Archivos
-            </button>
-          </>
-        ) : (
+          )}
+        </div>
+        
+        {/* Botón de sincronización automática */}
+        {showSyncButton && displayMode === 'sync' && (
           <button
-            onClick={toggleMobileDisplayMode}
-            className="px-4 py-2 rounded-lg transition-all bg-white bg-opacity-20 text-white flex items-center space-x-2"
-            title={getMobileDisplayIcon().title}
+            onClick={toggleAutoSync}
+            className={`px-3 py-2 rounded-lg transition-all flex items-center space-x-1 ${
+              autoSyncEnabled
+                ? 'bg-blue-500 bg-opacity-20 text-blue-300 border border-blue-400 border-opacity-30'
+                : 'bg-white bg-opacity-10 text-white text-opacity-70 hover:bg-opacity-15'
+            }`}
+            title={autoSyncEnabled ? 'Desactivar sincronización automática' : 'Activar sincronización automática'}
           >
-            {getMobileDisplayIcon().icon}
-            <span className="text-sm font-medium">{getMobileDisplayIcon().title}</span>
+            <ArrowPathIcon className="w-4 h-4" />
+            <span className="text-xs font-medium">Auto</span>
           </button>
         )}
       </div>
@@ -433,15 +465,10 @@ const LyricsViewerInline: React.FC<LyricsViewerInlineProps> = ({ song, isDesktop
             {filteredLyrics.length > 0 ? (
               <div className="space-y-6">
                 {syncedOnlyLyrics.map((lyric, index) => {
-                  // Determinar si es línea activa (solo para letras con tiempo real > 0)
-                  const isActiveLine = syncStatus.hasRealSyncData && 
-                    lyric.startTime !== undefined && 
-                    lyric.startTime !== null && 
-                    lyric.startTime > 0 &&
-                    currentTime >= lyric.startTime && 
-                    (syncedOnlyLyrics[index + 1]?.startTime === undefined || 
-                     syncedOnlyLyrics[index + 1]?.startTime === null || 
-                     currentTime < (syncedOnlyLyrics[index + 1]?.startTime || Infinity));
+                  // Determinar si es línea activa usando activeLineIndex y autoSync
+                  const isActiveLine = autoSyncEnabled && 
+                    syncStatus.hasRealSyncData && 
+                    index === activeLineIndex;
                   
                   // Determinar si tiene tiempo definido (incluso 0)
                   const hasTimeData = lyric.startTime !== undefined && lyric.startTime !== null;
@@ -452,18 +479,14 @@ const LyricsViewerInline: React.FC<LyricsViewerInlineProps> = ({ song, isDesktop
                       key={lyric.id}
                       ref={isActiveLine ? activeLineRef : null}
                       onClick={() => handleLineClick(lyric)}
-                      className={`transition-all duration-300 ${
+                      className={`lyrics-line ${isActiveLine ? 'lyrics-line--active' : ''} transition-all duration-300 ${
                         isValidTime ? 'cursor-pointer' : ''
                       }`}
-                      style={{
-                        transform: isActiveLine ? 'scale(1.05)' : 'scale(1)',
-                        opacity: isActiveLine ? 1 : 0.7
-                      }}
                     >
                       <p 
                         className={`text-lg md:text-xl lg:text-2xl font-medium leading-relaxed ${
                           isActiveLine 
-                            ? 'text-white font-semibold text-shadow-lg' 
+                            ? 'text-white font-semibold' 
                             : 'text-white text-opacity-80'
                         }`}
                         style={{
@@ -944,13 +967,15 @@ const StickyPlayer: React.FC = () => {
 
           {/* Botón de cola / expandir reproductor - solo en desktop */}
           {isDesktop && (
-            <button
-              onClick={() => setIsExpandedDesktop(!isExpandedDesktop)}
-              className={`control-button ${isExpandedDesktop ? 'control-button--active' : ''}`}
-              title="Expandir reproductor"
-            >
-              <QueueListIcon className="control-button__icon" />
-            </button>
+            <>
+              <button
+                onClick={() => setIsExpandedDesktop(!isExpandedDesktop)}
+                className={`control-button ${isExpandedDesktop ? 'control-button--active' : ''}`}
+                title="Expandir reproductor"
+              >
+                <QueueListIcon className="control-button__icon" />
+              </button>
+            </>
           )}
 
           {/* Botones móviles */}

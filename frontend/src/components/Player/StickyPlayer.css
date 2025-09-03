@@ -1467,3 +1467,31 @@
   color: #ef4444;
   background: rgba(239, 68, 68, 0.1);
 }
+
+/* Estilos para sincronización de letras */
+.lyrics-line--active,
+.desktop-lyrics-line--active,
+.mobile-lyrics-line--active {
+  background-color: rgba(59, 130, 246, 0.1);
+  border-left: 3px solid #3b82f6;
+  padding-left: 1rem;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  border-radius: 0.25rem;
+}
+
+.lyrics-line,
+.desktop-lyrics-line,
+.mobile-lyrics-line {
+  transition: all 0.3s ease;
+  scroll-margin: 2rem;
+  cursor: pointer;
+  padding: 0.25rem 0;
+  border-radius: 0.25rem;
+}
+
+.lyrics-line:hover,
+.desktop-lyrics-line:hover,
+.mobile-lyrics-line:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
