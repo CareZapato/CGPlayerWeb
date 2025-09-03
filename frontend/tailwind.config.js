@@ -23,6 +23,18 @@ export default {
       animation: {
         'spin-slow': 'spin 3s linear infinite',
         'pulse-fast': 'pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+      },
+      scale: {
+        '102': '1.02',
+        '105': '1.05',
+      },
+      backgroundImage: {
+        'gradient-purple': 'linear-gradient(to right, var(--tw-gradient-stops))',
+        'gradient-blue': 'linear-gradient(to right, var(--tw-gradient-stops))',
+      },
+      boxShadow: {
+        'lyrics': '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+        'lyrics-lg': '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
       }
     },
   },

@@ -481,7 +481,8 @@ router.get('/:songId/sync', authenticateToken, async (req, res) => {
         lineNumber: lyric.lineNumber,
         voiceType: lyric.voiceType,
         isTextLyrics: lyric.isTextLyrics,
-        isSynchronized: lyric.isSynchronized || false // Incluir el nuevo campo
+        isSynchronized: lyric.isSynchronized || false, // Incluir el nuevo campo
+        isHighlighted: lyric.isHighlighted || false // ¡Campo crítico para el styling!
       })),
       songId: targetSongId,
       originalSongId: songId,

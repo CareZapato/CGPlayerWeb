@@ -346,16 +346,42 @@ const LyricsViewerInline: React.FC<LyricsViewerInlineProps> = ({ song, isDesktop
       return;
     }
 
-    const activeIndex = syncedLyrics_withTime.findIndex((lyric: any, index: number) => {
-      const nextLyric = syncedLyrics_withTime[index + 1];
-      const currentStart = lyric.startTime || 0;
-      const nextStart = nextLyric?.startTime || Infinity;
+    // Buscar la línea activa con mejor lógica de duración
+    let newActiveIndex = -1;
+    
+    for (let i = 0; i < syncedLyrics_withTime.length; i++) {
+      const currentLyric = syncedLyrics_withTime[i];
+      const currentStart = currentLyric.startTime || 0;
       
-      return currentTime >= currentStart && currentTime < nextStart;
-    });
+      // Buscar el siguiente lyric con tiempo válido para determinar cuando termina este
+      let nextStart = Infinity;
+      for (let j = i + 1; j < syncedLyrics_withTime.length; j++) {
+        const futurelyric = syncedLyrics_withTime[j];
+        if (futurelyric.startTime && futurelyric.startTime > currentStart) {
+          nextStart = futurelyric.startTime;
+          break;
+        }
+      }
+      
+      // Si no hay siguiente línea, usar duración mínima de 5 segundos
+      if (nextStart === Infinity && currentStart > 0) {
+        nextStart = currentStart + 5; // Mínimo 5 segundos para la última línea
+      }
+      
+      // Si la duración es muy corta (menos de 2 segundos), extenderla
+      if (nextStart !== Infinity && (nextStart - currentStart) < 2) {
+        nextStart = currentStart + 2; // Mínimo 2 segundos por línea
+      }
+      
+      // La línea está activa desde su startTime hasta el startTime de la siguiente línea
+      if (currentTime >= currentStart && currentTime < nextStart && currentStart > 0) {
+        newActiveIndex = i;
+        break; // Tomar la primera línea que coincida
+      }
+    }
 
-    if (activeIndex !== activeLineIndex) {
-      setActiveLineIndex(activeIndex);
+    if (newActiveIndex !== activeLineIndex) {
+      setActiveLineIndex(newActiveIndex);
     }
   }, [currentTime, syncedLyrics_withTime, syncStatus.hasRealSyncData, isPlaying, activeLineIndex, autoSyncEnabled]);
 
@@ -455,51 +481,58 @@ const LyricsViewerInline: React.FC<LyricsViewerInlineProps> = ({ song, isDesktop
               {filteredLyrics.length > 0 ? (
                 <div className="relative">
                   {/* Mostrar todas las líneas (sincronizadas o no) */}
-                  <div className="space-y-1">
-                    {allLyricsForDisplay.map((lyric: any, index: number) => {
-                      // Determinar si es línea activa
-                      const isActiveLine = autoSyncEnabled && 
-                        syncStatus.hasRealSyncData && 
-                        lyric.startTime !== undefined &&
-                        lyric.startTime !== null &&
-                        lyric.startTime > 0 &&
-                        Math.abs(currentTime - lyric.startTime) < 1; // Margen de 1 segundo
+                  <div className="space-y-3">
+                    {allLyricsForDisplay.map((lyric: any) => {
+                      // Determinar si es línea activa basado en el activeLineIndex calculado
+                      const activeLyricFromSynced = activeLineIndex >= 0 ? syncedLyrics_withTime[activeLineIndex] : null;
+                      const isActiveLine = activeLyricFromSynced && lyric.id === activeLyricFromSynced.id;
                       
                       // Determinar si tiene tiempo definido (incluso 0)
                       const hasTimeData = lyric.startTime !== undefined && lyric.startTime !== null;
                       const isValidTime = hasTimeData && (lyric.startTime || 0) > 0;
                       
-                      // Colores según estado
+                      // COLORES BASE FIJOS - SIN FONDOS, SOLO TEXTO
                       const isHighlighted = lyric.isHighlighted === true;
+                      const baseTextColor = isHighlighted ? 'text-purple-800' : 'text-gray-500';
+                      
+                      // EFECTOS DE RESALTADO TEMPORAL - ZOOM MUY SUTIL
+                      const activeEffects = isActiveLine 
+                        ? 'transform scale-110' 
+                        : '';
+                      const hoverEffects = isValidTime ? 'hover:scale-105 cursor-pointer' : '';
+                      
+                      // PESO DE FUENTE: Solo negrita cuando está activo
+                      const fontWeight = isActiveLine ? 'font-bold' : 'font-normal';
+                      
+                      // TODAS LAS LETRAS SIEMPRE VISIBLES
+                      const visibilityClass = 'opacity-100';
                       
                       return (
                         <div
                           key={lyric.id}
                           ref={isActiveLine ? activeLineRef : null}
                           onClick={() => handleLineClick(lyric)}
-                          className={`lyrics-line transition-all duration-500 py-2 px-3 rounded-md ${
-                            isActiveLine 
-                              ? (isHighlighted 
-                                  ? 'lyrics-line--active bg-purple-200/60 text-purple-900 font-semibold transform scale-105 shadow-lg' 
-                                  : 'lyrics-line--active bg-blue-200/60 text-blue-900 font-semibold transform scale-105 shadow-lg')
-                              : (isHighlighted
-                                  ? 'text-purple-700 hover:text-purple-600 hover:bg-purple-50/40 cursor-pointer' 
-                                  : 'text-gray-600 hover:text-gray-700 hover:bg-white/40')
-                          } ${isValidTime ? 'cursor-pointer' : ''}`}
+                          className={`lyrics-line transition-all duration-300 ease-out py-3 px-2 mx-1 ${
+                            activeEffects
+                          } ${hoverEffects} ${visibilityClass}`}
                         >
-                          <p 
-                            className={`text-lg leading-relaxed transition-all duration-300 ${
-                              isActiveLine 
-                                ? (isHighlighted ? 'text-purple-900 font-bold text-xl' : 'text-blue-900 font-bold text-xl')
-                                : (isHighlighted ? 'text-purple-700 font-medium' : 'text-gray-600 font-normal')
-                            }`}
-                            style={{ lineHeight: '1.8' }}
-                          >
-                            {lyric.content}
-                            {isHighlighted && (
-                              <span className="ml-2 text-xs px-2 py-1 bg-purple-100 text-purple-700 rounded">♪</span>
-                            )}
-                          </p>
+                          {/* Solo el texto, sin fondos ni decoraciones */}
+                          <div className="flex justify-center items-center w-full">
+                            <p 
+                              className={`text-center ${baseTextColor} ${fontWeight} text-lg leading-relaxed mx-auto ${
+                                // Responsive text sizing
+                                isDesktop ? 'sm:text-base md:text-lg lg:text-xl' : 'text-base'
+                              }`}
+                              style={{
+                                // Efecto 3D muy sutil en el texto cuando está activo
+                                ...(isActiveLine && {
+                                  textShadow: '0 1px 2px rgba(147, 51, 234, 0.2)'
+                                })
+                              }}
+                            >
+                              {lyric.content}
+                            </p>
+                          </div>
                         </div>
                       );
                     })}

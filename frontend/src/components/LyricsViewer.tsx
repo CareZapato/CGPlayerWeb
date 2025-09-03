@@ -3,7 +3,6 @@ import {
   DocumentTextIcon, 
   DocumentIcon, 
   PhotoIcon,
-  MusicalNoteIcon,
   ChevronUpIcon,
   ChevronDownIcon 
 } from '@heroicons/react/24/outline';
@@ -157,38 +156,58 @@ const LyricsViewer: React.FC<LyricsViewerProps> = ({
 
   // Encontrar línea activa basada en tiempo actual
   useEffect(() => {
-    if (!autoSync) {
-      // En modo estático, no resaltar ninguna línea
+    if (!autoSync || !hasSyncData) {
       setActiveLineIndex(-1);
       return;
     }
 
-    if (!hasSyncData || !isPlaying) {
-      // Si no hay sincronización o no está reproduciendo, quitar resaltado
-      setActiveLineIndex(-1);
-      return;
-    }
-
-    const activeIndex = displayLyrics.findIndex((lyric, index) => {
-      const nextLyric = displayLyrics[index + 1];
-      const currentStart = lyric.startTime || 0;
-      const currentEnd = lyric.endTime || 0;
-      const nextStart = nextLyric?.startTime || Infinity;
+    // Buscar la línea activa (desde startTime hasta startTime del siguiente)
+    let newActiveIndex = -1;
+    
+    for (let i = 0; i < displayLyrics.length; i++) {
+      const currentLyric = displayLyrics[i];
       
-      // Verificar si estamos dentro del rango de la línea actual
-      if (currentEnd > 0) {
-        // Si tiene tiempo de fin, usar rango exacto
-        return currentTime >= currentStart && currentTime <= currentEnd;
-      } else {
-        // Si no tiene tiempo de fin, usar hasta el inicio de la siguiente
-        return currentTime >= currentStart && currentTime < nextStart;
+      const currentStart = currentLyric.startTime || 0;
+      
+      // Buscar el siguiente lyric con tiempo válido para determinar cuando termina este
+      let nextStart = Infinity;
+      for (let j = i + 1; j < displayLyrics.length; j++) {
+        const futurelyric = displayLyrics[j];
+        if (futurelyric.startTime && futurelyric.startTime > currentStart) {
+          nextStart = futurelyric.startTime;
+          break;
+        }
       }
-    });
-
-    if (activeIndex !== activeLineIndex) {
-      setActiveLineIndex(activeIndex);
+      
+      // Si no hay siguiente línea, usar duración mínima de 5 segundos
+      if (nextStart === Infinity && currentStart > 0) {
+        nextStart = currentStart + 5; // Mínimo 5 segundos para la última línea
+      }
+      
+      // Si la duración es muy corta (menos de 2 segundos), extenderla
+      if (nextStart !== Infinity && (nextStart - currentStart) < 2) {
+        nextStart = currentStart + 2; // Mínimo 2 segundos por línea
+      }
+      
+      // Debug más específico
+      if (currentStart > 0 && Math.abs(currentTime - currentStart) < 10) {
+        const duration = nextStart === Infinity ? 'infinity' : (nextStart - currentStart).toFixed(1);
+        console.log(`🎵 [SYNC] Line ${i}: "${currentLyric.content?.substring(0, 30)}" | Current: ${currentTime.toFixed(2)}s | Start: ${currentStart}s | End: ${nextStart === Infinity ? 'end' : nextStart.toFixed(1) + 's'} | Duration: ${duration}s | Active: ${currentTime >= currentStart && currentTime < nextStart}`);
+      }
+      
+      // La línea está activa desde su startTime hasta el startTime de la siguiente línea
+      if (currentTime >= currentStart && currentTime < nextStart && currentStart > 0) {
+        newActiveIndex = i;
+        break; // Tomar la primera línea que coincida
+      }
     }
-  }, [currentTime, displayLyrics, hasSyncData, isPlaying, activeLineIndex, autoSync]);
+
+    // Actualizar solo si cambió y ha pasado suficiente tiempo
+    if (newActiveIndex !== activeLineIndex) {
+      console.log(`🔄 [ACTIVE LINE] Changing from ${activeLineIndex} to ${newActiveIndex} at time ${currentTime.toFixed(2)}s`);
+      setActiveLineIndex(newActiveIndex);
+    }
+  }, [currentTime, displayLyrics, hasSyncData, autoSync]);
 
   // Auto-scroll a línea activa
   useEffect(() => {
@@ -262,7 +281,6 @@ const LyricsViewer: React.FC<LyricsViewerProps> = ({
       <div className="p-4 border-b bg-gray-50">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            <MusicalNoteIcon className="h-5 w-5 text-gray-500" />
             <h3 className="font-medium text-gray-900">Letras</h3>
             {hasSyncData && (
               <span className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded flex items-center space-x-1">
@@ -387,83 +405,97 @@ const LyricsViewer: React.FC<LyricsViewerProps> = ({
 
       {/* Content */}
       {isExpanded && (
-        <div className="p-4" style={{ maxHeight: '400px', overflowY: 'auto' }} ref={containerRef}>
+        <div 
+          className="p-4 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100" 
+          style={{ 
+            maxHeight: 'min(400px, 50vh)',
+            WebkitOverflowScrolling: 'touch' // Mejorar scroll en iOS
+          }} 
+          ref={containerRef}
+        >
           {displayMode === 'sync' ? (
             // Synchronized lyrics
-            <div className="space-y-2">
+            <div className="space-y-3">
               {displayLyrics.length > 0 ? (
-                displayLyrics.map((lyric, index) => (
+                displayLyrics.map((lyric, index) => {
+                  // Determinar si es línea activa (resaltado temporal)
+                  const isActiveNow = autoSync && index === activeLineIndex && hasSyncData;
+                  
+                  // Debug para verificar isHighlighted
+                  console.log(`🎵 Lyric ${index}: "${lyric.content?.substring(0, 30)}" - isHighlighted: ${lyric.isHighlighted} - isActive: ${isActiveNow}`);
+                  
+                  // COLORES BASE FIJOS - NUNCA CAMBIAN POR NADA
+                  const isHighlighted = lyric.isHighlighted;
+                  const baseBackgroundColor = isHighlighted 
+                    ? 'bg-gradient-to-r from-purple-100 to-purple-200' 
+                    : 'bg-gradient-to-r from-gray-100 to-gray-200 opacity-70';
+                  const baseBorderColor = isHighlighted ? 'border-purple-300' : 'border-gray-300';
+                  const baseTextColor = isHighlighted ? 'text-purple-900' : 'text-gray-600';
+                  
+                  // EFECTOS DE RESALTADO TEMPORAL - SOLO ZOOM Y SOMBRA
+                  const activeEffects = isActiveNow ? 'shadow-xl transform scale-110' : '';
+                  
+                  // Agregar interactividad si tiene sync
+                  const hasSync = autoSync && hasSyncData && lyric.startTime !== undefined && lyric.startTime !== null && lyric.startTime > 0;
+                  const hoverEffects = hasSync && !isActiveNow ? 'cursor-pointer hover:shadow-md hover:scale-102 transition-transform' : '';
+
+                  return (
                   <div
                     key={lyric.id}
                     ref={index === activeLineIndex ? activeLineRef : null}
                     onClick={() => handleLineClick(lyric)}
-                    className={`p-3 rounded-lg transition-all border ${
-                      // Línea activa en auto-sync con tiempo actual
-                      autoSync && index === activeLineIndex && hasSyncData
-                        ? lyric.isHighlighted 
-                          ? 'bg-purple-100 border-purple-300 text-purple-900 shadow-md' // Morado elegante para highlighted activa
-                          : 'bg-blue-100 border-blue-300 text-blue-900 shadow-md'     // Azul para no-highlighted activa
-                        // Líneas con sincronización disponibles
-                        : autoSync && hasSyncData && lyric.startTime !== undefined && lyric.startTime !== null && lyric.startTime > 0
-                          ? lyric.isHighlighted
-                            ? 'bg-purple-50 border-purple-200 hover:bg-purple-100 cursor-pointer hover:shadow-sm text-purple-800' // Morado elegante para highlighted
-                            : 'bg-gray-50 border-gray-200 hover:bg-gray-100 cursor-pointer hover:shadow-sm text-gray-700'        // Opaco para no-highlighted
-                        // Modo estático o sin sincronización
-                        : lyric.isHighlighted
-                          ? 'bg-purple-50 border-purple-200 text-purple-800' // Morado elegante para highlighted estático
-                          : 'bg-white border-gray-200 text-gray-600'         // Opaco para no-highlighted estático
-                    } ${
+                    className={`p-6 mx-2 rounded-xl transition-all duration-300 border-2 ${baseBackgroundColor} ${baseBorderColor} ${activeEffects} ${hoverEffects} ${
                       selectedVoiceType && lyric.voiceType === selectedVoiceType
-                        ? `border-l-4 ${getVoiceTypeColor(lyric.voiceType).replace('bg-', 'border-').replace('-50', '-300')}`
+                        ? `border-l-8 ${getVoiceTypeColor(lyric.voiceType).replace('bg-', 'border-').replace('-50', '-400')}`
                         : ''
                     }`}
                   >
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <p className={`font-medium ${
-                          // Texto activo en auto-sync
-                          autoSync && index === activeLineIndex && hasSyncData 
-                            ? lyric.isHighlighted 
-                              ? 'text-purple-900' 
-                              : 'text-blue-900'
-                            // Texto normal según estado
-                            : lyric.isHighlighted
-                              ? 'text-purple-800' // Morado elegante para highlighted
-                              : 'text-gray-600'   // Opaco para no-highlighted
-                        }`}>
-                          {lyric.content}
-                        </p>
-                        <div className="mt-1 flex items-center space-x-2">
-                          {lyric.voiceType && (
-                            <span className={`text-xs px-2 py-1 rounded ${getVoiceTypeColor(lyric.voiceType)}`}>
-                              {lyric.voiceType.replace('_', ' ')}
-                            </span>
-                          )}
-                          {lyric.isHighlighted && (
-                            <span className="text-xs px-2 py-1 rounded bg-purple-100 text-purple-700">
-                              ♪ Participa
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      {autoSync && hasSyncData && lyric.startTime !== undefined && lyric.startTime !== null && lyric.startTime > 0 && (
-                        <div className="flex items-center space-x-2">
-                          <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                            {formatTime(lyric.startTime)}
-                          </span>
-                          {index === activeLineIndex && (
-                            <div className={`w-2 h-2 rounded-full animate-pulse ${
-                              lyric.isHighlighted ? 'bg-purple-500' : 'bg-blue-500'
-                            }`}></div>
-                          )}
-                        </div>
-                      )}
+                    {/* Contenido principal de la letra - CENTRADO */}
+                    <div className="flex justify-center items-center w-full">
+                      <p className={`text-center ${baseTextColor} text-lg font-bold leading-relaxed mx-auto ${
+                        // Responsive text sizing
+                        'sm:text-base md:text-lg lg:text-xl'
+                      }`}>
+                        {lyric.content}
+                      </p>
                     </div>
-                  </div>
-                ))
+                    
+                    {/* Metadata y controles - CENTRADO */}
+                    <div className="flex flex-wrap items-center justify-center gap-2 mt-3 w-full">
+                        {/* Voice type badge */}
+                        {lyric.voiceType && (
+                          <span className={`text-xs px-3 py-1 rounded-full font-medium ${getVoiceTypeColor(lyric.voiceType)}`}>
+                            {lyric.voiceType.replace('_', ' ')}
+                          </span>
+                        )}
+                        
+                        {/* Highlighted badge */}
+                        {lyric.isHighlighted && (
+                          <span className="text-xs px-3 py-1 rounded-full bg-purple-100 text-purple-700 font-medium">
+                            Participa
+                          </span>
+                        )}
+                        
+                        {/* Time and active indicator */}
+                        {autoSync && hasSyncData && lyric.startTime !== undefined && lyric.startTime !== null && lyric.startTime > 0 && (
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-gray-600 bg-gray-100 px-3 py-1 rounded-full font-mono">
+                              {formatTime(lyric.startTime)}
+                            </span>
+                            {index === activeLineIndex && (
+                              <div className={`w-3 h-3 rounded-full animate-pulse shadow-md ${
+                                lyric.isHighlighted ? 'bg-purple-500' : 'bg-blue-500'
+                              }`}></div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
               ) : (
                 <div className="text-center text-gray-500 py-8">
-                  <MusicalNoteIcon className="h-12 w-12 mx-auto mb-2 text-gray-300" />
+                  <div className="text-6xl mb-2">🎵</div>
                   <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded text-xs text-left">
                     <strong>Debug Info:</strong><br/>
                     Song ID: {song?.id}<br/>
