@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { usePlayerStore } from '../../store/playerStore';
 import { usePlaylistStore } from '../../store/playlistStore';
 import { useMediaSession } from '../../hooks/useMediaSession';
@@ -157,23 +157,24 @@ const LyricsViewerInline: React.FC<LyricsViewerInlineProps> = ({ song, isDesktop
 
   // Función para obtener el icono del modo de display actual
   const getMobileDisplayIcon = () => {
+    // En móvil, mostrar la opción a la que se va a cambiar, no la actual
     if (displayMode === 'sync') {
-      return {
-        icon: (
-          <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-          </svg>
-        ),
-        title: 'Letras Sincronizadas'
-      };
-    } else {
       return {
         icon: (
           <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
             <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
           </svg>
         ),
-        title: 'Archivos'
+        title: 'Ver Archivos'
+      };
+    } else {
+      return {
+        icon: (
+          <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+        ),
+        title: 'Ver Letras Sincronizadas'
       };
     }
   };
@@ -613,23 +614,11 @@ const LyricsViewerInline: React.FC<LyricsViewerInlineProps> = ({ song, isDesktop
                 })}
               </div>
             ) : (
-              <div className="text-center text-gray-500 py-8">
-                <p>No hay archivos de letras disponibles</p>
-                <p className="text-sm mt-1">Sube archivos PDF o imágenes con las letras</p>
-                
-                {/* Información adicional de debug */}
-                {song?.title?.toLowerCase().includes('cry') && (
-                  <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-left">
-                    <p className="text-sm text-red-700 font-semibold">Debug Info - Don't Cry:</p>
-                    <p className="text-xs text-red-600 mt-1">
-                      • Backend debería retornar archivos del padre<br/>
-                      • Song ID actual: {song?.id}<br/>
-                      • Voice Type: {song?.voiceType || 'ORIGINAL'}<br/>
-                      • Parent Song ID esperado: {(lyrics as any)?.parentSongId || 'No encontrado'}<br/>
-                      • Archivos en respuesta: {lyrics?.lyricsFiles?.length || 0}
-                    </p>
-                  </div>
-                )}
+              <div className="text-center py-8">
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mx-4">
+                  <p className="text-blue-800 font-medium">No hay archivos de letras disponibles</p>
+                  <p className="text-blue-600 text-sm mt-1">Sube archivos PDF o imágenes con las letras</p>
+                </div>
               </div>
             )}
           </div>
@@ -704,11 +693,48 @@ const StickyPlayer: React.FC = () => {
   const progressRef = useRef<HTMLDivElement>(null);
 
   // Detectar si estamos en desktop o móvil
-  const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 768);
+  const [isDesktop, setIsDesktop] = useState(() => {
+    // Mejorar detección para DevTools
+    const userAgent = navigator.userAgent;
+    const isMobileUserAgent = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent);
+    const screenWidth = window.innerWidth;
+    const screenHeight = window.innerHeight;
+    
+    // Si es un user agent móvil, considerarlo móvil independientemente del ancho
+    if (isMobileUserAgent) return false;
+    
+    // Si el ancho es menor a 768px, es móvil
+    if (screenWidth < 768) return false;
+    
+    // Si la proporción es más alta que ancha (modo portrait), probablemente móvil
+    if (screenHeight > screenWidth && screenWidth < 1024) return false;
+    
+    return true;
+  });
 
   useEffect(() => {
     const handleResize = () => {
-      setIsDesktop(window.innerWidth >= 768);
+      const userAgent = navigator.userAgent;
+      const isMobileUserAgent = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent);
+      const screenWidth = window.innerWidth;
+      const screenHeight = window.innerHeight;
+      
+      if (isMobileUserAgent) {
+        setIsDesktop(false);
+        return;
+      }
+      
+      if (screenWidth < 768) {
+        setIsDesktop(false);
+        return;
+      }
+      
+      if (screenHeight > screenWidth && screenWidth < 1024) {
+        setIsDesktop(false);
+        return;
+      }
+      
+      setIsDesktop(true);
     };
     
     window.addEventListener('resize', handleResize);
@@ -717,6 +743,49 @@ const StickyPlayer: React.FC = () => {
 
   // Configurar Media Session API para controles nativos en móvil
   useMediaSession();
+
+  // Hook para obtener estado de sincronización de letras (para mostrar en móvil)
+  const { syncedLyrics } = useLyrics(currentSong?.id);
+  const hasSyncedLyrics = useMemo(() => {
+    if (!Array.isArray(syncedLyrics) || syncedLyrics.length === 0) {
+      console.log('🔍 [SYNC CHECK] No lyrics found or empty array');
+      return false;
+    }
+    
+    console.log('🔍 [SYNC CHECK] Checking synchronized status for:', currentSong?.title);
+    console.log('🔍 [SYNC CHECK] Current song ID:', currentSong?.id);
+    console.log('🔍 [SYNC CHECK] Total lyrics:', syncedLyrics.length);
+    
+    // Filtrar letras por lineNumber > 0 (igual que en LyricsViewerInline)
+    const filteredSyncedLyrics = syncedLyrics.filter(lyric => lyric.lineNumber > 0);
+    
+    // Usar método confiable: verificar startTime > 0 
+    const lyricsWithTime = filteredSyncedLyrics.filter(lyric => 
+      lyric.startTime !== undefined && 
+      lyric.startTime !== null && 
+      lyric.startTime > 0
+    );
+    console.log('🔍 [SYNC CHECK] Filtered lyrics (lineNumber > 0):', filteredSyncedLyrics.length);
+    console.log('🔍 [SYNC CHECK] Lyrics with startTime > 0:', lyricsWithTime.length);
+    
+    filteredSyncedLyrics.slice(0, 3).forEach((lyric, index) => {
+      console.log(`🔍 [SYNC CHECK] Lyric ${index + 1}:`, {
+        content: lyric.content?.substring(0, 30) + '...',
+        hasIsSynchronized: 'isSynchronized' in lyric,
+        isSynchronized: lyric.isSynchronized,
+        startTime: lyric.startTime,
+        lineNumber: lyric.lineNumber,
+        voiceType: lyric.voiceType
+      });
+    });
+    
+    // Considerar sincronizada si hay letras con startTime > 0
+    const hasSynchronizedLyrics = lyricsWithTime.length > 0;
+    console.log('🔍 [SYNC CHECK] Final result - Has synchronized lyrics:', hasSynchronizedLyrics);
+    console.log('🔍 [SYNC CHECK] This will be used for mobile message display');
+    
+    return hasSynchronizedLyrics;
+  }, [syncedLyrics, currentSong?.title, currentSong?.id]);
 
   // Manejar scroll del body cuando se abre pantalla completa de letras
   useEffect(() => {
@@ -1299,10 +1368,12 @@ const StickyPlayer: React.FC = () => {
             </button>
           </div>
           
-          {/* Mensaje de estado si no están sincronizadas */}
-          <div className="mobile-fullscreen-status">
-            <p>Estas letras no están sincronizadas aún.</p>
-          </div>
+          {/* Mensaje de estado si no están sincronizadas - solo mostrar si realmente no están sincronizadas */}
+          {!hasSyncedLyrics && (
+            <div className="mobile-fullscreen-status">
+              <p>Estas letras no están sincronizadas aún.</p>
+            </div>
+          )}
           
           {/* Contenido de letras */}
           <div className="mobile-fullscreen-lyrics">

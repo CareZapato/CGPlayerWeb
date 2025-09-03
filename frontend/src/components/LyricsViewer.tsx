@@ -496,16 +496,6 @@ const LyricsViewer: React.FC<LyricsViewerProps> = ({
               ) : (
                 <div className="text-center text-gray-500 py-8">
                   <div className="text-6xl mb-2">🎵</div>
-                  <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded text-xs text-left">
-                    <strong>Debug Info:</strong><br/>
-                    Song ID: {song?.id}<br/>
-                    Song VoiceType: {song?.voiceType}<br/>
-                    Selected VoiceType: {selectedVoiceType}<br/>
-                    Total syncedLyrics: {syncedLyrics.length}<br/>
-                    Filtered lyrics: {filteredLyrics.length}<br/>
-                    Available voiceTypes: {availableVoiceTypes.join(', ')}<br/>
-                    Has sync data: {hasSyncData ? 'Yes' : 'No'}
-                  </div>
                   {availableVoiceTypes.length > 0 ? (
                     <div>
                       <p>Letras disponibles para {selectedVoiceType || 'esta variante'}</p>
@@ -554,9 +544,20 @@ const LyricsViewer: React.FC<LyricsViewerProps> = ({
                   </div>
                 ))
               ) : (
-                <div className="text-center text-gray-500 py-8">
-                  <DocumentIcon className="h-12 w-12 mx-auto mb-2 text-gray-300" />
-                  <p>No hay archivos de letras disponibles</p>
+                <div className="text-center py-8">
+                  <div className="bg-blue-50 border-l-4 border-blue-400 p-4 rounded-md">
+                    <div className="flex items-center">
+                      <DocumentIcon className="h-8 w-8 text-blue-400 mr-3" />
+                      <div className="text-left">
+                        <p className="text-blue-700 font-medium">
+                          📄 No hay archivos de letras para esta canción
+                        </p>
+                        <p className="text-blue-600 text-sm mt-1">
+                          Puedes subir archivos de letras usando el botón "Subir Archivo" de arriba
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>

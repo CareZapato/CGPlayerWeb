@@ -43,14 +43,14 @@ function HomePage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8">
-      {/* Header Welcome con tipos de voz */}
-      <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl text-white p-8 mb-8">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-4xl font-bold mb-2">¡Bienvenido, {user.firstName}!</h1>
-            <p className="text-xl opacity-90 mb-2">CGPlayer v0.5.0</p>
-            <p className="opacity-75 mb-4">Sistema de gestión y reproducción de música coral</p>
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
+      {/* Header Welcome con tipos de voz - Responsive */}
+      <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl text-white p-4 sm:p-6 lg:p-8 mb-6 sm:mb-8">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
+          <div className="flex-1">
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2">¡Bienvenido, {user.firstName}!</h1>
+            <p className="text-lg sm:text-xl opacity-90 mb-2">CGPlayer v0.8.0</p>
+            <p className="text-sm sm:text-base opacity-75 mb-4">Sistema de gestión y reproducción de música coral</p>
             
             {/* Mostrar tipos de voz del usuario */}
             {user.voiceProfiles && user.voiceProfiles.length > 0 && (
@@ -59,7 +59,7 @@ function HomePage() {
                 {user.voiceProfiles.map((profile) => (
                   <span
                     key={profile.id}
-                    className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border backdrop-blur-sm ${getVoiceTypeColor(profile.voiceType)} bg-white/20 text-white border-white/30`}
+                    className={`inline-flex items-center px-2 sm:px-3 py-1 rounded-full text-xs font-medium border backdrop-blur-sm ${getVoiceTypeColor(profile.voiceType)} bg-white/20 text-white border-white/30`}
                   >
                     🎵 {formatVoiceType(profile.voiceType)}
                   </span>
@@ -68,7 +68,7 @@ function HomePage() {
             )}
             
             {(!user.voiceProfiles || user.voiceProfiles.length === 0) && (
-              <div className="mt-4 p-3 bg-yellow-500/20 border border-yellow-300/30 rounded-lg backdrop-blur-sm">
+              <div className="mt-4 mb-4 lg:mb-0 lg:mr-4 p-3 bg-yellow-500/20 border border-yellow-300/30 rounded-lg backdrop-blur-sm">
                 <p className="text-sm text-yellow-100">
                   <span className="font-medium">📢 Sin tipos de voz asignados.</span>
                   {' '}Contacta a tu director para obtener acceso a canciones específicas.
@@ -76,120 +76,120 @@ function HomePage() {
               </div>
             )}
           </div>
-          <div className="text-right">
-            <div className="bg-white/20 backdrop-blur-sm rounded-lg p-4 border border-white/30">
+          <div className="lg:text-right">
+            <div className="bg-white/20 backdrop-blur-sm rounded-lg p-3 sm:p-4 border border-white/30">
               <p className="text-sm opacity-75">Usuario:</p>
-              <p className="text-lg font-semibold">{user.username}</p>
-              <p className="text-xs opacity-60 mt-1">{user.email}</p>
+              <p className="text-base sm:text-lg font-semibold">{user.username}</p>
+              <p className="text-xs opacity-60 mt-1 break-all">{user.email}</p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Quick Actions Grid */}
-      <div className="mb-8">
-        <h2 className="text-2xl font-bold text-gray-800 mb-6">Acciones Disponibles</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      {/* Quick Actions Grid - Responsive */}
+      <div className="mb-6 sm:mb-8">
+        <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4 sm:mb-6">Acciones Disponibles</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
           <Link
             to="/dashboard"
-            className="bg-white rounded-lg p-6 shadow-lg hover:shadow-xl transition-shadow duration-300 border border-gray-200 hover:border-blue-300 group"
+            className="bg-white rounded-lg p-4 sm:p-6 shadow-lg hover:shadow-xl transition-shadow duration-300 border border-gray-200 hover:border-blue-300 group"
           >
-            <div className="text-3xl mb-3 group-hover:scale-110 transition-transform duration-300">
+            <div className="text-2xl sm:text-3xl mb-3 group-hover:scale-110 transition-transform duration-300">
               📊
             </div>
-            <h3 className="text-lg font-semibold text-gray-800 mb-2 group-hover:text-blue-600 transition-colors">
+            <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-2 group-hover:text-blue-600 transition-colors">
               Dashboard
             </h3>
-            <p className="text-gray-600 text-sm">Ver estadísticas y métricas del sistema</p>
+            <p className="text-gray-600 text-xs sm:text-sm">Ver estadísticas y métricas del sistema</p>
           </Link>
 
           <Link
             to="/albums"
-            className="bg-white rounded-lg p-6 shadow-lg hover:shadow-xl transition-shadow duration-300 border border-gray-200 hover:border-blue-300 group"
+            className="bg-white rounded-lg p-4 sm:p-6 shadow-lg hover:shadow-xl transition-shadow duration-300 border border-gray-200 hover:border-blue-300 group"
           >
-            <div className="text-3xl mb-3 group-hover:scale-110 transition-transform duration-300">
+            <div className="text-2xl sm:text-3xl mb-3 group-hover:scale-110 transition-transform duration-300">
               🎵
             </div>
-            <h3 className="text-lg font-semibold text-gray-800 mb-2 group-hover:text-blue-600 transition-colors">
+            <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-2 group-hover:text-blue-600 transition-colors">
               Canciones
             </h3>
-            <p className="text-gray-600 text-sm">Explorar el catálogo musical</p>
+            <p className="text-gray-600 text-xs sm:text-sm">Explorar el catálogo musical</p>
           </Link>
 
           <Link
             to="/playlists"
-            className="bg-white rounded-lg p-6 shadow-lg hover:shadow-xl transition-shadow duration-300 border border-gray-200 hover:border-blue-300 group"
+            className="bg-white rounded-lg p-4 sm:p-6 shadow-lg hover:shadow-xl transition-shadow duration-300 border border-gray-200 hover:border-blue-300 group"
           >
-            <div className="text-3xl mb-3 group-hover:scale-110 transition-transform duration-300">
+            <div className="text-2xl sm:text-3xl mb-3 group-hover:scale-110 transition-transform duration-300">
               📋
             </div>
-            <h3 className="text-lg font-semibold text-gray-800 mb-2 group-hover:text-blue-600 transition-colors">
+            <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-2 group-hover:text-blue-600 transition-colors">
               Listas
             </h3>
-            <p className="text-gray-600 text-sm">Gestionar listas de reproducción</p>
+            <p className="text-gray-600 text-xs sm:text-sm">Gestionar listas de reproducción</p>
           </Link>
 
           <Link
             to="/events"
-            className="bg-white rounded-lg p-6 shadow-lg hover:shadow-xl transition-shadow duration-300 border border-gray-200 hover:border-blue-300 group"
+            className="bg-white rounded-lg p-4 sm:p-6 shadow-lg hover:shadow-xl transition-shadow duration-300 border border-gray-200 hover:border-blue-300 group"
           >
-            <div className="text-3xl mb-3 group-hover:scale-110 transition-transform duration-300">
+            <div className="text-2xl sm:text-3xl mb-3 group-hover:scale-110 transition-transform duration-300">
               📅
             </div>
-            <h3 className="text-lg font-semibold text-gray-800 mb-2 group-hover:text-blue-600 transition-colors">
+            <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-2 group-hover:text-blue-600 transition-colors">
               Eventos
             </h3>
-            <p className="text-gray-600 text-sm">Ver eventos y actividades</p>
+            <p className="text-gray-600 text-xs sm:text-sm">Ver eventos y actividades</p>
           </Link>
         </div>
       </div>
 
-      {/* Sistema Info */}
-      <div className="bg-white rounded-lg p-6 shadow-lg border border-gray-200">
-        <h3 className="text-xl font-semibold text-gray-800 mb-6 flex items-center">
-          <span className="mr-3 text-2xl">👤</span>
+      {/* Sistema Info - Responsive */}
+      <div className="bg-white rounded-lg p-4 sm:p-6 shadow-lg border border-gray-200">
+        <h3 className="text-lg sm:text-xl font-semibold text-gray-800 mb-4 sm:mb-6 flex items-center">
+          <span className="mr-3 text-xl sm:text-2xl">👤</span>
           Información del Usuario
         </h3>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
           {/* Datos básicos */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between py-3 border-b border-gray-100">
+          <div className="space-y-3 sm:space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between py-3 border-b border-gray-100 space-y-2 sm:space-y-0">
               <span className="text-gray-600 font-medium flex items-center">
                 <span className="mr-2">👤</span>
                 Usuario
               </span>
-              <span className="font-semibold text-blue-600 bg-blue-50 px-3 py-1 rounded-full">
+              <span className="font-semibold text-blue-600 bg-blue-50 px-3 py-1 rounded-full text-sm">
                 {user.username}
               </span>
             </div>
             
-            <div className="flex items-center justify-between py-3 border-b border-gray-100">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between py-3 border-b border-gray-100 space-y-2 sm:space-y-0">
               <span className="text-gray-600 font-medium flex items-center">
                 <span className="mr-2">📧</span>
                 Email
               </span>
-              <span className="font-semibold text-blue-600 bg-blue-50 px-3 py-1 rounded-full text-sm">
+              <span className="font-semibold text-blue-600 bg-blue-50 px-3 py-1 rounded-full text-xs sm:text-sm break-all">
                 {user.email}
               </span>
             </div>
             
-            <div className="flex items-center justify-between py-3 border-b border-gray-100">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between py-3 border-b border-gray-100 space-y-2 sm:space-y-0">
               <span className="text-gray-600 font-medium flex items-center">
                 <span className="mr-2">🎭</span>
                 Roles
               </span>
-              <span className="font-semibold text-green-600 bg-green-50 px-3 py-1 rounded-full">
+              <span className="font-semibold text-green-600 bg-green-50 px-3 py-1 rounded-full text-sm">
                 {user.roles?.map(r => r.role).join(', ') || 'Sin roles'}
               </span>
             </div>
             
-            <div className="flex items-center justify-between py-3">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between py-3">
               <span className="text-gray-600 font-medium flex items-center">
                 <span className="mr-2">🟢</span>
                 Estado
               </span>
-              <span className="inline-flex items-center font-semibold text-green-600 bg-green-50 px-3 py-1 rounded-full">
+              <span className="inline-flex items-center font-semibold text-green-600 bg-green-50 px-3 py-1 rounded-full text-sm">
                 <span className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></span>
                 Activo
               </span>
@@ -197,7 +197,7 @@ function HomePage() {
           </div>
           
           {/* Tipos de voz */}
-          <div className="space-y-4">
+          <div className="space-y-3 sm:space-y-4">
             <div className="flex items-center mb-4">
               <span className="text-gray-600 font-medium flex items-center">
                 <span className="mr-2">🎵</span>
@@ -250,16 +250,18 @@ function HomePage() {
         </div>
       </div>
 
-      {/* Footer Info */}
-      <div className="mt-8 text-center">
-        <div className="bg-emerald-50 rounded-lg p-4 border border-emerald-200">
-          <div className="flex items-center justify-center space-x-3">
+      {/* Footer Info - Responsive */}
+      <div className="mt-6 sm:mt-8 text-center">
+        <div className="bg-emerald-50 rounded-lg p-3 sm:p-4 border border-emerald-200">
+          <div className="flex flex-col sm:flex-row items-center justify-center space-y-2 sm:space-y-0 sm:space-x-3">
             <div className="flex items-center">
               <span className="w-3 h-3 bg-emerald-500 rounded-full mr-2 animate-pulse"></span>
-              <span className="text-emerald-700 font-medium">Base de Datos Conectada</span>
+              <span className="text-emerald-700 font-medium text-sm sm:text-base">Base de Datos Conectada</span>
             </div>
-            <span className="text-emerald-600">•</span>
-            <span className="text-emerald-600 text-sm font-medium">CGPlayer v0.5.0</span>
+            <span className="text-emerald-600 hidden sm:inline">•</span>
+            <Link to="/changelog" className="text-emerald-600 text-sm font-medium hover:text-emerald-800 transition-colors cursor-pointer underline sm:no-underline hover:underline">
+              CGPlayer v0.8.0
+            </Link>
           </div>
         </div>
       </div>

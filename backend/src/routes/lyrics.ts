@@ -469,7 +469,7 @@ router.get('/:songId/sync', authenticateToken, async (req, res) => {
     
     if (lyrics.length > 0) {
       lyrics.forEach((lyric: any, index: number) => {
-        console.log(`  [${index + 1}] "${lyric.content}" (startTime: ${lyric.startTime}s, voiceType: ${lyric.voiceType}, isText: ${lyric.isTextLyrics})`);
+        console.log(`  [${index + 1}] "${lyric.content.substring(0, 100)}..." (startTime: ${lyric.startTime}s, voiceType: ${lyric.voiceType}, isText: ${lyric.isTextLyrics}, isSynchronized: ${lyric.isSynchronized})`);
       });
     }
     
@@ -489,6 +489,7 @@ router.get('/:songId/sync', authenticateToken, async (req, res) => {
       requestedVoiceType: targetVoiceType
     });
     
+    console.log(`📤 [LYRICS SYNC] Response sent with ${lyrics.length} lyrics, first lyric isSynchronized: ${lyrics[0]?.isSynchronized}`);
   } catch (error) {
     console.error('Error fetching lyrics:', error);
     res.status(500).json({ message: 'Error interno del servidor' });
