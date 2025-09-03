@@ -23,7 +23,7 @@ interface LyricLine {
 }
 
 const LyricsSynchronizer: React.FC<LyricsSynchronizerProps> = ({ song, onClose, onSave }) => {
-  const { lyrics, loadLyrics, updateSync } = useLyrics();
+  const { lyrics, loadLyrics, updateSyncWithVariants } = useLyrics();
   const { serverInfo } = useServerInfo();
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -32,6 +32,8 @@ const LyricsSynchronizer: React.FC<LyricsSynchronizerProps> = ({ song, onClose, 
   const [lyricsLines, setLyricsLines] = useState<LyricLine[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [currentLineIndex, setCurrentLineIndex] = useState(0);
+  const [longPressTimer, setLongPressTimer] = useState<NodeJS.Timeout | null>(null);
+  const [longPressTarget, setLongPressTarget] = useState<number | null>(null);
 
   useEffect(() => {
     if (song.id) {
@@ -118,11 +120,14 @@ const LyricsSynchronizer: React.FC<LyricsSynchronizerProps> = ({ song, onClose, 
 
   // Nueva función para marcado dinámico con spacebar
   const markCurrentLineAndAdvance = () => {
+    // Asegurar que el tiempo no sea 0 (excepto si realmente es el inicio)
+    const timeToMark = currentTime === 0 && currentLineIndex > 0 ? 0.1 : currentTime;
+    
     setLyricsLines(prev => prev.map((line, index) => {
       if (index === currentLineIndex && line.isActive) {
         return { 
           ...line, 
-          startTime: currentTime, 
+          startTime: timeToMark, 
           isSelected: true,
           isCurrent: false
         };
@@ -157,6 +162,90 @@ const LyricsSynchronizer: React.FC<LyricsSynchronizerProps> = ({ song, onClose, 
         ...line,
         isCurrent: index === currentLineIndex + 1
       })));
+    }
+  };
+
+  // Funciones para manejo de long press
+  const handleMouseDown = (lineIndex: number) => {
+    if (longPressTimer) {
+      clearTimeout(longPressTimer);
+    }
+    
+    const timer = setTimeout(() => {
+      // Long press detected - restart from this line
+      restartFromLine(lineIndex);
+      setLongPressTarget(null);
+    }, 1000); // 1 segundo
+    
+    setLongPressTimer(timer);
+    setLongPressTarget(lineIndex);
+  };
+
+  const handleMouseUp = () => {
+    if (longPressTimer) {
+      clearTimeout(longPressTimer);
+      setLongPressTimer(null);
+    }
+    if (longPressTarget !== null) {
+      // Click normal - solo cambiar a edición (comportamiento existente)
+      setLongPressTarget(null);
+    }
+  };
+
+  const restartFromLine = (lineIndex: number) => {
+    // Limpiar marcas de tiempo de esta línea en adelante
+    setLyricsLines(prev => prev.map((line, index) => {
+      if (index >= lineIndex) {
+        return {
+          ...line,
+          startTime: null,
+          endTime: null,
+          isSelected: false,
+          isCurrent: index === lineIndex
+        };
+      }
+      return { ...line, isCurrent: false };
+    }));
+    
+    // Establecer como línea actual
+    setCurrentLineIndex(lineIndex);
+  };
+
+  // Función para reproducir desde una línea específica
+  const playFromLine = (lineIndex: number) => {
+    const line = lyricsLines[lineIndex];
+    const audio = audioRef.current;
+    
+    if (!audio) return;
+    
+    if (line.startTime !== null) {
+      // Si la línea tiene tiempo, ir a ese tiempo
+      audio.currentTime = line.startTime;
+      setCurrentTime(line.startTime);
+    } else {
+      // Si no tiene tiempo, calcular estimado basado en líneas anteriores
+      const previousSyncedLine = lyricsLines
+        .slice(0, lineIndex)
+        .reverse()
+        .find(l => l.startTime !== null);
+      
+      if (previousSyncedLine && previousSyncedLine.startTime !== null) {
+        audio.currentTime = previousSyncedLine.startTime;
+        setCurrentTime(previousSyncedLine.startTime);
+      }
+    }
+    
+    // Establecer como línea actual y preparar para continuar sincronización
+    setCurrentLineIndex(lineIndex);
+    setLyricsLines(prev => prev.map((line, index) => ({
+      ...line,
+      isCurrent: index === lineIndex
+    })));
+    
+    // Reproducir si no está reproduciendo
+    if (!isPlaying) {
+      audio.play();
+      setIsPlaying(true);
     }
   };
 
@@ -257,11 +346,18 @@ const LyricsSynchronizer: React.FC<LyricsSynchronizerProps> = ({ song, onClose, 
           startTime: line.startTime || undefined,
           endTime: line.endTime || undefined,
           lineNumber: index + 1, // Renumerar desde 1
-          voiceType: song.voiceType || undefined
+          voiceType: song.voiceType || undefined,
+          isActive: line.isActive // Enviar estado de si esta voz canta en esta línea
         }))
       ];
 
-      await updateSync(syncData, song.id);
+      const result = await updateSyncWithVariants(syncData, song.id);
+      
+      // Mostrar mensaje de auto-sincronización si aplicó
+      if (result && (result as any).variantsUpdated > 0) {
+        alert(`Sincronización guardada exitosamente!\n\n${(result as any).autoSyncMessage}`);
+      }
+      
       onSave();
       onClose();
     } catch (error) {
@@ -349,6 +445,10 @@ const LyricsSynchronizer: React.FC<LyricsSynchronizerProps> = ({ song, onClose, 
                 <kbd className="px-2 py-1 bg-white border border-gray-300 rounded text-xs font-mono">↑/↓</kbd>
                 <span>Navegar líneas</span>
               </div>
+              <div className="flex items-center space-x-1">
+                <kbd className="px-2 py-1 bg-white border border-gray-300 rounded text-xs font-mono">CLICK LARGO</kbd>
+                <span>Reiniciar desde línea</span>
+              </div>
             </div>
             <div className="text-purple-600 font-medium">
               Línea {currentLineIndex + 1} de {lyricsLines.length}
@@ -372,7 +472,7 @@ const LyricsSynchronizer: React.FC<LyricsSynchronizerProps> = ({ song, onClose, 
               <div key={index}>
                 {/* Línea principal */}
                 <div 
-                  className={`p-4 border rounded-lg transition-all duration-300 ${
+                  className={`p-4 border rounded-lg transition-all duration-300 cursor-pointer ${
                     line.isCurrent
                       ? 'border-purple-500 bg-purple-100 shadow-lg transform scale-105'
                       : !line.isActive 
@@ -381,6 +481,9 @@ const LyricsSynchronizer: React.FC<LyricsSynchronizerProps> = ({ song, onClose, 
                           ? 'border-green-300 bg-green-50'
                           : 'border-gray-200 bg-white hover:bg-purple-50'
                   }`}
+                  onMouseDown={() => handleMouseDown(index)}
+                  onMouseUp={handleMouseUp}
+                  onMouseLeave={handleMouseUp}
                 >
                   <div className="flex items-center justify-between">
                     {/* Letra a la izquierda */}
@@ -399,12 +502,23 @@ const LyricsSynchronizer: React.FC<LyricsSynchronizerProps> = ({ song, onClose, 
                         placeholder="Escribe el texto de la línea..."
                       />
                       <div className="flex items-center justify-between mt-2">
-                        {line.startTime !== null && (
-                          <div className="text-sm text-gray-500">
-                            ⏱️ {formatTime(line.startTime)}
-                            {line.endTime !== null && ` - ${formatTime(line.endTime)}`}
-                          </div>
-                        )}
+                        <div className="flex items-center space-x-2">
+                          {line.startTime !== null && (
+                            <div className="text-sm text-gray-500">
+                              ⏱️ {formatTime(line.startTime)}
+                              {line.endTime !== null && ` - ${formatTime(line.endTime)}`}
+                            </div>
+                          )}
+                          {(line.startTime !== null || index > 0) && (
+                            <button
+                              onClick={() => playFromLine(index)}
+                              className="w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center hover:bg-blue-600 transition-colors text-xs"
+                              title="Reproducir desde aquí"
+                            >
+                              ▶
+                            </button>
+                          )}
+                        </div>
                         {lyricsLines.length > 1 && (
                           <button
                             onClick={() => deleteLine(index)}
@@ -479,6 +593,7 @@ const LyricsSynchronizer: React.FC<LyricsSynchronizerProps> = ({ song, onClose, 
               onClick={handleSave}
               disabled={isSaving || lyricsLines.filter(line => line.startTime !== null).length === 0}
               className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Guarda la sincronización y aplica automáticamente la letra a otras variantes sin sincronizar"
             >
               {isSaving ? 'Guardando...' : 'Guardar Sincronización'}
             </button>

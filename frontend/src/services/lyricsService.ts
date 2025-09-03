@@ -205,6 +205,26 @@ class LyricsService {
     }
   }
 
+  // Actualizar sincronización de letras con auto-sincronización entre variantes
+  async updateLyricsSyncWithVariants(songId: string, syncData: LyricsSyncData[]): Promise<Lyric[]> {
+    try {
+      const response = await fetch(`${configService.getApiBaseUrl()}/lyrics/${songId}/sync-variants`, {
+        method: 'PUT',
+        headers: this.getAuthHeaders(),
+        body: JSON.stringify({ syncData })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Error ${response.status}: ${response.statusText}`);
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('Error updating lyrics sync with variants:', error);
+      throw error;
+    }
+  }
+
   // Obtener URL del archivo de letras
   getFileUrl(filePath: string): string {
     const baseUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:3001';

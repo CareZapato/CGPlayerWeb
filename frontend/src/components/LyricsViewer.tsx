@@ -40,6 +40,10 @@ const LyricsViewer: React.FC<LyricsViewerProps> = ({
   const [selectedVoiceType, setSelectedVoiceType] = useState<VoiceType | null>(voiceType);
   const [activeLineIndex, setActiveLineIndex] = useState<number>(-1);
   const [autoScroll, setAutoScroll] = useState<boolean>(true);
+  const [autoSync, setAutoSync] = useState<boolean>(() => {
+    const saved = localStorage.getItem('lyrics-auto-sync');
+    return saved ? JSON.parse(saved) : true;
+  });
   
   const { 
     lyrics, 
@@ -63,7 +67,9 @@ const LyricsViewer: React.FC<LyricsViewerProps> = ({
 
   // Obtener letras filtradas por voiceType
   const filteredLyrics = syncedLyrics.filter(lyric => 
-    lyric.voiceType === selectedVoiceType && !lyric.isTextLyrics
+    lyric.voiceType === selectedVoiceType && 
+    lyric.lineNumber > 0 && // Filtrar línea 0 de respaldo
+    lyric.isActive !== false // Mostrar solo líneas activas (que canta esta voz)
   ).sort((a, b) => a.lineNumber - b.lineNumber);
 
   // Verificar si hay sincronización
@@ -76,6 +82,12 @@ const LyricsViewer: React.FC<LyricsViewerProps> = ({
 
   // Encontrar línea activa basada en tiempo actual
   useEffect(() => {
+    if (!autoSync) {
+      // En modo estático, no resaltar ninguna línea
+      setActiveLineIndex(-1);
+      return;
+    }
+
     if (!hasSyncData || !isPlaying) {
       // Si no hay sincronización o no está reproduciendo, quitar resaltado
       setActiveLineIndex(-1);
@@ -101,21 +113,21 @@ const LyricsViewer: React.FC<LyricsViewerProps> = ({
     if (activeIndex !== activeLineIndex) {
       setActiveLineIndex(activeIndex);
     }
-  }, [currentTime, filteredLyrics, hasSyncData, isPlaying, activeLineIndex]);
+  }, [currentTime, filteredLyrics, hasSyncData, isPlaying, activeLineIndex, autoSync]);
 
   // Auto-scroll a línea activa
   useEffect(() => {
-    if (activeLineRef.current && isExpanded && autoScroll && activeLineIndex !== -1) {
+    if (activeLineRef.current && isExpanded && autoScroll && activeLineIndex !== -1 && autoSync) {
       activeLineRef.current.scrollIntoView({
         behavior: 'smooth',
         block: 'center'
       });
     }
-  }, [activeLineIndex, isExpanded, autoScroll]);
+  }, [activeLineIndex, isExpanded, autoScroll, autoSync]);
 
   // Manejar click en línea sincronizada
   const handleLineClick = (lyric: Lyric) => {
-    if (lyric.startTime !== undefined && lyric.startTime !== null && lyric.startTime > 0) {
+    if (autoSync && lyric.startTime !== undefined && lyric.startTime !== null && lyric.startTime > 0) {
       seekTo(lyric.startTime);
     }
   };
@@ -123,7 +135,7 @@ const LyricsViewer: React.FC<LyricsViewerProps> = ({
   // Obtener voiceTypes disponibles
   const availableVoiceTypes = [...new Set(
     syncedLyrics
-      .filter(l => l.voiceType !== null && !l.isTextLyrics)
+      .filter(l => l.voiceType !== null && l.lineNumber > 0) // Filtrar línea 0 de respaldo
       .map(l => l.voiceType)
   )] as VoiceType[];
 
@@ -259,21 +271,38 @@ const LyricsViewer: React.FC<LyricsViewerProps> = ({
             )}
 
             {/* Controles adicionales para modo sincronizado */}
-            {displayMode === 'sync' && hasSyncData && (
+            {displayMode === 'sync' && (
               <div className="flex items-center space-x-2">
                 <button
-                  onClick={() => setAutoScroll(!autoScroll)}
+                  onClick={() => {
+                    const newValue = !autoSync;
+                    setAutoSync(newValue);
+                    localStorage.setItem('lyrics-auto-sync', JSON.stringify(newValue));
+                  }}
                   className={`px-2 py-1 text-xs rounded flex items-center space-x-1 ${
-                    autoScroll
-                      ? 'bg-green-100 text-green-700'
+                    autoSync
+                      ? 'bg-purple-100 text-purple-700'
                       : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                   }`}
                 >
-                  <span>{autoScroll ? '🎯' : '⏸️'}</span>
-                  <span>Auto-seguimiento</span>
+                  <span>{autoSync ? '🎵' : '📄'}</span>
+                  <span>{autoSync ? 'Auto-sync' : 'Estático'}</span>
                 </button>
+                {autoSync && hasSyncData && (
+                  <button
+                    onClick={() => setAutoScroll(!autoScroll)}
+                    className={`px-2 py-1 text-xs rounded flex items-center space-x-1 ${
+                      autoScroll
+                        ? 'bg-green-100 text-green-700'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    <span>{autoScroll ? '🎯' : '⏸️'}</span>
+                    <span>Auto-seguimiento</span>
+                  </button>
+                )}
                 <div className="text-xs text-gray-500">
-                  {isPlaying ? '▶️ Reproduciendo' : '⏸️ Pausado'}
+                  {autoSync ? (isPlaying ? '▶️ Reproduciendo' : '⏸️ Pausado') : '📖 Modo lectura'}
                 </div>
               </div>
             )}
@@ -294,11 +323,13 @@ const LyricsViewer: React.FC<LyricsViewerProps> = ({
                     ref={index === activeLineIndex ? activeLineRef : null}
                     onClick={() => handleLineClick(lyric)}
                     className={`p-3 rounded-lg transition-all border ${
-                      index === activeLineIndex && hasSyncData
+                      autoSync && index === activeLineIndex && hasSyncData
                         ? 'bg-blue-100 border-blue-300 text-blue-900 shadow-md'
-                        : hasSyncData && lyric.startTime !== undefined && lyric.startTime !== null && lyric.startTime > 0
+                        : autoSync && hasSyncData && lyric.startTime !== undefined && lyric.startTime !== null && lyric.startTime > 0
                           ? 'bg-gray-50 border-gray-200 hover:bg-gray-100 cursor-pointer hover:shadow-sm'
-                          : 'bg-white border-gray-200 text-gray-600'
+                          : !autoSync
+                            ? 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
+                            : 'bg-white border-gray-200 text-gray-600'
                     } ${
                       selectedVoiceType && lyric.voiceType === selectedVoiceType
                         ? `border-l-4 ${getVoiceTypeColor(lyric.voiceType).replace('bg-', 'border-').replace('-50', '-300')}`
@@ -308,11 +339,13 @@ const LyricsViewer: React.FC<LyricsViewerProps> = ({
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
                         <p className={`font-medium ${
-                          index === activeLineIndex && hasSyncData 
+                          autoSync && index === activeLineIndex && hasSyncData 
                             ? 'text-blue-900' 
-                            : hasSyncData && lyric.startTime !== undefined && lyric.startTime !== null && lyric.startTime > 0
+                            : autoSync && hasSyncData && lyric.startTime !== undefined && lyric.startTime !== null && lyric.startTime > 0
                               ? 'text-gray-900'
-                              : 'text-gray-600'
+                              : !autoSync
+                                ? 'text-gray-800'
+                                : 'text-gray-600'
                         }`}>
                           {lyric.content}
                         </p>
@@ -324,7 +357,7 @@ const LyricsViewer: React.FC<LyricsViewerProps> = ({
                           </div>
                         )}
                       </div>
-                      {hasSyncData && lyric.startTime !== undefined && lyric.startTime !== null && lyric.startTime > 0 && (
+                      {autoSync && hasSyncData && lyric.startTime !== undefined && lyric.startTime !== null && lyric.startTime > 0 && (
                         <div className="flex items-center space-x-2">
                           <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
                             {formatTime(lyric.startTime)}
@@ -342,10 +375,15 @@ const LyricsViewer: React.FC<LyricsViewerProps> = ({
                   <MusicalNoteIcon className="h-12 w-12 mx-auto mb-2 text-gray-300" />
                   {availableVoiceTypes.length > 0 ? (
                     <div>
-                      <p>Las letras están disponibles pero no sincronizadas</p>
+                      <p>Letras disponibles para {selectedVoiceType || 'esta variante'}</p>
                       <p className="text-sm mt-1">
-                        Las líneas se mostrarán como texto estático. 
-                        <br />Para navegación por tiempo, usa el sincronizador.
+                        {autoSync ? (
+                          hasSyncData ? 
+                            'Reproduce la canción para ver la sincronización en tiempo real' :
+                            'Las letras están disponibles pero no sincronizadas. Las líneas se muestran como texto estático.'
+                        ) : (
+                          'Modo de lectura estático - Las letras se muestran como texto normal'
+                        )}
                       </p>
                     </div>
                   ) : (

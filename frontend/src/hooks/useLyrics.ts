@@ -161,6 +161,29 @@ export function useLyrics(songId?: string) {
     }
   }, [songId, setLoading, setError]);
 
+  // Actualizar sincronización con variantes automáticas
+  const updateSyncWithVariants = useCallback(async (syncData: LyricsSyncData[], targetSongId?: string) => {
+    const id = targetSongId || songId;
+    if (!id) {
+      setError('No song ID provided');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const updatedSyncedLyrics = await lyricsService.updateLyricsSyncWithVariants(id, syncData);
+      setState(prev => ({ ...prev, syncedLyrics: updatedSyncedLyrics, isLoading: false }));
+      return updatedSyncedLyrics;
+    } catch (error) {
+      console.error('Error updating lyrics sync with variants:', error);
+      setError(error instanceof Error ? error.message : 'Error updating lyrics sync with variants');
+      setLoading(false);
+      throw error;
+    }
+  }, [songId, setLoading, setError]);
+
   return {
     // Estado
     lyrics: state.lyrics,
@@ -175,6 +198,7 @@ export function useLyrics(songId?: string) {
     uploadLyricsFile,
     deleteLyrics,
     updateSync,
+    updateSyncWithVariants,
     
     // Utilidades
     clearError: () => setError(null)

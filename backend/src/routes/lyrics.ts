@@ -710,4 +710,183 @@ router.put('/:songId/sync', authenticateToken, async (req, res) => {
   }
 });
 
+// PUT /api/lyrics/:songId/sync-variants - Actualizar sincronización con auto-sincronización entre variantes
+router.put('/:songId/sync-variants', authenticateToken, async (req, res) => {
+  try {
+    const { songId } = req.params;
+    const { syncData } = req.body;
+
+    console.log(`🎵 [LYRICS SYNC VARIANTS] Updating sync for songId: ${songId} with auto-sync`);
+    console.log(`📊 [LYRICS SYNC VARIANTS] Sync data received:`, { 
+      count: syncData?.length, 
+      voiceTypes: syncData?.map((s: any) => s.voiceType).filter((v: any, i: any, arr: any) => arr.indexOf(v) === i)
+    });
+
+    if (!syncData || !Array.isArray(syncData)) {
+      return res.status(400).json({ message: 'Datos de sincronización inválidos' });
+    }
+
+    // Buscar la canción
+    const song = await prisma.song.findUnique({
+      where: { id: songId }
+    });
+
+    if (!song) {
+      return res.status(404).json({ message: 'Canción no encontrada' });
+    }
+
+    // Obtener el voiceType de la primera entrada (todas deberían tener el mismo)
+    const currentVoiceType = syncData[0]?.voiceType || song.voiceType;
+    
+    console.log(`🗑️ [LYRICS SYNC VARIANTS] Deleting existing lyrics for songId: ${songId}, voiceType: ${currentVoiceType}`);
+
+    // Borrar todas las letras sincronizadas existentes para esta canción y voiceType
+    await prisma.lyric.deleteMany({
+      where: {
+        songId: songId,
+        voiceType: currentVoiceType
+      }
+    });
+
+    // Crear las nuevas entradas de sincronización
+    const createdLyrics = [];
+    
+    for (const [index, syncEntry] of syncData.entries()) {
+      const lyric = await prisma.lyric.create({
+        data: {
+          songId: songId,
+          content: syncEntry.content,
+          startTime: syncEntry.startTime || 0,
+          endTime: syncEntry.endTime || null,
+          lineNumber: syncEntry.lineNumber || index,
+          voiceType: currentVoiceType,
+          isSynchronized: (syncEntry.startTime || 0) > 0,
+          isTextLyrics: true,
+          isActive: (syncEntry as any).isActive !== false, // Usar isActive del frontend para determinar si se canta
+          createdBy: (req as any).user?.id || 'system'
+        }
+      });
+      
+      createdLyrics.push(lyric);
+      
+      console.log(`📝 [LYRICS SYNC VARIANTS] Created lyric line ${syncEntry.lineNumber}: "${syncEntry.content}" (${syncEntry.startTime || 0}s) - active: ${lyric.isActive}`);
+    }
+
+    // Actualizar el estado hasLyricSync de la canción
+    await prisma.song.update({
+      where: { id: songId },
+      data: { hasLyricSync: true }
+    });
+
+    console.log(`✅ [LYRICS SYNC VARIANTS] Successfully updated ${createdLyrics.length} lyrics for ${song.title}`);
+
+    // NUEVA FUNCIONALIDAD: Buscar y sincronizar variantes no sincronizadas
+    let variantsUpdated = 0;
+    const updatedVariants: string[] = [];
+    
+    // Buscar todas las variantes relacionadas
+    const searchConditions = [];
+    
+    if (song.parentSongId) {
+      // Si es una variante, buscar hermanos
+      searchConditions.push({ parentSongId: song.parentSongId });
+      searchConditions.push({ id: song.parentSongId });
+    } else {
+      // Si es padre, buscar hijos
+      searchConditions.push({ parentSongId: song.id });
+    }
+
+    if (searchConditions.length > 0) {
+      const relatedSongs = await prisma.song.findMany({
+        where: {
+          OR: searchConditions,
+          id: { not: songId }, // Excluir la canción actual
+          voiceType: { not: null } // Solo variantes, no el padre
+        },
+        select: {
+          id: true,
+          title: true,
+          voiceType: true
+        }
+      });
+
+      console.log(`🔍 [LYRICS SYNC VARIANTS] Found ${relatedSongs.length} related variants to check`);
+
+      for (const relatedSong of relatedSongs) {
+        // Verificar si la variante tiene letras sincronizadas (línea > 0 con tiempos reales)
+        const existingSync = await prisma.lyric.findFirst({
+          where: {
+            songId: relatedSong.id,
+            voiceType: relatedSong.voiceType,
+            lineNumber: { gt: 0 },
+            OR: [
+              { isSynchronized: true },
+              { startTime: { gt: 0 } }
+            ]
+          }
+        });
+
+        if (!existingSync) {
+          console.log(`🚀 [LYRICS SYNC VARIANTS] Auto-syncing ${relatedSong.voiceType} variant: ${relatedSong.title}`);
+          
+          // Borrar letras existentes de esta variante
+          await prisma.lyric.deleteMany({
+            where: {
+              songId: relatedSong.id,
+              voiceType: relatedSong.voiceType
+            }
+          });
+
+          // Crear nuevas letras para esta variante - COPIAR TODOS LOS TIEMPOS Y DATOS
+          for (const [index, syncEntry] of syncData.entries()) {
+            await prisma.lyric.create({
+              data: {
+                songId: relatedSong.id,
+                content: syncEntry.content,
+                startTime: syncEntry.startTime || 0, // Mantener los tiempos de sincronización
+                endTime: syncEntry.endTime || null,
+                lineNumber: syncEntry.lineNumber || index,
+                voiceType: relatedSong.voiceType,
+                isSynchronized: (syncEntry.startTime || 0) > 0, // Mantener sincronización
+                isTextLyrics: true,
+                isActive: true, // Por defecto todas las líneas activas para otras variantes
+                createdBy: (req as any).user?.id || 'system'
+              }
+            });
+          }
+
+          // Actualizar el estado hasLyricSync de la variante
+          await prisma.song.update({
+            where: { id: relatedSong.id },
+            data: { hasLyricSync: (syncData.some(s => (s.startTime || 0) > 0)) } // Tiene sync si hay tiempos reales
+          });
+
+          variantsUpdated++;
+          updatedVariants.push(relatedSong.voiceType || 'Unknown');
+          console.log(`✅ [LYRICS SYNC VARIANTS] Auto-synced ${relatedSong.voiceType} with ${syncData.length} lines - sync status: ${(syncData.some(s => (s.startTime || 0) > 0))}`);
+        } else {
+          console.log(`⏭️ [LYRICS SYNC VARIANTS] Skipping ${relatedSong.voiceType} - already has sync data`);
+        }
+      }
+    }
+
+    res.json({
+      success: true,
+      message: 'Sincronización actualizada correctamente',
+      lyrics: createdLyrics,
+      count: createdLyrics.length,
+      variantsUpdated: variantsUpdated,
+      updatedVariants: updatedVariants,
+      autoSyncMessage: variantsUpdated > 0 ? `Se aplicó automáticamente la letra y sincronización a ${variantsUpdated} variante(s): ${updatedVariants.join(', ')}` : null
+    });
+
+  } catch (error) {
+    console.error('Error updating lyrics sync with variants:', error);
+    res.status(500).json({ 
+      message: 'Error interno del servidor',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
 export default router;
