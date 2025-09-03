@@ -42,7 +42,7 @@ const LyricsSynchronizer: React.FC<LyricsSynchronizerProps> = ({ song, onClose, 
   useEffect(() => {
     if (lyrics?.lyrics) {
       const lines = lyrics.lyrics
-        .filter(lyric => lyric.voiceType === song.voiceType)
+        .filter(lyric => lyric.voiceType === song.voiceType && lyric.lineNumber > 0) // Omitir línea 0
         .sort((a, b) => a.lineNumber - b.lineNumber)
         .map((lyric, index) => ({
           id: lyric.id,
@@ -52,7 +52,7 @@ const LyricsSynchronizer: React.FC<LyricsSynchronizerProps> = ({ song, onClose, 
           lineNumber: lyric.lineNumber,
           isSelected: false,
           isActive: true, // Por defecto todas las líneas están activas
-          isCurrent: index === 0 // La primera línea es la actual por defecto
+          isCurrent: index === 0 // La primera línea (línea 1) es la actual por defecto
         }));
       
       setLyricsLines(lines);
@@ -160,6 +160,49 @@ const LyricsSynchronizer: React.FC<LyricsSynchronizerProps> = ({ song, onClose, 
     }
   };
 
+  // Función para insertar nueva línea
+  const insertNewLine = (afterIndex: number) => {
+    const newLineNumber = lyricsLines[afterIndex].lineNumber + 0.5; // Número intermedio
+    const newLine: LyricLine = {
+      id: `temp-${Date.now()}`, // ID temporal
+      content: '',
+      startTime: null,
+      endTime: null,
+      lineNumber: newLineNumber,
+      isSelected: false,
+      isActive: true,
+      isCurrent: false
+    };
+
+    setLyricsLines(prev => {
+      const newLines = [...prev];
+      newLines.splice(afterIndex + 1, 0, newLine);
+      // Actualizar línea actual si es necesario
+      return newLines.map((line, index) => ({
+        ...line,
+        isCurrent: index === afterIndex + 1 // La nueva línea se convierte en actual
+      }));
+    });
+    
+    // Mover el cursor a la nueva línea
+    setCurrentLineIndex(afterIndex + 1);
+  };
+
+  // Función para eliminar línea
+  const deleteLine = (index: number) => {
+    setLyricsLines(prev => prev.filter((_, i) => i !== index));
+    if (currentLineIndex >= index && currentLineIndex > 0) {
+      setCurrentLineIndex(prev => prev - 1);
+    }
+  };
+
+  // Función para actualizar contenido de línea
+  const updateLineContent = (index: number, newContent: string) => {
+    setLyricsLines(prev => prev.map((line, i) => 
+      i === index ? { ...line, content: newContent } : line
+    ));
+  };
+
   const toggleLineActive = (lineIndex: number) => {
     setLyricsLines(prev => prev.map((line, index) => {
       if (index === lineIndex) {
@@ -187,22 +230,36 @@ const LyricsSynchronizer: React.FC<LyricsSynchronizerProps> = ({ song, onClose, 
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      // Solo incluir líneas activas y que tengan al menos un tiempo marcado
-      const syncData = lyricsLines
-        .filter(line => line.isActive && (line.startTime !== null || line.endTime !== null))
-        .map(line => ({
-          content: line.content,
-          startTime: line.startTime || undefined,
-          endTime: line.endTime || undefined,
-          lineNumber: line.lineNumber,
-          voiceType: song.voiceType || undefined
-        }));
-
-      if (syncData.length === 0) {
-        alert('Debes marcar al menos una línea como activa y asignar tiempos antes de guardar.');
+      // Preparar datos de sincronización con numeración correcta
+      const activeLines = lyricsLines.filter(line => line.isActive);
+      
+      if (activeLines.length === 0) {
+        alert('Debes marcar al menos una línea como activa antes de guardar.');
         setIsSaving(false);
         return;
       }
+      
+      // Crear línea 0 con toda la letra como respaldo
+      const fullLyrics = activeLines.map(line => line.content).join(' ');
+      
+      const syncData = [
+        // Línea 0: Letra completa como respaldo
+        {
+          content: fullLyrics,
+          startTime: undefined,
+          endTime: undefined,
+          lineNumber: 0,
+          voiceType: song.voiceType || undefined
+        },
+        // Líneas 1 en adelante: Segmentos individuales
+        ...activeLines.map((line, index) => ({
+          content: line.content,
+          startTime: line.startTime || undefined,
+          endTime: line.endTime || undefined,
+          lineNumber: index + 1, // Renumerar desde 1
+          voiceType: song.voiceType || undefined
+        }))
+      ];
 
       await updateSync(syncData, song.id);
       onSave();
@@ -312,59 +369,88 @@ const LyricsSynchronizer: React.FC<LyricsSynchronizerProps> = ({ song, onClose, 
         <div className="flex-1 overflow-y-auto p-6" style={{ maxHeight: '400px' }}>
           <div className="space-y-2">
             {lyricsLines.map((line, index) => (
-              <div 
-                key={index}
-                className={`p-4 border rounded-lg transition-all duration-300 ${
-                  line.isCurrent
-                    ? 'border-purple-500 bg-purple-100 shadow-lg transform scale-105'
-                    : !line.isActive 
-                      ? 'border-gray-300 bg-gray-100 opacity-60'
-                      : line.startTime !== null 
-                        ? 'border-green-300 bg-green-50'
-                        : 'border-gray-200 bg-white hover:bg-purple-50'
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  {/* Letra a la izquierda */}
-                  <div className="flex-1 min-w-0 pr-4">
-                    <p className={`font-medium text-lg leading-relaxed ${
-                      line.isCurrent 
-                        ? 'text-purple-900 font-bold' 
-                        : !line.isActive 
-                          ? 'text-gray-400' 
-                          : 'text-gray-900'
-                    }`}>
-                      {line.content}
-                    </p>
-                    {line.startTime !== null && (
-                      <div className="text-sm text-gray-500 mt-1">
-                        ⏱️ {formatTime(line.startTime)}
-                        {line.endTime !== null && ` - ${formatTime(line.endTime)}`}
+              <div key={index}>
+                {/* Línea principal */}
+                <div 
+                  className={`p-4 border rounded-lg transition-all duration-300 ${
+                    line.isCurrent
+                      ? 'border-purple-500 bg-purple-100 shadow-lg transform scale-105'
+                      : !line.isActive 
+                        ? 'border-gray-300 bg-gray-100 opacity-60'
+                        : line.startTime !== null 
+                          ? 'border-green-300 bg-green-50'
+                          : 'border-gray-200 bg-white hover:bg-purple-50'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    {/* Letra a la izquierda */}
+                    <div className="flex-1 min-w-0 pr-4">
+                      <textarea
+                        value={line.content}
+                        onChange={(e) => updateLineContent(index, e.target.value)}
+                        className={`w-full resize-none bg-transparent border-none focus:outline-none font-medium text-lg leading-relaxed ${
+                          line.isCurrent 
+                            ? 'text-purple-900 font-bold' 
+                            : !line.isActive 
+                              ? 'text-gray-400' 
+                              : 'text-gray-900'
+                        }`}
+                        rows={2}
+                        placeholder="Escribe el texto de la línea..."
+                      />
+                      <div className="flex items-center justify-between mt-2">
+                        {line.startTime !== null && (
+                          <div className="text-sm text-gray-500">
+                            ⏱️ {formatTime(line.startTime)}
+                            {line.endTime !== null && ` - ${formatTime(line.endTime)}`}
+                          </div>
+                        )}
+                        {lyricsLines.length > 1 && (
+                          <button
+                            onClick={() => deleteLine(index)}
+                            className="text-xs text-red-500 hover:text-red-700 ml-2"
+                            title="Eliminar línea"
+                          >
+                            🗑️ Eliminar
+                          </button>
+                        )}
                       </div>
-                    )}
-                  </div>
-                  
-                  {/* Botón indicador a la derecha */}
-                  <div className="flex-shrink-0">
-                    <button
-                      onClick={() => toggleLineActive(index)}
-                      className={`w-16 h-16 rounded-full border-2 transition-all duration-300 flex items-center justify-center ${
-                        line.isActive
-                          ? 'bg-purple-500 border-purple-600 text-white shadow-lg hover:bg-purple-600'
-                          : 'bg-gray-200 border-gray-300 text-gray-500 hover:bg-gray-300'
-                      }`}
-                      title={line.isActive ? 'Esta voz canta aquí' : 'Esta voz no canta aquí'}
-                    >
-                      <div className="text-center">
-                        <div className="text-xs font-bold">
-                          {line.isActive ? '🎤' : '🔇'}
+                    </div>
+                    
+                    {/* Botón indicador a la derecha */}
+                    <div className="flex-shrink-0">
+                      <button
+                        onClick={() => toggleLineActive(index)}
+                        className={`w-16 h-16 rounded-full border-2 transition-all duration-300 flex items-center justify-center ${
+                          line.isActive
+                            ? 'bg-purple-500 border-purple-600 text-white shadow-lg hover:bg-purple-600'
+                            : 'bg-gray-200 border-gray-300 text-gray-500 hover:bg-gray-300'
+                        }`}
+                        title={line.isActive ? 'Esta voz canta aquí' : 'Esta voz no canta aquí'}
+                      >
+                        <div className="text-center">
+                          <div className="text-xs font-bold">
+                            {line.isActive ? '🎤' : '🔇'}
+                          </div>
+                          <div className="text-xs mt-1">
+                            {line.isActive ? 'ON' : 'OFF'}
+                          </div>
                         </div>
-                        <div className="text-xs mt-1">
-                          {line.isActive ? 'ON' : 'OFF'}
-                        </div>
-                      </div>
-                    </button>
+                      </button>
+                    </div>
                   </div>
+                </div>
+                
+                {/* Botón para insertar nueva línea */}
+                <div className="flex justify-center py-2">
+                  <button
+                    onClick={() => insertNewLine(index)}
+                    className="px-3 py-1 text-xs bg-purple-100 text-purple-600 rounded-full hover:bg-purple-200 transition-all flex items-center space-x-1"
+                    title="Insertar nueva línea después"
+                  >
+                    <span>➕</span>
+                    <span>Agregar línea</span>
+                  </button>
                 </div>
               </div>
             ))}

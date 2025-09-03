@@ -623,4 +623,91 @@ router.get('/:songId', authenticateToken, async (req, res) => {
   }
 });
 
+// PUT /api/lyrics/:songId/sync - Actualizar sincronización de letras
+router.put('/:songId/sync', authenticateToken, async (req, res) => {
+  try {
+    const { songId } = req.params;
+    const { syncData } = req.body;
+
+    console.log(`🎵 [LYRICS SYNC UPDATE] Updating sync for songId: ${songId}`);
+    console.log(`📊 [LYRICS SYNC UPDATE] Sync data received:`, { 
+      count: syncData?.length, 
+      voiceTypes: syncData?.map((s: any) => s.voiceType).filter((v: any, i: any, arr: any) => arr.indexOf(v) === i)
+    });
+
+    if (!syncData || !Array.isArray(syncData)) {
+      return res.status(400).json({ message: 'Datos de sincronización inválidos' });
+    }
+
+    // Buscar la canción
+    const song = await prisma.song.findUnique({
+      where: { id: songId }
+    });
+
+    if (!song) {
+      return res.status(404).json({ message: 'Canción no encontrada' });
+    }
+
+    // Obtener el voiceType de la primera entrada (todas deberían tener el mismo)
+    const voiceType = syncData[0]?.voiceType || song.voiceType;
+    
+    console.log(`🗑️ [LYRICS SYNC UPDATE] Deleting existing lyrics for songId: ${songId}, voiceType: ${voiceType}`);
+
+    // Borrar todas las letras sincronizadas existentes para esta canción y voiceType
+    await prisma.lyric.deleteMany({
+      where: {
+        songId: songId,
+        voiceType: voiceType
+      }
+    });
+
+    console.log(`✅ [LYRICS SYNC UPDATE] Deleted existing lyrics`);
+
+    // Crear las nuevas entradas de sincronización
+    const createdLyrics = [];
+    
+    for (const [index, syncEntry] of syncData.entries()) {
+      const lyric = await prisma.lyric.create({
+        data: {
+          songId: songId,
+          content: syncEntry.content,
+          startTime: syncEntry.startTime || 0,
+          endTime: syncEntry.endTime || null,
+          lineNumber: syncEntry.lineNumber || index,
+          voiceType: voiceType,
+          isSynchronized: (syncEntry.startTime || 0) > 0,
+          isTextLyrics: true,
+          createdBy: (req as any).user?.id || 'system' // Usar el ID del usuario autenticado
+        }
+      });
+      
+      createdLyrics.push(lyric);
+      
+      console.log(`📝 [LYRICS SYNC UPDATE] Created lyric line ${syncEntry.lineNumber}: "${syncEntry.content}" (${syncEntry.startTime || 0}s)`);
+    }
+
+    // Actualizar el estado hasLyricSync de la canción
+    await prisma.song.update({
+      where: { id: songId },
+      data: { hasLyricSync: true }
+    });
+
+    console.log(`✅ [LYRICS SYNC UPDATE] Successfully updated ${createdLyrics.length} lyrics for ${song.title}`);
+
+    res.json({
+      success: true,
+      message: 'Sincronización actualizada correctamente',
+      lyrics: createdLyrics,
+      count: createdLyrics.length
+    });
+
+  } catch (error) {
+    console.error('Error updating lyrics sync:', error);
+    res.status(500).json({ 
+      message: 'Error interno del servidor',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
 export default router;
