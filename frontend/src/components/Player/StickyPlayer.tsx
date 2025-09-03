@@ -22,7 +22,7 @@ import {
 import {
   CSS
 } from '@dnd-kit/utilities';
-import type { Song, VoiceType } from '../../types';
+import type { Song } from '../../types';
 import configService from '../../services/configService';
 import './StickyPlayer.css';
 
@@ -135,7 +135,6 @@ interface LyricsViewerInlineProps {
 
 const LyricsViewerInline: React.FC<LyricsViewerInlineProps> = ({ song, isDesktop = true }) => {
   const [displayMode, setDisplayMode] = useState<'sync' | 'files'>('sync');
-  const [selectedVoiceType, setSelectedVoiceType] = useState<VoiceType | null>(null);
   const [activeLineIndex, setActiveLineIndex] = useState<number>(-1);
   
   // Estado del sincronizador automático
@@ -248,14 +247,8 @@ const LyricsViewerInline: React.FC<LyricsViewerInlineProps> = ({ song, isDesktop
   }, [syncedLyrics, song?.title, song?.id, song?.voiceType, isLoading]);
 
   // Obtener letras filtradas por voiceType
-  const filteredLyrics = (Array.isArray(syncedLyrics) ? syncedLyrics : []).filter(lyric => {
-    // Si no hay voiceType seleccionado, mostrar todas las letras
-    if (selectedVoiceType === null) {
-      return true;
-    }
-    // Si hay voiceType seleccionado, filtrar por ese tipo
-    return lyric.voiceType === selectedVoiceType;
-  }).sort((a, b) => a.lineNumber - b.lineNumber);
+  const filteredLyrics = (Array.isArray(syncedLyrics) ? syncedLyrics : [])
+    .sort((a, b) => a.lineNumber - b.lineNumber);
 
   // Debug: Log filtering process
   useEffect(() => {
@@ -264,7 +257,6 @@ const LyricsViewerInline: React.FC<LyricsViewerInlineProps> = ({ song, isDesktop
       console.log('🎯 [FILTERING DEBUG]', {
         songTitle: song?.title,
         totalSyncedLyrics: syncedLyrics.length,
-        selectedVoiceType,
         availableVoiceTypes: allVoiceTypes,
         filteredCount: filteredLyrics.length,
         lyricsBeforeFilter: syncedLyrics.slice(0, 2).map(l => ({
@@ -279,7 +271,7 @@ const LyricsViewerInline: React.FC<LyricsViewerInlineProps> = ({ song, isDesktop
         }))
       });
     }
-  }, [syncedLyrics, selectedVoiceType, filteredLyrics, song?.title]);
+  }, [syncedLyrics, filteredLyrics, song?.title]);
 
   // Función para identificar si una canción tiene datos de sincronización válidos
   const getSyncStatus = () => {
@@ -458,26 +450,8 @@ const LyricsViewerInline: React.FC<LyricsViewerInlineProps> = ({ song, isDesktop
             <div className="min-h-full bg-gradient-to-br from-purple-50 via-indigo-50 to-purple-100 rounded-lg p-6">
               {filteredLyrics.length > 0 ? (
                 <div className="relative">
-                  {/* Botón de selección de voz - esquina superior derecha */}
-                  <div className="absolute top-0 right-0 z-10">
-                    <div className="flex items-center space-x-2 bg-white/80 backdrop-blur-sm rounded-lg p-2 shadow-sm border border-purple-200">
-                      <MicrophoneIcon className="w-4 h-4 text-purple-600" />
-                      <select
-                        value={selectedVoiceType || ''}
-                        onChange={(e) => setSelectedVoiceType(e.target.value as VoiceType)}
-                        className="text-sm border-0 bg-transparent focus:outline-none focus:ring-0 text-purple-700 font-medium"
-                      >
-                        <option value="">Todas</option>
-                        <option value="SOPRANO">Soprano</option>
-                        <option value="ALTO">Alto</option>
-                        <option value="TENOR">Tenor</option>
-                        <option value="BAJO">Bajo</option>
-                      </select>
-                    </div>
-                  </div>
-
                   {/* Líneas sincronizadas (desde línea 1, omitiendo línea 0) */}
-                  <div className="space-y-1 pt-12 pr-32">
+                  <div className="space-y-1">
                     {syncedOnlyLyrics.slice(1).map((lyric, index) => {
                       // Ajustar el índice porque slice(1) omite el primer elemento
                       const adjustedIndex = index + 1;
@@ -629,8 +603,7 @@ import {
   XMarkIcon,
   ArrowsUpDownIcon,
   ArrowPathIcon,
-  TrashIcon,
-  MicrophoneIcon
+  TrashIcon
 } from '@heroicons/react/24/outline';
 import {
   ArrowPathIcon as ArrowPathIconSolid

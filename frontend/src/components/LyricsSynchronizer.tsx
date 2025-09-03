@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { PlayIcon, PauseIcon, XMarkIcon, CheckIcon } from '@heroicons/react/24/outline';
+import { PlayIcon, PauseIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { useLyrics } from '../hooks/useLyrics';
 import type { Song } from '../types';
 import { getSongFileUrl } from '../config/api';
@@ -19,6 +19,7 @@ interface LyricLine {
   lineNumber: number;
   isSelected: boolean;
   isActive: boolean; // Nueva propiedad para indicar si esta voz canta en esta línea
+  isCurrent: boolean; // Nueva propiedad para la línea actualmente seleccionada
 }
 
 const LyricsSynchronizer: React.FC<LyricsSynchronizerProps> = ({ song, onClose, onSave }) => {
@@ -30,6 +31,7 @@ const LyricsSynchronizer: React.FC<LyricsSynchronizerProps> = ({ song, onClose, 
   const [duration, setDuration] = useState(0);
   const [lyricsLines, setLyricsLines] = useState<LyricLine[]>([]);
   const [isSaving, setIsSaving] = useState(false);
+  const [currentLineIndex, setCurrentLineIndex] = useState(0);
 
   useEffect(() => {
     if (song.id) {
@@ -42,14 +44,15 @@ const LyricsSynchronizer: React.FC<LyricsSynchronizerProps> = ({ song, onClose, 
       const lines = lyrics.lyrics
         .filter(lyric => lyric.voiceType === song.voiceType)
         .sort((a, b) => a.lineNumber - b.lineNumber)
-        .map((lyric) => ({
+        .map((lyric, index) => ({
           id: lyric.id,
           content: lyric.content,
           startTime: lyric.startTime || null,
           endTime: lyric.endTime || null,
           lineNumber: lyric.lineNumber,
           isSelected: false,
-          isActive: true // Por defecto todas las líneas están activas
+          isActive: true, // Por defecto todas las líneas están activas
+          isCurrent: index === 0 // La primera línea es la actual por defecto
         }));
       
       setLyricsLines(lines);
@@ -74,6 +77,25 @@ const LyricsSynchronizer: React.FC<LyricsSynchronizerProps> = ({ song, onClose, 
     };
   }, []);
 
+  // Manejo de teclas para navegación y marcado
+  useEffect(() => {
+    const handleKeyPress = (event: KeyboardEvent) => {
+      if (event.code === 'Space') {
+        event.preventDefault();
+        markCurrentLineAndAdvance();
+      } else if (event.code === 'ArrowUp') {
+        event.preventDefault();
+        goToPreviousLine();
+      } else if (event.code === 'ArrowDown') {
+        event.preventDefault();
+        goToNextLine();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, [currentLineIndex, lyricsLines]);
+
   const togglePlay = () => {
     const audio = audioRef.current;
     if (!audio) return;
@@ -94,22 +116,48 @@ const LyricsSynchronizer: React.FC<LyricsSynchronizerProps> = ({ song, onClose, 
     }
   };
 
-  const markStartTime = (lineIndex: number) => {
+  // Nueva función para marcado dinámico con spacebar
+  const markCurrentLineAndAdvance = () => {
     setLyricsLines(prev => prev.map((line, index) => {
-      if (index === lineIndex) {
-        return { ...line, startTime: currentTime, isSelected: true };
+      if (index === currentLineIndex && line.isActive) {
+        return { 
+          ...line, 
+          startTime: currentTime, 
+          isSelected: true,
+          isCurrent: false
+        };
       }
-      return { ...line, isSelected: false };
+      if (index === currentLineIndex + 1) {
+        return { ...line, isCurrent: true };
+      }
+      return { ...line, isSelected: false, isCurrent: false };
     }));
+    
+    if (currentLineIndex < lyricsLines.length - 1) {
+      setCurrentLineIndex(prev => prev + 1);
+    }
   };
 
-  const markEndTime = (lineIndex: number) => {
-    setLyricsLines(prev => prev.map((line, index) => {
-      if (index === lineIndex) {
-        return { ...line, endTime: currentTime };
-      }
-      return line;
-    }));
+  // Función para navegar a línea anterior
+  const goToPreviousLine = () => {
+    if (currentLineIndex > 0) {
+      setCurrentLineIndex(prev => prev - 1);
+      setLyricsLines(prev => prev.map((line, index) => ({
+        ...line,
+        isCurrent: index === currentLineIndex - 1
+      })));
+    }
+  };
+
+  // Función para navegar a línea siguiente
+  const goToNextLine = () => {
+    if (currentLineIndex < lyricsLines.length - 1) {
+      setCurrentLineIndex(prev => prev + 1);
+      setLyricsLines(prev => prev.map((line, index) => ({
+        ...line,
+        isCurrent: index === currentLineIndex + 1
+      })));
+    }
   };
 
   const toggleLineActive = (lineIndex: number) => {
@@ -234,13 +282,20 @@ const LyricsSynchronizer: React.FC<LyricsSynchronizerProps> = ({ song, onClose, 
             </div>
           </div>
 
-          <div className="text-sm text-gray-600 mb-2">
-            <strong>Instrucciones:</strong>
-          </div>
-          <div className="text-xs text-gray-500 space-y-1">
-            <p>• <strong>Activar/Desactivar:</strong> Marca qué líneas canta esta voz específica</p>
-            <p>• <strong>Marcar Inicio:</strong> Haz clic cuando comience cada línea</p>
-            <p>• <strong>Marcar Final:</strong> Haz clic cuando termine cada línea</p>
+          <div className="flex items-center justify-between text-xs text-gray-600 bg-gradient-to-r from-purple-50 to-indigo-50 rounded-lg p-3 border border-purple-100">
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-1">
+                <kbd className="px-2 py-1 bg-white border border-gray-300 rounded text-xs font-mono">ESPACIO</kbd>
+                <span>Marcar línea actual</span>
+              </div>
+              <div className="flex items-center space-x-1">
+                <kbd className="px-2 py-1 bg-white border border-gray-300 rounded text-xs font-mono">↑/↓</kbd>
+                <span>Navegar líneas</span>
+              </div>
+            </div>
+            <div className="text-purple-600 font-medium">
+              Línea {currentLineIndex + 1} de {lyricsLines.length}
+            </div>
           </div>
           
           <div className="flex space-x-2 mt-3">
@@ -255,87 +310,59 @@ const LyricsSynchronizer: React.FC<LyricsSynchronizerProps> = ({ song, onClose, 
 
         {/* Lyrics Lines */}
         <div className="flex-1 overflow-y-auto p-6" style={{ maxHeight: '400px' }}>
-          <div className="space-y-3">
+          <div className="space-y-2">
             {lyricsLines.map((line, index) => (
               <div 
                 key={index}
-                className={`p-4 border rounded-lg transition-all ${
-                  !line.isActive 
-                    ? 'border-gray-300 bg-gray-100 opacity-60'
-                    : line.isSelected 
-                      ? 'border-purple-500 bg-purple-50' 
+                className={`p-4 border rounded-lg transition-all duration-300 ${
+                  line.isCurrent
+                    ? 'border-purple-500 bg-purple-100 shadow-lg transform scale-105'
+                    : !line.isActive 
+                      ? 'border-gray-300 bg-gray-100 opacity-60'
                       : line.startTime !== null 
-                        ? 'border-green-200 bg-green-50'
-                        : 'border-gray-200 bg-white'
+                        ? 'border-green-300 bg-green-50'
+                        : 'border-gray-200 bg-white hover:bg-purple-50'
                 }`}
               >
                 <div className="flex items-center justify-between">
-                  <div className="flex items-start space-x-3 flex-1">
-                    {/* Checkbox para activar/desactivar línea */}
-                    <label className="flex items-center space-x-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={line.isActive}
-                        onChange={() => toggleLineActive(index)}
-                        className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
-                      />
-                      <span className="text-xs text-gray-500">Esta voz canta</span>
-                    </label>
-                    
-                    <div className="flex-1 min-w-0">
-                      <p className={`font-medium ${!line.isActive ? 'text-gray-400' : 'text-gray-900'}`}>
-                        {line.content}
-                      </p>
+                  {/* Letra a la izquierda */}
+                  <div className="flex-1 min-w-0 pr-4">
+                    <p className={`font-medium text-lg leading-relaxed ${
+                      line.isCurrent 
+                        ? 'text-purple-900 font-bold' 
+                        : !line.isActive 
+                          ? 'text-gray-400' 
+                          : 'text-gray-900'
+                    }`}>
+                      {line.content}
+                    </p>
+                    {line.startTime !== null && (
                       <div className="text-sm text-gray-500 mt-1">
-                        {line.startTime !== null && (
-                          <span className="mr-4">
-                            Inicio: {formatTime(line.startTime)}
-                          </span>
-                        )}
-                        {line.endTime !== null && (
-                          <span>
-                            Final: {formatTime(line.endTime)}
-                          </span>
-                        )}
+                        ⏱️ {formatTime(line.startTime)}
+                        {line.endTime !== null && ` - ${formatTime(line.endTime)}`}
                       </div>
-                    </div>
+                    )}
                   </div>
                   
-                  <div className="flex space-x-2">
+                  {/* Botón indicador a la derecha */}
+                  <div className="flex-shrink-0">
                     <button
-                      onClick={() => markStartTime(index)}
-                      disabled={!line.isActive}
-                      className={`px-3 py-1 text-xs rounded ${
-                        !line.isActive
-                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                          : line.startTime !== null
-                            ? 'bg-green-100 text-green-700'
-                            : 'bg-purple-100 text-purple-700 hover:bg-purple-200'
+                      onClick={() => toggleLineActive(index)}
+                      className={`w-16 h-16 rounded-full border-2 transition-all duration-300 flex items-center justify-center ${
+                        line.isActive
+                          ? 'bg-purple-500 border-purple-600 text-white shadow-lg hover:bg-purple-600'
+                          : 'bg-gray-200 border-gray-300 text-gray-500 hover:bg-gray-300'
                       }`}
+                      title={line.isActive ? 'Esta voz canta aquí' : 'Esta voz no canta aquí'}
                     >
-                      {line.startTime !== null ? (
-                        <CheckIcon className="h-4 w-4 inline" />
-                      ) : (
-                        'Marcar Inicio'
-                      )}
-                    </button>
-                    
-                    <button
-                      onClick={() => markEndTime(index)}
-                      disabled={!line.isActive || line.startTime === null}
-                      className={`px-3 py-1 text-xs rounded ${
-                        !line.isActive || line.startTime === null
-                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                          : line.endTime !== null
-                            ? 'bg-green-100 text-green-700'
-                            : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
-                      }`}
-                    >
-                      {line.endTime !== null ? (
-                        <CheckIcon className="h-4 w-4 inline" />
-                      ) : (
-                        'Marcar Final'
-                      )}
+                      <div className="text-center">
+                        <div className="text-xs font-bold">
+                          {line.isActive ? '🎤' : '🔇'}
+                        </div>
+                        <div className="text-xs mt-1">
+                          {line.isActive ? 'ON' : 'OFF'}
+                        </div>
+                      </div>
                     </button>
                   </div>
                 </div>
