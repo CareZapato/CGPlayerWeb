@@ -17,6 +17,7 @@ interface User {
   username: string;
   firstName: string;
   lastName: string;
+  phone?: string;
   isActive: boolean;
   createdAt: string;
   location?: {
@@ -103,6 +104,16 @@ const formatVoiceType = (voiceType: string): string => {
 };
 const ROLES = ['ADMIN', 'DIRECTOR', 'CANTANTE'];
 
+// Función para formatear roles a texto amigable
+const formatRole = (role: string): string => {
+  const labels: { [key: string]: string } = {
+    ADMIN: 'Administrador',
+    DIRECTOR: 'Director',
+    CANTANTE: 'Cantante'
+  };
+  return labels[role] || role;
+};
+
 const UsersPage: React.FC = () => {
   const { user: currentUser } = useAuthStore();
   const [users, setUsers] = useState<User[]>([]);
@@ -118,6 +129,11 @@ const UsersPage: React.FC = () => {
     hasPrev: false
   });
 
+  // Estados para modales
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+
   // Filtros
   const [filters, setFilters] = useState({
     search: '',
@@ -129,19 +145,38 @@ const UsersPage: React.FC = () => {
     limit: 10
   });
 
-  // Estado del modal de confirmación
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
-
   // Estado del formulario de edición
   const [editForm, setEditForm] = useState({
     firstName: '',
     lastName: '',
     email: '',
     username: '',
+    phone: '',
     locationId: '',
     isActive: true,
-    selectedVoices: [] as string[]
+    selectedVoices: [] as string[],
+    selectedRole: ''
   });
+
+  // Estado del formulario de creación
+  const [createForm, setCreateForm] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    username: '',
+    phone: '',
+    password: '',
+    locationId: '',
+    isActive: true,
+    selectedVoices: [] as string[],
+    selectedRole: 'CANTANTE'
+  });
+
+  // Estado para importación CSV
+  const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [csvPreview, setCsvPreview] = useState<any[]>([]);
+  const [importProgress, setImportProgress] = useState(0);
+  const [isImporting, setIsImporting] = useState(false);
 
   // Cargar usuarios
   const fetchUsers = async () => {
@@ -210,6 +245,26 @@ const UsersPage: React.FC = () => {
     }));
   };
 
+  // Manejar toggle de tipos de voz
+  const handleVoiceToggle = (voiceType: string) => {
+    setEditForm(prev => ({
+      ...prev,
+      selectedVoices: prev.selectedVoices.includes(voiceType)
+        ? prev.selectedVoices.filter(v => v !== voiceType)
+        : [...prev.selectedVoices, voiceType]
+    }));
+  };
+
+  // Manejar toggle de tipos de voz para creación
+  const handleCreateVoiceToggle = (voiceType: string) => {
+    setCreateForm(prev => ({
+      ...prev,
+      selectedVoices: prev.selectedVoices.includes(voiceType)
+        ? prev.selectedVoices.filter(v => v !== voiceType)
+        : [...prev.selectedVoices, voiceType]
+    }));
+  };
+
   // Seleccionar usuario para el panel lateral
   const handleSelectUser = (user: User) => {
     setSelectedUser(user);
@@ -218,9 +273,11 @@ const UsersPage: React.FC = () => {
       lastName: user.lastName,
       email: user.email,
       username: user.username,
+      phone: user.phone || '',
       locationId: user.location?.id || '',
       isActive: user.isActive,
-      selectedVoices: user.voiceProfiles.map(vp => vp.voiceType)
+      selectedVoices: user.voiceProfiles.map(vp => vp.voiceType),
+      selectedRole: user.roles.length > 0 ? user.roles[0].role : ''
     });
   };
 
@@ -241,6 +298,7 @@ const UsersPage: React.FC = () => {
           lastName: editForm.lastName,
           email: editForm.email,
           username: editForm.username,
+          phone: editForm.phone,
           locationId: editForm.locationId,
           isActive: editForm.isActive
         })
@@ -264,6 +322,24 @@ const UsersPage: React.FC = () => {
 
       if (!voicesResponse.ok) {
         throw new Error('Failed to update voices');
+      }
+
+      // Actualizar rol (solo uno por usuario)
+      if (editForm.selectedRole) {
+        const roleResponse = await fetch(getApiUrl(`/api/users/${selectedUser.id}/role`), {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          },
+          body: JSON.stringify({
+            role: editForm.selectedRole
+          })
+        });
+
+        if (!roleResponse.ok) {
+          throw new Error('Failed to update role');
+        }
       }
 
       toast.success('Usuario actualizado correctamente');
@@ -312,14 +388,140 @@ const UsersPage: React.FC = () => {
     }
   };
 
-  // Manejar selección de voces
-  const handleVoiceToggle = (voiceType: string) => {
-    setEditForm(prev => ({
-      ...prev,
-      selectedVoices: prev.selectedVoices.includes(voiceType)
-        ? prev.selectedVoices.filter(v => v !== voiceType)
-        : [...prev.selectedVoices, voiceType]
-    }));
+  // Crear usuario manual
+  const handleCreateUser = async () => {
+    try {
+      const response = await fetch(getApiUrl('/api/users/create'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          firstName: createForm.firstName,
+          lastName: createForm.lastName,
+          email: createForm.email,
+          username: createForm.username,
+          phone: createForm.phone,
+          password: createForm.password,
+          locationId: createForm.locationId,
+          isActive: createForm.isActive,
+          voiceTypes: createForm.selectedVoices,
+          role: createForm.selectedRole
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to create user');
+      }
+
+      toast.success('Usuario creado correctamente');
+      fetchUsers();
+      setShowCreateModal(false);
+      setCreateForm({
+        firstName: '',
+        lastName: '',
+        email: '',
+        username: '',
+        phone: '',
+        password: '',
+        locationId: '',
+        isActive: true,
+        selectedVoices: [],
+        selectedRole: 'CANTANTE'
+      });
+    } catch (error: any) {
+      console.error('Error creating user:', error);
+      toast.error(error.message || 'Error al crear usuario');
+    }
+  };
+
+  // Procesar archivo CSV
+  const handleCSVUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setCsvFile(file);
+    
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target?.result as string;
+      const lines = text.split('\n').filter(line => line.trim());
+      const headers = lines[0].split(',').map(h => h.trim());
+      
+      const data = lines.slice(1).map((line, index) => {
+        const values = line.split(',').map(v => v.trim());
+        const user: any = { lineNumber: index + 2 }; // +2 porque empezamos desde línea 2 (después del header)
+        
+        // Mapear según el formato esperado:
+        // Nombre, Apellido, Email, Usuario, Telefono, Ubicacion, voicetype1, voicetype2, voicetype3, voicetype4, voicetype5
+        user.firstName = values[0] || '';
+        user.lastName = values[1] || '';
+        user.email = values[2] || '';
+        user.username = values[3] || '';
+        user.phone = values[4] || '';
+        user.locationName = values[5] || '';
+        
+        // Procesar tipos de voz (columnas 6-10)
+        user.voiceTypes = [];
+        for (let i = 6; i < Math.min(11, values.length); i++) {
+          if (values[i] && VOICE_TYPES.includes(values[i].toUpperCase() as UserVoiceType)) {
+            user.voiceTypes.push(values[i].toUpperCase());
+          }
+        }
+        
+        return user;
+      });
+      
+      setCsvPreview(data);
+    };
+    
+    reader.readAsText(file);
+  };
+
+  // Importar usuarios desde CSV
+  const handleImportCSV = async () => {
+    if (!csvPreview.length) return;
+
+    setIsImporting(true);
+    setImportProgress(0);
+
+    try {
+      const response = await fetch(getApiUrl('/api/users/import-csv'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          users: csvPreview
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to import users');
+      }
+
+      const result = await response.json();
+      toast.success(`${result.created} usuarios importados correctamente`);
+      
+      if (result.errors && result.errors.length > 0) {
+        toast.error(`${result.errors.length} usuarios tuvieron errores`);
+      }
+
+      fetchUsers();
+      setShowImportModal(false);
+      setCsvFile(null);
+      setCsvPreview([]);
+    } catch (error: any) {
+      console.error('Error importing users:', error);
+      toast.error(error.message || 'Error al importar usuarios');
+    } finally {
+      setIsImporting(false);
+      setImportProgress(0);
+    }
   };
 
   if (loading && users.length === 0) {
@@ -359,10 +561,35 @@ const UsersPage: React.FC = () => {
       <div className="max-w-full mx-auto">
         {/* Header */}
         <div className="mb-4 lg:mb-6">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Gestión de Usuarios</h1>
-          <p className="text-gray-600 mt-2">
-            Administra usuarios, roles y permisos del sistema
-          </p>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Gestión de Usuarios</h1>
+              <p className="text-gray-600 mt-2">
+                Administra usuarios, roles y permisos del sistema
+              </p>
+            </div>
+            
+            {currentUser?.roles && currentUser.roles.some(r => r.role === 'ADMIN') && (
+              <div className="flex flex-col sm:flex-row gap-2">
+                <button
+                  onClick={() => setShowCreateModal(true)}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center justify-center space-x-2 transition-colors"
+                >
+                  <UserPlusIcon className="w-5 h-5" />
+                  <span>Crear Usuario</span>
+                </button>
+                <button
+                  onClick={() => setShowImportModal(true)}
+                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center justify-center space-x-2 transition-colors"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
+                  </svg>
+                  <span>Importar CSV</span>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6">
@@ -670,6 +897,37 @@ const UsersPage: React.FC = () => {
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Teléfono
+                      </label>
+                      <input
+                        type="tel"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        value={editForm.phone}
+                        onChange={(e) => setEditForm(prev => ({ ...prev, phone: e.target.value }))}
+                        placeholder="+56 9 1234 5678"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Rol del Usuario
+                      </label>
+                      <select
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        value={editForm.selectedRole}
+                        onChange={(e) => setEditForm(prev => ({ ...prev, selectedRole: e.target.value }))}
+                      >
+                        <option value="">Seleccionar rol</option>
+                        {ROLES.map(role => (
+                          <option key={role} value={role}>
+                            {formatRole(role)}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
                         Ubicación
                       </label>
                       <select
@@ -765,6 +1023,319 @@ const UsersPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Modal de crear usuario */}
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Crear Nuevo Usuario
+                </h3>
+                <button
+                  onClick={() => setShowCreateModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Nombre *
+                  </label>
+                  <input
+                    type="text"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    value={createForm.firstName}
+                    onChange={(e) => setCreateForm(prev => ({ ...prev, firstName: e.target.value }))}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Apellido *
+                  </label>
+                  <input
+                    type="text"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    value={createForm.lastName}
+                    onChange={(e) => setCreateForm(prev => ({ ...prev, lastName: e.target.value }))}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Email *
+                  </label>
+                  <input
+                    type="email"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    value={createForm.email}
+                    onChange={(e) => setCreateForm(prev => ({ ...prev, email: e.target.value }))}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Usuario *
+                  </label>
+                  <input
+                    type="text"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    value={createForm.username}
+                    onChange={(e) => setCreateForm(prev => ({ ...prev, username: e.target.value }))}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Teléfono
+                  </label>
+                  <input
+                    type="tel"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    value={createForm.phone}
+                    onChange={(e) => setCreateForm(prev => ({ ...prev, phone: e.target.value }))}
+                    placeholder="+56 9 1234 5678"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Contraseña *
+                  </label>
+                  <input
+                    type="password"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    value={createForm.password}
+                    onChange={(e) => setCreateForm(prev => ({ ...prev, password: e.target.value }))}
+                    placeholder="Mínimo 6 caracteres"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Rol *
+                  </label>
+                  <select
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    value={createForm.selectedRole}
+                    onChange={(e) => setCreateForm(prev => ({ ...prev, selectedRole: e.target.value }))}
+                  >
+                    {ROLES.map(role => (
+                      <option key={role} value={role}>
+                        {formatRole(role)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Ubicación
+                  </label>
+                  <select
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    value={createForm.locationId}
+                    onChange={(e) => setCreateForm(prev => ({ ...prev, locationId: e.target.value }))}
+                  >
+                    <option value="">Sin ubicación</option>
+                    {locations.map(location => (
+                      <option key={location.id} value={location.id}>
+                        {location.name} - {location.city}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="mt-6">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Tipos de Voz
+                </label>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                  {VOICE_TYPES.map(voice => (
+                    <label key={voice} className="flex items-center">
+                      <input
+                        type="checkbox"
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        checked={createForm.selectedVoices.includes(voice)}
+                        onChange={() => handleCreateVoiceToggle(voice)}
+                      />
+                      <span className="ml-2 text-sm text-gray-700">{formatVoiceType(voice)}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div className="mt-6 flex items-center">
+                <input
+                  type="checkbox"
+                  id="createIsActive"
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  checked={createForm.isActive}
+                  onChange={(e) => setCreateForm(prev => ({ ...prev, isActive: e.target.checked }))}
+                />
+                <label htmlFor="createIsActive" className="ml-2 text-sm text-gray-700">
+                  Usuario activo
+                </label>
+              </div>
+
+              <div className="mt-6 flex space-x-3">
+                <button
+                  onClick={() => setShowCreateModal(false)}
+                  className="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-400 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleCreateUser}
+                  disabled={!createForm.firstName || !createForm.lastName || !createForm.email || !createForm.username || !createForm.password}
+                  className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+                >
+                  Crear Usuario
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de importar CSV */}
+      {showImportModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Importar Usuarios desde CSV
+                </h3>
+                <button
+                  onClick={() => setShowImportModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Instrucciones */}
+              <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <h4 className="font-medium text-blue-900 mb-2">Formato CSV esperado:</h4>
+                <p className="text-sm text-blue-800 mb-2">
+                  El archivo debe tener las siguientes columnas en este orden:
+                </p>
+                <code className="text-xs bg-blue-100 px-2 py-1 rounded">
+                  Nombre, Apellido, Email, Usuario, Telefono, Ubicacion, VoiceType1, VoiceType2, VoiceType3, VoiceType4, VoiceType5
+                </code>
+                <p className="text-xs text-blue-700 mt-2">
+                  * Los tipos de voz válidos son: SOPRANO, MESOSOPRANO, CONTRALTO, TENOR, BARITONO, BAJO<br/>
+                  * La ubicación debe coincidir con el nombre de una ciudad existente<br/>
+                  * Los usuarios se crearán con rol CANTANTE por defecto y contraseña "usuario123"
+                </p>
+              </div>
+
+              {/* Selector de archivo */}
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Seleccionar archivo CSV
+                </label>
+                <input
+                  type="file"
+                  accept=".csv"
+                  onChange={handleCSVUpload}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+
+              {/* Vista previa */}
+              {csvPreview.length > 0 && (
+                <div className="mb-6">
+                  <h4 className="font-medium text-gray-900 mb-3">
+                    Vista previa ({csvPreview.length} usuarios)
+                  </h4>
+                  <div className="max-h-60 overflow-y-auto border border-gray-200 rounded-lg">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50 sticky top-0">
+                        <tr>
+                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Línea</th>
+                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Nombre</th>
+                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Apellido</th>
+                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
+                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Usuario</th>
+                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Teléfono</th>
+                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Ubicación</th>
+                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Voces</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {csvPreview.slice(0, 10).map((user, index) => (
+                          <tr key={index} className={!user.firstName || !user.lastName || !user.email || !user.username ? 'bg-red-50' : ''}>
+                            <td className="px-3 py-2 text-xs text-gray-500">{user.lineNumber}</td>
+                            <td className="px-3 py-2 text-sm text-gray-900">{user.firstName}</td>
+                            <td className="px-3 py-2 text-sm text-gray-900">{user.lastName}</td>
+                            <td className="px-3 py-2 text-sm text-gray-900">{user.email}</td>
+                            <td className="px-3 py-2 text-sm text-gray-900">{user.username}</td>
+                            <td className="px-3 py-2 text-sm text-gray-900">{user.phone}</td>
+                            <td className="px-3 py-2 text-sm text-gray-900">{user.locationName}</td>
+                            <td className="px-3 py-2 text-sm text-gray-900">
+                              {user.voiceTypes.join(', ')}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {csvPreview.length > 10 && (
+                      <div className="p-3 text-center text-sm text-gray-500 bg-gray-50">
+                        ... y {csvPreview.length - 10} usuarios más
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Progreso de importación */}
+              {isImporting && (
+                <div className="mb-6">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm text-gray-700">Importando usuarios...</span>
+                    <span className="text-sm text-gray-500">{importProgress}%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div 
+                      className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${importProgress}%` }}
+                    ></div>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex space-x-3">
+                <button
+                  onClick={() => setShowImportModal(false)}
+                  disabled={isImporting}
+                  className="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-400 transition-colors disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleImportCSV}
+                  disabled={csvPreview.length === 0 || isImporting}
+                  className="flex-1 bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+                >
+                  {isImporting ? 'Importando...' : `Importar ${csvPreview.length} Usuarios`}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal de confirmación de eliminación */}
       {showDeleteConfirm && (

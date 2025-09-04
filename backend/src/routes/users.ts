@@ -160,6 +160,7 @@ router.get('/', authenticateToken, requireRole(['DIRECTOR', 'ADMIN']), async (re
           username: true,
           firstName: true,
           lastName: true,
+          phone: true,
           isActive: true,
           createdAt: true,
           updatedAt: true,
@@ -428,6 +429,7 @@ router.get('/:userId', authenticateToken, requireRole(['DIRECTOR', 'ADMIN']), as
         username: true,
         firstName: true,
         lastName: true,
+        phone: true,
         isActive: true,
         createdAt: true,
         updatedAt: true,
@@ -479,7 +481,7 @@ router.get('/:userId', authenticateToken, requireRole(['DIRECTOR', 'ADMIN']), as
 router.put('/:userId', authenticateToken, requireRole(['DIRECTOR', 'ADMIN']), async (req: AuthRequest, res: Response) => {
   try {
     const { userId } = req.params;
-    const { firstName, lastName, email, username, locationId, isActive } = req.body;
+    const { firstName, lastName, email, username, phone, locationId, isActive } = req.body;
 
     // Verificar que el usuario existe
     const existingUser = await prisma.user.findUnique({
@@ -498,6 +500,7 @@ router.put('/:userId', authenticateToken, requireRole(['DIRECTOR', 'ADMIN']), as
         lastName,
         email,
         username,
+        phone: phone || null,
         locationId: locationId || null,
         isActive
       },
@@ -507,6 +510,7 @@ router.put('/:userId', authenticateToken, requireRole(['DIRECTOR', 'ADMIN']), as
         username: true,
         firstName: true,
         lastName: true,
+        phone: true,
         isActive: true,
         location: {
           select: {
@@ -653,6 +657,260 @@ router.get('/data/locations', authenticateToken, requireRole(['DIRECTOR', 'ADMIN
   } catch (error) {
     console.error('Error fetching locations:', error);
     res.status(500).json({ message: 'Failed to fetch locations' });
+  }
+});
+
+// Crear usuario manualmente (solo admins)
+router.post('/create', authenticateToken, requireRole(['ADMIN']), async (req: AuthRequest, res: Response) => {
+  try {
+    const { 
+      firstName, 
+      lastName, 
+      email, 
+      username, 
+      phone, 
+      password, 
+      locationId, 
+      isActive, 
+      voiceTypes, 
+      role 
+    } = req.body;
+
+    // Validar campos requeridos
+    if (!firstName || !lastName || !email || !username || !password || !role) {
+      return res.status(400).json({ message: 'Missing required fields' });
+    }
+
+    // Verificar que el usuario no exista
+    const existingUser = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { email },
+          { username }
+        ]
+      }
+    });
+
+    if (existingUser) {
+      return res.status(400).json({ message: 'User with this email or username already exists' });
+    }
+
+    // Hash de la contraseña
+    const bcrypt = require('bcryptjs');
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Crear usuario
+    const newUser = await prisma.user.create({
+      data: {
+        firstName,
+        lastName,
+        email,
+        username,
+        phone: phone || null,
+        password: hashedPassword,
+        locationId: locationId || null,
+        isActive: isActive !== undefined ? isActive : true
+      }
+    });
+
+    // Asignar rol único
+    await prisma.$executeRaw`
+      INSERT INTO user_roles (id, "userId", role, "assignedBy", "createdAt")
+      VALUES (gen_random_uuid(), ${newUser.id}, ${role}::"UserRole", ${req.user!.id}, NOW())
+    `;
+
+    // Asignar tipos de voz si se proporcionaron
+    if (voiceTypes && Array.isArray(voiceTypes) && voiceTypes.length > 0) {
+      for (const voiceType of voiceTypes) {
+        await prisma.$executeRaw`
+          INSERT INTO user_voice_profiles (id, "userId", "voiceType", "assignedBy", "createdAt")
+          VALUES (gen_random_uuid(), ${newUser.id}, ${voiceType}::"VoiceType", ${req.user!.id}, NOW())
+        `;
+      }
+    }
+
+    res.status(201).json({
+      success: true,
+      message: 'User created successfully',
+      user: {
+        id: newUser.id,
+        firstName: newUser.firstName,
+        lastName: newUser.lastName,
+        email: newUser.email,
+        username: newUser.username
+      }
+    });
+
+  } catch (error) {
+    console.error('Error creating user:', error);
+    res.status(500).json({ message: 'Failed to create user' });
+  }
+});
+
+// Actualizar rol único de usuario (solo admins)
+router.put('/:userId/role', authenticateToken, requireRole(['ADMIN']), async (req: AuthRequest, res: Response) => {
+  try {
+    const { userId } = req.params;
+    const { role } = req.body;
+
+    if (!role) {
+      return res.status(400).json({ message: 'Role is required' });
+    }
+
+    // Verificar que el usuario existe
+    const user = await prisma.user.findUnique({
+      where: { id: userId }
+    });
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Eliminar todos los roles actuales del usuario
+    await prisma.$executeRaw`
+      DELETE FROM user_roles WHERE "userId" = ${userId}
+    `;
+
+    // Asignar el nuevo rol único
+    await prisma.$executeRaw`
+      INSERT INTO user_roles (id, "userId", role, "assignedBy", "createdAt")
+      VALUES (gen_random_uuid(), ${userId}, ${role}::"UserRole", ${req.user!.id}, NOW())
+    `;
+
+    res.json({
+      success: true,
+      message: 'User role updated successfully'
+    });
+
+  } catch (error) {
+    console.error('Error updating user role:', error);
+    res.status(500).json({ message: 'Failed to update user role' });
+  }
+});
+
+// Importar usuarios desde CSV (solo admins)
+router.post('/import-csv', authenticateToken, requireRole(['ADMIN']), async (req: AuthRequest, res: Response) => {
+  try {
+    const { users } = req.body;
+
+    if (!users || !Array.isArray(users)) {
+      return res.status(400).json({ message: 'Users array is required' });
+    }
+
+    const results = {
+      created: 0,
+      errors: [] as any[]
+    };
+
+    const bcrypt = require('bcryptjs');
+    const defaultPassword = 'usuario123';
+    const hashedPassword = await bcrypt.hash(defaultPassword, 10);
+
+    // Obtener todas las ubicaciones para mapeo
+    const locations = await prisma.location.findMany({
+      select: {
+        id: true,
+        name: true,
+        city: true
+      }
+    });
+
+    for (const userData of users) {
+      try {
+        const { firstName, lastName, email, username, phone, locationName, voiceTypes } = userData;
+
+        // Validar campos requeridos
+        if (!firstName || !lastName || !email || !username) {
+          results.errors.push({
+            line: userData.lineNumber,
+            error: 'Missing required fields (firstName, lastName, email, username)',
+            data: userData
+          });
+          continue;
+        }
+
+        // Verificar usuario duplicado
+        const existingUser = await prisma.user.findFirst({
+          where: {
+            OR: [
+              { email },
+              { username }
+            ]
+          }
+        });
+
+        if (existingUser) {
+          results.errors.push({
+            line: userData.lineNumber,
+            error: 'User with this email or username already exists',
+            data: userData
+          });
+          continue;
+        }
+
+        // Buscar ubicación por nombre de ciudad
+        let locationId = null;
+        if (locationName) {
+          const location = locations.find(loc => 
+            loc.city.toLowerCase() === locationName.toLowerCase() ||
+            loc.name.toLowerCase().includes(locationName.toLowerCase())
+          );
+          locationId = location?.id || null;
+        }
+
+        // Crear usuario
+        const newUser = await prisma.user.create({
+          data: {
+            firstName,
+            lastName,
+            email,
+            username,
+            phone: phone || null,
+            password: hashedPassword,
+            locationId,
+            isActive: true
+          }
+        });
+
+        // Asignar rol CANTANTE por defecto
+        await prisma.$executeRaw`
+          INSERT INTO user_roles (id, "userId", role, "assignedBy", "createdAt")
+          VALUES (gen_random_uuid(), ${newUser.id}, 'CANTANTE'::"UserRole", ${req.user!.id}, NOW())
+        `;
+
+        // Asignar tipos de voz si se proporcionaron
+        if (voiceTypes && Array.isArray(voiceTypes) && voiceTypes.length > 0) {
+          for (const voiceType of voiceTypes) {
+            if (['SOPRANO', 'MESOSOPRANO', 'CONTRALTO', 'TENOR', 'BARITONO', 'BAJO'].includes(voiceType)) {
+              await prisma.$executeRaw`
+                INSERT INTO user_voice_profiles (id, "userId", "voiceType", "assignedBy", "createdAt")
+                VALUES (gen_random_uuid(), ${newUser.id}, ${voiceType}::"VoiceType", ${req.user!.id}, NOW())
+              `;
+            }
+          }
+        }
+
+        results.created++;
+
+      } catch (userError) {
+        console.error('Error creating user:', userError);
+        results.errors.push({
+          line: userData.lineNumber,
+          error: 'Failed to create user',
+          data: userData
+        });
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Import completed. ${results.created} users created.`,
+      ...results
+    });
+
+  } catch (error) {
+    console.error('Error importing users:', error);
+    res.status(500).json({ message: 'Failed to import users' });
   }
 });
 
