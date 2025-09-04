@@ -19,6 +19,11 @@ model User {
   updatedAt             DateTime           @updatedAt
   locationId            String?
   phone                 String?
+  eventAttendance       EventAttendance[]  @relation("EventAttendance")
+  addedAttendees        EventAttendee[]    @relation("EventAttendeeAdder")
+  eventAttendees        EventAttendee[]    @relation("EventAttendees")
+  eventJoinRequests     EventJoinRequest[] @relation("EventJoinRequests")
+  createdEvents         Event[]            @relation("EventCreator")
   lyricContributions    Lyric[]
   lyricsFileUploads     LyricsFile[]       @relation("LyricsFileUploader")
   playlists             Playlist[]
@@ -125,17 +130,18 @@ model SongAssignment {
 }
 
 model Playlist {
-  id          String         @id @default(cuid())
-  name        String
-  description String?
-  userId      String
-  voiceType   VoiceType?
-  isPublic    Boolean        @default(false)
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
-  imageUrl    String?
-  items       PlaylistItem[]
-  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id             String          @id @default(cuid())
+  name           String
+  description    String?
+  userId         String
+  voiceType      VoiceType?
+  isPublic       Boolean         @default(false)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  imageUrl       String?
+  eventPlaylists EventPlaylist[]
+  items          PlaylistItem[]
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("playlists")
 }
@@ -196,20 +202,95 @@ model Location {
 }
 
 model Event {
-  id          String      @id @default(cuid())
-  title       String
-  description String?
-  date        DateTime
-  locationId  String?
-  category    String?
-  isActive    Boolean     @default(true)
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  eventSongs  EventSong[]
-  location    Location?   @relation(fields: [locationId], references: [id])
-  soloists    Soloist[]
+  id                String             @id @default(cuid())
+  title             String
+  description       String?
+  date              DateTime
+  time              String?
+  locationId        String?
+  eventCity         String?
+  eventAddress      String?
+  country           String             @default("Chile")
+  imageUrl          String?
+  mapLink           String?
+  isActive          Boolean            @default(true)
+  isPublic          Boolean            @default(true)
+  allowExternalJoin Boolean            @default(false)
+  createdBy         String
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  attendanceHistory EventAttendance[]
+  attendees         EventAttendee[]
+  joinRequests      EventJoinRequest[]
+  eventPlaylists    EventPlaylist[]
+  eventSongs        EventSong[]
+  creator           User               @relation("EventCreator", fields: [createdBy], references: [id])
+  location          Location?          @relation(fields: [locationId], references: [id])
+  soloists          Soloist[]
 
   @@map("events")
+}
+
+model EventPlaylist {
+  id         String   @id @default(cuid())
+  eventId    String
+  playlistId String
+  order      Int?
+  createdAt  DateTime @default(now())
+  event      Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  playlist   Playlist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, playlistId])
+  @@map("event_playlists")
+}
+
+model EventAttendee {
+  id          String              @id @default(cuid())
+  eventId     String
+  userId      String
+  status      EventAttendeeStatus @default(CONFIRMED)
+  addedBy     String
+  notes       String?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  addedByUser User                @relation("EventAttendeeAdder", fields: [addedBy], references: [id])
+  event       Event               @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user        User                @relation("EventAttendees", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
+  @@map("event_attendees")
+}
+
+model EventJoinRequest {
+  id        String                 @id @default(cuid())
+  eventId   String
+  userId    String
+  status    EventJoinRequestStatus @default(PENDING)
+  message   String?
+  response  String?
+  createdAt DateTime               @default(now())
+  updatedAt DateTime               @updatedAt
+  event     Event                  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user      User                   @relation("EventJoinRequests", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
+  @@map("event_join_requests")
+}
+
+model EventAttendance {
+  id          String    @id @default(cuid())
+  eventId     String
+  userId      String
+  attended    Boolean   @default(false)
+  checkedInAt DateTime?
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  event       Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user        User      @relation("EventAttendance", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
+  @@map("event_attendance")
 }
 
 model EventSong {
@@ -238,6 +319,18 @@ model Soloist {
   user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("soloists")
+}
+
+enum EventAttendeeStatus {
+  CONFIRMED
+  CANCELLED
+  NO_SHOW
+}
+
+enum EventJoinRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 enum UserRole {

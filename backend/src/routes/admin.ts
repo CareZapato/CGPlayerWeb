@@ -1,46 +1,46 @@
-import express, { Response } from 'express';
+import express, { Request, Response } from 'express';
 import { authenticateToken, requireRole, AuthRequest } from '../middleware/auth';
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import DatabaseInitializationService from '../services/databaseInitialization';
 
 const router = express.Router();
 const prisma = new PrismaClient();
 
+// Crear instancia del servicio de inicialización
+const dbInitService = new DatabaseInitializationService();
+
 // Datos para seed
 const nombres = [
-  // Nombres femeninos tradicionales
-  'María', 'Carmen', 'Josefa', 'Isabel', 'Ana', 'Francisca', 'Dolores', 'Antonia', 'Pilar', 'Teresa',
-  'Rosa', 'Concepción', 'Mercedes', 'Esperanza', 'Amparo', 'Soledad', 'Remedios', 'Milagros', 'Encarnación', 'Asunción',
-  'Cristina', 'Elena', 'Patricia', 'Laura', 'Mónica', 'Sandra', 'Beatriz', 'Rocío', 'Silvia', 'Nuria',
-  // Nombres femeninos modernos
-  'Lucía', 'Paula', 'Claudia', 'Andrea', 'Sofía', 'Valentina', 'Martina', 'Catalina', 'Fernanda', 'Javiera',
+  'Maria', 'Carmen', 'Josefa', 'Isabel', 'Ana', 'Francisca', 'Dolores', 'Antonia', 'Pilar', 'Teresa',
+  'Rosa', 'Concepcion', 'Mercedes', 'Esperanza', 'Amparo', 'Soledad', 'Remedios', 'Milagros', 'Encarnacion', 'Asuncion',
+  'Cristina', 'Elena', 'Patricia', 'Laura', 'Monica', 'Sandra', 'Beatriz', 'Rocio', 'Silvia', 'Nuria',
+  'Lucia', 'Paula', 'Claudia', 'Andrea', 'Sofia', 'Valentina', 'Martina', 'Catalina', 'Fernanda', 'Javiera',
   'Camila', 'Florencia', 'Constanza', 'Maite', 'Ignacia', 'Emilia', 'Agustina', 'Isidora', 'Amparo', 'Esperanza',
-  'Bárbara', 'Carla', 'Daniela', 'Gabriela', 'Alejandra', 'Natalia', 'Vanessa', 'Verónica', 'Carolina', 'Lorena',
-  // Nombres masculinos tradicionales
-  'José', 'Antonio', 'Manuel', 'Francisco', 'Juan', 'David', 'José Antonio', 'José Luis', 'Jesús', 'Javier',
+  'Barbara', 'Carla', 'Daniela', 'Gabriela', 'Alejandra', 'Natalia', 'Vanessa', 'Veronica', 'Carolina', 'Lorena',
+  'Jose', 'Antonio', 'Manuel', 'Francisco', 'Juan', 'David', 'Jose Antonio', 'Jose Luis', 'Jesus', 'Javier',
   'Carlos', 'Miguel', 'Rafael', 'Pedro', 'Daniel', 'Fernando', 'Alejandro', 'Sergio', 'Pablo', 'Jorge',
-  'Alberto', 'Luis', 'Álvaro', 'Roberto', 'Adrián', 'Óscar', 'Raúl', 'Rubén', 'Iván', 'Gonzalo',
-  // Nombres masculinos modernos
-  'Sebastián', 'Matías', 'Nicolás', 'Benjamín', 'Vicente', 'Tomás', 'Maximiliano', 'Cristóbal', 'Joaquín', 'Martín',
-  'Felipe', 'Diego', 'Andrés', 'Eduardo', 'Ricardo', 'Patricio', 'Rodrigo', 'Marcelo', 'Hernán', 'Claudio'
+  'Alberto', 'Luis', 'Alvaro', 'Roberto', 'Adrian', 'Oscar', 'Raul', 'Ruben', 'Ivan', 'Gonzalo',
+  'Sebastian', 'Matias', 'Nicolas', 'Benjamin', 'Vicente', 'Tomas', 'Maximiliano', 'Cristobal', 'Joaquin', 'Martin',
+  'Felipe', 'Diego', 'Andres', 'Eduardo', 'Ricardo', 'Patricio', 'Rodrigo', 'Marcelo', 'Hernan', 'Claudio'
 ];
 
 const apellidos = [
-  'García', 'González', 'Rodríguez', 'Fernández', 'López', 'Martínez', 'Sánchez', 'Pérez', 'Gómez', 'Martín',
-  'Jiménez', 'Ruiz', 'Hernández', 'Díaz', 'Moreno', 'Muñoz', 'Álvarez', 'Romero', 'Alonso', 'Gutiérrez',
-  'Navarro', 'Torres', 'Domínguez', 'Vázquez', 'Ramos', 'Gil', 'Ramírez', 'Serrano', 'Blanco', 'Suárez',
-  'Molina', 'Morales', 'Ortega', 'Delgado', 'Castro', 'Ortiz', 'Rubio', 'Marín', 'Sanz', 'Iglesias',
-  'Medina', 'Garrido', 'Cortés', 'Castillo', 'Santos', 'Lozano', 'Guerrero', 'Cano', 'Prieto', 'Méndez'
+  'Garcia', 'Gonzalez', 'Rodriguez', 'Fernandez', 'Lopez', 'Martinez', 'Sanchez', 'Perez', 'Gomez', 'Martin',
+  'Jimenez', 'Ruiz', 'Hernandez', 'Diaz', 'Moreno', 'Munoz', 'Alvarez', 'Romero', 'Alonso', 'Gutierrez',
+  'Navarro', 'Torres', 'Dominguez', 'Vazquez', 'Ramos', 'Gil', 'Ramirez', 'Serrano', 'Blanco', 'Suarez',
+  'Molina', 'Morales', 'Ortega', 'Delgado', 'Castro', 'Ortiz', 'Rubio', 'Marin', 'Sanz', 'Iglesias',
+  'Medina', 'Garrido', 'Cortes', 'Castillo', 'Santos', 'Lozano', 'Guerrero', 'Cano', 'Prieto', 'Mendez'
 ];
 
-const tiposVoz = ['SOPRANO', 'MESOSOPRANO', 'CONTRALTO', 'TENOR', 'BARITONO', 'BAJO'];
+const tiposVoz = ['SOPRANO', 'CONTRALTO', 'TENOR', 'BARITONO', 'BAJO'];
 
 const distribucionCiudades = {
   'Santiago': 90,
-  'Concepción': 45,
+  'Concepcion': 45,
   'Antofagasta': 30,
-  'Viña del Mar': 20,
-  'Valparaíso': 15,
+  'Vina del Mar': 20,
+  'Valparaiso': 15,
   'Valdivia': 15
 };
 
@@ -60,146 +60,42 @@ function generateUsername(firstName: string, lastName: string): string {
   return `${cleanFirst}.${cleanLast}`;
 }
 
-/**
- * @swagger
- * /admin/reset-database:
- *   post:
- *     summary: Resetear la base de datos completamente
- *     tags: [Admin]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Base de datos reseteada exitosamente
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                   example: Base de datos reseteada exitosamente
- *       401:
- *         description: No autorizado
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
- *       403:
- *         description: Permisos insuficientes (solo ADMIN)
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
- *       500:
- *         description: Error interno del servidor
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
- */
-// Endpoint para resetear la base de datos (solo ADMIN)
-router.post('/reset', authenticateToken, requireRole(['ADMIN']), async (req: AuthRequest, res: Response) => {
+// Endpoint para seed completo con 300+ cantantes
+router.post('/seed-full', authenticateToken, requireRole(['ADMIN']), async (req: AuthRequest, res: Response) => {
   try {
+    console.log('🌱 Iniciando seed completo con 300+ cantantes...');
 
-    // Eliminar todas las tablas en orden correcto (respetando foreign keys)
-    await prisma.$executeRaw`TRUNCATE TABLE event_songs CASCADE`;
-    await prisma.$executeRaw`TRUNCATE TABLE soloists CASCADE`;
-    await prisma.$executeRaw`TRUNCATE TABLE playlist_items CASCADE`;
-    await prisma.$executeRaw`TRUNCATE TABLE playlists CASCADE`;
-    await prisma.$executeRaw`TRUNCATE TABLE lyrics CASCADE`;
-    await prisma.$executeRaw`TRUNCATE TABLE song_assignments CASCADE`;
-    await prisma.$executeRaw`TRUNCATE TABLE songs CASCADE`;
-    await prisma.$executeRaw`TRUNCATE TABLE events CASCADE`;
-    await prisma.$executeRaw`TRUNCATE TABLE user_voice_profiles CASCADE`;
-    await prisma.$executeRaw`TRUNCATE TABLE user_roles CASCADE`;
-    await prisma.$executeRaw`TRUNCATE TABLE users CASCADE`;
-    await prisma.$executeRaw`TRUNCATE TABLE locations CASCADE`;
-
-
-    res.json({
-      success: true,
-      message: 'Base de datos reseteada exitosamente',
-      timestamp: new Date().toISOString()
-    });
-
-  } catch (error: any) {
-    console.error('❌ Error durante el reset:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error al resetear la base de datos',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-});
-
-/**
- * @swagger
- * /admin/seed:
- *   post:
- *     summary: Sembrar datos de ejemplo en la base de datos
- *     tags: [Admin]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Datos sembrados exitosamente
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: Datos sembrados exitosamente
- *                 stats:
- *                   type: object
- *                   properties:
- *                     locations:
- *                       type: number
- *                       description: Número de ubicaciones creadas
- *                     users:
- *                       type: number
- *                       description: Número de usuarios creados
- *                     events:
- *                       type: number
- *                       description: Número de eventos creados
- *       401:
- *         description: No autorizado
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
- *       403:
- *         description: Permisos insuficientes (solo ADMIN)
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
- *       500:
- *         description: Error interno del servidor
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
- */
-// Endpoint para sembrar datos
-router.post('/seed', authenticateToken, requireRole(['ADMIN']), async (req: AuthRequest, res: Response) => {
-  try {
+    // 0. Limpiar base de datos
+    console.log('🧹 Limpiando base de datos...');
+    await prisma.$transaction([
+      (prisma as any).eventAttendance.deleteMany(),
+      (prisma as any).eventPlaylist.deleteMany(),
+      (prisma as any).eventJoinRequest.deleteMany(),
+      (prisma as any).eventAttendee.deleteMany(),
+      prisma.userVoiceProfile.deleteMany(),
+      prisma.userRole_DB.deleteMany(),
+      prisma.lyricsFile.deleteMany(),
+      prisma.lyric.deleteMany(),
+      prisma.soloist.deleteMany(),
+      prisma.songAssignment.deleteMany(),
+      prisma.playlist.deleteMany(),
+      prisma.song.deleteMany(),
+      prisma.event.deleteMany(),
+      prisma.user.deleteMany(),
+      prisma.location.deleteMany()
+    ]);
 
     // 1. Crear ubicaciones
+    console.log('📍 Creando ubicaciones...');
     const locations: any[] = [];
 
     const locationData = [
       { name: 'Catedral Santiago', type: 'SANTIAGO', address: 'Plaza de Armas s/n', city: 'Santiago', region: 'Metropolitana', color: '#1e3a8a' },
-      { name: 'Viña del Mar', type: 'VINA_DEL_MAR', address: 'Plaza Vergara', city: 'Viña del Mar', region: 'Valparaíso', color: '#059669' },
-      { name: 'Valparaíso', type: 'VINA_DEL_MAR', address: 'Cerro Alegre', city: 'Valparaíso', region: 'Valparaíso', color: '#059669' },
-      { name: 'Concepción', type: 'CONCEPCION', address: 'Plaza de Armas', city: 'Concepción', region: 'Biobío', color: '#7c3aed' },
-      { name: 'Antofagasta', type: 'ANTOFAGASTA', address: 'Plaza Colón', city: 'Antofagasta', region: 'Antofagasta', color: '#dc2626' },
-      { name: 'Valdivia', type: 'VALDIVIA', address: 'Plaza de la República', city: 'Valdivia', region: 'Los Ríos', color: '#ea580c' },
+      { name: 'Vina del Mar', type: 'VINA_DEL_MAR', address: 'Plaza Vergara', city: 'Vina del Mar', region: 'Valparaiso', color: '#059669' },
+      { name: 'Valparaiso', type: 'VINA_DEL_MAR', address: 'Cerro Alegre', city: 'Valparaiso', region: 'Valparaiso', color: '#059669' },
+      { name: 'Concepcion', type: 'CONCEPCION', address: 'Plaza de Armas', city: 'Concepcion', region: 'Biobio', color: '#7c3aed' },
+      { name: 'Antofagasta', type: 'ANTOFAGASTA', address: 'Plaza Colon', city: 'Antofagasta', region: 'Antofagasta', color: '#dc2626' },
+      { name: 'Valdivia', type: 'VALDIVIA', address: 'Plaza de la Republica', city: 'Valdivia', region: 'Los Rios', color: '#ea580c' },
       { name: 'Todos los Coristas', type: 'TODOS_LOS_CORISTAS', address: 'Nacional', city: 'Nacional', region: 'Nacional', color: '#6b7280' }
     ];
 
@@ -217,173 +113,332 @@ router.post('/seed', authenticateToken, requireRole(['ADMIN']), async (req: Auth
       locations.push(location);
     }
 
-    // 2. Crear usuario administrador principal
-    const hashedAdminPassword = await bcrypt.hash('admin123', 10);
+    // 2. Crear usuarios administrativos
+    console.log('👥 Creando usuarios administrativos...');
     
-    const admin = await prisma.user.create({
+    const hashedAdminPassword = await bcrypt.hash('admin123', 10);
+    const hashedDirectorPassword = await bcrypt.hash('director123', 10);
+    const hashedTestPassword = await bcrypt.hash('test123', 10);
+    
+    // 2 Administradores
+    const admin1 = await prisma.user.create({
       data: {
         email: 'admin@cgplayer.com',
         username: 'admin',
         firstName: 'Administrador',
-        lastName: 'Sistema',
+        lastName: 'Principal',
         password: hashedAdminPassword,
-        isActive: true
+        isActive: true,
+        locationId: locations.find(l => l.city === 'Santiago')?.id
       }
     });
 
-    // Asignar rol ADMIN
-    await prisma.$executeRaw`
-      INSERT INTO user_roles (id, "userId", role, "createdAt")
-      VALUES (gen_random_uuid(), ${admin.id}, 'ADMIN'::"UserRole", NOW())
-    `;
-
-    // 3. Crear usuario admin-cantante
-    const hashedAdminSingerPassword = await bcrypt.hash('admincantante123', 10);
-    
-    const adminSinger = await prisma.user.create({
+    const admin2 = await prisma.user.create({
       data: {
-        email: 'admin.cantante@cgplayer.com',
-        username: 'admin.cantante',
-        firstName: 'Director',
-        lastName: 'Musical',
-        password: hashedAdminSingerPassword,
-        isActive: true
+        email: 'admin2@cgplayer.com',
+        username: 'admin2',
+        firstName: 'Maria Elena',
+        lastName: 'Gonzalez Perez',
+        password: hashedAdminPassword,
+        isActive: true,
+        locationId: locations.find(l => l.city === 'Valparaiso')?.id
       }
     });
 
-    // Asignar roles ADMIN y CANTANTE
+    // 3 Directores
+    const director1 = await prisma.user.create({
+      data: {
+        email: 'director@cgplayer.com',
+        username: 'director',
+        firstName: 'Carlos Maestro',
+        lastName: 'Rodriguez',
+        password: hashedDirectorPassword,
+        isActive: true,
+        locationId: locations.find(l => l.city === 'Santiago')?.id
+      }
+    });
+
+    const director2 = await prisma.user.create({
+      data: {
+        email: 'director2@cgplayer.com',
+        username: 'director2',
+        firstName: 'Ana Cristina',
+        lastName: 'Martinez',
+        password: hashedDirectorPassword,
+        isActive: true,
+        locationId: locations.find(l => l.city === 'Concepcion')?.id
+      }
+    });
+
+    const director3 = await prisma.user.create({
+      data: {
+        email: 'director3@cgplayer.com',
+        username: 'director3',
+        firstName: 'Luis Fernando',
+        lastName: 'Silva',
+        password: hashedDirectorPassword,
+        isActive: true,
+        locationId: locations.find(l => l.city === 'Vina del Mar')?.id
+      }
+    });
+
+    // 4 Cantantes de prueba
+    const testSinger1 = await prisma.user.create({
+      data: {
+        email: 'test.soprano@cgplayer.com',
+        username: 'test.soprano',
+        firstName: 'Sofia',
+        lastName: 'Cantante',
+        password: hashedTestPassword,
+        isActive: true,
+        locationId: locations.find(l => l.city === 'Santiago')?.id
+      }
+    });
+
+    const testSinger2 = await prisma.user.create({
+      data: {
+        email: 'test.alto@cgplayer.com',
+        username: 'test.alto',
+        firstName: 'Carmen',
+        lastName: 'Vocal',
+        password: hashedTestPassword,
+        isActive: true,
+        locationId: locations.find(l => l.city === 'Santiago')?.id
+      }
+    });
+
+    const testSinger3 = await prisma.user.create({
+      data: {
+        email: 'test.tenor@cgplayer.com',
+        username: 'test.tenor',
+        firstName: 'Miguel',
+        lastName: 'Tenor',
+        password: hashedTestPassword,
+        isActive: true,
+        locationId: locations.find(l => l.city === 'Santiago')?.id
+      }
+    });
+
+    const testSinger4 = await prisma.user.create({
+      data: {
+        email: 'test.bajo@cgplayer.com',
+        username: 'test.bajo',
+        firstName: 'Carlos',
+        lastName: 'Bajo',
+        password: hashedTestPassword,
+        isActive: true,
+        locationId: locations.find(l => l.city === 'Santiago')?.id
+      }
+    });
+
+    // 3. Generar 300+ cantantes distribuidos por ciudades
+    console.log('🎵 Generando 300+ cantantes...');
+    
+    const generatedUsers = [];
+    let userCount = 0;
+
+    for (const [city, count] of Object.entries(distribucionCiudades)) {
+      const cityLocation = locations.find(l => l.city === city);
+      if (!cityLocation) continue;
+
+      for (let i = 0; i < count; i++) {
+        userCount++;
+        const firstName = getRandomElement(nombres);
+        const lastName = getRandomElement(apellidos);
+        const email = generateEmail(firstName, lastName);
+        const username = generateUsername(firstName, lastName);
+        
+        const user = await prisma.user.create({
+          data: {
+            email: `${userCount}.${email}`,
+            username: `${userCount}.${username}`,
+            firstName,
+            lastName,
+            password: await bcrypt.hash('cantante123', 10),
+            isActive: Math.random() > 0.1, // 90% activos
+            locationId: cityLocation.id
+          }
+        });
+        
+        generatedUsers.push(user);
+      }
+    }
+
+    // 4. Asignar roles
+    console.log('🎭 Asignando roles...');
+    
     await prisma.$executeRaw`
       INSERT INTO user_roles (id, "userId", role, "createdAt")
       VALUES 
-        (gen_random_uuid(), ${adminSinger.id}, 'ADMIN'::"UserRole", NOW()),
-        (gen_random_uuid(), ${adminSinger.id}, 'CANTANTE'::"UserRole", NOW())
+        (gen_random_uuid(), ${admin1.id}, 'ADMIN'::"UserRole", NOW()),
+        (gen_random_uuid(), ${admin2.id}, 'ADMIN'::"UserRole", NOW()),
+        (gen_random_uuid(), ${director1.id}, 'DIRECTOR'::"UserRole", NOW()),
+        (gen_random_uuid(), ${director2.id}, 'DIRECTOR'::"UserRole", NOW()),
+        (gen_random_uuid(), ${director3.id}, 'DIRECTOR'::"UserRole", NOW()),
+        (gen_random_uuid(), ${testSinger1.id}, 'CANTANTE'::"UserRole", NOW()),
+        (gen_random_uuid(), ${testSinger2.id}, 'CANTANTE'::"UserRole", NOW()),
+        (gen_random_uuid(), ${testSinger3.id}, 'CANTANTE'::"UserRole", NOW()),
+        (gen_random_uuid(), ${testSinger4.id}, 'CANTANTE'::"UserRole", NOW())
     `;
 
-    // Asignar perfil de voz BARITONO al admin-cantante
-    await prisma.$executeRaw`
-      INSERT INTO user_voice_profiles (id, "userId", "voiceType", "createdAt")
-      VALUES (gen_random_uuid(), ${adminSinger.id}, 'BARITONO'::"VoiceType", NOW())
-    `;
+    // Asignar rol CANTANTE a todos los generados
+    for (const user of generatedUsers) {
+      await prisma.$executeRaw`
+        INSERT INTO user_roles (id, "userId", role, "createdAt")
+        VALUES (gen_random_uuid(), ${user.id}, 'CANTANTE'::"UserRole", NOW())
+      `;
+    }
 
-    // 4. Crear cantantes distribuidos por ciudades
-    let cantantesCreados = 0;
+    // 5. Asignar perfiles de voz
+    console.log('🎼 Asignando perfiles de voz...');
+    
+    // Perfiles específicos para usuarios de prueba
+    await prisma.userVoiceProfile.create({
+      data: {
+        userId: testSinger1.id,
+        voiceType: 'SOPRANO'
+      }
+    });
 
-    for (const [ciudad, cantidad] of Object.entries(distribucionCiudades)) {
-      
-      const ubicacionesCiudad = locations.filter(loc => 
-        loc.city === ciudad || (ciudad === 'Valparaíso' && loc.city === 'Valparaíso')
-      );
+    await prisma.userVoiceProfile.create({
+      data: {
+        userId: testSinger2.id,
+        voiceType: 'CONTRALTO'
+      }
+    });
 
-      for (let i = 0; i < cantidad; i++) {
-        const firstName = getRandomElement(nombres);
-        const lastName1 = getRandomElement(apellidos);
-        const lastName2 = getRandomElement(apellidos);
-        const fullLastName = `${lastName1} ${lastName2}`;
-        
-        let email = generateEmail(firstName, lastName1);
-        let username = generateUsername(firstName, lastName1);
-        
-        // Asegurar emails únicos
-        let counter = 1;
-        while (await prisma.user.findFirst({ where: { email } })) {
-          email = `${generateEmail(firstName, lastName1)}${counter}`;
-          username = `${generateUsername(firstName, lastName1)}${counter}`;
-          counter++;
+    await prisma.userVoiceProfile.create({
+      data: {
+        userId: testSinger3.id,
+        voiceType: 'TENOR'
+      }
+    });
+
+    await prisma.userVoiceProfile.create({
+      data: {
+        userId: testSinger4.id,
+        voiceType: 'BAJO'
+      }
+    });
+
+    // Perfiles aleatorios para cantantes generados
+    for (const user of generatedUsers) {
+      const voiceType = getRandomElement(tiposVoz);
+      await prisma.userVoiceProfile.create({
+        data: {
+          userId: user.id,
+          voiceType: voiceType as any
         }
-
-        const voiceType = getRandomElement(tiposVoz);
-        const ubicacion = getRandomElement(ubicacionesCiudad);
-        
-        // 15% de probabilidad de que el usuario esté inactivo
-        const isActive = Math.random() > 0.15;
-        
-        const cantantePassword = await bcrypt.hash('cantante123', 10);
-        
-        const cantante = await prisma.user.create({
-          data: {
-            email,
-            username,
-            firstName,
-            lastName: fullLastName,
-            password: cantantePassword,
-            isActive: isActive,
-            locationId: ubicacion.id
-          }
-        });
-
-        // Asignar rol CANTANTE
-        await prisma.$executeRaw`
-          INSERT INTO user_roles (id, "userId", role, "createdAt")
-          VALUES (gen_random_uuid(), ${cantante.id}, 'CANTANTE'::"UserRole", NOW())
-        `;
-
-        // Asignar perfil de voz
-        await prisma.$executeRaw`
-          INSERT INTO user_voice_profiles (id, "userId", "voiceType", "createdAt")
-          VALUES (gen_random_uuid(), ${cantante.id}, ${voiceType}::"VoiceType", NOW())
-        `;
-
-        cantantesCreados++;
-      }
+      });
     }
 
-    // 5. Crear algunos eventos base
-    const eventos = [
-      {
-        title: 'Concierto de Navidad 2025',
-        description: 'Celebración navideña con coros de todas las regiones',
-        date: new Date('2025-12-24T19:00:00Z'),
-        locationId: locations.find(l => l.city === 'Santiago')!.id,
-        category: 'Especial'
-      },
-      {
-        title: 'Festival de Pascua',
-        description: 'Celebración de la Pascua con música sacra',
-        date: new Date('2026-04-12T18:00:00Z'),
-        locationId: locations.find(l => l.city === 'Concepción')!.id,
-        category: 'Religioso'
-      },
-      {
-        title: 'Encuentro de Coros del Norte',
-        description: 'Encuentro regional de coros del norte de Chile',
-        date: new Date('2025-09-15T16:00:00Z'),
-        locationId: locations.find(l => l.city === 'Antofagasta')!.id,
-        category: 'Regional'
-      }
-    ];
-
-    for (const evento of eventos) {
-      await prisma.event.create({ data: evento });
-    }
-
-    // Estadísticas finales
-    const stats = await prisma.$transaction([
-      prisma.user.count(),
-      prisma.user.count({ where: { isActive: true } }),
-      prisma.user.count({ where: { isActive: false } }),
-      prisma.location.count(),
-      prisma.event.count()
-    ]);
-
+    const totalUsers = 2 + 3 + 4 + generatedUsers.length; // admin + directores + test + generados
 
     res.json({
       success: true,
-      message: 'Datos sembrados exitosamente',
+      message: 'Seed completo ejecutado exitosamente con 300+ cantantes',
       stats: {
-        totalUsers: stats[0],
-        activeUsers: stats[1],
-        inactiveUsers: stats[2],
-        locations: stats[3],
-        events: stats[4]
+        totalUsers,
+        activeUsers: generatedUsers.filter(u => u.isActive).length + 9, // admin+directores+test siempre activos
+        inactiveUsers: generatedUsers.filter(u => !u.isActive).length,
+        locations: locations.length,
+        byCity: distribucionCiudades,
+        administrativeUsers: {
+          admins: 2,
+          directors: 3,
+          testSingers: 4
+        }
       },
       timestamp: new Date().toISOString()
     });
 
   } catch (error: any) {
-    console.error('❌ Error durante el seed:', error);
+    console.error('❌ Error durante el seed completo:', error);
     res.status(500).json({
       success: false,
-      message: 'Error al sembrar datos',
+      message: 'Error al ejecutar seed completo',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+// Endpoint básico para seed simple (solo admin)
+router.post('/seed', authenticateToken, requireRole(['ADMIN']), async (req: AuthRequest, res: Response) => {
+  try {
+    console.log('🌱 Ejecutando seed básico...');
+    
+    // Crear solo ubicaciones y admins básicos
+    const locationSantiago = await prisma.location.create({
+      data: {
+        name: 'Santiago Principal',
+        type: 'SANTIAGO',
+        address: 'Plaza de Armas',
+        city: 'Santiago',
+        region: 'Metropolitana',
+        color: '#1e3a8a'
+      }
+    });
+
+    res.json({
+      success: true,
+      message: 'Seed básico completado',
+      stats: { locations: 1 },
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error: any) {
+    console.error('❌ Error en seed básico:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error en seed básico',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+// Endpoint para verificar estado de la base de datos
+router.get('/database-status', async (req: Request, res: Response) => {
+  try {
+    const status = await dbInitService.getDatabaseStatus();
+    
+    res.json({
+      success: true,
+      status,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error: any) {
+    console.error('❌ Error obteniendo estado de base de datos:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error obteniendo estado de base de datos',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+// Endpoint para forzar re-inicialización de base de datos
+router.post('/reinitialize-database', authenticateToken, requireRole(['ADMIN']), async (req: AuthRequest, res: Response) => {
+  try {
+    console.log('🔄 Forzando re-inicialización de base de datos...');
+    
+    const initResult = await dbInitService.initializeDatabase();
+    
+    res.json({
+      success: initResult.success,
+      message: initResult.message,
+      details: {
+        tablesCreated: initResult.tablesCreated,
+        userCreated: initResult.userCreated
+      },
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error: any) {
+    console.error('❌ Error en re-inicialización:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error en re-inicialización de base de datos',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }

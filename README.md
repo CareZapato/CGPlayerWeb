@@ -557,7 +557,43 @@ CGPlayerWeb incluye documentación completa de la API usando Swagger UI.
 - **useEffect**: Gestión automática del título de pestaña con dependencias optimizadas
 - **Error handling**: Mejor manejo de errores en playlist management
 
-## 📄 Licencia
+## � Credenciales de Prueba
+
+Para facilitar las pruebas y desarrollo, el sistema incluye usuarios predefinidos con diferentes roles:
+
+### 👑 Administradores
+| Usuario | Email | Contraseña | Ubicación |
+|---------|-------|------------|-----------|
+| admin | admin@cgplayer.com | admin123 | Santiago |
+| admin2 | admin2@cgplayer.com | admin123 | Valparaíso |
+
+### 🎼 Directores
+| Usuario | Email | Contraseña | Ubicación |
+|---------|-------|------------|-----------|
+| director.santiago | director.santiago@cgplayer.com | director123 | Santiago |
+| director.valparaiso | director.valparaiso@cgplayer.com | director123 | Valparaíso |
+| director.concepcion | director.concepcion@cgplayer.com | director123 | Concepción |
+
+### 🎤 Cantantes de Prueba
+| Usuario | Email | Contraseña | Ubicación | Tipos de Voz |
+|---------|-------|------------|-----------|--------------|
+| cantante1 | cantante1@cgplayer.com | cantante123 | Santiago | Soprano, Alto |
+| cantante2 | cantante2@cgplayer.com | cantante123 | Valparaíso | Tenor |
+| cantante3 | cantante3@cgplayer.com | cantante123 | Concepción | Soprano |
+| cantante4 | cantante4@cgplayer.com | cantante123 | Antofagasta | Barítono, Bajo |
+
+### 📊 Datos Masivos
+El sistema también incluye **más de 300 cantantes** distribuidos automáticamente en:
+- **Santiago**: 90 cantantes
+- **Concepción**: 45 cantantes  
+- **Antofagasta**: 30 cantantes
+- **Viña del Mar**: 20 cantantes
+- **Valparaíso**: 15 cantantes
+- **Valdivia**: 15 cantantes
+
+> **Nota**: Todos los cantantes masivos usan la contraseña `cantante123` y están distribuidos con tipos de voz aleatorios. Aproximadamente el 20% tiene dos tipos de voz asignados.
+
+## �📄 Licencia
 
 Este proyecto está bajo la Licencia MIT. Ver el archivo [LICENSE](LICENSE) para más detalles.
 

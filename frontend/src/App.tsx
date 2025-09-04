@@ -19,6 +19,7 @@ import UsersPage from './pages/UsersPage';
 
 // Components
 import { Layout, ProtectedRoute } from './components';
+import EventManagement from './components/Management/EventManagement';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -92,6 +93,14 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <EventsPage />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/events-management" element={
+              <ProtectedRoute allowedRoles={['ADMIN', 'DIRECTOR']}>
+                <Layout>
+                  <EventManagement />
                 </Layout>
               </ProtectedRoute>
             } />

@@ -1,0 +1,756 @@
+{
+	"info": {
+		"_postman_id": "cgplayer-seed-collection",
+		"name": "CGPlayer - Autenticación y Seed",
+		"description": "Colección para autenticación con diferentes tipos de usuario y ejecución del seed de 300+ cantantes",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{auth_token}}",
+				"type": "string"
+			}
+		]
+	},
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"exec": [
+					""
+				],
+				"type": "text/javascript"
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"exec": [
+					""
+				],
+				"type": "text/javascript"
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://192.168.1.10:3001/api",
+			"type": "string"
+		},
+		{
+			"key": "auth_token",
+			"value": "",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "🔐 Autenticación",
+			"item": [
+				{
+					"name": "Login - ADMIN",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Extraer y guardar el token automáticamente",
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    if (jsonData.token) {",
+									"        pm.collectionVariables.set('auth_token', jsonData.token);",
+									"        console.log('Token guardado automáticamente:', jsonData.token.substring(0, 20) + '...');",
+									"    }",
+									"    ",
+									"    // Mostrar información del usuario",
+									"    if (jsonData.user) {",
+									"        console.log('Usuario autenticado:');",
+									"        console.log('- Nombre:', jsonData.user.firstName, jsonData.user.lastName);",
+									"        console.log('- Email:', jsonData.user.email);",
+									"        console.log('- Roles:', jsonData.user.roles);",
+									"        console.log('- Ubicación:', jsonData.user.location);",
+									"    }",
+									"}",
+									"",
+									"// Test de respuesta exitosa",
+									"pm.test('Login exitoso', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Token recibido', function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.token).to.not.be.undefined;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"login\": \"admin@cgplayer.local\",\n  \"password\": \"cgplayer2025\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/login",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"login"
+							]
+						},
+						"description": "Login como Administrador Principal\n\n**Credenciales por defecto (creadas automáticamente):**\n- Login: admin@cgplayer.local (puede usar email o username)\n- Password: cgplayer2025\n- Rol: ADMIN\n- Ubicación: Santiago Centro\n\n**Nota:** Estas credenciales se crean automáticamente cuando la aplicación no encuentra tablas en la base de datos.\n\n**Campo login:** Acepta tanto email como username."
+					},
+					"response": []
+				},
+				{
+					"name": "Login - ADMIN (por Username)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Extraer y guardar el token automáticamente",
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    if (jsonData.token) {",
+									"        pm.collectionVariables.set('auth_token', jsonData.token);",
+									"        console.log('Token guardado automáticamente:', jsonData.token.substring(0, 20) + '...');",
+									"    }",
+									"    ",
+									"    // Mostrar información del usuario",
+									"    if (jsonData.user) {",
+									"        console.log('Usuario autenticado:');",
+									"        console.log('- Nombre:', jsonData.user.firstName, jsonData.user.lastName);",
+									"        console.log('- Email:', jsonData.user.email);",
+									"        console.log('- Username:', jsonData.user.username);",
+									"        console.log('- Roles:', jsonData.user.roles);",
+									"        console.log('- Ubicación:', jsonData.user.location);",
+									"    }",
+									"}",
+									"",
+									"// Test de respuesta exitosa",
+									"pm.test('Login exitoso', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Token recibido', function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.token).to.not.be.undefined;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"login\": \"admin_principal\",\n  \"password\": \"cgplayer2025\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/login",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"login"
+							]
+						},
+						"description": "Login usando el USERNAME del administrador\n\n**Credenciales por defecto:**\n- Login: admin_principal (username)\n- Password: cgplayer2025\n- Rol: ADMIN\n- Ubicación: Santiago Centro\n\n**Ventaja:** Más corto que el email para pruebas rápidas."
+					},
+					"response": []
+				},
+				{
+					"name": "Login - DIRECTOR",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Extraer y guardar el token automáticamente",
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    if (jsonData.token) {",
+									"        pm.collectionVariables.set('auth_token', jsonData.token);",
+									"        console.log('Token guardado automáticamente:', jsonData.token.substring(0, 20) + '...');",
+									"    }",
+									"    ",
+									"    // Mostrar información del usuario",
+									"    if (jsonData.user) {",
+									"        console.log('Usuario autenticado:');",
+									"        console.log('- Nombre:', jsonData.user.firstName, jsonData.user.lastName);",
+									"        console.log('- Email:', jsonData.user.email);",
+									"        console.log('- Roles:', jsonData.user.roles);",
+									"        console.log('- Ubicación:', jsonData.user.location);",
+									"    }",
+									"}",
+									"",
+									"// Test de respuesta exitosa",
+									"pm.test('Login exitoso', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Token recibido', function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.token).to.not.be.undefined;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"login\": \"director@cgplayer.com\",\n  \"password\": \"director123\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/login",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"login"
+							]
+						},
+						"description": "Login como Director de Coro\n\n**Credenciales:**\n- Login: director@cgplayer.com\n- Password: director123\n- Rol: DIRECTOR\n- Ubicación: Santiago\n\n**Nota:** Solo disponible después de ejecutar el seed completo."
+					},
+					"response": []
+				},
+				{
+					"name": "Login - CANTANTE",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Extraer y guardar el token automáticamente",
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    if (jsonData.token) {",
+									"        pm.collectionVariables.set('auth_token', jsonData.token);",
+									"        console.log('Token guardado automáticamente:', jsonData.token.substring(0, 20) + '...');",
+									"    }",
+									"    ",
+									"    // Mostrar información del usuario",
+									"    if (jsonData.user) {",
+									"        console.log('Usuario autenticado:');",
+									"        console.log('- Nombre:', jsonData.user.firstName, jsonData.user.lastName);",
+									"        console.log('- Email:', jsonData.user.email);",
+									"        console.log('- Roles:', jsonData.user.roles);",
+									"        console.log('- Ubicación:', jsonData.user.location);",
+									"        console.log('- Tipo de voz:', jsonData.user.voiceProfiles);",
+									"    }",
+									"}",
+									"",
+									"// Test de respuesta exitosa",
+									"pm.test('Login exitoso', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Token recibido', function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.token).to.not.be.undefined;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"login\": \"test.soprano@cgplayer.com\",\n  \"password\": \"test123\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/login",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"login"
+							]
+						},
+						"description": "Login como Cantante de Prueba\n\n**Credenciales:**\n- Login: test.soprano@cgplayer.com\n- Password: test123\n- Rol: CANTANTE\n- Tipo de Voz: SOPRANO\n- Ubicación: Santiago\n\n**Nota:** Solo disponible después de ejecutar el seed completo."
+					},
+					"response": []
+				}
+			],
+			"description": "Endpoints para autenticación con diferentes tipos de usuario. Cada login guarda automáticamente el token en las variables de la colección."
+		},
+		{
+			"name": "🎪 Events (Público)",
+			"item": [
+				{
+					"name": "Obtener eventos públicos",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/events?page=1&limit=10",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "events"],
+							"query": [
+								{
+									"key": "page",
+									"value": "1",
+									"description": "Página actual"
+								},
+								{
+									"key": "limit",
+									"value": "10",
+									"description": "Eventos por página"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Obtener evento específico",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/events/EVENT_ID_AQUI",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "events", "EVENT_ID_AQUI"]
+						}
+					}
+				}
+			],
+			"description": "Endpoints públicos para consultar eventos. No requieren autenticación."
+		},
+		{
+			"name": "🌱 Administración - Seed Database",
+			"item": [
+				{
+					"name": "Ejecutar Seed Completo (300+ Cantantes)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Test de respuesta exitosa",
+									"pm.test('Seed ejecutado exitosamente', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Respuesta contiene estadísticas', function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.stats).to.not.be.undefined;",
+									"    pm.expect(jsonData.stats.totalUsers).to.be.above(300);",
+									"});",
+									"",
+									"// Mostrar estadísticas detalladas",
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    console.log('=== SEED EJECUTADO EXITOSAMENTE ===');",
+									"    console.log('Mensaje:', jsonData.message);",
+									"    ",
+									"    if (jsonData.stats) {",
+									"        console.log('\\n📊 ESTADÍSTICAS:');",
+									"        console.log('- Total usuarios:', jsonData.stats.totalUsers);",
+									"        console.log('- Usuarios activos:', jsonData.stats.activeUsers);",
+									"        console.log('- Usuarios inactivos:', jsonData.stats.inactiveUsers);",
+									"        console.log('- Ubicaciones:', jsonData.stats.locations);",
+									"        ",
+									"        console.log('\\n🏙️ DISTRIBUCIÓN POR CIUDAD:');",
+									"        Object.entries(jsonData.stats.byCity).forEach(([city, count]) => {",
+									"            console.log(`- ${city}: ${count} cantantes`);",
+									"        });",
+									"        ",
+									"        console.log('\\n👥 USUARIOS ADMINISTRATIVOS:');",
+									"        console.log('- Administradores:', jsonData.stats.administrativeUsers.admins);",
+									"        console.log('- Directores:', jsonData.stats.administrativeUsers.directors);",
+									"        console.log('- Cantantes de prueba:', jsonData.stats.administrativeUsers.testSingers);",
+									"    }",
+									"    ",
+									"    console.log('\\nTimestamp:', jsonData.timestamp);",
+									"} else {",
+									"    console.log('❌ Error en el seed:', pm.response.text());",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Verificar que hay un token de autenticación",
+									"const token = pm.collectionVariables.get('auth_token');",
+									"if (!token) {",
+									"    console.log('⚠️ No hay token de autenticación. Ejecuta primero un login como ADMIN.');",
+									"    // No cancelamos la request para que se vea el error 401",
+									"} else {",
+									"    console.log('✅ Token encontrado, ejecutando seed...');",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{auth_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{}"
+						},
+						"url": {
+							"raw": "{{base_url}}/admin/seed-full",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"admin",
+								"seed-full"
+							]
+						},
+						"description": "**⚠️ REQUIERE AUTENTICACIÓN COMO ADMIN**\n\nEste endpoint ejecuta el seed completo de la base de datos, creando:\n\n**👥 Usuarios Administrativos (9 usuarios):**\n- 2 Administradores\n- 3 Directores \n- 4 Cantantes de prueba\n\n**🎵 300+ Cantantes distribuidos por ciudades:**\n- Santiago: 90 cantantes\n- Concepción: 45 cantantes\n- Antofagasta: 30 cantantes\n- Viña del Mar: 20 cantantes\n- Valparaíso: 15 cantantes\n- Valdivia: 15 cantantes\n\n**📍 Ubicaciones:**\n- 7 ubicaciones en Chile\n\n**🎼 Perfiles de voz:**\n- Asignación automática de tipos de voz\n- Roles asignados correctamente\n\n**⏱️ Tiempo estimado:** 30-60 segundos\n\n**📋 Antes de ejecutar:**\n1. Hacer login como ADMIN\n2. Verificar que el token esté guardado\n3. Ejecutar este endpoint"
+					},
+					"response": []
+				},
+				{
+					"name": "Seed Básico (Solo Admin)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Seed básico ejecutado', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    console.log('Seed básico ejecutado:', jsonData.message);",
+									"    console.log('Estadísticas:', JSON.stringify(jsonData.stats, null, 2));",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{auth_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{}"
+						},
+						"url": {
+							"raw": "{{base_url}}/admin/seed",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"admin",
+								"seed"
+							]
+						},
+						"description": "Seed básico que crea solo ubicaciones básicas y administradores"
+					},
+					"response": []
+				},
+				{
+					"name": "Estado de Base de Datos",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Estado obtenido exitosamente', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    console.log('=== ESTADO DE BASE DE DATOS ===');",
+									"    console.log('Estado obtenido:', jsonData.success);",
+									"    ",
+									"    if (jsonData.status) {",
+									"        console.log('\\n📊 ESTADÍSTICAS:');",
+									"        console.log('- Usuarios:', jsonData.status.users);",
+									"        console.log('- Ubicaciones:', jsonData.status.locations);",
+									"        console.log('- Roles asignados:', jsonData.status.roles);",
+									"        console.log('- Canciones:', jsonData.status.songs);",
+									"        console.log('- Playlists:', jsonData.status.playlists);",
+									"        console.log('- Administradores:', jsonData.status.admins);",
+									"        console.log('- Inicializada:', jsonData.status.isInitialized ? '✅ Sí' : '❌ No');",
+									"        ",
+									"        if (jsonData.status.error) {",
+									"            console.log('⚠️ Error:', jsonData.status.error);",
+									"        }",
+									"    }",
+									"    ",
+									"    console.log('\\nTimestamp:', jsonData.timestamp);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/admin/database-status",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"admin",
+								"database-status"
+							]
+						},
+						"description": "**ℹ️ NO REQUIERE AUTENTICACIÓN**\n\nObtiene el estado actual de la base de datos, incluyendo:\n\n📊 **Estadísticas:**\n- Número de usuarios\n- Número de ubicaciones\n- Número de roles asignados\n- Número de canciones\n- Número de playlists\n- Número de administradores\n- Estado de inicialización\n\n🔍 **Uso:**\n- Verificar si la base de datos está inicializada\n- Obtener estadísticas rápidas\n- Diagnóstico de problemas\n\n⚡ **Respuesta rápida:** Este endpoint no requiere autenticación y es muy rápido"
+					},
+					"response": []
+				},
+				{
+					"name": "Re-inicializar Base de Datos",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Re-inicialización ejecutada', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    console.log('=== RE-INICIALIZACIÓN COMPLETADA ===');",
+									"    console.log('Éxito:', jsonData.success);",
+									"    console.log('Mensaje:', jsonData.message);",
+									"    ",
+									"    if (jsonData.details) {",
+									"        console.log('\\n📋 DETALLES:');",
+									"        console.log('- Tablas creadas:', jsonData.details.tablesCreated ? '✅ Sí' : '⚪ No');",
+									"        console.log('- Usuario creado:', jsonData.details.userCreated ? '✅ Sí' : '⚪ No');",
+									"    }",
+									"    ",
+									"    console.log('\\nTimestamp:', jsonData.timestamp);",
+									"} else {",
+									"    console.log('❌ Error en re-inicialización:', pm.response.text());",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"const token = pm.collectionVariables.get('auth_token');",
+									"if (!token) {",
+									"    console.log('⚠️ No hay token de autenticación. Ejecuta primero un login como ADMIN.');",
+									"} else {",
+									"    console.log('✅ Token encontrado, ejecutando re-inicialización...');",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{auth_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{}"
+						},
+						"url": {
+							"raw": "{{base_url}}/admin/reinitialize-database",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"admin",
+								"reinitialize-database"
+							]
+						},
+						"description": "**⚠️ REQUIERE AUTENTICACIÓN COMO ADMIN**\n\nFuerza la re-inicialización de la base de datos, verificando y creando:\n\n🏗️ **Estructura:**\n- Verifica que las tablas existan\n- Crea tablas si no existen (usando migraciones de Prisma)\n\n👤 **Usuario por defecto:**\n- Verifica que exista un administrador\n- Crea usuario admin@cgplayer.local si no existe\n\n🔧 **Cuándo usar:**\n- Después de resetear la base de datos\n- Si las tablas se corrompen\n- Para crear el usuario administrador por defecto\n- En desarrollo para reiniciar desde cero\n\n⚠️ **Importante:** Este endpoint NO borra datos existentes, solo crea lo que falta"
+					},
+					"response": []
+				}
+			],
+			"description": "Endpoints administrativos para poblar la base de datos con datos de prueba"
+		},
+		{
+			"name": "📊 Verificación de Datos",
+			"item": [
+				{
+					"name": "Obtener Usuarios",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{auth_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/users",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"users"
+							]
+						},
+						"description": "Obtener lista de usuarios para verificar que el seed funcionó"
+					},
+					"response": []
+				},
+				{
+					"name": "Obtener Ubicaciones",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{auth_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/locations",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"locations"
+							]
+						},
+						"description": "Obtener lista de ubicaciones"
+					},
+					"response": []
+				},
+				{
+					"name": "Perfil del Usuario Actual",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{auth_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/auth/profile",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"auth",
+								"profile"
+							]
+						},
+						"description": "Obtener información del usuario autenticado actualmente"
+					},
+					"response": []
+				}
+			],
+			"description": "Endpoints para verificar que los datos se crearon correctamente"
+		}
+	]
+}

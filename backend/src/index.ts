@@ -18,9 +18,13 @@ import dashboardRoutes from './routes/dashboard';
 import adminRoutes from './routes/admin';
 import { swaggerUi, specs } from './config/swagger';
 import { prisma } from './utils/prisma';
+import DatabaseInitializationService from './services/databaseInitialization';
 
 // Cargar variables de entorno
 dotenv.config();
+
+// Crear instancia del servicio de inicialización
+const dbInitService = new DatabaseInitializationService();
 
 // Usar IP configurada desde variables de entorno o detectar automáticamente
 const getLocalIP = (): string => {
@@ -233,16 +237,54 @@ app.use('*', (req, res) => {
 });
 
 app.listen(PORT_NUMBER, HOST, async () => {
-
+  console.log(`🚀 Servidor iniciado exitosamente!`);
+  console.log(`📡 Backend corriendo en: http://${HOST}:${PORT_NUMBER}`);
+  console.log(`📚 API Docs disponibles en: http://${HOST}:${PORT_NUMBER}/api-docs`);
   
-  // Verificar conexión a base de datos
+  // Inicialización automática de base de datos
+  console.log('\n🔧 Iniciando verificación de base de datos...');
+  
   try {
-    await prisma.$connect();
-    const userCount = await prisma.user.count();
-    const locationCount = await prisma.location.count();
-    } catch (error) {
-    console.error('❌ Error conectando a base de datos:', error);
+    // Verificar y auto-inicializar la base de datos
+    const initResult = await dbInitService.initializeDatabase();
+    
+    if (initResult.success) {
+      console.log(`✅ ${initResult.message}`);
+      
+      if (initResult.tablesCreated) {
+        console.log('🏗️ Estructura de base de datos creada');
+      }
+      
+      if (initResult.userCreated) {
+        console.log('👤 Usuario administrador creado automáticamente');
+      }
+      
+      // Mostrar estadísticas actuales
+      const status = await dbInitService.getDatabaseStatus();
+      console.log(`📊 Estado actual: ${status.users} usuarios, ${status.locations} ubicaciones, ${status.admins} administradores`);
+      
+    } else {
+      console.error(`❌ Error en inicialización: ${initResult.message}`);
+      if (initResult.error) {
+        console.error(`   Detalle: ${initResult.error}`);
+      }
+    }
+    
+  } catch (error: any) {
+    console.error('❌ Error durante la inicialización automática:', error.message);
+    
+    // Intentar conexión básica como fallback
+    try {
+      await prisma.$connect();
+      const userCount = await prisma.user.count();
+      const locationCount = await prisma.location.count();
+      console.log(`⚠️ Conexión básica establecida - ${userCount} usuarios, ${locationCount} ubicaciones`);
+    } catch (fallbackError: any) {
+      console.error('❌ Error crítico de base de datos:', fallbackError.message);
+    }
   }
+  
+  console.log('\n🎵 CGPlayerWeb Backend listo para recibir peticiones');
 });
 
 // Manejo graceful del cierre del proceso

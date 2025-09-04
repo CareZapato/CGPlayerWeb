@@ -1,127 +1,65 @@
-import express, { Request, Response } from 'express';
+import express from 'express';
 import { PrismaClient } from '@prisma/client';
-import { authenticateToken, AuthRequest } from '../middleware/auth';
+import { authenticateToken, requireRole, AuthRequest } from '../middleware/auth';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
 
-const prisma = new PrismaClient();
 const router = express.Router();
+const prisma = new PrismaClient();
 
-/**
- * @swagger
- * /events:
- *   get:
- *     summary: Obtener todos los eventos
- *     tags: [Events]
- *     parameters:
- *       - name: locationId
- *         in: query
- *         description: Filtrar por ID de ubicación
- *         required: false
- *         schema:
- *           type: string
- *       - name: category
- *         in: query
- *         description: Filtrar por categoría
- *         required: false
- *         schema:
- *           type: string
- *       - name: upcoming
- *         in: query
- *         description: Solo eventos futuros
- *         required: false
- *         schema:
- *           type: string
- *           enum: [true, false]
- *     responses:
- *       200:
- *         description: Lista de eventos obtenida exitosamente
- *         content:
- *           application/json:
- *             schema:
- *               type: array
- *               items:
- *                 allOf:
- *                   - $ref: '#/components/schemas/Event'
- *                   - type: object
- *                     properties:
- *                       location:
- *                         $ref: '#/components/schemas/Location'
- *       500:
- *         description: Error interno del servidor
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
- */
-// Obtener todos los eventos
-router.get('/', async (req: Request, res: Response) => {
+// Crear directorio de uploads si no existe
+const uploadsDir = path.join(__dirname, '../../uploads/events');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+// Configuración de multer para subida de imágenes
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadsDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, 'event-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({ 
+  storage,
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Solo se permiten imágenes'));
+    }
+  },
+  limits: { fileSize: 5 * 1024 * 1024 } // 5MB
+});
+
+// GET /api/events/public - Obtener solo eventos públicos que permiten solicitudes externas
+router.get('/public', async (req, res) => {
   try {
-    const { locationId, category, upcoming } = req.query;
-    
-    const where: any = { isActive: true };
-    
-    if (locationId) {
-      where.locationId = locationId;
-    }
-    
-    if (category) {
-      where.category = category;
-    }
-    
-    if (upcoming === 'true') {
-      where.date = { gte: new Date() };
-    }
-
     const events = await prisma.event.findMany({
-      where,
+      where: { 
+        isPublic: true,
+        allowExternalJoin: true,
+        isActive: true,
+        date: { gte: new Date() }
+      },
       include: {
         location: true,
-        eventSongs: {
-          include: {
-            song: {
-              include: {
-                uploader: {
-                  select: {
-                    id: true,
-                    firstName: true,
-                    lastName: true
-                  }
-                }
-              }
-            }
-          },
-          orderBy: { order: 'asc' }
-        },
-        soloists: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                firstName: true,
-                lastName: true,
-                voiceProfiles: {
-                  select: {
-                    voiceType: true
-                  }
-                }
-              }
-            },
-            song: {
-              select: {
-                id: true,
-                title: true,
-                artist: true
-              }
-            }
-          }
+        creator: {
+          select: { firstName: true, lastName: true }
         },
         _count: {
           select: {
-            eventSongs: true,
-            soloists: true
+            attendees: true,
+            joinRequests: { where: { status: 'PENDING' } }
           }
         }
       },
-      orderBy: { date: upcoming === 'true' ? 'asc' : 'desc' }
+      orderBy: { date: 'asc' }
     });
 
     res.json({
@@ -129,362 +67,622 @@ router.get('/', async (req: Request, res: Response) => {
       data: events
     });
   } catch (error) {
-    console.error('Error fetching events:', error);
-    res.status(500).json({ message: 'Failed to fetch events' });
+    console.error('Error fetching public events:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al obtener eventos públicos'
+    });
   }
 });
 
-// Crear nuevo evento (solo ADMIN)
-router.post('/', authenticateToken, async (req: AuthRequest, res: Response) => {
+// GET /api/events/my - Obtener eventos del usuario actual
+router.get('/my', authenticateToken, async (req: AuthRequest, res) => {
   try {
-    // Verificar roles del usuario
-    const hasPermission = req.user!.roles.some((role: string) => ['ADMIN'].includes(role));
-    if (!hasPermission) {
-      return res.status(403).json({ message: 'Insufficient permissions' });
-    }
+    const userId = req.user!.id;
 
-    const { title, description, date, locationId, category } = req.body;
+    const events = await prisma.event.findMany({
+      where: {
+        OR: [
+          { createdBy: userId },
+          { attendees: { some: { userId } } }
+        ],
+        isActive: true
+      },
+      include: {
+        location: true,
+        creator: {
+          select: { firstName: true, lastName: true }
+        },
+        attendees: {
+          include: {
+            user: {
+              select: { firstName: true, lastName: true, locationId: true }
+            }
+          }
+        },
+        _count: {
+          select: {
+            attendees: true,
+            joinRequests: { where: { status: 'PENDING' } }
+          }
+        }
+      },
+      orderBy: { date: 'asc' }
+    });
+
+    res.json({
+      success: true,
+      data: events
+    });
+  } catch (error) {
+    console.error('Error fetching user events:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al obtener eventos del usuario'
+    });
+  }
+});
+
+// GET /api/events/management/all - Obtener todos los eventos para gestión (admin/director)
+router.get('/management/all', authenticateToken, requireRole(['ADMIN', 'DIRECTOR']), async (req: AuthRequest, res) => {
+  try {
+    const events = await prisma.event.findMany({
+      where: { isActive: true },
+      include: {
+        location: true,
+        creator: {
+          select: { firstName: true, lastName: true }
+        },
+        attendees: {
+          include: {
+            user: {
+              select: { 
+                id: true,
+                firstName: true, 
+                lastName: true, 
+                locationId: true,
+                location: { select: { name: true } },
+                assignedRoles: { select: { role: true } }
+              }
+            },
+            addedByUser: {
+              select: { firstName: true, lastName: true }
+            }
+          }
+        },
+        joinRequests: {
+          where: { status: 'PENDING' },
+          include: {
+            user: {
+              select: { 
+                firstName: true, 
+                lastName: true, 
+                locationId: true,
+                assignedRoles: { select: { role: true } }
+              }
+            }
+          }
+        },
+        _count: {
+          select: {
+            attendees: true,
+            joinRequests: { where: { status: 'PENDING' } }
+          }
+        }
+      },
+      orderBy: { date: 'asc' }
+    });
+
+    res.json({
+      success: true,
+      data: events
+    });
+  } catch (error) {
+    console.error('Error fetching events for management:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al obtener eventos'
+    });
+  }
+});
+
+// POST /api/events - Crear nuevo evento (admin/director)
+router.post('/', authenticateToken, requireRole(['ADMIN', 'DIRECTOR']), upload.single('image'), async (req: AuthRequest, res) => {
+  try {
+    const {
+      title,
+      description,
+      date,
+      time,
+      locationId,
+      eventCity,
+      eventAddress,
+      country = 'Chile',
+      mapLink,
+      isPublic = false,
+      allowExternalJoin = false,
+      attendeeUserIds = '[]',
+      choirLocationIds = '[]'
+    } = req.body;
+
+    const userId = req.user!.id;
 
     if (!title || !date) {
-      return res.status(400).json({ 
-        message: 'Title and date are required' 
+      return res.status(400).json({
+        success: false,
+        message: 'Título y fecha son requeridos'
       });
     }
 
+    // Crear el evento
+    const eventData: any = {
+      title,
+      description,
+      date: new Date(date),
+      time,
+      eventCity,
+      eventAddress,
+      country,
+      mapLink,
+      isPublic: Boolean(isPublic),
+      allowExternalJoin: Boolean(allowExternalJoin),
+      createdBy: userId
+    };
+
+    if (locationId) {
+      eventData.locationId = locationId;
+    }
+
+    if (req.file) {
+      eventData.imageUrl = `/uploads/events/${req.file.filename}`;
+    }
+
     const event = await prisma.event.create({
-      data: {
-        title,
-        description,
-        date: new Date(date),
-        locationId,
-        category
-      },
+      data: eventData
+    });
+
+    // Agregar asistentes individuales
+    const individualAttendees = JSON.parse(attendeeUserIds as string);
+    if (individualAttendees.length > 0) {
+      await prisma.eventAttendee.createMany({
+        data: individualAttendees.map((attendeeId: string) => ({
+          eventId: event.id,
+          userId: attendeeId,
+          addedBy: userId,
+          status: 'CONFIRMED'
+        })),
+        skipDuplicates: true
+      });
+    }
+
+    // Agregar todos los cantantes de ubicaciones específicas (coros completos)
+    const choirLocationIds_parsed = JSON.parse(choirLocationIds as string);
+    if (choirLocationIds_parsed.length > 0) {
+      const choirMembers = await prisma.user.findMany({
+        where: {
+          locationId: { in: choirLocationIds_parsed },
+          isActive: true,
+          assignedRoles: {
+            some: {
+              role: { in: ['CANTANTE', 'DIRECTOR'] }
+            }
+          }
+        },
+        select: { id: true }
+      });
+
+      if (choirMembers.length > 0) {
+        await prisma.eventAttendee.createMany({
+          data: choirMembers.map(member => ({
+            eventId: event.id,
+            userId: member.id,
+            addedBy: userId,
+            status: 'CONFIRMED'
+          })),
+          skipDuplicates: true
+        });
+      }
+    }
+
+    // Obtener el evento completo para la respuesta
+    const completeEvent = await prisma.event.findUnique({
+      where: { id: event.id },
       include: {
-        location: true
+        location: true,
+        creator: {
+          select: { firstName: true, lastName: true }
+        },
+        attendees: {
+          include: {
+            user: {
+              select: { firstName: true, lastName: true, locationId: true }
+            }
+          }
+        },
+        _count: {
+          select: { attendees: true }
+        }
       }
     });
 
     res.status(201).json({
       success: true,
-      message: 'Event created successfully',
-      data: event
+      message: 'Evento creado exitosamente',
+      data: completeEvent
     });
   } catch (error) {
     console.error('Error creating event:', error);
-    res.status(500).json({ message: 'Failed to create event' });
+    res.status(500).json({
+      success: false,
+      message: 'Error al crear evento'
+    });
   }
 });
 
-// Obtener evento por ID
-router.get('/:id', async (req: Request, res: Response) => {
+// GET /api/events/locations/singers - Obtener cantantes por ubicación para selección masiva
+router.get('/locations/singers', authenticateToken, requireRole(['ADMIN', 'DIRECTOR']), async (req: AuthRequest, res) => {
   try {
-    const { id } = req.params;
-
-    const event = await prisma.event.findUnique({
-      where: { id },
+    const locations = await prisma.location.findMany({
+      where: { isActive: true },
       include: {
-        location: true,
-        eventSongs: {
-          include: {
-            song: {
-              include: {
-                uploader: {
-                  select: {
-                    id: true,
-                    firstName: true,
-                    lastName: true
-                  }
-                },
-                childVersions: {
-                  include: {
-                    uploader: {
-                      select: {
-                        id: true,
-                        firstName: true,
-                        lastName: true
-                      }
-                    }
-                  }
-                }
+        users: {
+          where: {
+            isActive: true,
+            assignedRoles: {
+              some: {
+                role: { in: ['CANTANTE', 'DIRECTOR'] }
               }
             }
           },
-          orderBy: { order: 'asc' }
-        },
-        soloists: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                firstName: true,
-                lastName: true,
-                voiceProfiles: {
-                  select: {
-                    voiceType: true
-                  }
-                }
-              }
-            },
-            song: {
-              select: {
-                id: true,
-                title: true,
-                artist: true
-              }
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            assignedRoles: {
+              select: { role: true }
             }
           }
+        },
+        _count: {
+          select: { users: true }
         }
-      }
+      },
+      orderBy: { name: 'asc' }
+    });
+
+    res.json({
+      success: true,
+      data: locations
+    });
+  } catch (error) {
+    console.error('Error fetching singers by location:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al obtener cantantes por ubicación'
+    });
+  }
+});
+
+// GET /api/events/search/singers - Búsqueda en tiempo real de cantantes
+router.get('/search/singers', authenticateToken, requireRole(['ADMIN', 'DIRECTOR']), async (req: AuthRequest, res) => {
+  try {
+    const { query } = req.query;
+    
+    if (!query || (query as string).length < 2) {
+      return res.json({
+        success: true,
+        data: []
+      });
+    }
+
+    const singers = await prisma.user.findMany({
+      where: {
+        isActive: true,
+        assignedRoles: {
+          some: {
+            role: { in: ['CANTANTE', 'DIRECTOR'] }
+          }
+        },
+        OR: [
+          { firstName: { contains: query as string, mode: 'insensitive' } },
+          { lastName: { contains: query as string, mode: 'insensitive' } },
+          { email: { contains: query as string, mode: 'insensitive' } }
+        ]
+      },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        locationId: true,
+        location: {
+          select: { name: true }
+        },
+        assignedRoles: {
+          select: { role: true }
+        },
+        voiceProfiles: {
+          select: { voiceType: true }
+        }
+      },
+      take: 20,
+      orderBy: [
+        { firstName: 'asc' },
+        { lastName: 'asc' }
+      ]
+    });
+
+    res.json({
+      success: true,
+      data: singers
+    });
+  } catch (error) {
+    console.error('Error searching singers:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al buscar cantantes'
+    });
+  }
+});
+
+// POST /api/events/:id/attendees - Agregar asistentes a un evento
+router.post('/:id/attendees', authenticateToken, requireRole(['ADMIN', 'DIRECTOR']), async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+    const { userIds = [], choirLocationIds = [] } = req.body;
+    const userId = req.user!.id;
+
+    const event = await prisma.event.findUnique({
+      where: { id }
     });
 
     if (!event) {
-      return res.status(404).json({ message: 'Event not found' });
+      return res.status(404).json({
+        success: false,
+        message: 'Evento no encontrado'
+      });
+    }
+
+    const attendeesToAdd: string[] = [...userIds];
+
+    // Agregar cantantes de ubicaciones completas
+    if (choirLocationIds.length > 0) {
+      const choirMembers = await prisma.user.findMany({
+        where: {
+          locationId: { in: choirLocationIds },
+          isActive: true,
+          assignedRoles: {
+            some: {
+              role: { in: ['CANTANTE', 'DIRECTOR'] }
+            }
+          }
+        },
+        select: { id: true }
+      });
+
+      attendeesToAdd.push(...choirMembers.map(member => member.id));
+    }
+
+    // Remover duplicados
+    const uniqueAttendees = [...new Set(attendeesToAdd)];
+
+    if (uniqueAttendees.length > 0) {
+      await prisma.eventAttendee.createMany({
+        data: uniqueAttendees.map(attendeeId => ({
+          eventId: id,
+          userId: attendeeId,
+          addedBy: userId,
+          status: 'CONFIRMED'
+        })),
+        skipDuplicates: true
+      });
     }
 
     res.json({
       success: true,
-      data: event
+      message: `${uniqueAttendees.length} asistente(s) agregado(s) exitosamente`
     });
   } catch (error) {
-    console.error('Error fetching event:', error);
-    res.status(500).json({ message: 'Failed to fetch event' });
+    console.error('Error adding attendees:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al agregar asistentes'
+    });
   }
 });
 
-// Actualizar evento (solo ADMIN)
-router.put('/:id', authenticateToken, async (req: AuthRequest, res: Response) => {
+// DELETE /api/events/:id/attendees/:userId - Remover asistente específico
+router.delete('/:id/attendees/:userId', authenticateToken, requireRole(['ADMIN', 'DIRECTOR']), async (req: AuthRequest, res) => {
   try {
-    const hasPermission = req.user!.roles.some((role: string) => ['ADMIN'].includes(role));
-    if (!hasPermission) {
-      return res.status(403).json({ message: 'Insufficient permissions' });
-    }
+    const { id, userId } = req.params;
 
-    const { title, description, date, locationId, category } = req.body;
+    const event = await prisma.event.findUnique({
+      where: { id }
+    });
 
-    if (!title || !date) {
-      return res.status(400).json({ 
-        message: 'Title and date are required' 
+    if (!event) {
+      return res.status(404).json({
+        success: false,
+        message: 'Evento no encontrado'
       });
     }
 
-    const event = await prisma.event.create({
-      data: {
-        title,
-        description,
-        date: new Date(date),
-        locationId,
-        category
+    await prisma.eventAttendee.delete({
+      where: {
+        eventId_userId: {
+          eventId: id,
+          userId: userId
+        }
+      }
+    });
+
+    res.json({
+      success: true,
+      message: 'Asistente removido exitosamente'
+    });
+  } catch (error) {
+    console.error('Error removing attendee:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al remover asistente'
+    });
+  }
+});
+
+// POST /api/events/:id/join-request - Solicitar unirse a un evento público
+router.post('/:id/join-request', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+    const { message } = req.body;
+    const userId = req.user!.id;
+
+    const event = await prisma.event.findUnique({
+      where: { id }
+    });
+
+    if (!event) {
+      return res.status(404).json({
+        success: false,
+        message: 'Evento no encontrado'
+      });
+    }
+
+    if (!event.isPublic || !event.allowExternalJoin) {
+      return res.status(403).json({
+        success: false,
+        message: 'Este evento no permite solicitudes externas'
+      });
+    }
+
+    // Verificar si ya es asistente
+    const existingAttendee = await prisma.eventAttendee.findUnique({
+      where: {
+        eventId_userId: {
+          eventId: id,
+          userId
+        }
+      }
+    });
+
+    if (existingAttendee) {
+      return res.status(400).json({
+        success: false,
+        message: 'Ya estás registrado en este evento'
+      });
+    }
+
+    // Verificar si ya tiene solicitud pendiente
+    const existingRequest = await prisma.eventJoinRequest.findUnique({
+      where: {
+        eventId_userId: {
+          eventId: id,
+          userId
+        }
+      }
+    });
+
+    if (existingRequest && existingRequest.status === 'PENDING') {
+      return res.status(400).json({
+        success: false,
+        message: 'Ya tienes una solicitud pendiente para este evento'
+      });
+    }
+
+    const joinRequest = await prisma.eventJoinRequest.upsert({
+      where: {
+        eventId_userId: {
+          eventId: id,
+          userId
+        }
+      },
+      update: {
+        message,
+        status: 'PENDING'
+      },
+      create: {
+        eventId: id,
+        userId,
+        message,
+        status: 'PENDING'
       },
       include: {
-        location: true
+        user: {
+          select: { firstName: true, lastName: true, locationId: true }
+        }
       }
     });
 
     res.status(201).json({
       success: true,
-      message: 'Event created successfully',
-      data: event
+      message: 'Solicitud enviada exitosamente',
+      data: joinRequest
     });
   } catch (error) {
-    console.error('Error creating event:', error);
-    res.status(500).json({ message: 'Failed to create event' });
+    console.error('Error creating join request:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al enviar solicitud'
+    });
   }
 });
 
-// Actualizar evento (solo ADMIN)
-router.put('/:id', authenticateToken, async (req: AuthRequest, res: Response) => {
+// PUT /api/events/:id/join-requests/:requestId - Responder a solicitud de unión
+router.put('/:id/join-requests/:requestId', authenticateToken, requireRole(['ADMIN', 'DIRECTOR']), async (req: AuthRequest, res) => {
   try {
-    const hasPermission = req.user!.roles.some((role: string) => ['ADMIN'].includes(role));
-    if (!hasPermission) {
-      return res.status(403).json({ message: 'Insufficient permissions' });
+    const { id, requestId } = req.params;
+    const { status, response } = req.body;
+    const userId = req.user!.id;
+
+    if (!['APPROVED', 'REJECTED'].includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Estado inválido'
+      });
     }
 
-    const { id } = req.params;
-    const { title, description, date, locationId, category, isActive } = req.body;
+    const joinRequest = await prisma.eventJoinRequest.findUnique({
+      where: { id: requestId },
+      include: { event: true }
+    });
 
-    const event = await prisma.event.update({
-      where: { id },
+    if (!joinRequest || joinRequest.eventId !== id) {
+      return res.status(404).json({
+        success: false,
+        message: 'Solicitud no encontrada'
+      });
+    }
+
+    const updatedRequest = await prisma.eventJoinRequest.update({
+      where: { id: requestId },
       data: {
-        ...(title && { title }),
-        ...(description !== undefined && { description }),
-        ...(date && { date: new Date(date) }),
-        ...(locationId !== undefined && { locationId }),
-        ...(category !== undefined && { category }),
-        ...(isActive !== undefined && { isActive })
-      },
-      include: {
-        location: true
+        status,
+        response
       }
     });
 
-    res.json({
-      success: true,
-      message: 'Event updated successfully',
-      data: event
-    });
-  } catch (error) {
-    console.error('Error updating event:', error);
-    res.status(500).json({ message: 'Failed to update event' });
-  }
-});
-
-// Agregar canciones al evento (solo ADMIN)
-router.post('/:id/songs', authenticateToken, async (req: AuthRequest, res: Response) => {
-  try {
-    const hasPermission = req.user!.roles.some((role: string) => ['ADMIN'].includes(role));
-    if (!hasPermission) {
-      return res.status(403).json({ message: 'Insufficient permissions' });
-    }
-
-    const { id } = req.params;
-    const { songs } = req.body; // Array de { songId, order, notes }
-
-    if (!Array.isArray(songs)) {
-      return res.status(400).json({ message: 'Songs must be an array' });
-    }
-
-    // Eliminar canciones existentes del evento
-    await prisma.eventSong.deleteMany({
-      where: { eventId: id }
-    });
-
-    // Agregar nuevas canciones
-    const eventSongs = await prisma.eventSong.createMany({
-      data: songs.map((song: any) => ({
-        eventId: id,
-        songId: song.songId,
-        order: song.order,
-        notes: song.notes
-      }))
-    });
-
-    res.json({
-      success: true,
-      message: 'Event songs updated successfully',
-      data: { created: eventSongs.count }
-    });
-  } catch (error) {
-    console.error('Error updating event songs:', error);
-    res.status(500).json({ message: 'Failed to update event songs' });
-  }
-});
-
-// Agregar/actualizar solistas del evento (solo ADMIN)
-router.post('/:id/soloists', authenticateToken, async (req: AuthRequest, res: Response) => {
-  try {
-    const hasPermission = req.user!.roles.some((role: string) => ['ADMIN'].includes(role));
-    if (!hasPermission) {
-      return res.status(403).json({ message: 'Insufficient permissions' });
-    }
-
-    const { id } = req.params;
-    const { soloists } = req.body; // Array de { userId, songId?, soloistType, notes? }
-
-    if (!Array.isArray(soloists)) {
-      return res.status(400).json({ message: 'Soloists must be an array' });
-    }
-
-    // Eliminar solistas existentes del evento
-    await prisma.soloist.deleteMany({
-      where: { eventId: id }
-    });
-
-    // Agregar nuevos solistas
-    const eventSoloists = await prisma.soloist.createMany({
-      data: soloists.map((soloist: any) => ({
-        eventId: id,
-        userId: soloist.userId,
-        songId: soloist.songId || null,
-        soloistType: soloist.soloistType,
-        notes: soloist.notes
-      }))
-    });
-
-    res.json({
-      success: true,
-      message: 'Event soloists updated successfully',
-      data: { created: eventSoloists.count }
-    });
-  } catch (error) {
-    console.error('Error updating event soloists:', error);
-    res.status(500).json({ message: 'Failed to update event soloists' });
-  }
-});
-
-// Eliminar evento (solo ADMIN)
-router.delete('/:id', authenticateToken, async (req: AuthRequest, res: Response) => {
-  try {
-    const hasAdminRole = req.user!.roles.some((role: string) => role === 'ADMIN');
-    if (!hasAdminRole) {
-      return res.status(403).json({ message: 'Access denied' });
-    }
-
-    const { id } = req.params;
-
-    // Soft delete para preservar historial
-    await prisma.event.update({
-      where: { id },
-      data: { isActive: false }
-    });
-
-    res.json({
-      success: true,
-      message: 'Event deleted successfully'
-    });
-  } catch (error) {
-    console.error('Error deleting event:', error);
-    res.status(500).json({ message: 'Failed to delete event' });
-  }
-});
-
-// Obtener estadísticas de eventos
-router.get('/stats/summary', async (req: Request, res: Response) => {
-  try {
-    const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-
-    const [totalEvents, upcomingEvents, thisMonthEvents, categories] = await Promise.all([
-      prisma.event.count({ where: { isActive: true } }),
-      prisma.event.count({ 
-        where: { 
-          isActive: true, 
-          date: { gte: now } 
-        } 
-      }),
-      prisma.event.count({
-        where: {
-          isActive: true,
-          date: {
-            gte: startOfMonth,
-            lte: endOfMonth
-          }
+    // Si se acepta la solicitud, agregar como asistente
+    if (status === 'APPROVED') {
+      await prisma.eventAttendee.create({
+        data: {
+          eventId: id,
+          userId: joinRequest.userId,
+          addedBy: userId,
+          status: 'CONFIRMED'
         }
-      }),
-      prisma.event.groupBy({
-        by: ['category'],
-        where: { isActive: true },
-        _count: true
-      })
-    ]);
-
-    const categoryStats = categories.reduce((acc: Record<string, number>, item: any) => {
-      acc[item.category || 'Sin categoría'] = item._count;
-      return acc;
-    }, {});
+      });
+    }
 
     res.json({
       success: true,
-      data: {
-        totalEvents,
-        upcomingEvents,
-        thisMonthEvents,
-        categoryStats
-      }
+      message: `Solicitud ${status === 'APPROVED' ? 'aceptada' : 'rechazada'} exitosamente`,
+      data: updatedRequest
     });
   } catch (error) {
-    console.error('Error fetching event stats:', error);
-    res.status(500).json({ message: 'Failed to fetch event stats' });
+    console.error('Error responding to join request:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al responder solicitud'
+    });
   }
 });
 

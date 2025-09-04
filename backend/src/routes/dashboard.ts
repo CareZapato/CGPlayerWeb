@@ -190,7 +190,6 @@ router.get('/stats', authenticateToken, async (req: AuthRequest, res: Response) 
       select: {
         id: true,
         title: true,
-        category: true,
         date: true,
         location: {
           select: {
@@ -218,9 +217,8 @@ router.get('/stats', authenticateToken, async (req: AuthRequest, res: Response) 
         recentEvents: recentEvents.map(event => ({
           id: event.id,
           title: event.title,
-          category: event.category,
           dateTime: event.date,
-          location: event.location
+          location: event.location?.name || 'Sin ubicación'
         })),
         // Metadatos para el frontend
         isFiltered: isDirector && !isAdmin,
