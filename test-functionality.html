@@ -7,7 +7,7 @@
     <h1>CGPlayer Functionality Test</h1>
     
     <h2>1. Test Album Song Playback</h2>
-    <p>Go to: <a href="http://192.168.1.11:5173/albums" target="_blank">Albums Page</a></p>
+    <p>Go to: <span id="albums-link">Loading...</span></p>
     <p>Instructions: Click on "Blood" card, then click "Play" button and verify it starts playing.</p>
     
     <h2>2. Test Lyrics Display</h2>
@@ -17,6 +17,22 @@
     <p>Instructions: Click on a song card's menu (three dots) and select "Add to Queue".</p>
     
     <script>
+        // Detectar la URL base automáticamente
+        const currentHost = window.location.hostname;
+        const API_BASE = currentHost === 'localhost' || currentHost === '127.0.0.1' 
+            ? 'http://localhost:3001/api' 
+            : `http://${currentHost}:3001/api`;
+        
+        const FRONTEND_BASE = currentHost === 'localhost' || currentHost === '127.0.0.1' 
+            ? 'http://localhost:5173' 
+            : `http://${currentHost}:5173`;
+        
+        // Actualizar el enlace de albums dinámicamente
+        document.addEventListener('DOMContentLoaded', function() {
+            const albumsLink = document.getElementById('albums-link');
+            albumsLink.innerHTML = `<a href="${FRONTEND_BASE}/albums" target="_blank">Albums Page</a>`;
+        });
+
         // Simple JavaScript to test API endpoints
         async function testAPI() {
             const token = localStorage.getItem('token');
@@ -29,7 +45,7 @@
             
             // Test songs endpoint
             try {
-                const songsResponse = await fetch('http://192.168.1.11:3001/api/songs?includeVersions=false', {
+                const songsResponse = await fetch(`${API_BASE}/songs?includeVersions=false`, {
                     headers: {
                         'Authorization': `Bearer ${token}`,
                         'Content-Type': 'application/json'
@@ -43,7 +59,7 @@
                     console.log('🎵 Testing first song:', firstSong.title, 'ID:', firstSong.id);
                     
                     // Test versions endpoint
-                    const versionsResponse = await fetch(`http://192.168.1.11:3001/api/songs/${firstSong.id}/versions`, {
+                    const versionsResponse = await fetch(`${API_BASE}/songs/${firstSong.id}/versions`, {
                         headers: {
                             'Authorization': `Bearer ${token}`,
                             'Content-Type': 'application/json'
@@ -53,7 +69,7 @@
                     console.log('✅ Versions API working:', versionsData.versions?.length || 0, 'versions found');
                     
                     // Test lyrics endpoint
-                    const lyricsResponse = await fetch(`http://192.168.1.11:3001/api/lyrics/${firstSong.id}`, {
+                    const lyricsResponse = await fetch(`${API_BASE}/lyrics/${firstSong.id}`, {
                         headers: {
                             'Authorization': `Bearer ${token}`,
                             'Content-Type': 'application/json'
@@ -63,7 +79,7 @@
                     console.log('✅ Lyrics API working:', lyricsData.success ? 'Success' : 'Failed');
                     
                     // Test synced lyrics endpoint
-                    const syncedResponse = await fetch(`http://192.168.1.11:3001/api/lyrics/${firstSong.id}/sync`, {
+                    const syncedResponse = await fetch(`${API_BASE}/lyrics/${firstSong.id}/sync`, {
                         headers: {
                             'Authorization': `Bearer ${token}`,
                             'Content-Type': 'application/json'

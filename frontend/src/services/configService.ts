@@ -20,25 +20,29 @@ class ConfigService {
       return this._apiBaseUrl;
     }
 
-    // Si hay una variable de entorno definida, usarla
-    if (import.meta.env.VITE_API_URL) {
-      this._apiBaseUrl = import.meta.env.VITE_API_URL;
+    // Si hay una variable de entorno definida, usarla (tiene prioridad)
+    if (import.meta.env.VITE_API_BASE_URL) {
+      this._apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
       return this._apiBaseUrl as string;
     }
 
     // Detectar automáticamente basado en el hostname actual
     const currentHostname = window.location.hostname;
+    const port = import.meta.env.VITE_SERVER_PORT || '3001';
     
     if (currentHostname === 'localhost' || currentHostname === '127.0.0.1') {
       // Estamos en localhost
-      this._apiBaseUrl = 'http://localhost:3001/api';
+      this._apiBaseUrl = `http://localhost:${port}`;
     } else {
-      // Estamos en la red (probablemente móvil)
-      this._apiBaseUrl = 'http://192.168.1.11:3001/api';
+      // Estamos en la red - usar IP desde variable de entorno o detectar automáticamente
+      const serverIP = import.meta.env.VITE_SERVER_IP || currentHostname;
+      this._apiBaseUrl = `http://${serverIP}:${port}`;
     }
 
     console.log('🌐 [CONFIG] API Base URL detected:', {
       hostname: currentHostname,
+      serverIP: import.meta.env.VITE_SERVER_IP,
+      port: port,
       apiUrl: this._apiBaseUrl
     });
 
@@ -52,7 +56,9 @@ class ConfigService {
     const baseUrl = this.getApiBaseUrl();
     const token = includeToken ? localStorage.getItem('token') : null;
     
-    const url = `${baseUrl}${endpoint.startsWith('/') ? '' : '/'}${endpoint}`;
+    // Agregar /api si el endpoint no lo incluye
+    const apiPath = endpoint.startsWith('/api/') ? endpoint : `/api${endpoint.startsWith('/') ? '' : '/'}${endpoint}`;
+    const url = `${baseUrl}${apiPath}`;
     
     if (token && includeToken) {
       const separator = url.includes('?') ? '&' : '?';

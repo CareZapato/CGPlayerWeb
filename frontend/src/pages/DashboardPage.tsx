@@ -44,6 +44,13 @@ interface DashboardData {
     voiceType: string;
     count: number;
     activeCount: number;
+    users: {
+      id: string;
+      firstName: string;
+      lastName: string;
+      email: string;
+      isActive: boolean;
+    }[];
   }[];
   recentEvents: {
     id: string;
@@ -80,7 +87,7 @@ const DashboardPage: React.FC = () => {
       setLoading(true);
       setError(null);
       
-      const response = await fetch(getApiUrl('/api/dashboard/stats'), {
+      const response = await fetch(getApiUrl('/dashboard/stats'), {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -140,11 +147,12 @@ const DashboardPage: React.FC = () => {
         users: vd.users
       })) || [];
     }
+    // ✅ FIXED: Ahora también muestra usuarios en la vista global
     return data?.globalVoiceDistribution.map(gvd => ({
       voiceType: gvd.voiceType,
       count: gvd.count,
       activeCount: gvd.activeCount,
-      users: []
+      users: gvd.users || []
     })) || [];
   };
 

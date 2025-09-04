@@ -179,7 +179,7 @@ const UsersPage: React.FC = () => {
   // Cargar ubicaciones
   const fetchLocations = async () => {
     try {
-      const response = await fetch(getApiUrl('/api/users/data/locations'), {
+      const response = await fetch(getApiUrl('/users/data/locations'), {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }

@@ -3,7 +3,11 @@ console.log('🩸 [BLOOD TEST] Test específico para letras de Blood...');
 
 async function testBloodLyricsSpecific() {
   const token = localStorage.getItem('token');
-  const API_BASE = 'http://192.168.1.11:3001/api';
+  // Detectar la URL base automáticamente
+  const currentHost = window.location.hostname;
+  const API_BASE = currentHost === 'localhost' || currentHost === '127.0.0.1' 
+    ? 'http://localhost:3001/api' 
+    : `http://${currentHost}:3001/api`;
   
   if (!token) {
     console.error('❌ [BLOOD TEST] No hay token');

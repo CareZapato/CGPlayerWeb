@@ -33,7 +33,12 @@ export const API_CONFIG = {
 };
 
 export const getApiUrl = (endpoint: string): string => {
-  return `${API_CONFIG.BASE_URL}${endpoint}`;
+  // Si el endpoint ya incluye /api, no lo duplicamos
+  if (endpoint.startsWith('/api/')) {
+    return `${API_CONFIG.BASE_URL}${endpoint}`;
+  }
+  // Si no incluye /api, lo agregamos
+  return `${API_CONFIG.BASE_URL}/api${endpoint}`;
 };
 
 export const getFileUrl = (filePath: string): string => {

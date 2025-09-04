@@ -22,16 +22,25 @@ import { prisma } from './utils/prisma';
 // Cargar variables de entorno
 dotenv.config();
 
-// Obtener IP local para acceso móvil
+// Usar IP configurada desde variables de entorno o detectar automáticamente
 const getLocalIP = (): string => {
+  // Usar IP desde variables de entorno si está disponible
+  if (process.env.SERVER_IP) {
+    console.log('📍 Usando IP desde variables de entorno:', process.env.SERVER_IP);
+    return process.env.SERVER_IP;
+  }
+
+  // Fallback a detección automática
   const interfaces = os.networkInterfaces();
   for (const name of Object.keys(interfaces)) {
     for (const iface of interfaces[name]!) {
       if (iface.family === 'IPv4' && !iface.internal) {
+        console.log('📍 IP detectada automáticamente:', iface.address);
         return iface.address;
       }
     }
   }
+  console.log('📍 Usando localhost como fallback');
   return 'localhost';
 };
 
@@ -39,6 +48,11 @@ const PORT_NUMBER = Number(process.env.PORT) || 3001;
 const HOST = process.env.HOST || '0.0.0.0';
 const LOCAL_IP = getLocalIP();
 
+console.log('🌐 CONFIGURACIÓN DE RED:');
+console.log(`   📍 IP Local: ${LOCAL_IP}`);
+console.log(`   🚪 Puerto: ${PORT_NUMBER}`);
+console.log(`   🔗 Frontend URL: http://${LOCAL_IP}:5173`);
+console.log(`   🔗 Backend URL: http://${LOCAL_IP}:${PORT_NUMBER}`);
 
 const app = express();
 

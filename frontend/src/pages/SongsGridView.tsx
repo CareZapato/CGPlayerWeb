@@ -40,7 +40,7 @@ const SongsGridView: React.FC = () => {
 
         // La API /songs ya aplica el filtrado por rol automáticamente
         // Solo necesitamos obtener las canciones principales
-        const response = await fetch(getApiUrl('/api/songs?includeVersions=false'), {
+        const response = await fetch(getApiUrl('/songs?includeVersions=false'), {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'

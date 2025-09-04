@@ -81,7 +81,7 @@ const SongsPage: React.FC = () => {
 
   const fetchSongs = async () => {
     try {
-      const response = await fetch(getApiUrl('/api/songs?includeVersions=true'), {
+      const response = await fetch(getApiUrl('/songs?includeVersions=true'), {
         headers: {
           'Authorization': `Bearer ${token}`
         }

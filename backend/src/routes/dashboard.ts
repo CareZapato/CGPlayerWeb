@@ -136,10 +136,14 @@ router.get('/stats', authenticateToken, async (req: AuthRequest, res: Response) 
       };
     }).filter(Boolean); // Eliminar ubicaciones null (sin usuarios)
 
-    // Obtener distribución global de tipos de voz
-    const allUsers = await prisma.user.findMany({
+    // Obtener distribución global de tipos de voz con usuarios incluidos
+    const allUsersDetailed = await prisma.user.findMany({
       where: locationFilter,
       select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
         isActive: true,
         voiceProfiles: {
           select: {
@@ -149,23 +153,31 @@ router.get('/stats', authenticateToken, async (req: AuthRequest, res: Response) 
       }
     });
 
-    const globalVoiceStats: Record<string, { count: number; activeCount: number }> = {};
-    allUsers.forEach(user => {
+    const globalVoiceStats: Record<string, { count: number; activeCount: number; users: any[] }> = {};
+    allUsersDetailed.forEach(user => {
       user.voiceProfiles.forEach(vp => {
         if (!globalVoiceStats[vp.voiceType]) {
-          globalVoiceStats[vp.voiceType] = { count: 0, activeCount: 0 };
+          globalVoiceStats[vp.voiceType] = { count: 0, activeCount: 0, users: [] };
         }
         globalVoiceStats[vp.voiceType].count++;
         if (user.isActive) {
           globalVoiceStats[vp.voiceType].activeCount++;
         }
+        globalVoiceStats[vp.voiceType].users.push({
+          id: user.id,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          email: user.email,
+          isActive: user.isActive
+        });
       });
     });
 
     const globalVoiceDistribution = Object.entries(globalVoiceStats).map(([voiceType, data]) => ({
       voiceType,
       count: data.count,
-      activeCount: data.activeCount
+      activeCount: data.activeCount,
+      users: data.users
     }));
 
     // Eventos recientes

@@ -10,7 +10,7 @@ Este proyecto incluye documentación completa de la API usando Swagger/OpenAPI 3
 
 ### Acceso desde Red Local
 - **URL**: http://[IP_LOCAL]:3001/api-docs
-- **Ejemplo**: http://192.168.1.218:3001/api-docs
+- **Ejemplo**: http://[TU_IP]:3001/api-docs
 
 ## Características de la Documentación
 

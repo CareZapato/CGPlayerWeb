@@ -26,7 +26,7 @@ const SongDetailModal: React.FC<SongDetailModalProps> = ({ song, color, onClose 
 
       try {
         setLoading(true);
-        const response = await fetch(getApiUrl('/api/songs?includeVersions=false'), {
+        const response = await fetch(getApiUrl('/songs?includeVersions=false'), {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'

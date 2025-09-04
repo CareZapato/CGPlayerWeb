@@ -27,7 +27,7 @@ class LyricsService {
     try {
       console.log('🌐 [LYRICS SERVICE] Requesting lyrics for songId:', songId);
       
-      const response = await fetch(`${configService.getApiBaseUrl()}/lyrics/${songId}`, {
+      const response = await fetch(`${configService.getApiBaseUrl()}/api/lyrics/${songId}`, {
         headers: this.getAuthHeaders()
       });
       
@@ -75,7 +75,7 @@ class LyricsService {
   // Actualizar letras de texto (tipo TEXT)
   async updateTextLyrics(songId: string, content: string, voiceType?: VoiceType | null): Promise<SongWithLyrics> {
     try {
-      const response = await fetch(`${configService.getApiBaseUrl()}/lyrics/${songId}/text`, {
+      const response = await fetch(`${configService.getApiBaseUrl()}/api/lyrics/${songId}/text`, {
         method: 'PUT',
         headers: this.getAuthHeaders(),
         body: JSON.stringify({ content, voiceType })
@@ -99,7 +99,7 @@ class LyricsService {
       const formData = new FormData();
       formData.append('lyrics', file);
       
-      const response = await fetch(`${configService.getApiBaseUrl()}/lyrics/${songId}/file`, {
+      const response = await fetch(`${configService.getApiBaseUrl()}/api/lyrics/${songId}/file`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -122,7 +122,7 @@ class LyricsService {
   // Eliminar letras
   async deleteLyrics(songId: string): Promise<{ success: boolean; message: string }> {
     try {
-      const response = await fetch(`${configService.getApiBaseUrl()}/lyrics/${songId}`, {
+      const response = await fetch(`${configService.getApiBaseUrl()}/api/lyrics/${songId}`, {
         method: 'DELETE',
         headers: this.getAuthHeaders()
       });
@@ -143,7 +143,7 @@ class LyricsService {
     try {
       console.log('🌐 [LYRICS SERVICE] Requesting synced lyrics for songId:', songId);
       
-      const response = await fetch(`${configService.getApiBaseUrl()}/lyrics/${songId}/sync`, {
+      const response = await fetch(`${configService.getApiBaseUrl()}/api/lyrics/${songId}/sync`, {
         headers: this.getAuthHeaders()
       });
       
@@ -188,7 +188,7 @@ class LyricsService {
   // Actualizar sincronización de letras
   async updateLyricsSync(songId: string, syncData: LyricsSyncData[]): Promise<Lyric[]> {
     try {
-      const response = await fetch(`${configService.getApiBaseUrl()}/lyrics/${songId}/sync`, {
+      const response = await fetch(`${configService.getApiBaseUrl()}/api/lyrics/${songId}/sync`, {
         method: 'PUT',
         headers: this.getAuthHeaders(),
         body: JSON.stringify({ syncData })
@@ -208,7 +208,7 @@ class LyricsService {
   // Actualizar sincronización de letras con auto-sincronización entre variantes
   async updateLyricsSyncWithVariants(songId: string, syncData: LyricsSyncData[]): Promise<Lyric[]> {
     try {
-      const response = await fetch(`${configService.getApiBaseUrl()}/lyrics/${songId}/sync-variants`, {
+      const response = await fetch(`${configService.getApiBaseUrl()}/api/lyrics/${songId}/sync-variants`, {
         method: 'PUT',
         headers: this.getAuthHeaders(),
         body: JSON.stringify({ syncData })
