@@ -5,6 +5,61 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto se adhiere al [Versionado Semántico](https://semver.org/lang/es/).
 
+## [0.9.0] - 2025-09-05
+
+### 🎯 **NUEVA FUNCIONALIDAD PRINCIPAL: Sistema de Edición Avanzada de Eventos**
+
+#### 🔧 **Editor de Eventos Completo**
+- **Edición de eventos existentes**: Modificación completa de eventos ya creados con todas sus propiedades
+- **Carga automática de datos**: Los eventos se cargan con toda su información incluyendo asistentes y música
+- **Sincronización de variaciones musicales**: Sistema inteligente que detecta y carga automáticamente las variaciones de canciones
+- **Preservación de relaciones**: Mantiene intactas las relaciones entre eventos, asistentes y música durante la edición
+
+#### 🎵 **Sistema de Variaciones Musicales Mejorado**
+- **Detección automática en modo edición**: Identifica automáticamente las variaciones musicales cuando se edita un evento
+- **Panel de variaciones inteligente**: Muestra las variaciones de cada canción en el panel derecho durante la edición
+- **Carga de canciones padre**: Sistema que carga automáticamente las canciones padre necesarias para mostrar variaciones
+- **Función especializada para edición**: `updateVariationsInfoForEditMode()` optimizada específicamente para el modo de edición
+
+#### 🔄 **Arquitectura de Carga Mejorada**
+- **Carga completa de eventos**: Al editar, se carga el evento completo con `eventSongs` desde el backend
+- **API optimizada**: Endpoint GET `/events/:id` incluye toda la información necesaria para edición
+- **Fallback robusto**: Sistema de respaldo que maneja errores de carga gracefully
+- **Logs de debugging**: Sistema completo de logs para troubleshooting y monitoreo
+
+#### 📝 **Gestión de Estado Refinada**
+- **useEffect especializado**: Efectos dedicados para manejar la carga de datos en modo edición
+- **Condiciones inteligentes**: Lógica mejorada para detectar cuándo usar funciones de edición vs. creación
+- **Sincronización de estado**: Coordinación perfecta entre `selectedSongs`, `variationsInfo` y datos del evento
+- **Persistencia de cambios**: Los cambios realizados se mantienen durante toda la sesión de edición
+
+### 🐛 **Correcciones Críticas**
+
+#### 🔍 **Problemas de Edición de Eventos**
+- **Eventos sin canciones en edición**: Corregido el problema donde los eventos no mostraban sus canciones al editarlos
+- **Variaciones no detectadas**: Solucionado el issue donde las variaciones no aparecían en el panel derecho
+- **Carga incompleta de datos**: Arreglado el problema de carga parcial de eventos desde la lista de gestión
+- **Estado inconsistente**: Eliminados los estados contradictorios entre diferentes partes del modal
+
+#### 🛡 **Estabilidad del Sistema**
+- **Prevención de crashes**: Mejor manejo de datos `undefined` o `null`
+- **Fallbacks robustos**: Sistemas de respaldo para cuando fallan las cargas primarias
+- **Validación estricta**: Verificación completa de tipos y estructuras de datos
+- **Error boundaries**: Contenedores de errores para prevenir propagación de fallos
+
+### 🚀 **Mejoras Técnicas**
+
+#### 🛠 **Backend Optimizations**
+- **Inclusión completa de relaciones**: El endpoint GET `/events/:id` incluye `eventSongs` con datos completos
+- **Estructura de datos consistente**: Formato uniforme en todas las respuestas de la API
+- **Performance mejorado**: Consultas optimizadas para cargar eventos con todas sus relaciones
+
+#### ⚡ **Frontend Enhancements**
+- **Componente unificado**: `CreateEventModal` maneja tanto creación como edición de eventos
+- **Estado centralizado**: Gestión mejorada del estado con hooks especializados
+- **Render optimizado**: Reducción de re-renders innecesarios
+- **TypeScript mejorado**: Tipado más estricto y preciso para mejor developer experience
+
 ## [0.8.0] - 2025-09-03
 
 ### 🎵 **NUEVA FUNCIONALIDAD PRINCIPAL: Sistema de Letras Sincronizadas Avanzado**

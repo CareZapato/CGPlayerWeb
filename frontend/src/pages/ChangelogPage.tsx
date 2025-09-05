@@ -15,6 +15,60 @@ interface ChangelogEntry {
 
 const changelogData: ChangelogEntry[] = [
   {
+    version: '0.9.0',
+    date: '2025-09-05',
+    type: 'major',
+    title: 'Sistema de Edición Avanzada de Eventos - Event Management Mastery',
+    highlights: [
+      'Editor de eventos completo con carga automática de datos',
+      'Sincronización inteligente de variaciones musicales',
+      'Panel de variaciones avanzado en modo edición',
+      'Sistema robusto de debugging y logs',
+      'Gestión de estado refinada para máxima estabilidad'
+    ],
+    changes: [
+      {
+        category: 'added',
+        items: [
+          'Sistema completo de edición de eventos existentes con preservación de relaciones',
+          'Carga automática de datos: eventos se cargan con asistentes y música completa',
+          'Función especializada updateVariationsInfoForEditMode() para modo edición',
+          'Panel de variaciones inteligente que muestra variaciones en tiempo real',
+          'Sistema de logs comprehensivo para debugging y monitoreo',
+          'Carga de canciones padre automática para mostrar variaciones',
+          'useEffect especializado para manejar carga de datos en edición',
+          'API optimizada: GET /events/:id incluye eventSongs completos'
+        ]
+      },
+      {
+        category: 'improved',
+        items: [
+          'Componente CreateEventModal unificado para creación y edición',
+          'Gestión de estado centralizada con hooks especializados',
+          'Detección automática de variaciones musicales en modo edición',
+          'Condiciones inteligentes para usar funciones de edición vs. creación',
+          'Sincronización perfecta entre selectedSongs, variationsInfo y datos del evento',
+          'Performance mejorado con render optimizado y menos re-renders',
+          'TypeScript más estricto para mejor developer experience',
+          'Sistema de fallbacks robusto para manejo de errores'
+        ]
+      },
+      {
+        category: 'fixed',
+        items: [
+          'Corregido problema donde eventos no mostraban canciones al editarlos',
+          'Solucionado issue donde variaciones no aparecían en panel derecho',
+          'Arreglado problema de carga parcial de eventos desde lista de gestión',
+          'Eliminados estados contradictorios entre partes del modal',
+          'Corregido manejo de datos undefined o null que causaban crashes',
+          'Solucionados problemas de validación de tipos y estructuras',
+          'Arreglados error boundaries para prevenir propagación de fallos',
+          'Corregida sincronización entre modo edición y funciones de variaciones'
+        ]
+      }
+    ]
+  },
+  {
     version: '0.8.0',
     date: '2025-09-03',
     type: 'major',
@@ -356,7 +410,7 @@ const changelogData: ChangelogEntry[] = [
 ];
 
 const ChangelogPage: React.FC = () => {
-  const [expandedVersions, setExpandedVersions] = useState<string[]>(['0.8.0']);
+  const [expandedVersions, setExpandedVersions] = useState<string[]>(['0.9.0']);
 
   const toggleVersion = (version: string) => {
     setExpandedVersions(prev => 
@@ -419,7 +473,7 @@ const ChangelogPage: React.FC = () => {
               <p><strong>Versión actual:</strong> {changelogData[0].version}</p>
               <p><strong>Última actualización:</strong> {new Date(changelogData[0].date).toLocaleDateString('es-ES')}</p>
               <p><strong>Tecnologías:</strong> React, TypeScript, Node.js, PostgreSQL, Prisma</p>
-              <p><strong>Nuevo en v0.8.0:</strong> Sistema avanzado de letras sincronizadas con visualizador inteligente y efectos elegantes</p>
+              <p><strong>Nuevo en v0.9.0:</strong> Sistema avanzado de edición de eventos con sincronización inteligente de variaciones musicales y gestión de estado refinada</p>
             </div>
           </div>
           <div className="text-6xl">

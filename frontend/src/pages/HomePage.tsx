@@ -49,7 +49,7 @@ function HomePage() {
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
           <div className="flex-1">
             <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2">¡Bienvenido, {user.firstName}!</h1>
-            <p className="text-lg sm:text-xl opacity-90 mb-2">CGPlayer v0.8.0</p>
+            <p className="text-lg sm:text-xl opacity-90 mb-2">CGPlayer v0.9.0</p>
             <p className="text-sm sm:text-base opacity-75 mb-4">Sistema de gestión y reproducción de música coral</p>
             
             {/* Mostrar tipos de voz del usuario */}
@@ -260,7 +260,7 @@ function HomePage() {
             </div>
             <span className="text-emerald-600 hidden sm:inline">•</span>
             <Link to="/changelog" className="text-emerald-600 text-sm font-medium hover:text-emerald-800 transition-colors cursor-pointer underline sm:no-underline hover:underline">
-              CGPlayer v0.8.0
+              CGPlayer v0.9.0
             </Link>
           </div>
         </div>

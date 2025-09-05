@@ -1,6 +1,6 @@
 # CGPlayerWeb 🎵
 
-[![Version](https://img.shields.io/badge/version-0.8.0-blue.svg)](https://github.com/CareZapato/CGPlayerWeb/releases/tag/v0.8.0)
+[![Version](https://img.shields.io/badge/version-0.9.0-blue.svg)](https://github.com/CareZapato/CGPlayerWeb/releases/tag/v0.9.0)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
 [![React](https://img.shields.io/badge/React-19+-blue.svg)](https://reactjs.org/)
@@ -11,7 +11,15 @@
 
 ## 🚀 Características Principales
 
-### 🎼 **Sistema de Letras Sincronizadas Avanzado** *(NUEVO en v0.8.0)*
+### 🔧 **Sistema de Edición Avanzada de Eventos** *(NUEVO en v0.9.0)*
+- **Editor de eventos completo** - Modificación integral de eventos existentes con preservación de relaciones
+- **Carga automática de datos** - Los eventos cargan automáticamente con asistentes y música completa
+- **Sincronización de variaciones musicales** - Detección y carga inteligente de variaciones de canciones
+- **Panel de variaciones inteligente** - Visualización clara de todas las variaciones en modo edición
+- **Gestión de estado refinada** - Coordinación perfecta entre datos del evento y componentes de UI
+- **Sistema robusto de debugging** - Logs comprehensivos para troubleshooting y monitoreo
+
+### 🎼 **Sistema de Letras Sincronizadas Avanzado** *(v0.8.0)*
 - **Visualizador de letras inteligente** con sincronización automática en tiempo real
 - **Sistema dual de colores** - Letras highlighted (púrpura) para participación del coro
 - **Efectos visuales elegantes** - Resaltado temporal con zoom sutil y efecto 3D
