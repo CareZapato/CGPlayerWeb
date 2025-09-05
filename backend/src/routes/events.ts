@@ -163,7 +163,8 @@ router.get('/management/all', authenticateToken, requireRole(['ADMIN', 'DIRECTOR
         _count: {
           select: {
             attendees: true,
-            joinRequests: { where: { status: 'PENDING' } }
+            joinRequests: { where: { status: 'PENDING' } },
+            eventSongs: true
           }
         }
       },

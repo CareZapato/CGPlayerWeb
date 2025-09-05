@@ -53,6 +53,7 @@ interface Event {
   _count?: {
     attendees: number;
     joinRequests: number;
+    eventSongs?: number;
   };
   attendees?: any[];
   joinRequests?: any[];
@@ -379,6 +380,14 @@ const EventManagement: React.FC = () => {
                           Privado
                         </span>
                       )}
+                      
+                      {/* Etiqueta "Abierto a Postulaciones" */}
+                      {event.allowExternalJoin && (
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                          <UserPlus className="h-3 w-3 mr-1" />
+                          Abierto a Postulaciones
+                        </span>
+                      )}
                     </div>
                   </div>
 
@@ -423,7 +432,7 @@ const EventManagement: React.FC = () => {
                       </div>
                       
                       {/* Mostrar solicitudes como badge solo si hay más de 0 y permite solicitudes externas */}
-                      {event.allowExternalJoin && event._count?.joinRequests && event._count.joinRequests > 0 && (
+                      {/* {event.allowExternalJoin && event._count?.joinRequests && event._count.joinRequests > 0 && (
                         <div className="flex items-center">
                           <div className="relative">
                             <UserPlus className="h-4 w-4 text-orange-500" />
@@ -432,10 +441,18 @@ const EventManagement: React.FC = () => {
                             </span>
                           </div>
                         </div>
-                      )}
+                      )} */}
                     </div>
                     
                     <div className="flex items-center space-x-2">
+                      {/* Contador de canciones */}
+                      {event._count?.eventSongs && event._count.eventSongs > 0 && (
+                        <div className="flex items-center text-green-600 bg-green-50 px-2 py-1 rounded-lg">
+                          <Music className="h-4 w-4 mr-1" />
+                          <span className="text-sm font-medium">{event._count.eventSongs}</span>
+                        </div>
+                      )}
+                      
                       <button
                         onClick={() => handlePlayEvent(event)}
                         disabled={playLoading}

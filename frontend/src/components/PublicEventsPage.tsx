@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, MapPin, Music, Eye } from 'lucide-react';
+import { Calendar, Clock, MapPin, Music, Eye, UserPlus } from 'lucide-react';
 
 interface Location {
   id: string;
@@ -27,8 +27,10 @@ interface Event {
   time?: string;
   mapLink?: string;
   imageUrl?: string;
+  allowExternalJoin?: boolean;
   _count?: {
     eventSongs: number;
+    joinRequests?: number;
   };
 }
 
@@ -188,17 +190,46 @@ const PublicEventsPage: React.FC = () => {
 
                   {/* Información adicional */}
                   <div className="flex items-center justify-between mt-4 pt-4 border-t">
-                    <div className="flex items-center text-gray-500">
-                      <Music className="h-4 w-4 mr-1" />
-                      <span className="text-sm">
-                        {event._count?.eventSongs || 0} canciones
-                      </span>
+                    <div className="flex items-center space-x-4">
+                      {/* Mostrar contador de canciones solo si hay canciones */}
+                      {event._count?.eventSongs && event._count.eventSongs > 0 && (
+                        <div className="flex items-center text-gray-500">
+                          <Music className="h-4 w-4 mr-1" />
+                          <span className="text-sm">
+                            {event._count.eventSongs} canción{event._count.eventSongs !== 1 ? 'es' : ''}
+                          </span>
+                        </div>
+                      )}
+                      
+                      {/* Mostrar badge de solicitudes solo si hay solicitudes pendientes */}
+                      {event.allowExternalJoin && event._count?.joinRequests && event._count.joinRequests > 0 && (
+                        <div className="flex items-center">
+                          <div className="relative">
+                            <UserPlus className="h-4 w-4 text-orange-500" />
+                            <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                              {event._count.joinRequests}
+                            </span>
+                          </div>
+                          <span className="text-xs text-orange-600 ml-1">Solicitudes</span>
+                        </div>
+                      )}
                     </div>
+                    
                     <div className="flex items-center text-blue-600">
                       <Eye className="h-4 w-4 mr-1" />
                       <span className="text-sm">Ver detalles</span>
                     </div>
                   </div>
+                  
+                  {/* Etiqueta de "Abierto a Postulaciones" */}
+                  {event.allowExternalJoin && (
+                    <div className="mt-3 pt-3 border-t">
+                      <div className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                        <UserPlus className="h-3 w-3 mr-1" />
+                        Abierto a Postulaciones
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
@@ -275,12 +306,27 @@ const PublicEventsPage: React.FC = () => {
                         </div>
                       </div>
 
-                      {selectedEvent._count && (
+                      {selectedEvent._count && selectedEvent._count.eventSongs && selectedEvent._count.eventSongs > 0 && (
                         <div className="flex items-center">
                           <Music className="h-5 w-5 text-blue-600 mr-3" />
                           <div>
                             <p className="font-medium">Repertorio</p>
-                            <p className="text-gray-600">{selectedEvent._count.eventSongs} canciones</p>
+                            <p className="text-gray-600">
+                              {selectedEvent._count.eventSongs} canción{selectedEvent._count.eventSongs !== 1 ? 'es' : ''}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Solicitudes pendientes si hay */}
+                      {selectedEvent.allowExternalJoin && selectedEvent._count?.joinRequests && selectedEvent._count.joinRequests > 0 && (
+                        <div className="flex items-center">
+                          <UserPlus className="h-5 w-5 text-orange-500 mr-3" />
+                          <div>
+                            <p className="font-medium">Solicitudes Pendientes</p>
+                            <p className="text-gray-600">
+                              {selectedEvent._count.joinRequests} solicitud{selectedEvent._count.joinRequests !== 1 ? 'es' : ''} pendiente{selectedEvent._count.joinRequests !== 1 ? 's' : ''}
+                            </p>
                           </div>
                         </div>
                       )}
@@ -296,6 +342,19 @@ const PublicEventsPage: React.FC = () => {
                         <p className="text-gray-600">{selectedEvent.location.name}</p>
                         <p className="text-sm text-gray-500">
                           {selectedEvent.location.city}, {selectedEvent.location.region}
+                        </p>
+                      </div>
+                    )}
+                    
+                    {/* Etiqueta de Abierto a Postulaciones */}
+                    {selectedEvent.allowExternalJoin && (
+                      <div className="mb-4">
+                        <div className="inline-flex items-center px-3 py-2 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                          <UserPlus className="h-4 w-4 mr-2" />
+                          Abierto a Postulaciones
+                        </div>
+                        <p className="text-sm text-gray-500 mt-2">
+                          Los cantantes pueden solicitar unirse a este evento
                         </p>
                       </div>
                     )}
