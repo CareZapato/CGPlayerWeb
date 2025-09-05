@@ -16,7 +16,9 @@ import {
   Trash2,
   Plus,
   Trash,
-  Check
+  Check,
+  Play,
+  Pause
 } from 'lucide-react';
 import { getApiUrl } from '../config/api';
 
@@ -142,6 +144,9 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({ onClose, onEventCre
   const [selectedSongs, setSelectedSongs] = useState<Song[]>([]);
   const [loadingSongs, setLoadingSongs] = useState(false);
   const [loadingPlaylists, setLoadingPlaylists] = useState(false);
+  const [variationsInfo, setVariationsInfo] = useState<Record<string, {total: number, selected: number, isComplete: boolean}>>({});
+  const [currentPlayingAudio, setCurrentPlayingAudio] = useState<HTMLAudioElement | null>(null);
+  const [currentPlayingSongId, setCurrentPlayingSongId] = useState<string | null>(null);
 
   // Filter cities for dropdown
   const filteredCities = CHILE_CITIES.filter(city =>
@@ -353,14 +358,12 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({ onClose, onEventCre
 
   // Add song to event playlist - for parent songs, add all variations
   const addSongToEvent = async (song: Song) => {
-    const isAlreadyAdded = selectedSongs.some(s => s.id === song.id);
-    if (isAlreadyAdded) return;
-
     try {
       const token = localStorage.getItem('token');
       
       // If it's a parent song (no voiceType), get all its variations
       if (!song.voiceType && !song.parentSongId) {
+        console.log('Adding parent song:', song.title, '- Fetching variations...');
         const response = await fetch(getApiUrl(`/songs/${song.id}/versions`), {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -370,28 +373,66 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({ onClose, onEventCre
         
         if (response.ok) {
           const result = await response.json();
-          const variations = result.data || [];
+          console.log('Raw variations response:', result);
           
-          // Add all variations that have audio files
-          const validVariations = variations.filter((variation: Song) => 
-            variation.voiceType && variation.filePath
-          );
+          // Manejar diferentes estructuras de respuesta del backend
+          let variations = [];
+          if (Array.isArray(result)) {
+            variations = result;
+          } else if (result.versions && Array.isArray(result.versions)) {
+            variations = result.versions;
+          } else if (result.data && Array.isArray(result.data)) {
+            variations = result.data;
+          } else if (result.songs && Array.isArray(result.songs)) {
+            variations = result.songs;
+          } else if (result.variations && Array.isArray(result.variations)) {
+            variations = result.variations;
+          } else {
+            console.warn('Unexpected response structure:', result);
+            variations = [];
+          }
+          
+          console.log('Extracted variations array:', variations);
+          
+          // SOLO agregar variaciones que tienen voiceType (no elementos padre) y que no estén ya seleccionadas
+          const validVariations = variations.filter((variation: Song) => {
+            const hasVoiceType = variation.voiceType && variation.voiceType !== null;
+            const notAlreadySelected = !selectedSongs.some(s => s.id === variation.id);
+            const isNotParent = variation.parentSongId !== null; // Las variaciones tienen parentSongId
+            console.log(`Variation ${variation.title}: voiceType=${variation.voiceType}, hasVoiceType=${hasVoiceType}, notAlreadySelected=${notAlreadySelected}, isNotParent=${isNotParent}`);
+            return hasVoiceType && notAlreadySelected && isNotParent;
+          });
+          
+          console.log('Valid variations to add:', validVariations);
           
           if (validVariations.length > 0) {
             setSelectedSongs(prev => [...prev, ...validVariations]);
+            console.log(`Added ${validVariations.length} variations to playlist`);
           } else {
-            // If no variations found, show a message
-            console.warn('No se encontraron variaciones con audio para esta canción');
+            console.warn('No se encontraron nuevas variaciones para esta canción. Total variations:', variations.length);
           }
+        } else {
+          console.error('Error fetching variations:', response.status, response.statusText);
+        }
+      } else if (song.voiceType) {
+        // Si es una variación (tiene voiceType), agregarla directamente si no está ya seleccionada
+        const isAlreadyAdded = selectedSongs.some(s => s.id === song.id);
+        if (!isAlreadyAdded) {
+          setSelectedSongs(prev => [...prev, song]);
+          console.log('Added individual variation:', song.title, song.voiceType);
         }
       } else {
-        // If it's already a variation, just add it directly
-        setSelectedSongs(prev => [...prev, song]);
+        console.warn('Song without voiceType and without parentSongId - this should not happen');
       }
     } catch (error) {
       console.error('Error adding song variations:', error);
-      // Fallback: add the song as is
-      setSelectedSongs(prev => [...prev, song]);
+      // En caso de error, NO agregamos nada si es un elemento padre
+      if (song.voiceType) {
+        const isAlreadyAdded = selectedSongs.some(s => s.id === song.id);
+        if (!isAlreadyAdded) {
+          setSelectedSongs(prev => [...prev, song]);
+        }
+      }
     }
   };
 
@@ -463,6 +504,13 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({ onClose, onEventCre
     }
   }, [playlistSearchTerm]);
 
+  // Update variations info when songs or selectedSongs change
+  useEffect(() => {
+    if (activeTab === 'music' && songs.length > 0) {
+      updateVariationsInfo();
+    }
+  }, [songs, selectedSongs, activeTab]);
+
   const handleSubmit = async () => {
     if (!title || !date) {
       setError('El título y la fecha son obligatorios');
@@ -508,7 +556,7 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({ onClose, onEventCre
       if (response.ok) {
         const result = await response.json();
         onEventCreated(result);
-        onClose();
+        handleClose();
       } else {
         const errorData = await response.json();
         setError(errorData.message || 'Error al crear el evento');
@@ -519,9 +567,132 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({ onClose, onEventCre
     setIsLoading(false);
   };
 
-  // Helper function to check if a parent song has selected variations
-  const hasSelectedVariations = (parentSongId: string): boolean => {
-    return selectedSongs.some(song => song.parentSongId === parentSongId);
+  // Update variations info for all parent songs
+  const updateVariationsInfo = async () => {
+    if (songs.length === 0) return;
+    
+    const info: Record<string, {total: number, selected: number, isComplete: boolean}> = {};
+    
+    for (const song of songs) {
+      if (!song.voiceType && !song.parentSongId) {
+        try {
+          const token = localStorage.getItem('token');
+          const response = await fetch(getApiUrl(`/songs/${song.id}/versions`), {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          if (response.ok) {
+            const result = await response.json();
+            
+            // Manejar diferentes estructuras de respuesta del backend
+            let allVariations = [];
+            if (Array.isArray(result)) {
+              allVariations = result;
+            } else if (result.versions && Array.isArray(result.versions)) {
+              allVariations = result.versions;
+            } else if (result.data && Array.isArray(result.data)) {
+              allVariations = result.data;
+            } else if (result.songs && Array.isArray(result.songs)) {
+              allVariations = result.songs;
+            } else {
+              allVariations = [];
+            }
+            
+            // Filtrar solo variaciones válidas (con voiceType)
+            const validVariations = allVariations.filter((variation: Song) => 
+              variation.voiceType && variation.voiceType !== null
+            );
+            
+            // Contar cuántas variaciones están seleccionadas
+            const selectedCount = selectedSongs.filter(s => s.parentSongId === song.id).length;
+            
+            info[song.id] = {
+              total: validVariations.length,
+              selected: selectedCount,
+              isComplete: validVariations.length > 0 && selectedCount === validVariations.length
+            };
+          }
+        } catch (error) {
+          console.error('Error getting variations info for song:', song.id, error);
+          info[song.id] = { total: 0, selected: 0, isComplete: false };
+        }
+      }
+    }
+    
+    setVariationsInfo(info);
+  };
+
+  // Audio control functions
+  const playAudio = (song: Song) => {
+    if (!song.filePath) return;
+    
+    // Stop current audio if playing
+    if (currentPlayingAudio) {
+      currentPlayingAudio.pause();
+      currentPlayingAudio.currentTime = 0;
+    }
+    
+    // If clicking the same song, toggle play/pause
+    if (currentPlayingSongId === song.id && currentPlayingAudio && !currentPlayingAudio.paused) {
+      currentPlayingAudio.pause();
+      setCurrentPlayingSongId(null);
+      return;
+    }
+    
+    // Create new audio element
+    const audio = new Audio(getApiUrl(`/uploads/${song.filePath}`));
+    audio.volume = 0.5; // Set volume to 50%
+    
+    audio.onended = () => {
+      setCurrentPlayingSongId(null);
+      setCurrentPlayingAudio(null);
+    };
+    
+    audio.onerror = () => {
+      console.error('Error loading audio file:', song.filePath);
+      setCurrentPlayingSongId(null);
+      setCurrentPlayingAudio(null);
+    };
+    
+    audio.play().then(() => {
+      setCurrentPlayingAudio(audio);
+      setCurrentPlayingSongId(song.id);
+    }).catch(error => {
+      console.error('Error playing audio:', error);
+    });
+  };
+
+  const stopAudio = () => {
+    if (currentPlayingAudio) {
+      currentPlayingAudio.pause();
+      currentPlayingAudio.currentTime = 0;
+      setCurrentPlayingAudio(null);
+      setCurrentPlayingSongId(null);
+    }
+  };
+
+  // Stop audio when modal closes or tab changes
+  const handleTabChange = (newTab: 'basic' | 'attendees' | 'music') => {
+    if (newTab !== 'music') {
+      stopAudio();
+    }
+    setActiveTab(newTab);
+  };
+
+  // Cleanup audio on unmount
+  React.useEffect(() => {
+    return () => {
+      stopAudio();
+    };
+  }, []);
+
+  // Handle modal close with audio cleanup
+  const handleClose = () => {
+    stopAudio();
+    onClose();
   };
 
   return (
@@ -531,7 +702,7 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({ onClose, onEventCre
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-bold">Crear Nuevo Evento</h2>
             <button 
-              onClick={onClose} 
+              onClick={handleClose} 
               className="p-2 hover:bg-white hover:bg-opacity-20 rounded-lg transition-colors"
             >
               <X className="h-5 w-5" />
@@ -558,12 +729,12 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({ onClose, onEventCre
                 id: 'music', 
                 label: 'Música', 
                 icon: Music, 
-                hasData: selectedSongs.length > 0 
+                hasData: selectedSongs.filter(song => song.voiceType).length > 0 
               },
             ].map(({ id, label, icon: Icon, hasData }) => (
               <button
                 key={id}
-                onClick={() => setActiveTab(id as any)}
+                onClick={() => handleTabChange(id as any)}
                 className={`py-4 px-2 border-b-2 font-medium text-sm flex items-center space-x-2 transition-colors relative ${
                   activeTab === id
                     ? 'border-indigo-500 text-indigo-600'
@@ -580,9 +751,9 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({ onClose, onEventCre
                     {selectedAttendees.length}
                   </span>
                 )}
-                {id === 'music' && selectedSongs.length > 0 && (
+                {id === 'music' && selectedSongs.filter(song => song.voiceType).length > 0 && (
                   <span className="ml-1 text-xs bg-indigo-100 text-indigo-600 px-2 py-1 rounded-full">
-                    {selectedSongs.length}
+                    {selectedSongs.filter(song => song.voiceType).length}
                   </span>
                 )}
               </button>
@@ -1071,7 +1242,7 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({ onClose, onEventCre
                   Gestión de Música del Evento
                 </h4>
                 <span className="text-sm text-gray-500 px-2 py-1 bg-blue-50 rounded-lg border border-blue-200">
-                  {selectedSongs.length} canciones seleccionadas
+                  {selectedSongs.filter(song => song.voiceType).length} canciones seleccionadas
                 </span>
               </div>
 
@@ -1134,38 +1305,59 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({ onClose, onEventCre
                           ) : (
                             <div className="divide-y divide-gray-200">
                               {songs.map(song => {
-                                const isSelected = selectedSongs.some(s => s.id === song.id);
-                                const hasVariations = hasSelectedVariations(song.id);
-                                const showAsSelected = isSelected || hasVariations;
+                                const songInfo = variationsInfo[song.id] || { total: 0, selected: 0, isComplete: false };
+                                const hasVariations = songInfo.selected > 0;
+                                const isCompletelySelected = songInfo.isComplete;
                                 
                                 return (
                                   <div
                                     key={song.id}
                                     className={`p-2 hover:bg-gray-50 transition-colors ${
-                                      showAsSelected ? 'bg-indigo-50 border-l-4 border-indigo-500' : ''
+                                      isCompletelySelected ? 'bg-indigo-50 border-l-4 border-indigo-500' : 
+                                      hasVariations ? 'bg-yellow-50 border-l-4 border-yellow-400' : ''
                                     }`}
                                   >
                                     <div className="flex items-center justify-between">
                                       <div className="flex items-center space-x-2">
                                         <button
                                           onClick={() => {
-                                            if (isSelected) {
-                                              removeSongFromEvent(song.id);
-                                            } else if (hasVariations) {
+                                            if (hasVariations) {
                                               // Remove all variations of this parent song
-                                              removeSongFromEvent(song.id);
+                                              setSelectedSongs(prev => prev.filter(s => s.parentSongId !== song.id));
                                             } else {
                                               addSongToEvent(song);
                                             }
                                           }}
                                           className={`p-1 rounded border transition-colors ${
-                                            showAsSelected
+                                            isCompletelySelected
                                               ? 'bg-indigo-500 border-indigo-500 text-white'
+                                              : hasVariations
+                                              ? 'bg-yellow-400 border-yellow-400 text-white'
                                               : 'border-gray-300 hover:border-indigo-400 hover:bg-indigo-50'
                                           }`}
                                         >
-                                          {showAsSelected ? <Check className="h-3 w-3" /> : <Plus className="h-3 w-3" />}
+                                          {isCompletelySelected ? <Check className="h-3 w-3" /> : 
+                                           hasVariations ? <span className="text-xs font-bold">!</span> : 
+                                           <Plus className="h-3 w-3" />}
                                         </button>
+
+                                        {/* Solo mostrar play si es una variación (tiene voiceType) */}
+                                        {song.voiceType && song.filePath && (
+                                          <button
+                                            onClick={() => playAudio(song)}
+                                            className={`p-1 rounded border transition-colors ${
+                                              currentPlayingSongId === song.id
+                                                ? 'bg-green-500 border-green-500 text-white'
+                                                : 'border-gray-300 hover:border-green-400 hover:bg-green-50'
+                                            }`}
+                                            title={currentPlayingSongId === song.id ? 'Pausar' : 'Reproducir'}
+                                          >
+                                            {currentPlayingSongId === song.id ? 
+                                              <Pause className="h-3 w-3" /> : 
+                                              <Play className="h-3 w-3" />
+                                            }
+                                          </button>
+                                        )}
                                         
                                         <div>
                                           <h6 className="font-medium text-gray-900 text-sm">
@@ -1173,9 +1365,13 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({ onClose, onEventCre
                                           </h6>
                                           <p className="text-xs text-gray-500">
                                             {song.artist}
-                                            {hasVariations && !isSelected && (
-                                              <span className="ml-2 text-xs text-indigo-600 font-medium">
-                                                (variaciones seleccionadas)
+                                            {hasVariations && (
+                                              <span className={`ml-2 text-xs font-medium ${
+                                                isCompletelySelected 
+                                                  ? 'text-indigo-600' 
+                                                  : 'text-yellow-600'
+                                              }`}>
+                                                ({songInfo.selected}/{songInfo.total} variaciones)
                                               </span>
                                             )}
                                           </p>
@@ -1187,6 +1383,11 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({ onClose, onEventCre
                                           <span className="inline-block px-1 py-0.5 text-xs font-medium bg-blue-100 text-blue-800 rounded">
                                             {song.voiceType}
                                           </span>
+                                        )}
+                                        {songInfo.total > 0 && (
+                                          <div className="text-xs text-gray-400 mt-1">
+                                            {songInfo.total} voces
+                                          </div>
                                         )}
                                       </div>
                                     </div>
@@ -1261,10 +1462,10 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({ onClose, onEventCre
                   <div className="h-full flex flex-col">
                     <h5 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
                       <CheckCircle className="h-4 w-4 mr-2" />
-                      Canciones Seleccionadas ({selectedSongs.length})
+                      Canciones Seleccionadas ({selectedSongs.filter(song => song.voiceType).length})
                     </h5>
 
-                    {selectedSongs.length === 0 ? (
+                    {selectedSongs.filter(song => song.voiceType).length === 0 ? (
                       <div className="flex-1 border border-gray-200 rounded-lg bg-gray-50 flex items-center justify-center">
                         <div className="text-center text-gray-500">
                           <Music className="mx-auto h-12 w-12 text-gray-300 mb-4" />
@@ -1289,7 +1490,9 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({ onClose, onEventCre
                         
                         <div className="h-full overflow-y-auto">
                           <div className="divide-y divide-gray-200">
-                            {selectedSongs.map((song, index) => (
+                            {selectedSongs
+                              .filter(song => song.voiceType) // Solo mostrar variaciones con voiceType
+                              .map((song, index) => (
                               <div
                                 key={song.id}
                                 className="p-4 hover:bg-gray-50 transition-colors"
@@ -1315,6 +1518,24 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({ onClose, onEventCre
                                         {song.voiceType}
                                       </span>
                                     )}
+                                    
+                                    {song.filePath && (
+                                      <button
+                                        onClick={() => playAudio(song)}
+                                        className={`p-1 rounded border transition-colors ${
+                                          currentPlayingSongId === song.id
+                                            ? 'bg-green-500 border-green-500 text-white'
+                                            : 'border-gray-300 hover:border-green-400 hover:bg-green-50'
+                                        }`}
+                                        title={currentPlayingSongId === song.id ? 'Pausar' : 'Reproducir'}
+                                      >
+                                        {currentPlayingSongId === song.id ? 
+                                          <Pause className="h-4 w-4" /> : 
+                                          <Play className="h-4 w-4" />
+                                        }
+                                      </button>
+                                    )}
+                                    
                                     <button
                                       onClick={() => removeSongFromEvent(song.id)}
                                       className="p-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded"
@@ -1343,7 +1564,7 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({ onClose, onEventCre
                 onClick={() => {
                   const tabs = ['basic', 'attendees', 'music'];
                   const currentIndex = tabs.indexOf(activeTab);
-                  setActiveTab(tabs[currentIndex - 1] as any);
+                  handleTabChange(tabs[currentIndex - 1] as any);
                 }}
                 className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors"
               >
@@ -1355,7 +1576,7 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({ onClose, onEventCre
                 onClick={() => {
                   const tabs = ['basic', 'attendees', 'music'];
                   const currentIndex = tabs.indexOf(activeTab);
-                  setActiveTab(tabs[currentIndex + 1] as any);
+                  handleTabChange(tabs[currentIndex + 1] as any);
                 }}
                 className="px-4 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors"
               >
@@ -1366,7 +1587,7 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({ onClose, onEventCre
 
           <div className="flex space-x-3">
             <button
-              onClick={onClose}
+              onClick={handleClose}
               className="px-6 py-2 text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors"
             >
               Cancelar
