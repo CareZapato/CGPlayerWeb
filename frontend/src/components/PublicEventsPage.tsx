@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, MapPin, Users, Music, Eye } from 'lucide-react';
+import { Calendar, Clock, MapPin, Music, Eye } from 'lucide-react';
 
 interface Location {
   id: string;

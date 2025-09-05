@@ -17,6 +17,9 @@ async function createTestUsers() {
         data: {
           name: 'Ubicación Principal',
           address: 'Dirección Principal',
+          type: 'SANTIAGO',
+          city: 'Santiago',
+          region: 'Metropolitana',
           isActive: true
         }
       });
@@ -48,10 +51,10 @@ async function createTestUsers() {
         locationId: defaultLocation.id
       },
       {
-        email: 'alto@cgplayer.com',
-        username: 'alto',
+        email: 'contralto@cgplayer.com',
+        username: 'contralto',
         password: hashedPassword,
-        firstName: 'Alto',
+        firstName: 'Contralto',
         lastName: 'Usuario',
         isActive: true,
         locationId: defaultLocation.id
@@ -96,13 +99,16 @@ async function createTestUsers() {
         
         // Crear perfil de voz por defecto
         if (userData.username !== 'admin') {
-          const voiceType = userData.username.toUpperCase();
+          let voiceType = userData.username.toUpperCase();
+          // Mapear nombres de usuario a tipos de voz válidos
+          if (voiceType === 'ALTO') voiceType = 'CONTRALTO';
+          if (voiceType === 'BASS') voiceType = 'BAJO';
+          
           await prisma.userVoiceProfile.create({
             data: {
               userId: user.id,
               voiceType: voiceType,
-              assignedBy: user.id, // Auto-asignado
-              isActive: true
+              assignedBy: user.id // Auto-asignado
             }
           });
           console.log(`  🎵 Perfil de voz creado: ${voiceType}`);

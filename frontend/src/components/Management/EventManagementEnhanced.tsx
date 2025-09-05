@@ -94,6 +94,11 @@ const EventManagementEnhanced: React.FC = () => {
   const [activeTab, setActiveTab] = useState('basic');
   const [attendeeTab, setAttendeeTab] = useState('current');
   
+  // Estados para la playlist
+  const [playlistName, setPlaylistName] = useState('');
+  const [selectedSongs, setSelectedSongs] = useState<string[]>([]);
+  const [songSearchTerm, setSongSearchTerm] = useState('');
+  
   // Formulario de evento
   const [formData, setFormData] = useState<EventFormData>({
     title: '',
@@ -161,6 +166,31 @@ const EventManagementEnhanced: React.FC = () => {
       return result.data;
     },
     enabled: singerSearchTerm.length > 2
+  });
+
+  // Consulta para canciones
+  const { data: songs } = useQuery({
+    queryKey: ['songs'],
+    queryFn: async () => {
+      const response = await fetch('/api/songs', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const result = await response.json();
+      return result.data;
+    }
+  });
+
+  const { data: songSearchResults } = useQuery({
+    queryKey: ['songs', 'search', songSearchTerm],
+    queryFn: async () => {
+      if (!songSearchTerm.trim()) return songs || [];
+      const filtered = (songs || []).filter((song: any) => 
+        song.title.toLowerCase().includes(songSearchTerm.toLowerCase()) ||
+        song.artist?.toLowerCase().includes(songSearchTerm.toLowerCase())
+      );
+      return filtered;
+    },
+    enabled: !!songs
   });
 
   // Mutaciones
@@ -239,6 +269,10 @@ const EventManagementEnhanced: React.FC = () => {
     });
     setSelectedSingers([]);
     setSelectedChoirs([]);
+    setPlaylistName('');
+    setSelectedSongs([]);
+    setSongSearchTerm('');
+    setActiveTab('basic');
   };
 
   const handleCreateEvent = async (e: React.FormEvent) => {
@@ -256,6 +290,12 @@ const EventManagementEnhanced: React.FC = () => {
     // Agregar cantantes seleccionados
     formDataToSend.set('attendeeUserIds', JSON.stringify(selectedSingers));
     formDataToSend.set('choirLocationIds', JSON.stringify(selectedChoirs));
+    
+    // Agregar información de playlist
+    if (playlistName.trim()) {
+      formDataToSend.append('playlistName', playlistName.trim());
+    }
+    formDataToSend.append('playlistSongs', JSON.stringify(selectedSongs));
 
     createEventMutation.mutate(formDataToSend);
   };
@@ -383,19 +423,25 @@ const EventManagementEnhanced: React.FC = () => {
                     className={`tab-button ${activeTab === 'basic' ? 'active' : ''}`}
                     onClick={() => setActiveTab('basic')}
                   >
-                    Información Básica
+                    📝 Información Básica
                   </button>
                   <button 
                     className={`tab-button ${activeTab === 'attendees' ? 'active' : ''}`}
                     onClick={() => setActiveTab('attendees')}
                   >
-                    Asistentes
+                    👥 Asistentes
+                  </button>
+                  <button 
+                    className={`tab-button ${activeTab === 'playlist' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('playlist')}
+                  >
+                    🎵 Playlist
                   </button>
                   <button 
                     className={`tab-button ${activeTab === 'settings' ? 'active' : ''}`}
                     onClick={() => setActiveTab('settings')}
                   >
-                    Configuración
+                    ⚙️ Configuración
                   </button>
                 </div>
                 
@@ -507,6 +553,44 @@ const EventManagementEnhanced: React.FC = () => {
                   
                   {activeTab === 'attendees' && (
                     <div className="tab-content">
+                      <div className="attendees-header">
+                        <h3>Selección de Asistentes para el Evento</h3>
+                        <p>Selecciona cantantes individuales o coros completos que participarán en este evento.</p>
+                      </div>
+                      
+                      {/* Resumen de selección */}
+                      {(selectedSingers.length > 0 || selectedChoirs.length > 0) && (
+                        <div className="selection-overview">
+                          <h4>🎯 Selección Actual:</h4>
+                          <div className="selection-stats">
+                            {selectedSingers.length > 0 && (
+                              <div className="stat-item">
+                                <span className="stat-icon">👤</span>
+                                <span className="stat-text">{selectedSingers.length} cantantes individuales</span>
+                              </div>
+                            )}
+                            {selectedChoirs.length > 0 && (
+                              <div className="stat-item">
+                                <span className="stat-icon">🎭</span>
+                                <span className="stat-text">{selectedChoirs.length} coros completos</span>
+                              </div>
+                            )}
+                          </div>
+                          <div className="selection-actions">
+                            <button 
+                              type="button"
+                              className="btn btn-secondary btn-sm"
+                              onClick={() => {
+                                setSelectedSingers([]);
+                                setSelectedChoirs([]);
+                              }}
+                            >
+                              🗑️ Limpiar Todo
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                      
                       <AttendeeSelector
                         singersData={singersData}
                         searchResults={searchResults}
@@ -517,6 +601,177 @@ const EventManagementEnhanced: React.FC = () => {
                         onChoirsChange={setSelectedChoirs}
                         onSearchChange={setSingerSearchTerm}
                       />
+                      
+                      {/* Instrucciones de uso */}
+                      {selectedSingers.length === 0 && selectedChoirs.length === 0 && (
+                        <div className="attendees-help">
+                          <div className="help-item">
+                            <span className="help-icon">💡</span>
+                            <div className="help-text">
+                              <strong>Cantantes Individuales:</strong> Busca y selecciona cantantes específicos por nombre.
+                            </div>
+                          </div>
+                          <div className="help-item">
+                            <span className="help-icon">🎭</span>
+                            <div className="help-text">
+                              <strong>Coros Completos:</strong> Selecciona todos los cantantes de una ubicación específica.
+                            </div>
+                          </div>
+                          <div className="help-item">
+                            <span className="help-icon">⚡</span>
+                            <div className="help-text">
+                              <strong>Tip:</strong> Puedes combinar ambos métodos para mayor flexibilidad.
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  
+                  {activeTab === 'playlist' && (
+                    <div className="tab-content">
+                      <div className="playlist-header">
+                        <h3>🎵 Configuración de Playlist del Evento</h3>
+                        <p>Crea una playlist personalizada para este evento seleccionando las canciones que se interpretarán.</p>
+                      </div>
+                      
+                      <div className="playlist-config">
+                        <div className="form-group">
+                          <label>Nombre de la Playlist *</label>
+                          <input
+                            type="text"
+                            value={playlistName}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPlaylistName(e.target.value)}
+                            placeholder="Ej: Playlist Culto Domingo - Octubre 2025"
+                            className="playlist-name-input"
+                          />
+                        </div>
+                        
+                        <div className="song-search-section">
+                          <div className="form-group">
+                            <label>🔍 Buscar Canciones</label>
+                            <input
+                              type="text"
+                              value={songSearchTerm}
+                              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSongSearchTerm(e.target.value)}
+                              placeholder="Buscar por título o artista..."
+                              className="song-search-input"
+                            />
+                          </div>
+                        </div>
+                        
+                        {/* Lista de canciones disponibles */}
+                        <div className="songs-section">
+                          <div className="songs-header">
+                            <h4>Canciones Disponibles ({songSearchResults?.length || 0})</h4>
+                            {songSearchResults?.length > 0 && (
+                              <button 
+                                className="btn btn-secondary btn-sm"
+                                onClick={() => {
+                                  const allSongIds = songSearchResults.map((song: any) => song.id);
+                                  const newSelection = [...new Set([...selectedSongs, ...allSongIds])];
+                                  setSelectedSongs(newSelection);
+                                }}
+                              >
+                                ✅ Seleccionar Todas Visibles
+                              </button>
+                            )}
+                          </div>
+                          
+                          <div className="songs-list">
+                            {songSearchResults?.length > 0 ? (
+                              songSearchResults.map((song: any) => (
+                                <div key={song.id} className="song-item">
+                                  <label className="checkbox-item">
+                                    <input
+                                      type="checkbox"
+                                      checked={selectedSongs.includes(song.id)}
+                                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                                        if (e.target.checked) {
+                                          setSelectedSongs([...selectedSongs, song.id]);
+                                        } else {
+                                          setSelectedSongs(selectedSongs.filter(id => id !== song.id));
+                                        }
+                                      }}
+                                    />
+                                    <div className="song-info">
+                                      <div className="song-main">
+                                        <h4>🎵 {song.title}</h4>
+                                        {song.artist && <span className="song-artist">👨‍🎤 {song.artist}</span>}
+                                      </div>
+                                      <div className="song-details">
+                                        {song.key && <span className="song-key">🎹 {song.key}</span>}
+                                        {song.tempo && <span className="song-tempo">⏱️ {song.tempo} BPM</span>}
+                                        {song.genre && <span className="song-genre">🎭 {song.genre}</span>}
+                                      </div>
+                                    </div>
+                                  </label>
+                                </div>
+                              ))
+                            ) : (
+                              <div className="no-songs">
+                                <span className="no-songs-icon">🎵</span>
+                                <p>No hay canciones disponibles</p>
+                                <p className="no-songs-hint">
+                                  {songSearchTerm ? 'No se encontraron canciones con ese criterio' : 'No hay canciones registradas en el sistema'}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        
+                        {/* Resumen de playlist */}
+                        {selectedSongs.length > 0 && (
+                          <div className="playlist-summary">
+                            <div className="summary-header">
+                              <span className="summary-icon">🎵</span>
+                              <h4>Playlist Actual: {selectedSongs.length} canción(es)</h4>
+                            </div>
+                            <div className="playlist-preview">
+                              {selectedSongs.slice(0, 5).map(songId => {
+                                const song = songs?.find((s: any) => s.id === songId);
+                                return song ? (
+                                  <div key={songId} className="playlist-item">
+                                    <span>{song.title}</span>
+                                    {song.artist && <span className="item-artist">- {song.artist}</span>}
+                                  </div>
+                                ) : null;
+                              })}
+                              {selectedSongs.length > 5 && (
+                                <div className="playlist-more">
+                                  ... y {selectedSongs.length - 5} canción(es) más
+                                </div>
+                              )}
+                            </div>
+                            <div className="summary-actions">
+                              <button 
+                                className="btn btn-secondary btn-sm"
+                                onClick={() => setSelectedSongs([])}
+                              >
+                                🗑️ Limpiar Playlist
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Instrucciones de playlist */}
+                        {selectedSongs.length === 0 && (
+                          <div className="playlist-help">
+                            <div className="help-item">
+                              <span className="help-icon">💡</span>
+                              <div className="help-text">
+                                <strong>Opcional:</strong> Puedes crear el evento sin playlist y configurarla después.
+                              </div>
+                            </div>
+                            <div className="help-item">
+                              <span className="help-icon">🎵</span>
+                              <div className="help-text">
+                                <strong>Recomendación:</strong> Agrega las canciones que planeas interpretar en este evento.
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   )}
                   
@@ -561,20 +816,81 @@ const EventManagementEnhanced: React.FC = () => {
                   )}
                   
                   <div className="modal-actions">
-                    <button 
-                      type="button" 
-                      className="btn btn-secondary"
-                      onClick={() => setIsCreateModalOpen(false)}
-                    >
-                      Cancelar
-                    </button>
-                    <button 
-                      type="submit" 
-                      className="btn btn-primary"
-                      disabled={createEventMutation.isPending}
-                    >
-                      {createEventMutation.isPending ? 'Creando...' : 'Crear Evento'}
-                    </button>
+                    <div className="nav-buttons">
+                      {activeTab !== 'basic' && (
+                        <button 
+                          type="button" 
+                          className="btn btn-secondary"
+                          onClick={() => {
+                            if (activeTab === 'attendees') setActiveTab('basic');
+                            else if (activeTab === 'playlist') setActiveTab('attendees');
+                            else if (activeTab === 'settings') setActiveTab('playlist');
+                          }}
+                        >
+                          ← Anterior
+                        </button>
+                      )}
+                      
+                      <button 
+                        type="button" 
+                        className="btn btn-secondary"
+                        onClick={() => setIsCreateModalOpen(false)}
+                      >
+                        Cancelar
+                      </button>
+                      
+                      {activeTab !== 'settings' ? (
+                        <button 
+                          type="button" 
+                          className="btn btn-primary"
+                          onClick={() => {
+                            if (activeTab === 'basic') {
+                              if (!formData.title || !formData.date) {
+                                alert('Por favor completa los campos obligatorios (Título y Fecha)');
+                                return;
+                              }
+                              setActiveTab('attendees');
+                            } else if (activeTab === 'attendees') {
+                              setActiveTab('playlist');
+                            } else if (activeTab === 'playlist') {
+                              setActiveTab('settings');
+                            }
+                          }}
+                        >
+                          Siguiente →
+                        </button>
+                      ) : (
+                        <button 
+                          type="submit" 
+                          className="btn btn-success"
+                          disabled={createEventMutation.isPending}
+                        >
+                          {createEventMutation.isPending ? '⏳ Creando Evento...' : '✅ Crear Evento Completo'}
+                        </button>
+                      )}
+                    </div>
+                    
+                    {/* Indicador de progreso */}
+                    <div className="progress-indicator">
+                      <div className="progress-steps">
+                        <div className={`step ${activeTab === 'basic' ? 'active' : activeTab !== 'basic' ? 'completed' : ''}`}>
+                          <span className="step-number">1</span>
+                          <span className="step-label">Información</span>
+                        </div>
+                        <div className={`step ${activeTab === 'attendees' ? 'active' : ['playlist', 'settings'].includes(activeTab) ? 'completed' : ''}`}>
+                          <span className="step-number">2</span>
+                          <span className="step-label">Asistentes</span>
+                        </div>
+                        <div className={`step ${activeTab === 'playlist' ? 'active' : activeTab === 'settings' ? 'completed' : ''}`}>
+                          <span className="step-number">3</span>
+                          <span className="step-label">Playlist</span>
+                        </div>
+                        <div className={`step ${activeTab === 'settings' ? 'active' : ''}`}>
+                          <span className="step-number">4</span>
+                          <span className="step-label">Configuración</span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </form>
               </div>
@@ -782,67 +1098,120 @@ const AttendeeSelector: React.FC<{
           className={`tab-button ${selectorTab === 'individual' ? 'active' : ''}`}
           onClick={() => setSelectorTab('individual')}
         >
-          Cantantes Individuales
+          👤 Cantantes Individuales
         </button>
         <button 
           className={`tab-button ${selectorTab === 'choir' ? 'active' : ''}`}
           onClick={() => setSelectorTab('choir')}
         >
-          Coros Completos
+          🎭 Coros Completos
         </button>
       </div>
       
       {selectorTab === 'individual' && (
         <div className="selector-content">
-          <div className="form-group">
-            <label>Buscar Cantantes</label>
-            <input
-              type="text"
-              placeholder="Nombre, apellido o email..."
-              value={singerSearchTerm}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => onSearchChange(e.target.value)}
-            />
+          <div className="search-section">
+            <div className="form-group">
+              <label>🔍 Buscar Cantantes</label>
+              <input
+                type="text"
+                placeholder="Escribe nombre, apellido o email (mínimo 3 caracteres)..."
+                value={singerSearchTerm}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => onSearchChange(e.target.value)}
+                className="search-input"
+              />
+            </div>
+            
+            {singerSearchTerm.length > 0 && singerSearchTerm.length < 3 && (
+              <div className="search-hint">
+                💡 Escribe al menos 3 caracteres para comenzar la búsqueda
+              </div>
+            )}
           </div>
           
           {singerSearchTerm.length > 2 && (
-            <div className="singers-list">
-              {searchResults?.map((singer) => (
-                <div key={singer.id} className="singer-item">
-                  <label className="checkbox-item">
-                    <input
-                      type="checkbox"
-                      checked={selectedSingers.includes(singer.id)}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                        if (e.target.checked) {
-                          onSingersChange([...selectedSingers, singer.id]);
-                        } else {
-                          onSingersChange(selectedSingers.filter(id => id !== singer.id));
-                        }
+            <div className="search-results">
+              <div className="results-header">
+                <h4>Resultados de búsqueda ({searchResults?.length || 0})</h4>
+                {searchResults?.length > 0 && (
+                  <div className="bulk-actions">
+                    <button 
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => {
+                        const allResultIds = searchResults.map(singer => singer.id);
+                        const newSelection = [...new Set([...selectedSingers, ...allResultIds])];
+                        onSingersChange(newSelection);
                       }}
-                    />
-                    <div className="singer-info">
-                      <h4>{singer.firstName} {singer.lastName}</h4>
-                      <p>{singer.location?.name} • {singer.assignedRoles?.map(r => r.role).join(', ')}</p>
-                    </div>
-                  </label>
-                </div>
-              ))}
+                    >
+                      ✅ Seleccionar Todos
+                    </button>
+                  </div>
+                )}
+              </div>
               
-              {searchResults?.length === 0 && (
-                <p className="no-results">No se encontraron cantantes</p>
-              )}
+              <div className="singers-list">
+                {searchResults?.map((singer) => (
+                  <div key={singer.id} className="singer-item">
+                    <label className="checkbox-item">
+                      <input
+                        type="checkbox"
+                        checked={selectedSingers.includes(singer.id)}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                          if (e.target.checked) {
+                            onSingersChange([...selectedSingers, singer.id]);
+                          } else {
+                            onSingersChange(selectedSingers.filter(id => id !== singer.id));
+                          }
+                        }}
+                      />
+                      <div className="singer-info">
+                        <div className="singer-name">
+                          <h4>{singer.firstName} {singer.lastName}</h4>
+                          <span className="singer-email">{singer.email}</span>
+                        </div>
+                        <div className="singer-details">
+                          <span className="location-badge">📍 {singer.location?.name}</span>
+                          {singer.assignedRoles?.length > 0 && (
+                            <span className="roles-badge">
+                              🎵 {singer.assignedRoles.map(r => r.role).join(', ')}
+                            </span>
+                          )}
+                          {singer.voiceProfiles && singer.voiceProfiles.length > 0 && (
+                            <span className="voice-badge">
+                              🎤 {singer.voiceProfiles.map(v => v.voiceType).join(', ')}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </label>
+                  </div>
+                ))}
+                
+                {searchResults?.length === 0 && (
+                  <div className="no-results">
+                    <span className="no-results-icon">🔍</span>
+                    <p>No se encontraron cantantes con ese criterio</p>
+                    <p className="no-results-hint">Intenta con otros términos de búsqueda</p>
+                  </div>
+                )}
+              </div>
             </div>
           )}
           
           {selectedSingers.length > 0 && (
             <div className="selection-summary">
-              <p>Cantantes Seleccionados: {selectedSingers.length}</p>
-              <button 
-                className="btn btn-secondary btn-sm"
-                onClick={() => onSingersChange([])}
-              >
-                Limpiar Selección
-              </button>
+              <div className="summary-header">
+                <span className="summary-icon">✅</span>
+                <h4>Cantantes Seleccionados: {selectedSingers.length}</h4>
+              </div>
+              <div className="summary-actions">
+                <button 
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => onSingersChange([])}
+                >
+                  🗑️ Limpiar Selección Individual
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -850,50 +1219,79 @@ const AttendeeSelector: React.FC<{
       
       {selectorTab === 'choir' && (
         <div className="selector-content">
-          <label>Seleccionar Coros Completos por Ubicación</label>
+          <div className="choir-header">
+            <h4>🎭 Seleccionar Coros Completos por Ubicación</h4>
+            <p>Selecciona ubicaciones completas para incluir todos sus cantantes</p>
+          </div>
           
           <div className="choirs-list">
-            {singersData?.map((location) => (
-              <div key={location.id} className="choir-item">
-                <label className="checkbox-item">
-                  <input
-                    type="checkbox"
-                    checked={selectedChoirs.includes(location.id)}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                      if (e.target.checked) {
-                        onChoirsChange([...selectedChoirs, location.id]);
-                      } else {
-                        onChoirsChange(selectedChoirs.filter(id => id !== location.id));
-                      }
-                    }}
-                  />
-                  <div className="choir-info">
-                    <div className="choir-header">
-                      <h4>{location.name}</h4>
-                      <span className="choir-count">{location._count.users} cantantes</span>
+            {singersData?.length > 0 ? (
+              singersData.map((location) => (
+                <div key={location.id} className="choir-item">
+                  <label className="checkbox-item">
+                    <input
+                      type="checkbox"
+                      checked={selectedChoirs.includes(location.id)}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                        if (e.target.checked) {
+                          onChoirsChange([...selectedChoirs, location.id]);
+                        } else {
+                          onChoirsChange(selectedChoirs.filter(id => id !== location.id));
+                        }
+                      }}
+                    />
+                    <div className="choir-info">
+                      <div className="choir-header-info">
+                        <h4>🏛️ {location.name}</h4>
+                        <span className="choir-count">👥 {location._count.users} cantantes</span>
+                      </div>
+                      <p className="choir-location">📍 {location.city}, {location.region}</p>
+                      <div className="choir-preview">
+                        <strong>Vista previa:</strong>
+                        <p className="choir-members">
+                          {location.users.slice(0, 3).map(user => 
+                            `${user.firstName} ${user.lastName}`
+                          ).join(', ')}
+                          {location.users.length > 3 && ` y ${location.users.length - 3} cantante(s) más...`}
+                        </p>
+                      </div>
                     </div>
-                    <p className="choir-location">{location.city}, {location.region}</p>
-                    <p className="choir-members">
-                      {location.users.slice(0, 3).map(user => 
-                        `${user.firstName} ${user.lastName}`
-                      ).join(', ')}
-                      {location.users.length > 3 && ` y ${location.users.length - 3} más...`}
-                    </p>
-                  </div>
-                </label>
+                  </label>
+                </div>
+              ))
+            ) : (
+              <div className="no-choirs">
+                <span className="no-choirs-icon">🎭</span>
+                <p>No hay ubicaciones con cantantes disponibles</p>
+                <p className="no-choirs-hint">Verifica que existan cantantes registrados en el sistema</p>
               </div>
-            ))}
+            )}
           </div>
           
           {selectedChoirs.length > 0 && (
             <div className="selection-summary">
-              <p>Coros Seleccionados: {selectedChoirs.length}</p>
-              <button 
-                className="btn btn-secondary btn-sm"
-                onClick={() => onChoirsChange([])}
-              >
-                Limpiar Selección
-              </button>
+              <div className="summary-header">
+                <span className="summary-icon">🎭</span>
+                <h4>Coros Seleccionados: {selectedChoirs.length}</h4>
+              </div>
+              <div className="summary-details">
+                {selectedChoirs.map(choirId => {
+                  const choir = singersData?.find(l => l.id === choirId);
+                  return choir ? (
+                    <div key={choirId} className="selected-choir">
+                      <span>{choir.name} ({choir._count.users} cantantes)</span>
+                    </div>
+                  ) : null;
+                })}
+              </div>
+              <div className="summary-actions">
+                <button 
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => onChoirsChange([])}
+                >
+                  🗑️ Limpiar Selección de Coros
+                </button>
+              </div>
             </div>
           )}
         </div>

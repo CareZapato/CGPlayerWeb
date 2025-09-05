@@ -207,6 +207,7 @@ model Event {
   description       String?
   date              DateTime
   time              String?
+  category          String             @default("Culto")
   locationId        String?
   eventCity         String?
   eventAddress      String?

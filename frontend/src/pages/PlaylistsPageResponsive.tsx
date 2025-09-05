@@ -12,7 +12,6 @@ import {
   TrashIcon,
   Cog6ToothIcon
 } from '@heroicons/react/24/outline';
-import { useAuthStore } from '../store/authStore';
 import { usePlaylistStore } from '../store/playlistStore';
 import { usePlayerStore } from '../store/playerStore';
 import { getSongFileUrl } from '../config/api';
@@ -57,7 +56,6 @@ interface Playlist {
 }
 
 const PlaylistsPageResponsive: React.FC = () => {
-  const { user } = useAuthStore();
   const { replaceQueueAndPlay } = usePlaylistStore();
   const { playSong } = usePlayerStore();
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
@@ -375,19 +373,6 @@ const PlaylistsPageResponsive: React.FC = () => {
     loadPlaylistDetails(playlist.id);
     setShowSongManager(true);
     loadAvailableSongs(); // Cargar canciones para agregar
-  };
-
-  // Función para abrir modal de edición
-  const openEditModal = (playlist: Playlist) => {
-    setNewPlaylist({
-      name: playlist.name,
-      description: playlist.description || '',
-      isPublic: playlist.isPublic,
-      image: null
-    });
-    setSelectedPlaylist(playlist);
-    setShowCreateModal(true);
-    loadAvailableSongs();
   };
 
   // Función para eliminar playlist

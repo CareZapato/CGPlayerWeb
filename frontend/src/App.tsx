@@ -19,7 +19,7 @@ import UsersPage from './pages/UsersPage';
 
 // Components
 import { Layout, ProtectedRoute } from './components';
-import EventManagement from './components/Management/EventManagement';
+import EventManagement from './components/EventManagement';
 
 const queryClient = new QueryClient({
   defaultOptions: {

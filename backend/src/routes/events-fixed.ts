@@ -1,5 +1,5 @@
 import express from 'express';
-import { PrismaClient, UserRole } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import { authenticateToken, requireRole } from '../middleware/auth';
 import multer from 'multer';
 import path from 'path';
@@ -94,70 +94,6 @@ router.get('/', authenticateToken, requireRole(['ADMIN', 'DIRECTOR']), async (re
     });
   } catch (error) {
     console.error('Error fetching events:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error al obtener eventos'
-    });
-  }
-});
-
-// GET /api/events/management/all - Alias para obtener todos los eventos para gestión
-router.get('/management/all', authenticateToken, requireRole(['ADMIN', 'DIRECTOR']), async (req, res) => {
-  try {
-    const events = await prisma.event.findMany({
-      where: { isActive: true },
-      include: {
-        location: true,
-        creator: {
-          select: { firstName: true, lastName: true }
-        },
-        attendees: {
-          include: {
-            user: {
-              select: { 
-                id: true,
-                firstName: true, 
-                lastName: true, 
-                locationId: true,
-                location: { select: { name: true } },
-                assignedRoles: { select: { role: true } }
-              }
-            },
-            addedByUser: {
-              select: { firstName: true, lastName: true }
-            }
-          }
-        },
-        joinRequests: {
-          where: { status: 'PENDING' },
-          include: {
-            user: {
-              select: { 
-                id: true,
-                firstName: true, 
-                lastName: true, 
-                locationId: true,
-                assignedRoles: { select: { role: true } }
-              }
-            }
-          }
-        },
-        _count: {
-          select: {
-            attendees: true,
-            joinRequests: { where: { status: 'PENDING' } }
-          }
-        }
-      },
-      orderBy: { date: 'asc' }
-    });
-
-    res.json({
-      success: true,
-      data: events
-    });
-  } catch (error) {
-    console.error('Error fetching events for management:', error);
     res.status(500).json({
       success: false,
       message: 'Error al obtener eventos'
@@ -340,7 +276,7 @@ router.post('/', authenticateToken, requireRole(['ADMIN', 'DIRECTOR']), upload.s
             isActive: true,
             assignedRoles: {
               some: {
-                role: { in: [UserRole.CANTANTE, UserRole.DIRECTOR] }
+                role: { in: ['CANTANTE', 'DIRECTOR'] }
               }
             }
           },
@@ -396,11 +332,9 @@ router.post('/', authenticateToken, requireRole(['ADMIN', 'DIRECTOR']), upload.s
   }
 });
 
-// GET /api/events/locations/singers - Obtener cantantes por ubicación/coro con datos completos
+// GET /api/events/locations/singers - Obtener cantantes por ubicación para selección masiva
 router.get('/locations/singers', authenticateToken, requireRole(['ADMIN', 'DIRECTOR']), async (req, res) => {
   try {
-    const { includeStats = 'true' } = req.query;
-    
     const locations = await prisma.location.findMany({
       where: { isActive: true },
       include: {
@@ -409,7 +343,7 @@ router.get('/locations/singers', authenticateToken, requireRole(['ADMIN', 'DIREC
             isActive: true,
             assignedRoles: {
               some: {
-                role: { in: [UserRole.CANTANTE, UserRole.DIRECTOR] }
+                role: { in: ['CANTANTE', 'DIRECTOR'] }
               }
             }
           },
@@ -417,499 +351,13 @@ router.get('/locations/singers', authenticateToken, requireRole(['ADMIN', 'DIREC
             id: true,
             firstName: true,
             lastName: true,
-            email: true,
-            username: true,
-            phone: true,
-            createdAt: true,
             assignedRoles: {
-              select: { 
-                role: true,
-                createdAt: true
-              }
-            },
-            voiceProfiles: {
-              select: { 
-                voiceType: true,
-                createdAt: true
-              },
-              orderBy: { createdAt: 'desc' }
-            },
-            eventAttendees: includeStats === 'true' ? {
-              select: {
-                event: {
-                  select: {
-                    id: true,
-                    title: true,
-                    date: true
-                  }
-                }
-              },
-              take: 3,
-              orderBy: { createdAt: 'desc' }
-            } : false,
-            _count: includeStats === 'true' ? {
-              select: {
-                eventAttendees: true,
-                songAssignments: true,
-                soloPerformances: true
-              }
-            } : false
-          },
-          orderBy: [
-            { firstName: 'asc' },
-            { lastName: 'asc' }
-          ]
+              select: { role: true }
+            }
+          }
         },
         _count: {
           select: { 
-            users: {
-              where: {
-                isActive: true,
-                assignedRoles: {
-                  some: {
-                    role: { in: [UserRole.CANTANTE, UserRole.DIRECTOR] }
-                  }
-                }
-              }
-            }
-          }
-        }
-      },
-      orderBy: { name: 'asc' }
-    });
-
-    // Enriquecer datos de ubicaciones y cantantes
-    const enrichedLocations = locations.map(location => {
-      const singers = location.users.map(user => ({
-        ...user,
-        fullName: `${user.firstName} ${user.lastName}`,
-        primaryRole: user.assignedRoles[0]?.role || 'CANTANTE',
-        primaryVoiceType: user.voiceProfiles[0]?.voiceType || 'No asignado',
-        allVoiceTypes: user.voiceProfiles.map(vp => vp.voiceType),
-        totalEvents: includeStats === 'true' ? (user as any)._count?.eventAttendees || 0 : 0,
-        recentEvents: includeStats === 'true' ? (user as any).eventAttendees?.length || 0 : 0,
-        isExperienced: includeStats === 'true' ? ((user as any)._count?.eventAttendees || 0) > 5 : false,
-        lastEventDate: includeStats === 'true' ? (user as any).eventAttendees?.[0]?.event?.date || null : null
-      }));
-
-      // Estadísticas del coro/ubicación
-      const voiceTypeDistribution = singers.reduce((acc: any, singer) => {
-        const voiceType = singer.primaryVoiceType;
-        acc[voiceType] = (acc[voiceType] || 0) + 1;
-        return acc;
-      }, {});
-
-      const roleDistribution = singers.reduce((acc: any, singer) => {
-        const role = singer.primaryRole;
-        acc[role] = (acc[role] || 0) + 1;
-        return acc;
-      }, {});
-
-      const experienceDistribution = {
-        novice: singers.filter(s => s.totalEvents === 0).length,
-        beginner: singers.filter(s => s.totalEvents > 0 && s.totalEvents <= 2).length,
-        intermediate: singers.filter(s => s.totalEvents > 2 && s.totalEvents <= 5).length,
-        experienced: singers.filter(s => s.totalEvents > 5).length
-      };
-
-      return {
-        ...location,
-        singers,
-        stats: {
-          totalSingers: singers.length,
-          voiceTypeDistribution,
-          roleDistribution,
-          experienceDistribution,
-          averageEventsPerSinger: includeStats === 'true' 
-            ? Math.round(singers.reduce((sum, s) => sum + s.totalEvents, 0) / singers.length) 
-            : 0
-        }
-      };
-    });
-
-    res.json({
-      success: true,
-      data: enrichedLocations,
-      summary: {
-        totalLocations: enrichedLocations.length,
-        totalSingers: enrichedLocations.reduce((sum, loc) => sum + loc.singers.length, 0),
-        activeChoirs: enrichedLocations.filter(loc => loc.singers.length > 0).length
-      }
-    });
-  } catch (error) {
-    console.error('Error fetching singers by location:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error al obtener cantantes por ubicación'
-    });
-  }
-});
-
-// GET /api/events/search/singers - Búsqueda avanzada de cantantes con filtros
-router.get('/search/singers', authenticateToken, requireRole(['ADMIN', 'DIRECTOR']), async (req, res) => {
-  try {
-    const { 
-      query = '', 
-      locationId = '', 
-      voiceType = '', 
-      role = '', 
-      limit = '50' 
-    } = req.query;
-    
-    // Construir filtros dinámicos
-    const whereConditions: any = {
-      isActive: true,
-      assignedRoles: {
-        some: {
-          role: { in: [UserRole.CANTANTE, UserRole.DIRECTOR] }
-        }
-      }
-    };
-
-    // Filtro por texto de búsqueda
-    if (query && (query as string).length >= 1) {
-      whereConditions.OR = [
-        { firstName: { contains: query as string, mode: 'insensitive' } },
-        { lastName: { contains: query as string, mode: 'insensitive' } },
-        { email: { contains: query as string, mode: 'insensitive' } },
-        { username: { contains: query as string, mode: 'insensitive' } }
-      ];
-    }
-
-    // Filtro por ubicación/coro
-    if (locationId && locationId !== '') {
-      whereConditions.locationId = locationId as string;
-    }
-
-    // Filtro por tipo de voz
-    if (voiceType && voiceType !== '') {
-      whereConditions.voiceProfiles = {
-        some: {
-          voiceType: voiceType as string
-        }
-      };
-    }
-
-    // Filtro por rol específico
-    if (role && role !== '') {
-      whereConditions.assignedRoles = {
-        some: {
-          role: role as string
-        }
-      };
-    }
-
-    const singers = await prisma.user.findMany({
-      where: whereConditions,
-      select: {
-        id: true,
-        firstName: true,
-        lastName: true,
-        email: true,
-        username: true,
-        phone: true,
-        locationId: true,
-        createdAt: true,
-        location: {
-          select: { 
-            id: true,
-            name: true,
-            address: true,
-            city: true 
-          }
-        },
-        assignedRoles: {
-          select: { 
-            role: true,
-            createdAt: true
-          }
-        },
-        voiceProfiles: {
-          select: { 
-            voiceType: true,
-            createdAt: true
-          }
-        },
-        eventAttendees: {
-          select: {
-            event: {
-              select: {
-                id: true,
-                title: true,
-                date: true
-              }
-            }
-          },
-          take: 3,
-          orderBy: { createdAt: 'desc' }
-        },
-        _count: {
-          select: {
-            eventAttendees: true,
-            songAssignments: true,
-            soloPerformances: true
-          }
-        }
-      },
-      take: parseInt(limit as string),
-      orderBy: [
-        { firstName: 'asc' },
-        { lastName: 'asc' }
-      ]
-    });
-
-    // Agregar información adicional procesada
-    const enrichedSingers = singers.map(singer => ({
-      ...singer,
-      fullName: `${singer.firstName} ${singer.lastName}`,
-      primaryRole: singer.assignedRoles[0]?.role || 'CANTANTE',
-      primaryVoiceType: singer.voiceProfiles[0]?.voiceType || 'No asignado',
-      totalEvents: singer._count.eventAttendees,
-      recentEvents: singer.eventAttendees.length,
-      isExperienced: singer._count.eventAttendees > 5,
-      lastEventDate: singer.eventAttendees[0]?.event?.date || null
-    }));
-
-    res.json({
-      success: true,
-      data: enrichedSingers,
-      total: enrichedSingers.length,
-      filters: {
-        query: query || '',
-        locationId: locationId || '',
-        voiceType: voiceType || '',
-        role: role || '',
-        limit: parseInt(limit as string)
-      }
-    });
-  } catch (error) {
-    console.error('Error searching singers:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error al buscar cantantes'
-    });
-  }
-});
-
-// GET /api/events/singers/all - Obtener todos los cantantes con datos completos
-router.get('/singers/all', authenticateToken, requireRole(['ADMIN', 'DIRECTOR']), async (req, res) => {
-  try {
-    const { 
-      page = '1', 
-      limit = '100', 
-      sortBy = 'firstName', 
-      sortOrder = 'asc',
-      includeInactive = 'false' 
-    } = req.query;
-    
-    const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
-    
-    const whereCondition: any = {
-      assignedRoles: {
-        some: {
-          role: { in: ['CANTANTE' as const, 'DIRECTOR' as const] }
-        }
-      }
-    };
-
-    if (includeInactive !== 'true') {
-      whereCondition.isActive = true;
-    }
-
-    // Contar total para paginación
-    const totalCount = await prisma.user.count({ where: whereCondition });
-
-    const singers = await prisma.user.findMany({
-      where: whereCondition,
-      include: {
-        location: {
-          select: { 
-            id: true,
-            name: true,
-            address: true,
-            city: true,
-            country: true
-          }
-        },
-        assignedRoles: {
-          include: { 
-            assignedByUser: {
-              select: {
-                firstName: true,
-                lastName: true
-              }
-            }
-          }
-        },
-        voiceProfiles: {
-          include: { 
-            assignedByUser: {
-              select: {
-                firstName: true,
-                lastName: true
-              }
-            }
-          },
-          orderBy: { createdAt: 'desc' }
-        },
-        eventAttendees: {
-          include: {
-            event: {
-              select: {
-                id: true,
-                title: true,
-                date: true
-              }
-            }
-          },
-          take: 5,
-          orderBy: { createdAt: 'desc' }
-        },
-        songAssignments: {
-          include: {
-            song: {
-              select: {
-                title: true,
-                artist: true
-              }
-            }
-          },
-          take: 3,
-          orderBy: { createdAt: 'desc' }
-        },
-        soloPerformances: {
-          include: {
-            event: {
-              select: {
-                title: true,
-                date: true
-              }
-            },
-            song: {
-              select: {
-                title: true,
-                artist: true
-              }
-            }
-          },
-          take: 3,
-          orderBy: { createdAt: 'desc' }
-        },
-        _count: {
-          select: {
-            eventAttendees: true,
-            songAssignments: true,
-            soloPerformances: true,
-            playlists: true,
-            lyricContributions: true
-          }
-        }
-      },
-      skip,
-      take: parseInt(limit as string),
-      orderBy: {
-        [sortBy as string]: sortOrder as 'asc' | 'desc'
-      }
-    });
-
-    // Enriquecer datos
-    const enrichedSingers = singers.map(singer => {
-      const totalEvents = singer._count.eventAttendees;
-      const recentEvents = singer.eventAttendees.length;
-      
-      return {
-        ...singer,
-        fullName: `${singer.firstName} ${singer.lastName}`,
-        primaryRole: singer.assignedRoles[0]?.role || 'CANTANTE',
-        allRoles: singer.assignedRoles.map((r: any) => r.role),
-        primaryVoiceType: singer.voiceProfiles[0]?.voiceType || 'No asignado',
-        allVoiceTypes: singer.voiceProfiles.map((vp: any) => vp.voiceType),
-        choirName: singer.location?.name || 'Sin asignar',
-        locationInfo: singer.location ? 
-          `${singer.location.name} - ${singer.location.city}, ${singer.location.country}` : 
-          'Sin ubicación asignada',
-        stats: {
-          totalEvents,
-          recentEvents,
-          totalSongs: singer._count.songAssignments,
-          soloPerformances: singer._count.soloPerformances,
-          playlists: singer._count.playlists,
-          lyricContributions: singer._count.lyricContributions,
-          experienceLevel: totalEvents === 0 ? 'Novato' :
-                          totalEvents <= 2 ? 'Principiante' :
-                          totalEvents <= 5 ? 'Intermedio' : 'Experimentado',
-          isActive: singer.isActive,
-          joinDate: singer.createdAt,
-          lastUpdate: singer.updatedAt
-        },
-        recentActivity: {
-          lastEvents: singer.eventAttendees.map((ea: any) => ({
-            title: ea.event.title,
-            date: ea.event.date,
-            status: ea.status
-          })),
-          lastSongs: singer.songAssignments.map((sa: any) => ({
-            title: sa.song.title,
-            artist: sa.song.artist,
-            assignedDate: sa.createdAt
-          })),
-          lastSolos: singer.soloPerformances.map((sp: any) => ({
-            song: `${sp.song.title} - ${sp.song.artist}`,
-            event: sp.event.title,
-            date: sp.event.date
-          }))
-        }
-      };
-    });
-
-    res.json({
-      success: true,
-      data: enrichedSingers,
-      pagination: {
-        current_page: parseInt(page as string),
-        per_page: parseInt(limit as string),
-        total: totalCount,
-        total_pages: Math.ceil(totalCount / parseInt(limit as string)),
-        has_next_page: skip + parseInt(limit as string) < totalCount,
-        has_prev_page: parseInt(page as string) > 1
-      },
-      summary: {
-        total_singers: totalCount,
-        active_singers: enrichedSingers.filter(s => s.isActive).length,
-        voice_type_distribution: enrichedSingers.reduce((acc: any, singer) => {
-          const voiceType = singer.primaryVoiceType;
-          acc[voiceType] = (acc[voiceType] || 0) + 1;
-          return acc;
-        }, {}),
-        experience_distribution: {
-          novato: enrichedSingers.filter(s => s.stats.experienceLevel === 'Novato').length,
-          principiante: enrichedSingers.filter(s => s.stats.experienceLevel === 'Principiante').length,
-          intermedio: enrichedSingers.filter(s => s.stats.experienceLevel === 'Intermedio').length,
-          experimentado: enrichedSingers.filter(s => s.stats.experienceLevel === 'Experimentado').length
-        }
-      }
-    });
-  } catch (error) {
-    console.error('Error fetching all singers:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error al obtener lista de cantantes'
-    });
-  }
-});
-
-// GET /api/events/filters/options - Obtener opciones para filtros dinámicos
-router.get('/filters/options', authenticateToken, requireRole(['ADMIN', 'DIRECTOR']), async (req, res) => {
-  try {
-    // Obtener ubicaciones activas
-    const locations = await prisma.location.findMany({
-      where: { isActive: true },
-      select: {
-        id: true,
-        name: true,
-        city: true,
-        _count: {
-          select: {
             users: {
               where: {
                 isActive: true,
@@ -926,62 +374,77 @@ router.get('/filters/options', authenticateToken, requireRole(['ADMIN', 'DIRECTO
       orderBy: { name: 'asc' }
     });
 
-    // Obtener tipos de voz únicos
-    const voiceTypes = await prisma.userVoiceProfile.findMany({
-      select: { voiceType: true },
-      distinct: ['voiceType'],
-      where: {
-        user: {
-          isActive: true,
-          assignedRoles: {
-            some: {
-              role: { in: ['CANTANTE', 'DIRECTOR'] }
-            }
-          }
-        }
-      }
+    res.json({
+      success: true,
+      data: locations
     });
+  } catch (error) {
+    console.error('Error fetching singers by location:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al obtener cantantes por ubicación'
+    });
+  }
+});
 
-    // Obtener roles únicos
-    const roles = await prisma.userRole_DB.findMany({
-      select: { role: true },
-      distinct: ['role'],
+// GET /api/events/search/singers - Búsqueda en tiempo real de cantantes
+router.get('/search/singers', authenticateToken, requireRole(['ADMIN', 'DIRECTOR']), async (req, res) => {
+  try {
+    const { query } = req.query;
+    
+    if (!query || (query as string).length < 2) {
+      return res.json({
+        success: true,
+        data: []
+      });
+    }
+
+    const singers = await prisma.user.findMany({
       where: {
-        user: {
-          isActive: true
+        isActive: true,
+        assignedRoles: {
+          some: {
+            role: { in: ['CANTANTE', 'DIRECTOR'] }
+          }
+        },
+        OR: [
+          { firstName: { contains: query as string, mode: 'insensitive' } },
+          { lastName: { contains: query as string, mode: 'insensitive' } },
+          { email: { contains: query as string, mode: 'insensitive' } }
+        ]
+      },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        locationId: true,
+        location: {
+          select: { name: true }
+        },
+        assignedRoles: {
+          select: { role: true }
+        },
+        voiceProfiles: {
+          select: { voiceType: true }
         }
-      }
+      },
+      take: 20,
+      orderBy: [
+        { firstName: 'asc' },
+        { lastName: 'asc' }
+      ]
     });
 
     res.json({
       success: true,
-      data: {
-        locations: locations.map(loc => ({
-          ...loc,
-          label: `${loc.name} (${loc._count.users} cantantes)`,
-          singersCount: loc._count.users
-        })),
-        voiceTypes: voiceTypes.map(vt => ({
-          value: vt.voiceType,
-          label: vt.voiceType
-        })),
-        roles: roles.map(r => ({
-          value: r.role,
-          label: r.role
-        })),
-        experienceLevels: [
-          { value: 'novato', label: 'Novato (0 eventos)' },
-          { value: 'principiante', label: 'Principiante (1-2 eventos)' },
-          { value: 'intermedio', label: 'Intermedio (3-5 eventos)' },
-          { value: 'experimentado', label: 'Experimentado (5+ eventos)' }
-        ]
-      }
+      data: singers
     });
   } catch (error) {
-    console.error('Error fetching filter options:', error);
+    console.error('Error searching singers:', error);
     res.status(500).json({
       success: false,
-      message: 'Error al obtener opciones de filtros'
+      message: 'Error al buscar cantantes'
     });
   }
 });

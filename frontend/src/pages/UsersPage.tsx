@@ -173,7 +173,6 @@ const UsersPage: React.FC = () => {
   });
 
   // Estado para importación CSV
-  const [csvFile, setCsvFile] = useState<File | null>(null);
   const [csvPreview, setCsvPreview] = useState<any[]>([]);
   const [importProgress, setImportProgress] = useState(0);
   const [isImporting, setIsImporting] = useState(false);
@@ -442,13 +441,10 @@ const UsersPage: React.FC = () => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    setCsvFile(file);
-    
     const reader = new FileReader();
     reader.onload = (e) => {
       const text = e.target?.result as string;
       const lines = text.split('\n').filter(line => line.trim());
-      const headers = lines[0].split(',').map(h => h.trim());
       
       const data = lines.slice(1).map((line, index) => {
         const values = line.split(',').map(v => v.trim());
@@ -513,7 +509,6 @@ const UsersPage: React.FC = () => {
 
       fetchUsers();
       setShowImportModal(false);
-      setCsvFile(null);
       setCsvPreview([]);
     } catch (error: any) {
       console.error('Error importing users:', error);

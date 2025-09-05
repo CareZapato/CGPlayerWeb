@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Crear Evento</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-8">
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-3xl font-bold text-gray-900 mb-6">Test de Creación de Eventos</h1>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Login -->
+            <div class="bg-white p-6 rounded-lg shadow">
+                <h2 class="text-xl font-semibold mb-4">1. Login como Admin</h2>
+                <div class="space-y-3">
+                    <input type="email" id="email" placeholder="Email" value="admin@test.com" 
+                           class="w-full border border-gray-300 rounded px-3 py-2">
+                    <input type="password" id="password" placeholder="Contraseña" value="admin123" 
+                           class="w-full border border-gray-300 rounded px-3 py-2">
+                    <button onclick="login()" 
+                            class="w-full bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700">
+                        Login
+                    </button>
+                </div>
+                <div id="loginResult" class="mt-3 text-sm"></div>
+            </div>
+
+            <!-- Crear Evento -->
+            <div class="bg-white p-6 rounded-lg shadow">
+                <h2 class="text-xl font-semibold mb-4">2. Crear Evento</h2>
+                <div class="space-y-3">
+                    <input type="text" id="eventTitle" placeholder="Título del evento" value="Concierto de Navidad" 
+                           class="w-full border border-gray-300 rounded px-3 py-2">
+                    <textarea id="eventDescription" placeholder="Descripción" rows="3" 
+                              class="w-full border border-gray-300 rounded px-3 py-2">Un hermoso concierto navideño con villancicos tradicionales</textarea>
+                    <input type="date" id="eventDate" 
+                           class="w-full border border-gray-300 rounded px-3 py-2">
+                    <input type="time" id="eventTime" value="19:00"
+                           class="w-full border border-gray-300 rounded px-3 py-2">
+                    <select id="eventCategory" class="w-full border border-gray-300 rounded px-3 py-2">
+                        <option value="Presentación">Presentación</option>
+                        <option value="Culto">Culto</option>
+                        <option value="Ensayo">Ensayo</option>
+                        <option value="Especial">Especial</option>
+                    </select>
+                    <input type="text" id="eventCity" placeholder="Ciudad" value="Medellín" 
+                           class="w-full border border-gray-300 rounded px-3 py-2">
+                    <input type="text" id="eventAddress" placeholder="Dirección" value="Iglesia Central, Calle 50 #70-30" 
+                           class="w-full border border-gray-300 rounded px-3 py-2">
+                    <button onclick="createEvent()" 
+                            class="w-full bg-green-600 text-white py-2 px-4 rounded hover:bg-green-700">
+                        Crear Evento
+                    </button>
+                </div>
+                <div id="createResult" class="mt-3 text-sm"></div>
+            </div>
+
+            <!-- Lista de Eventos -->
+            <div class="bg-white p-6 rounded-lg shadow md:col-span-2">
+                <h2 class="text-xl font-semibold mb-4">3. Eventos Existentes</h2>
+                <button onclick="loadEvents()" 
+                        class="mb-4 bg-purple-600 text-white py-2 px-4 rounded hover:bg-purple-700">
+                    Cargar Eventos
+                </button>
+                <div id="eventsList" class="space-y-3"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let authToken = null;
+
+        // Establecer fecha de mañana por defecto
+        document.getElementById('eventDate').value = new Date(Date.now() + 24*60*60*1000).toISOString().split('T')[0];
+
+        async function login() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const resultDiv = document.getElementById('loginResult');
+
+            try {
+                const response = await fetch('http://192.168.1.10:3001/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    authToken = data.token;
+                    resultDiv.innerHTML = `<div class="text-green-600">✅ Login exitoso como ${data.user.firstName}</div>`;
+                } else {
+                    resultDiv.innerHTML = `<div class="text-red-600">❌ Error: ${data.message}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="text-red-600">❌ Error de conexión: ${error.message}</div>`;
+            }
+        }
+
+        async function createEvent() {
+            if (!authToken) {
+                document.getElementById('createResult').innerHTML = '<div class="text-red-600">❌ Necesitas hacer login primero</div>';
+                return;
+            }
+
+            const eventData = {
+                title: document.getElementById('eventTitle').value,
+                description: document.getElementById('eventDescription').value,
+                date: `${document.getElementById('eventDate').value}T${document.getElementById('eventTime').value}:00.000Z`,
+                category: document.getElementById('eventCategory').value,
+                city: document.getElementById('eventCity').value,
+                address: document.getElementById('eventAddress').value,
+                country: 'Colombia'
+            };
+
+            const resultDiv = document.getElementById('createResult');
+
+            try {
+                const response = await fetch('http://192.168.1.10:3001/api/events', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify(eventData)
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `<div class="text-green-600">✅ Evento creado exitosamente: ${data.data.title}</div>`;
+                    loadEvents(); // Recargar la lista
+                } else {
+                    resultDiv.innerHTML = `<div class="text-red-600">❌ Error: ${data.message}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="text-red-600">❌ Error de conexión: ${error.message}</div>`;
+            }
+        }
+
+        async function loadEvents() {
+            try {
+                const response = await fetch('http://192.168.1.10:3001/api/events');
+                const data = await response.json();
+                
+                const listDiv = document.getElementById('eventsList');
+                
+                if (response.ok && data.data.length > 0) {
+                    listDiv.innerHTML = data.data.map(event => `
+                        <div class="border border-gray-200 rounded p-4">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <h3 class="font-semibold text-lg">${event.title}</h3>
+                                    <p class="text-gray-600">${event.description}</p>
+                                    <div class="mt-2 text-sm text-gray-500">
+                                        <div>📅 ${new Date(event.date).toLocaleDateString('es-ES')} ${new Date(event.date).toLocaleTimeString('es-ES', {hour: '2-digit', minute: '2-digit'})}</div>
+                                        <div>🏷️ ${event.category}</div>
+                                        ${event.city ? `<div>🌍 ${event.city}</div>` : ''}
+                                        ${event.address ? `<div>📍 ${event.address}</div>` : ''}
+                                    </div>
+                                </div>
+                                <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">${event.category}</span>
+                            </div>
+                        </div>
+                    `).join('');
+                } else {
+                    listDiv.innerHTML = '<div class="text-gray-500 text-center py-8">No hay eventos disponibles</div>';
+                }
+            } catch (error) {
+                document.getElementById('eventsList').innerHTML = `<div class="text-red-600">❌ Error al cargar eventos: ${error.message}</div>`;
+            }
+        }
+
+        // Cargar eventos al iniciar
+        loadEvents();
+    </script>
+</body>
+</html>
