@@ -210,7 +210,7 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({ onClose, onEventCre
         const result = await response.json();
         console.log('Songs response:', result); // Debug log
         // Mostrar solo canciones padre (sin voiceType) para selección
-        const allSongs = result.data || result || [];
+        const allSongs = result.songs || result.data || result || [];
         const parentSongs = allSongs.filter((song: Song) => !song.voiceType && !song.parentSongId);
         console.log('Parent songs filtered:', parentSongs); // Debug log
         setSongs(parentSongs);
