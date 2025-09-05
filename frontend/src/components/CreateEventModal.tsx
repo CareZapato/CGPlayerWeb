@@ -102,9 +102,16 @@ interface Playlist {
 interface CreateEventModalProps {
   onClose: () => void;
   onEventCreated: (event: any) => void;
+  editMode?: boolean;
+  eventData?: any;
 }
 
-const CreateEventModal: React.FC<CreateEventModalProps> = ({ onClose, onEventCreated }) => {
+const CreateEventModal: React.FC<CreateEventModalProps> = ({ 
+  onClose, 
+  onEventCreated, 
+  editMode = false, 
+  eventData = null 
+}) => {
   const [activeTab, setActiveTab] = useState<'basic' | 'attendees' | 'music'>('basic');
   
   // Basic info state
@@ -219,11 +226,71 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({ onClose, onEventCre
         const parentSongs = allSongs.filter((song: Song) => !song.voiceType && !song.parentSongId);
         console.log('Parent songs filtered:', parentSongs); // Debug log
         setSongs(parentSongs);
+        
+        // If we're in edit mode, also load parent songs for the event variations
+        if (editMode && eventData && eventData.eventSongs) {
+          await loadParentSongsForEditMode(parentSongs);
+        }
       }
     } catch (error) {
       console.error('Error loading songs:', error);
     }
     setLoadingSongs(false);
+  };
+
+  // Load parent songs specifically for edit mode
+  const loadParentSongsForEditMode = async (currentParentSongs: Song[]) => {
+    if (!editMode || !eventData || !eventData.eventSongs) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      
+      // Get unique parent song IDs from event variations
+      const eventSongs = eventData.eventSongs.map((es: any) => es.song);
+      const parentSongIds = [...new Set(
+        eventSongs
+          .filter((song: any) => song.parentSongId)
+          .map((song: any) => song.parentSongId)
+      )];
+
+      console.log('🎵 Loading parent songs for IDs:', parentSongIds);
+
+      // Load each parent song that's not already in the list
+      const additionalParentSongs: Song[] = [];
+      for (const parentId of parentSongIds) {
+        // Check if parent song is already loaded
+        const alreadyLoaded = currentParentSongs.some(song => song.id === parentId);
+        if (!alreadyLoaded) {
+          try {
+            const response = await fetch(getApiUrl(`/songs/${parentId as string}`), {
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+              }
+            });
+            
+            if (response.ok) {
+              const result = await response.json();
+              const parentSong = result.data || result;
+              if (parentSong && !parentSong.voiceType && !parentSong.parentSongId) {
+                additionalParentSongs.push(parentSong);
+              }
+            }
+          } catch (error) {
+            console.error(`Error loading parent song ${parentId}:`, error);
+          }
+        }
+      }
+
+      console.log('🎵 Additional parent songs loaded:', additionalParentSongs);
+
+      // Update songs list with additional parent songs
+      if (additionalParentSongs.length > 0) {
+        setSongs(prev => [...prev, ...additionalParentSongs]);
+      }
+    } catch (error) {
+      console.error('Error loading parent songs for edit mode:', error);
+    }
   };
 
   // Load playlists for music tab
@@ -487,8 +554,30 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({ onClose, onEventCre
 
   useEffect(() => {
     if (activeTab === 'music') {
+      console.log('🎵 [TAB CHANGE] Switching to music tab...');
+      console.log('🎵 [TAB CHANGE] Edit mode:', editMode);
+      console.log('🎵 [TAB CHANGE] Event data:', eventData?.title);
+      
       loadSongs();
       loadPlaylists();
+      
+      // If we're in edit mode and have event data, also ensure songs are set and variations updated
+      if (editMode && eventData && eventData.eventSongs) {
+        console.log('🎵 [TAB CHANGE] Setting up edit mode songs...');
+        const eventSongs = eventData.eventSongs.map((es: any) => es.song);
+        console.log('🎵 [TAB CHANGE] Event songs to set:', eventSongs.length);
+        
+        // Set selected songs after a short delay to ensure songs are loaded
+        setTimeout(() => {
+          console.log('🎵 [TAB CHANGE] Setting selected songs...');
+          setSelectedSongs(eventSongs);
+          // Update variations using the special edit mode function
+          setTimeout(() => {
+            console.log('🎵 [TAB CHANGE] Updating variations...');
+            updateVariationsInfoForEditMode();
+          }, 100);
+        }, 200);
+      }
     }
   }, [activeTab]);
 
@@ -506,10 +595,132 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({ onClose, onEventCre
 
   // Update variations info when songs or selectedSongs change
   useEffect(() => {
+    console.log('🎵 [UPDATE EFFECT] Variations update effect triggered');
+    console.log('🎵 [UPDATE EFFECT] activeTab:', activeTab);
+    console.log('🎵 [UPDATE EFFECT] songs.length:', songs.length);
+    console.log('🎵 [UPDATE EFFECT] selectedSongs.length:', selectedSongs.length);
+    console.log('🎵 [UPDATE EFFECT] editMode:', editMode);
+    console.log('🎵 [UPDATE EFFECT] eventData exists:', !!eventData);
+    console.log('🎵 [UPDATE EFFECT] eventData.eventSongs exists:', !!(eventData && eventData.eventSongs));
+    
     if (activeTab === 'music' && songs.length > 0) {
-      updateVariationsInfo();
+      // In edit mode, always use the special function if we have selected songs with parentSongId
+      const hasVariationsWithParent = selectedSongs.some(song => song.parentSongId);
+      console.log('🎵 [UPDATE EFFECT] hasVariationsWithParent:', hasVariationsWithParent);
+      
+      if (editMode && hasVariationsWithParent) {
+        console.log('🎵 [UPDATE EFFECT] Using edit mode variations function');
+        // In edit mode with variations, use the special function
+        updateVariationsInfoForEditMode();
+      } else {
+        console.log('🎵 [UPDATE EFFECT] Using normal variations function');
+        // In normal mode, use the regular function
+        updateVariationsInfo();
+      }
+    } else {
+      console.log('🎵 [UPDATE EFFECT] Conditions not met for updating variations');
     }
-  }, [songs, selectedSongs, activeTab]);
+  }, [songs, selectedSongs, activeTab, editMode]);
+
+  // Load event data in edit mode
+  useEffect(() => {
+    console.log('🔄 [EDIT LOAD] Edit mode useEffect triggered');
+    console.log('🔄 [EDIT LOAD] editMode:', editMode);
+    console.log('🔄 [EDIT LOAD] eventData:', eventData);
+    console.log('🔄 [EDIT LOAD] Full eventData structure:', JSON.stringify(eventData, null, 2));
+    
+    if (editMode && eventData) {
+      // Load basic info
+      setTitle(eventData.title || '');
+      setDescription(eventData.description || '');
+      setDate(eventData.date ? eventData.date.split('T')[0] : '');
+      setTime(eventData.time || '');
+      setEventCity(eventData.eventCity || '');
+      setEventAddress(eventData.eventAddress || '');
+      setCategory(eventData.category || 'Culto');
+      setIsPublic(eventData.isPublic ?? true);
+      setAllowExternalJoin(eventData.allowExternalJoin ?? false);
+      
+      // Set city search term to show current city in the input
+      if (eventData.eventCity) {
+        setCitySearchTerm(eventData.eventCity);
+        setEventCity(eventData.eventCity);
+      }
+      
+      // Load attendees
+      if (eventData.attendees) {
+        setSelectedAttendees(eventData.attendees.map((attendee: any) => ({
+          id: attendee.user.id,
+          firstName: attendee.user.firstName,
+          lastName: attendee.user.lastName,
+          email: attendee.user.email || '',
+          role: attendee.user.assignedRoles?.[0]?.role || 'CANTANTE',
+          location: attendee.user.location ? attendee.user.location.name : '',
+          addedBy: 'individual' as const
+        })));
+      }
+      
+      // Load songs - need to trigger this after music tab is loaded
+      console.log('🔄 [EDIT LOAD] Checking eventData.eventSongs...');
+      console.log('🔄 [EDIT LOAD] eventData.eventSongs exists:', !!eventData.eventSongs);
+      console.log('🔄 [EDIT LOAD] eventData.eventSongs value:', eventData.eventSongs);
+      console.log('🔄 [EDIT LOAD] eventData.eventSongs type:', typeof eventData.eventSongs);
+      console.log('🔄 [EDIT LOAD] eventData.eventSongs length:', eventData.eventSongs?.length);
+      
+      if (eventData.eventSongs && Array.isArray(eventData.eventSongs)) {
+        console.log('🔄 [EDIT LOAD] EventSongs is array with length:', eventData.eventSongs.length);
+        eventData.eventSongs.forEach((es: any, index: number) => {
+          console.log(`🔄 [EDIT LOAD] EventSong ${index}:`, es);
+          console.log(`🔄 [EDIT LOAD] EventSong ${index} song:`, es.song);
+        });
+      }
+      
+      if (eventData.eventSongs) {
+        console.log('🔄 [EDIT LOAD] Processing eventSongs...');
+        const eventSongs = eventData.eventSongs.map((es: any) => {
+          console.log('🔄 [EDIT LOAD] Mapping eventSong:', es);
+          console.log('🔄 [EDIT LOAD] Extracted song:', es.song);
+          return es.song;
+        });
+        console.log('🔄 [EDIT LOAD] Final mapped eventSongs:', eventSongs);
+        setSelectedSongs(eventSongs);
+        
+        // If we're already on the music tab, load songs and trigger variations update
+        if (activeTab === 'music') {
+          // First load all songs, then set selected songs
+          loadSongs().then(() => {
+            setSelectedSongs(eventSongs);
+          });
+        }
+      }
+    }
+  }, [editMode, eventData, activeTab]);
+
+  // Additional effect to handle song loading in edit mode
+  useEffect(() => {
+    if (editMode && eventData && eventData.eventSongs && activeTab === 'music' && songs.length > 0) {
+      console.log('🎵 [EDIT MODE] Setting up songs for edit mode...');
+      console.log('🎵 [EDIT MODE] Event songs from data:', eventData.eventSongs);
+      
+      // When songs are loaded and we're in edit mode, set the selected songs and update variations
+      const eventSongs = eventData.eventSongs.map((es: any) => es.song);
+      console.log('🎵 [EDIT MODE] Mapped event songs:', eventSongs);
+      console.log('🎵 [EDIT MODE] Songs with voiceType:', eventSongs.filter((s: any) => s.voiceType));
+      
+      setSelectedSongs(eventSongs);
+      
+      // Log what we just set
+      console.log('🎵 [EDIT MODE] Just set selectedSongs to:', eventSongs);
+      console.log('🎵 [EDIT MODE] Songs with voiceType count:', eventSongs.filter((s: any) => s.voiceType).length);
+      console.log('🎵 [EDIT MODE] All voiceTypes found:', eventSongs.filter((s: any) => s.voiceType).map((s: any) => s.voiceType));
+      
+      // Use the special edit mode function to update variations
+      setTimeout(() => {
+        console.log('🎵 [EDIT MODE] About to update variations info...');
+        updateVariationsInfoForEditMode();
+      }, 200);
+    }
+  }, [editMode, eventData, activeTab, songs.length]);
 
   const handleSubmit = async () => {
     if (!title || !date) {
@@ -560,8 +771,11 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({ onClose, onEventCre
         formData.append('songIds', JSON.stringify(songIds));
       }
 
-      const response = await fetch(getApiUrl('/events'), {
-        method: 'POST',
+      const url = editMode ? `/events/${eventData.id}` : '/events';
+      const method = editMode ? 'PUT' : 'POST';
+
+      const response = await fetch(getApiUrl(url), {
+        method: method,
         headers: {
           'Authorization': `Bearer ${token}`
         },
@@ -572,13 +786,14 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({ onClose, onEventCre
         const result = await response.json();
         
         // Mostrar mensaje de éxito
-        alert(`¡Evento "${title}" creado exitosamente! ${songsWithVoiceType.length > 0 ? `Se agregaron ${songsWithVoiceType.length} canciones.` : ''}`);
+        const action = editMode ? 'actualizado' : 'creado';
+        alert(`¡Evento "${title}" ${action} exitosamente! ${songsWithVoiceType.length > 0 ? `Se ${editMode ? 'actualizaron' : 'agregaron'} ${songsWithVoiceType.length} canciones.` : ''}`);
         
         onEventCreated(result);
         handleClose();
       } else {
         const errorData = await response.json();
-        setError(errorData.message || 'Error al crear el evento');
+        setError(errorData.message || `Error al ${editMode ? 'actualizar' : 'crear'} el evento`);
       }
     } catch (error) {
       setError('Error de conexión al crear el evento');
@@ -641,6 +856,107 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({ onClose, onEventCre
       }
     }
     
+    setVariationsInfo(info);
+  };
+
+  // Special function to handle variations in edit mode
+  const updateVariationsInfoForEditMode = async () => {
+    if (!editMode) {
+      console.log('🎵 [VARIATIONS] Not in edit mode, skipping');
+      return;
+    }
+    
+    // Use selectedSongs if available, otherwise use eventData
+    let songsToProcess = [];
+    if (selectedSongs.length > 0) {
+      songsToProcess = selectedSongs;
+      console.log('🎵 [VARIATIONS] Using selectedSongs:', songsToProcess);
+    } else if (eventData && eventData.eventSongs) {
+      songsToProcess = eventData.eventSongs.map((es: any) => es.song);
+      console.log('🎵 [VARIATIONS] Using eventData songs:', songsToProcess);
+    } else {
+      console.log('🎵 [VARIATIONS] No songs to process');
+      return;
+    }
+    
+    console.log('🎵 [VARIATIONS] Updating variations info for edit mode...');
+    console.log('🎵 [VARIATIONS] Processing songs:', songsToProcess);
+    
+    // Find unique parent song IDs from the selected variations
+    const parentSongIds = [...new Set(
+      songsToProcess
+        .filter((song: any) => song.parentSongId)
+        .map((song: any) => song.parentSongId)
+    )];
+    
+    console.log('🎵 [VARIATIONS] Parent song IDs found:', parentSongIds);
+    
+    if (parentSongIds.length === 0) {
+      console.log('🎵 [VARIATIONS] No parent song IDs found, no variations to update');
+      return;
+    }
+    
+    const info: Record<string, {total: number, selected: number, isComplete: boolean}> = {};
+    
+    // For each parent song, get all its variations
+    for (const parentId of parentSongIds) {
+      try {
+        console.log(`🎵 [VARIATIONS] Processing parent ${parentId}...`);
+        const token = localStorage.getItem('token');
+        const response = await fetch(getApiUrl(`/songs/${parentId as string}/versions`), {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (response.ok) {
+          const result = await response.json();
+          console.log(`🎵 [VARIATIONS] Raw response for ${parentId}:`, result);
+          
+          // Manejar diferentes estructuras de respuesta del backend
+          let allVariations = [];
+          if (Array.isArray(result)) {
+            allVariations = result;
+          } else if (result.versions && Array.isArray(result.versions)) {
+            allVariations = result.versions;
+          } else if (result.data && Array.isArray(result.data)) {
+            allVariations = result.data;
+          } else if (result.songs && Array.isArray(result.songs)) {
+            allVariations = result.songs;
+          } else {
+            allVariations = [];
+          }
+          
+          console.log(`🎵 [VARIATIONS] All variations for ${parentId}:`, allVariations);
+          
+          // Filtrar solo variaciones válidas (con voiceType)
+          const validVariations = allVariations.filter((variation: Song) => 
+            variation.voiceType && variation.voiceType !== null
+          );
+          
+          console.log(`🎵 [VARIATIONS] Valid variations for ${parentId}:`, validVariations);
+          
+          // Contar cuántas variaciones están seleccionadas
+          const selectedCount = songsToProcess.filter((s: any) => s.parentSongId === parentId).length;
+          
+          console.log(`🎵 [VARIATIONS] Parent ${parentId}: ${selectedCount}/${validVariations.length} variations selected`);
+          
+          info[parentId as string] = {
+            total: validVariations.length,
+            selected: selectedCount,
+            isComplete: validVariations.length > 0 && selectedCount === validVariations.length
+          };
+        } else {
+          console.error(`🎵 [VARIATIONS] Failed to fetch variations for ${parentId}:`, response.status);
+        }
+      } catch (error) {
+        console.error('Error getting variations info for parent song:', parentId, error);
+        info[parentId as string] = { total: 0, selected: 0, isComplete: false };
+      }
+    }
+    
+    console.log('🎵 [VARIATIONS] Final variations info:', info);
     setVariationsInfo(info);
   };
 
@@ -719,7 +1035,9 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({ onClose, onEventCre
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[95vw] max-h-[98vh] overflow-hidden">
         <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-4 text-white">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold">Crear Nuevo Evento</h2>
+            <h2 className="text-xl font-bold">
+              {editMode ? 'Editar Evento' : 'Crear Nuevo Evento'}
+            </h2>
             <button 
               onClick={handleClose} 
               className="p-2 hover:bg-white hover:bg-opacity-20 rounded-lg transition-colors"
@@ -1630,7 +1948,7 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({ onClose, onEventCre
               ) : (
                 <>
                   <CheckCircle className="h-4 w-4 mr-2" />
-                  Crear Evento
+                  {editMode ? 'Actualizar Evento' : 'Crear Evento'}
                 </>
               )}
             </button>

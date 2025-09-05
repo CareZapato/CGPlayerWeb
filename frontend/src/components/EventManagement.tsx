@@ -67,6 +67,8 @@ const EventManagement: React.FC = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [eventToEdit, setEventToEdit] = useState<Event | null>(null);
 
   // Hooks para reproducir eventos como playlists
   const { playEvent, loading: playLoading } = useEventPlaylist();
@@ -125,6 +127,47 @@ const EventManagement: React.FC = () => {
   const handleViewDetails = (event: Event) => {
     setSelectedEvent(event);
     setShowDetailsModal(true);
+  };
+
+  const handleEditEvent = async (event: Event) => {
+    try {
+      // Cargar el evento completo con sus canciones
+      const token = localStorage.getItem('token');
+      const response = await fetch(getApiUrl(`/events/${event.id}`), {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        const completeEvent = result.data || result;
+        console.log('🔄 [EDIT] Complete event data loaded:', completeEvent);
+        console.log('🔄 [EDIT] Event has eventSongs:', !!completeEvent.eventSongs);
+        console.log('🔄 [EDIT] EventSongs:', completeEvent.eventSongs);
+        
+        setEventToEdit(completeEvent);
+        setShowEditModal(true);
+      } else {
+        console.error('Error loading complete event data:', response.status);
+        // Fallback to basic event data
+        setEventToEdit(event);
+        setShowEditModal(true);
+      }
+    } catch (error) {
+      console.error('Error loading complete event data:', error);
+      // Fallback to basic event data
+      setEventToEdit(event);
+      setShowEditModal(true);
+    }
+  };
+
+  const handleEventUpdated = (updatedEventData: any) => {
+    // Actualizar la lista de eventos
+    fetchEvents();
+    setShowEditModal(false);
+    setEventToEdit(null);
   };
 
   // Función para reproducir evento como playlist
@@ -467,6 +510,7 @@ const EventManagement: React.FC = () => {
                         <Eye className="h-4 w-4" />
                       </button>
                       <button
+                        onClick={() => handleEditEvent(event)}
                         className="p-2 text-purple-500 hover:text-purple-700 hover:bg-purple-50 rounded-lg transition-all duration-200"
                         title="Editar evento"
                       >
@@ -491,6 +535,18 @@ const EventManagement: React.FC = () => {
           <CreateEventModal
             onClose={() => setShowCreateModal(false)}
             onEventCreated={handleEventCreated}
+          />
+        )}
+
+        {showEditModal && eventToEdit && (
+          <CreateEventModal
+            onClose={() => {
+              setShowEditModal(false);
+              setEventToEdit(null);
+            }}
+            onEventCreated={handleEventUpdated}
+            editMode={true}
+            eventData={eventToEdit}
           />
         )}
 

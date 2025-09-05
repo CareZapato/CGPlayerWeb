@@ -549,6 +549,241 @@ router.post('/', authenticateToken, requireRole(['ADMIN', 'DIRECTOR']), upload.s
   }
 });
 
+// PUT /events/:id - Actualizar un evento existente
+router.put('/:id', authenticateToken, upload.single('image'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const user = (req as any).user;
+    const userId = user?.id;
+    
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'No autorizado'
+      });
+    }
+
+    console.log('🔄 Updating event:', id);
+    console.log('📝 Update data:', req.body);
+
+    // Verificar que el evento existe
+    const existingEvent = await prisma.event.findUnique({
+      where: { id },
+      include: {
+        attendees: true,
+        eventSongs: true
+      }
+    });
+
+    if (!existingEvent) {
+      return res.status(404).json({
+        success: false,
+        message: 'Evento no encontrado'
+      });
+    }
+
+    // Verificar permisos (solo el creador o admin puede editar)
+    const userRoles = user.assignedRoles?.map((ar: any) => ar.role) || [];
+    if (existingEvent.createdBy !== userId && !userRoles.includes('ADMIN') && !userRoles.includes('DIRECTOR')) {
+      return res.status(403).json({
+        success: false,
+        message: 'No tienes permisos para editar este evento'
+      });
+    }
+
+    const {
+      title,
+      description,
+      date,
+      time,
+      locationId,
+      category,
+      eventCity,
+      eventAddress,
+      country,
+      mapLink,
+      isPublic,
+      allowExternalJoin,
+      attendeeIds,
+      songIds,
+      autoAssignChoir
+    } = req.body;
+
+    // Procesar imagen si se subió una nueva
+    let imageUrl = existingEvent.imageUrl;
+    if (req.file) {
+      imageUrl = `/uploads/events/${req.file.filename}`;
+    }
+
+    // Actualizar datos básicos del evento
+    const updatedEvent = await prisma.event.update({
+      where: { id },
+      data: {
+        title: title || existingEvent.title,
+        description: description || existingEvent.description,
+        date: date ? new Date(date) : existingEvent.date,
+        time: time || existingEvent.time,
+        locationId: locationId || existingEvent.locationId,
+        category: category || existingEvent.category,
+        eventCity: eventCity || existingEvent.eventCity,
+        eventAddress: eventAddress || existingEvent.eventAddress,
+        country: country || existingEvent.country,
+        mapLink: mapLink || existingEvent.mapLink,
+        isPublic: isPublic !== undefined ? isPublic === 'true' : existingEvent.isPublic,
+        allowExternalJoin: allowExternalJoin !== undefined ? allowExternalJoin === 'true' : existingEvent.allowExternalJoin,
+        imageUrl: imageUrl,
+        updatedAt: new Date()
+      }
+    });
+
+    // Actualizar asistentes si se proporcionaron
+    if (attendeeIds) {
+      console.log('👥 Updating attendees...');
+      
+      // Eliminar asistentes existentes
+      await prisma.eventAttendee.deleteMany({
+        where: { eventId: id }
+      });
+
+      // Agregar nuevos asistentes
+      const attendeeIds_parsed = Array.isArray(attendeeIds) 
+        ? attendeeIds 
+        : JSON.parse(attendeeIds || '[]');
+
+      if (attendeeIds_parsed.length > 0) {
+        await prisma.eventAttendee.createMany({
+          data: attendeeIds_parsed.map((attendeeId: string) => ({
+            eventId: id,
+            userId: attendeeId,
+            addedBy: userId,
+            status: 'CONFIRMED'
+          })),
+          skipDuplicates: true
+        });
+      }
+    }
+
+    // Auto-asignar coro si está habilitado
+    if (autoAssignChoir === 'true') {
+      console.log('🎭 Auto-assigning choir members...');
+      
+      const event = await prisma.event.findUnique({
+        where: { id },
+        include: { location: true }
+      });
+
+      if (event?.location) {
+        const choirMembers = await prisma.user.findMany({
+          where: {
+            locationId: event.location.id,
+            assignedVoiceProfiles: {
+              some: {
+                voiceType: {
+                  in: ['SOPRANO', 'CONTRALTO', 'TENOR', 'BAJO']
+                }
+              }
+            }
+          },
+          select: { id: true }
+        });
+
+        if (choirMembers.length > 0) {
+          await prisma.eventAttendee.createMany({
+            data: choirMembers.map(member => ({
+              eventId: id,
+              userId: member.id,
+              addedBy: userId,
+              status: 'CONFIRMED'
+            })),
+            skipDuplicates: true
+          });
+        }
+      }
+    }
+
+    // Actualizar canciones si se proporcionaron
+    if (songIds) {
+      console.log('🎵 Updating songs...');
+      
+      // Eliminar canciones existentes
+      await prisma.eventSong.deleteMany({
+        where: { eventId: id }
+      });
+
+      // Agregar nuevas canciones
+      const songIds_parsed = Array.isArray(songIds) 
+        ? songIds 
+        : JSON.parse(songIds || '[]');
+        
+      if (songIds_parsed.length > 0) {
+        const eventSongs = songIds_parsed.map((songId: string, index: number) => ({
+          eventId: id,
+          songId: songId,
+          order: index + 1
+        }));
+
+        await prisma.eventSong.createMany({
+          data: eventSongs,
+          skipDuplicates: true
+        });
+      }
+    }
+
+    // Obtener el evento completo actualizado para la respuesta
+    const completeUpdatedEvent = await prisma.event.findUnique({
+      where: { id },
+      include: {
+        location: true,
+        creator: {
+          select: { firstName: true, lastName: true }
+        },
+        attendees: {
+          include: {
+            user: {
+              select: { firstName: true, lastName: true, locationId: true }
+            }
+          }
+        },
+        eventSongs: {
+          include: {
+            song: {
+              select: { 
+                id: true, 
+                title: true, 
+                artist: true, 
+                duration: true, 
+                voiceType: true,
+                filePath: true,
+                folderName: true,
+                fileName: true
+              }
+            }
+          },
+          orderBy: { order: 'asc' }
+        },
+        _count: {
+          select: { 
+            attendees: true,
+            eventSongs: true
+          }
+        }
+      }
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Evento actualizado exitosamente',
+      data: completeUpdatedEvent
+    });
+  } catch (error) {
+    console.error('Error updating event:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al actualizar evento'
+    });
+  }
+});
+
 // GET /api/events/locations/singers - Obtener cantantes por ubicación/coro con datos completos
 router.get('/locations/singers', authenticateToken, requireRole(['ADMIN', 'DIRECTOR']), async (req, res) => {
   try {

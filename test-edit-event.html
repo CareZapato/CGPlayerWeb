@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Edit Event - Variations Loading</title>
+</head>
+<body>
+    <h1>Test Event Edit - Variations Loading</h1>
+    
+    <div id="results"></div>
+    
+    <script>
+        async function testEventVariations() {
+            const resultsDiv = document.getElementById('results');
+            
+            try {
+                // Get token from localStorage (assuming it exists)
+                const token = localStorage.getItem('token');
+                if (!token) {
+                    resultsDiv.innerHTML = '<p style="color: red;">No token found. Please login first at <a href="http://192.168.1.10:5173" target="_blank">http://192.168.1.10:5173</a></p>';
+                    return;
+                }
+                
+                resultsDiv.innerHTML += '<p>🔍 Testing event variations loading...</p>';
+                
+                // First, get all events to find one to test with
+                const eventsResponse = await fetch('http://192.168.1.10:3001/api/events/management/all', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (!eventsResponse.ok) {
+                    resultsDiv.innerHTML += '<p style="color: red;">Error getting events: ' + eventsResponse.status + '</p>';
+                    return;
+                }
+                
+                const eventsData = await eventsResponse.json();
+                
+                if (!eventsData.data || eventsData.data.length === 0) {
+                    resultsDiv.innerHTML += '<p style="color: orange;">No events found.</p>';
+                    return;
+                }
+                
+                // Find an event with songs
+                const eventWithSongs = eventsData.data.find(event => event._count?.eventSongs > 0);
+                
+                if (!eventWithSongs) {
+                    resultsDiv.innerHTML += '<p style="color: orange;">No events with songs found.</p>';
+                    return;
+                }
+                
+                resultsDiv.innerHTML += `<h2>✅ Found Event with Songs: ${eventWithSongs.title}</h2>`;
+                resultsDiv.innerHTML += `<p>📊 Songs count: ${eventWithSongs._count.eventSongs}</p>`;
+                
+                // Get detailed event data
+                const eventDetailResponse = await fetch(`http://192.168.1.10:3001/api/events/${eventWithSongs.id}`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (!eventDetailResponse.ok) {
+                    resultsDiv.innerHTML += '<p style="color: red;">Error getting event details: ' + eventDetailResponse.status + '</p>';
+                    return;
+                }
+                
+                const eventDetail = await eventDetailResponse.json();
+                
+                resultsDiv.innerHTML += `<h3>🎵 Event Songs Analysis:</h3>`;
+                
+                if (eventDetail.data.eventSongs && eventDetail.data.eventSongs.length > 0) {
+                    const variations = [];
+                    const parentSongs = new Set();
+                    
+                    eventDetail.data.eventSongs.forEach(es => {
+                        const song = es.song;
+                        if (song.parentSongId) {
+                            variations.push(song);
+                            parentSongs.add(song.parentSongId);
+                        }
+                    });
+                    
+                    resultsDiv.innerHTML += `<p><strong>Total event songs:</strong> ${eventDetail.data.eventSongs.length}</p>`;
+                    resultsDiv.innerHTML += `<p><strong>Variations found:</strong> ${variations.length}</p>`;
+                    resultsDiv.innerHTML += `<p><strong>Parent songs involved:</strong> ${parentSongs.size}</p>`;
+                    
+                    if (variations.length > 0) {
+                        resultsDiv.innerHTML += '<h4>🎤 Variations in event:</h4><ul>';
+                        variations.forEach(song => {
+                            resultsDiv.innerHTML += `
+                                <li>
+                                    <strong>${song.title}</strong> by ${song.artist}
+                                    <br>Voice: ${song.voiceType} | Parent: ${song.parentSongId}
+                                </li>
+                            `;
+                        });
+                        resultsDiv.innerHTML += '</ul>';
+                        
+                        // Test loading variations for parent songs
+                        resultsDiv.innerHTML += '<h4>🔍 Testing parent song variations:</h4>';
+                        
+                        for (const parentId of parentSongs) {
+                            try {
+                                const versionsResponse = await fetch(`http://192.168.1.10:3001/api/songs/${parentId}/versions`, {
+                                    headers: {
+                                        'Authorization': `Bearer ${token}`,
+                                        'Content-Type': 'application/json'
+                                    }
+                                });
+                                
+                                if (versionsResponse.ok) {
+                                    const versionsData = await versionsResponse.json();
+                                    let allVariations = [];
+                                    
+                                    if (Array.isArray(versionsData)) {
+                                        allVariations = versionsData;
+                                    } else if (versionsData.versions && Array.isArray(versionsData.versions)) {
+                                        allVariations = versionsData.versions;
+                                    } else if (versionsData.data && Array.isArray(versionsData.data)) {
+                                        allVariations = versionsData.data;
+                                    } else if (versionsData.songs && Array.isArray(versionsData.songs)) {
+                                        allVariations = versionsData.songs;
+                                    }
+                                    
+                                    const validVariations = allVariations.filter(v => v.voiceType);
+                                    const selectedInEvent = variations.filter(v => v.parentSongId === parentId).length;
+                                    
+                                    resultsDiv.innerHTML += `
+                                        <p>
+                                            📀 Parent ${parentId}: 
+                                            <strong>${selectedInEvent}/${validVariations.length}</strong> variations selected
+                                            ${selectedInEvent === validVariations.length ? ' ✅ COMPLETE' : ' ⚠️ PARTIAL'}
+                                        </p>
+                                    `;
+                                }
+                            } catch (error) {
+                                resultsDiv.innerHTML += `<p style="color: red;">Error loading variations for ${parentId}: ${error.message}</p>`;
+                            }
+                        }
+                    } else {
+                        resultsDiv.innerHTML += '<p style="color: orange;">No variations found in this event.</p>';
+                    }
+                } else {
+                    resultsDiv.innerHTML += '<p style="color: orange;">No songs in this event.</p>';
+                }
+                
+                resultsDiv.innerHTML += '<hr><p>✅ Test completed! Check the console for additional logs.</p>';
+                
+            } catch (error) {
+                resultsDiv.innerHTML += '<p style="color: red;">Error: ' + error.message + '</p>';
+            }
+        }
+        
+        // Run test when page loads
+        testEventVariations();
+    </script>
+</body>
+</html>

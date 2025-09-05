@@ -9,7 +9,12 @@ import {
   Users,
   Globe,
   Lock,
-  Play
+  Play,
+  UserCheck,
+  UserX,
+  X,
+  CheckCircle,
+  AlertCircle
 } from 'lucide-react';
 import { getApiUrl, getSongFileUrl } from '../config/api';
 import { useEventPlaylist } from '../hooks/useEventPlaylist';
@@ -51,6 +56,26 @@ interface Event {
   };
   attendees?: any[];
   joinRequests?: any[];
+  eventSongs?: EventSong[];
+  userJoinRequest?: {
+    id: string;
+    status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  };
+  isUserAttendee?: boolean;
+}
+
+interface EventSong {
+  id: string;
+  song: {
+    id: string;
+    title: string;
+    artist: string;
+    duration?: number;
+    voiceType?: string;
+    filePath?: string;
+    folderName?: string;
+    fileName?: string;
+  };
 }
 
 interface EventsResponse {
@@ -70,6 +95,9 @@ const PublicEventsPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
+  const [eventSongs, setEventSongs] = useState<EventSong[]>([]);
+  const [songsLoading, setSongsLoading] = useState(false);
+  const [joinRequestLoading, setJoinRequestLoading] = useState(false);
 
   // Hooks para reproducir eventos como playlists
   const { playEvent, loading: playLoading } = useEventPlaylist();
@@ -156,6 +184,96 @@ const PublicEventsPage: React.FC = () => {
     } catch (error) {
       console.error('Error al reproducir evento:', error);
     }
+  };
+
+  // Función para obtener canciones padre del evento (sin voiceType)
+  const fetchEventSongs = async (eventId: string) => {
+    try {
+      setSongsLoading(true);
+      const token = localStorage.getItem('token');
+      
+      const response = await fetch(getApiUrl(`/events/${eventId}/songs`), {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Error al cargar canciones');
+      }
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        // Filtrar solo canciones padre (sin voiceType)
+        const parentSongs = data.data.filter((eventSong: any) => 
+          !eventSong.song.voiceType
+        );
+        setEventSongs(parentSongs);
+      }
+    } catch (error) {
+      console.error('Error fetching event songs:', error);
+    } finally {
+      setSongsLoading(false);
+    }
+  };
+
+  // Función para manejar postulaciones
+  const handleJoinRequest = async (eventId: string, action: 'join' | 'cancel') => {
+    try {
+      setJoinRequestLoading(true);
+      const token = localStorage.getItem('token');
+      
+      const endpoint = action === 'join' 
+        ? `/events/${eventId}/join-request`
+        : `/events/${eventId}/join-request/cancel`;
+      
+      const response = await fetch(getApiUrl(endpoint), {
+        method: action === 'join' ? 'POST' : 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Error al procesar solicitud');
+      }
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        // Actualizar eventos para reflejar el cambio
+        fetchEvents();
+      }
+    } catch (error) {
+      console.error('Error handling join request:', error);
+    } finally {
+      setJoinRequestLoading(false);
+    }
+  };
+
+  // Función para reproducir una canción individual
+  const handlePlaySong = (eventSong: EventSong) => {
+    const song = eventSong.song;
+    let songUrl = '';
+    
+    if (song.folderName && song.fileName) {
+      songUrl = getSongFileUrl(song.folderName, song.fileName);
+    } else if (song.filePath) {
+      songUrl = getApiUrl(`/uploads/${song.filePath}`);
+    } else if (song.fileName) {
+      songUrl = getApiUrl(`/uploads/${song.fileName}`);
+    }
+    
+    const songWithUrl = {
+      ...song,
+      url: songUrl
+    };
+    
+    setCurrentSong(songWithUrl as any);
+    replaceQueueAndPlay([songWithUrl as any], 0);
   };
 
   const formatDate = (dateString: string) => {
@@ -369,137 +487,245 @@ const PublicEventsPage: React.FC = () => {
 
         {/* Modal de detalles del evento */}
         {selectedEvent && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+          <div 
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+            onMouseEnter={() => fetchEventSongs(selectedEvent.id)}
+          >
+            <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
               <div className="p-6">
-                <div className="flex justify-between items-start mb-4">
-                  <h2 className="text-2xl font-bold text-gray-900">
-                    {selectedEvent.title}
-                  </h2>
+                {/* Header */}
+                <div className="flex justify-between items-start mb-6">
+                  <div className="flex-1">
+                    <h2 className="text-3xl font-bold text-gray-900 mb-2">
+                      {selectedEvent.title}
+                    </h2>
+                    <div className="flex items-center space-x-2">
+                      {selectedEvent.isPublic ? (
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          <Globe className="h-3 w-3 mr-1" />
+                          Público
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                          <Lock className="h-3 w-3 mr-1" />
+                          Privado
+                        </span>
+                      )}
+                      
+                      {selectedEvent.allowExternalJoin && (
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                          <UserPlus className="h-3 w-3 mr-1" />
+                          Abierto a Postulaciones
+                        </span>
+                      )}
+                    </div>
+                  </div>
                   <button
-                    onClick={() => setSelectedEvent(null)}
-                    className="text-gray-400 hover:text-gray-600"
+                    onClick={() => {
+                      setSelectedEvent(null);
+                      setEventSongs([]);
+                    }}
+                    className="text-gray-400 hover:text-gray-600 p-2 hover:bg-gray-100 rounded-lg transition-colors"
                   >
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
+                    <X className="w-6 h-6" />
                   </button>
                 </div>
 
+                {/* Imagen del evento - Solo si existe */}
                 {selectedEvent.imageUrl && (
                   <img
                     src={selectedEvent.imageUrl}
                     alt={selectedEvent.title}
-                    className="w-full h-64 object-cover rounded-lg mb-6"
+                    className="w-full h-64 object-cover rounded-xl mb-6 shadow-lg"
                   />
                 )}
 
-                {selectedEvent.description && (
-                  <div className="mb-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Descripción</h3>
-                    <p className="text-gray-600">{selectedEvent.description}</p>
-                  </div>
-                )}
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  {/* Información principal */}
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-3">Información del Evento</h3>
-                    
-                    <div className="space-y-3">
-                      <div className="flex items-center">
-                        <Calendar className="h-5 w-5 text-blue-600 mr-3" />
-                        <div>
-                          <p className="font-medium">Fecha</p>
-                          <p className="text-gray-600">{formatDate(selectedEvent.date)}</p>
-                        </div>
+                    {/* Descripción */}
+                    {selectedEvent.description && (
+                      <div className="mb-6">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-3">Descripción</h3>
+                        <p className="text-gray-600 leading-relaxed">{selectedEvent.description}</p>
                       </div>
+                    )}
 
-                      {selectedEvent.time && (
-                        <div className="flex items-center">
-                          <Clock className="h-5 w-5 text-blue-600 mr-3" />
-                          <div>
-                            <p className="font-medium">Hora</p>
-                            <p className="text-gray-600">{formatTime(selectedEvent.time)}</p>
-                          </div>
-                        </div>
-                      )}
-
-                      <div className="flex items-center">
-                        <MapPin className="h-5 w-5 text-blue-600 mr-3" />
-                        <div>
-                          <p className="font-medium">Ubicación</p>
-                          <p className="text-gray-600">
-                            {selectedEvent.eventCity || selectedEvent.location?.city || 'Por confirmar'}
-                            {selectedEvent.eventAddress && (
-                              <><br />{selectedEvent.eventAddress}</>
-                            )}
-                          </p>
-                        </div>
-                      </div>
-
-                      {selectedEvent._count && selectedEvent._count.eventSongs && selectedEvent._count.eventSongs > 0 && (
-                        <div className="flex items-center">
-                          <Music className="h-5 w-5 text-blue-600 mr-3" />
-                          <div>
-                            <p className="font-medium">Repertorio</p>
-                            <p className="text-gray-600">
-                              {selectedEvent._count.eventSongs} {selectedEvent._count.eventSongs === 1 ? 'canción' : 'canciones'}
-                            </p>
-                          </div>
-                        </div>
-                      )}
+                    {/* Información del evento */}
+                    <div className="mb-6">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Detalles del Evento</h3>
                       
-                      {/* Solicitudes pendientes si hay */}
-                      {selectedEvent.allowExternalJoin && selectedEvent._count?.joinRequests && selectedEvent._count.joinRequests > 0 && (
+                      <div className="space-y-3">
                         <div className="flex items-center">
-                          <UserPlus className="h-5 w-5 text-orange-500 mr-3" />
+                          <Calendar className="h-5 w-5 text-indigo-500 mr-3" />
                           <div>
-                            <p className="font-medium">Solicitudes Pendientes</p>
+                            <p className="font-medium text-gray-900">Fecha</p>
+                            <p className="text-gray-600">{formatDate(selectedEvent.date)}</p>
+                          </div>
+                        </div>
+
+                        {selectedEvent.time && (
+                          <div className="flex items-center">
+                            <Clock className="h-5 w-5 text-emerald-500 mr-3" />
+                            <div>
+                              <p className="font-medium text-gray-900">Hora</p>
+                              <p className="text-gray-600">{formatTime(selectedEvent.time)}</p>
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="flex items-center">
+                          <MapPin className="h-5 w-5 text-red-500 mr-3" />
+                          <div>
+                            <p className="font-medium text-gray-900">Ubicación</p>
                             <p className="text-gray-600">
-                              {selectedEvent._count.joinRequests} solicitud{selectedEvent._count.joinRequests !== 1 ? 'es' : ''} pendiente{selectedEvent._count.joinRequests !== 1 ? 's' : ''}
+                              {selectedEvent.eventCity || selectedEvent.location?.city || 'Por confirmar'}
+                              {selectedEvent.eventAddress && (
+                                <><br /><span className="text-sm">{selectedEvent.eventAddress}</span></>
+                              )}
                             </p>
                           </div>
                         </div>
-                      )}
+
+                        <div className="flex items-center">
+                          <Users className="h-5 w-5 text-blue-500 mr-3" />
+                          <div>
+                            <p className="font-medium text-gray-900">Participantes</p>
+                            <p className="text-gray-600">
+                              {selectedEvent._count?.attendees || 0} asistente{(selectedEvent._count?.attendees || 0) !== 1 ? 's' : ''}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
                     </div>
+
+                    {/* Mapa */}
+                    {selectedEvent.mapLink && (
+                      <div className="mb-6">
+                        <a
+                          href={selectedEvent.mapLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center bg-blue-600 text-white px-4 py-3 rounded-lg hover:bg-blue-700 transition-colors shadow-lg"
+                        >
+                          <MapPin className="h-5 w-5 mr-2" />
+                          Ver ubicación en el mapa
+                        </a>
+                      </div>
+                    )}
                   </div>
 
+                  {/* Canciones y postulaciones */}
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-3">Organización</h3>
-                    
-                    {selectedEvent.location && (
-                      <div className="mb-4">
-                        <p className="font-medium">Coro</p>
-                        <p className="text-gray-600">{selectedEvent.location.name}</p>
-                        <p className="text-sm text-gray-500">
-                          {selectedEvent.location.city}, {selectedEvent.location.region}
-                        </p>
-                      </div>
-                    )}
-                    
-                    {/* Etiqueta de Abierto a Postulaciones */}
-                    {selectedEvent.allowExternalJoin && (
-                      <div className="mb-4">
-                        <div className="inline-flex items-center px-3 py-2 rounded-full text-sm font-medium bg-green-100 text-green-800">
-                          <UserPlus className="h-4 w-4 mr-2" />
-                          Abierto a Postulaciones
-                        </div>
-                        <p className="text-sm text-gray-500 mt-2">
-                          Los cantantes pueden solicitar unirse a este evento
-                        </p>
+                    {/* Botones de postulación */}
+                    {selectedEvent.allowExternalJoin && !selectedEvent.isUserAttendee && (
+                      <div className="mb-6 p-4 bg-blue-50 rounded-xl border border-blue-200">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-3">Postulación</h3>
+                        
+                        {selectedEvent.userJoinRequest ? (
+                          <div className="space-y-3">
+                            <div className="flex items-center">
+                              {selectedEvent.userJoinRequest.status === 'PENDING' && (
+                                <>
+                                  <AlertCircle className="h-5 w-5 text-yellow-500 mr-2" />
+                                  <span className="text-yellow-700 font-medium">Solicitud pendiente</span>
+                                </>
+                              )}
+                              {selectedEvent.userJoinRequest.status === 'APPROVED' && (
+                                <>
+                                  <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
+                                  <span className="text-green-700 font-medium">Solicitud aprobada</span>
+                                </>
+                              )}
+                              {selectedEvent.userJoinRequest.status === 'REJECTED' && (
+                                <>
+                                  <X className="h-5 w-5 text-red-500 mr-2" />
+                                  <span className="text-red-700 font-medium">Solicitud rechazada</span>
+                                </>
+                              )}
+                            </div>
+                            
+                            {selectedEvent.userJoinRequest.status === 'PENDING' && (
+                              <button
+                                onClick={() => handleJoinRequest(selectedEvent.id, 'cancel')}
+                                disabled={joinRequestLoading}
+                                className="w-full bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
+                              >
+                                {joinRequestLoading ? 'Cancelando...' : 'Cancelar solicitud'}
+                              </button>
+                            )}
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => handleJoinRequest(selectedEvent.id, 'join')}
+                            disabled={joinRequestLoading}
+                            className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 font-medium"
+                          >
+                            {joinRequestLoading ? 'Enviando...' : 'Solicitar participación'}
+                          </button>
+                        )}
                       </div>
                     )}
 
-                    {selectedEvent.mapLink && (
-                      <a
-                        href={selectedEvent.mapLink}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-                      >
-                        <MapPin className="h-4 w-4 mr-2" />
-                        Ver en el mapa
-                      </a>
+                    {selectedEvent.isUserAttendee && (
+                      <div className="mb-6 p-4 bg-green-50 rounded-xl border border-green-200">
+                        <div className="flex items-center">
+                          <UserCheck className="h-5 w-5 text-green-500 mr-2" />
+                          <span className="text-green-700 font-medium">Eres participante de este evento</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Lista de canciones */}
+                    {(selectedEvent._count?.eventSongs || 0) > 0 && (
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-900 mb-4">Repertorio Musical</h3>
+                        
+                        {songsLoading ? (
+                          <div className="flex items-center justify-center py-8">
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+                          </div>
+                        ) : (
+                          <div className="space-y-2 max-h-80 overflow-y-auto">
+                            {eventSongs.map((eventSong, index) => (
+                              <div
+                                key={eventSong.id}
+                                className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                              >
+                                <div className="flex-1">
+                                  <p className="font-medium text-gray-900">{eventSong.song.title}</p>
+                                  {eventSong.song.artist && (
+                                    <p className="text-sm text-gray-600">{eventSong.song.artist}</p>
+                                  )}
+                                  {eventSong.song.duration && (
+                                    <p className="text-xs text-gray-500">
+                                      {Math.floor(eventSong.song.duration / 60)}:{(eventSong.song.duration % 60).toString().padStart(2, '0')}
+                                    </p>
+                                  )}
+                                </div>
+                                <button
+                                  onClick={() => handlePlaySong(eventSong)}
+                                  className="ml-3 p-2 text-green-600 hover:bg-green-100 rounded-lg transition-colors"
+                                  title="Reproducir canción"
+                                >
+                                  <Play className="h-5 w-5" />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        
+                        {/* Botón para reproducir todo el evento */}
+                        <div className="mt-4">
+                          <button
+                            onClick={() => handlePlayEvent(selectedEvent)}
+                            disabled={playLoading}
+                            className="w-full bg-green-600 text-white py-3 px-4 rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 font-medium"
+                          >
+                            {playLoading ? 'Cargando...' : `▶ Reproducir todo el repertorio (${selectedEvent._count?.eventSongs || 0} canciones)`}
+                          </button>
+                        </div>
+                      </div>
                     )}
                   </div>
                 </div>
