@@ -12,10 +12,15 @@ import {
   Lock,
   UserPlus,
   Trash2,
-  Edit
+  Edit,
+  Play
 } from 'lucide-react';
 import CreateEventModal from './CreateEventModal.tsx';
 import EventDetailsModal from './EventDetailsModal.tsx';
+import { useEventPlaylist } from '../hooks/useEventPlaylist';
+import { usePlayerStore } from '../store/playerStore';
+import { usePlaylistStore } from '../store/playlistStore';
+import { getSongFileUrl } from '../config/api';
 import { getApiUrl } from '../config/api';
 
 interface Location {
@@ -62,6 +67,11 @@ const EventManagement: React.FC = () => {
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
 
+  // Hooks para reproducir eventos como playlists
+  const { playEvent, loading: playLoading } = useEventPlaylist();
+  const { setCurrentSong } = usePlayerStore();
+  const { replaceQueueAndPlay } = usePlaylistStore();
+
   useEffect(() => {
     fetchEvents();
   }, []);
@@ -97,9 +107,18 @@ const EventManagement: React.FC = () => {
     }
   };
 
-  const handleEventCreated = (newEvent: Event) => {
+  const handleEventCreated = (newEventData: any) => {
+    // Extraer el evento de la respuesta del backend
+    const newEvent = newEventData?.data || newEventData;
+    
+    // Agregar el nuevo evento al principio de la lista
     setEvents(prev => [newEvent, ...prev]);
     setShowCreateModal(false);
+    
+    // También recargar la lista completa para asegurar sincronización
+    setTimeout(() => {
+      fetchEvents();
+    }, 1000);
   };
 
   const handleViewDetails = (event: Event) => {
@@ -107,8 +126,57 @@ const EventManagement: React.FC = () => {
     setShowDetailsModal(true);
   };
 
+  // Función para reproducir evento como playlist
+  const handlePlayEvent = async (event: Event) => {
+    try {
+      const result = await playEvent(event.id);
+      if (result && result.songs.length > 0) {
+        console.log(`🎵 Playing event: ${result.eventTitle} with ${result.totalSongs} songs`);
+        
+        // Convertir las canciones a formato correcto con URLs
+        const songsWithUrls = result.songs.map(song => {
+          let songUrl = '';
+          
+          if (song.folderName && song.fileName) {
+            // Usar getSongFileUrl para archivos en carpetas dinámicas
+            songUrl = getSongFileUrl(song.folderName, song.fileName);
+          } else if (song.filePath) {
+            // Usar filePath directo si está disponible
+            songUrl = getApiUrl(`/uploads/${song.filePath}`);
+          } else if (song.fileName) {
+            // Archivo en carpeta raíz
+            songUrl = getApiUrl(`/uploads/${song.fileName}`);
+          }
+          
+          return {
+            ...song,
+            url: songUrl // Añadir URL para playerStore
+          };
+        });
+
+        console.log(`🎵 Songs with URLs:`, songsWithUrls);
+
+        // Agregar todas las canciones a la cola y empezar a reproducir la primera
+        replaceQueueAndPlay(songsWithUrls as any[], 0);
+        
+        // También establecer en playerStore para reproducción inmediata
+        if (songsWithUrls[0]) {
+          setCurrentSong(songsWithUrls[0] as any);
+        }
+        
+        // Mostrar notificación de éxito
+        alert(`🎵 Reproduciendo evento: ${result.eventTitle}\n${result.totalSongs} canciones agregadas a la cola`);
+      } else {
+        alert('⚠️ El evento no tiene canciones para reproducir');
+      }
+    } catch (error) {
+      console.error('Error al reproducir evento:', error);
+      alert('❌ Error al reproducir el evento');
+    }
+  };
+
   const filteredEvents = events.filter(event =>
-    event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    event.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     event.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     event.eventCity?.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -372,6 +440,14 @@ const EventManagement: React.FC = () => {
                     </div>
                     
                     <div className="flex items-center space-x-2">
+                      <button
+                        onClick={() => handlePlayEvent(event)}
+                        disabled={playLoading}
+                        className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-all duration-200 disabled:opacity-50"
+                        title="Reproducir como playlist"
+                      >
+                        <Play className="h-4 w-4" />
+                      </button>
                       <button
                         onClick={() => handleViewDetails(event)}
                         className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all duration-200"

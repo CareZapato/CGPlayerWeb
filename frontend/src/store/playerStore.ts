@@ -191,48 +191,76 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
 
   setCurrentSong: (song: Song, playlist?: Playlist, index = 0) => {
     console.log(`🎵 [PLAYER-STORE] Setting current song:`, {
+      songId: song.id,
       title: song.title,
       voiceType: (song as any).voiceType,
-      filePath: song.filePath,
       folderName: (song as any).folderName,
-      fileName: song.fileName
+      fileName: song.fileName,
+      hasUrl: !!(song as any).url,
+      playlistName: playlist?.name || 'Sin playlist'
     });
     
     const { audioRef } = get();
     
     if (audioRef) {
+      // Pausar y resetear audio actual
       audioRef.pause();
+      audioRef.currentTime = 0;
       
-      // Construir la URL correcta usando el endpoint de la API
+      // Construir la URL correcta del archivo de audio
       let songUrl = (song as any).url;
+      
       if (!songUrl) {
         const folderName = (song as any).folderName;
         const fileName = song.fileName;
         
         if (folderName && fileName) {
-          // Usar el endpoint de la API para archivos en carpetas (dinámico)
+          // Para canciones con carpeta y archivo específicos (usar URL autenticada)
+          console.log(`🎵 [PLAYER-STORE] Generating authenticated URL for:`, { folderName, fileName });
           songUrl = getSongFileUrl(folderName, fileName);
         } else if (fileName) {
-          // Archivo en carpeta raíz (si aplica)
+          // Para archivos en carpeta raíz o con filePath directo
+          console.log(`🎵 [PLAYER-STORE] Generating basic URL for:`, fileName);
           songUrl = getFileUrl(fileName);
+        } else if (song.filePath) {
+          // Usar filePath como alternativa
+          console.log(`🎵 [PLAYER-STORE] Using filePath:`, song.filePath);
+          songUrl = getFileUrl(song.filePath);
         }
       }
       
-      console.log(`🔗 [PLAYER-STORE] Song URL:`, songUrl);
+      console.log(`🔗 [PLAYER-STORE] Final song URL:`, songUrl);
       
       if (songUrl) {
+        // Configurar nueva fuente de audio
         audioRef.src = songUrl;
         audioRef.load();
         
-        // Crear el objeto PlayingSong con la URL
+        // Crear el objeto PlayingSong completo
         const playingSong: PlayingSong = {
-          ...song,
-          url: songUrl
+          id: song.id,
+          title: song.title,
+          artist: song.artist || 'Desconocido',
+          album: song.album,
+          duration: song.duration || 0,
+          fileName: song.fileName || `${song.title}.mp3`,
+          filePath: song.filePath || songUrl,
+          fileSize: song.fileSize || 0,
+          mimeType: song.mimeType || 'audio/mpeg',
+          folderName: (song as any).folderName,
+          voiceType: (song as any).voiceType,
+          uploadedBy: song.uploadedBy || 'system',
+          isActive: song.isActive ?? true,
+          createdAt: song.createdAt || new Date().toISOString(),
+          updatedAt: song.updatedAt || new Date().toISOString(),
+          uploader: song.uploader || { id: 'system', firstName: 'Sistema', lastName: 'CGPlayer' },
+          url: songUrl // URL final para reproducción
         };
         
+        // Configurar eventos de audio para autoplay
         audioRef.addEventListener('loadeddata', () => {
           console.log(`✅ [PLAYER-STORE] Audio loaded successfully, duration:`, audioRef.duration);
-          // AUTOPLAY: Iniciar reproducción automáticamente cuando los datos estén cargados
+          // AUTOPLAY: Iniciar reproducción automáticamente
           audioRef.play()
             .then(() => {
               console.log(`🎵 [PLAYER-STORE] Autoplay started successfully`);
@@ -245,11 +273,12 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
         }, { once: true });
         
         audioRef.addEventListener('error', (e) => {
-          console.error(`❌ [PLAYER-STORE] Audio load error:`, e);
+          console.error(`❌ [PLAYER-STORE] Audio load error for URL:`, songUrl);
+          console.error(`❌ [PLAYER-STORE] Error details:`, e);
           set({ isPlaying: false });
         }, { once: true });
         
-        // Configurar el currentSong con la URL incluida
+        // Actualizar estado del store
         set({ 
           currentSong: playingSong, 
           currentPlaylist: playlist || null,
@@ -257,8 +286,20 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
           currentTime: 0,
           isPlaying: false // Se actualizará a true cuando inicie el autoplay
         });
+        
+        console.log(`✅ [PLAYER-STORE] Song configured successfully:`, {
+          title: playingSong.title,
+          url: songUrl,
+          playlistIndex: index
+        });
       } else {
-        console.error(`❌ [PLAYER-STORE] No URL generated for song`);
+        console.error(`❌ [PLAYER-STORE] No URL could be generated for song:`, {
+          songId: song.id,
+          title: song.title,
+          hasfolderName: !!(song as any).folderName,
+          hasFileName: !!song.fileName,
+          hasFilePath: !!song.filePath
+        });
       }
     } else {
       console.error(`❌ [PLAYER-STORE] No audio element found when setting current song`);

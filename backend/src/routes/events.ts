@@ -64,6 +64,23 @@ router.get('/', authenticateToken, requireRole(['ADMIN', 'DIRECTOR']), async (re
             }
           }
         },
+        eventSongs: {
+          include: {
+            song: {
+              select: {
+                id: true,
+                title: true,
+                artist: true,
+                duration: true,
+                voiceType: true,
+                filePath: true,
+                folderName: true,
+                fileName: true
+              }
+            }
+          },
+          orderBy: { order: 'asc' }
+        },
         joinRequests: {
           where: { status: 'PENDING' },
           include: {
@@ -81,6 +98,7 @@ router.get('/', authenticateToken, requireRole(['ADMIN', 'DIRECTOR']), async (re
         _count: {
           select: {
             attendees: true,
+            eventSongs: true,
             joinRequests: { where: { status: 'PENDING' } }
           }
         }
@@ -268,7 +286,8 @@ router.post('/', authenticateToken, requireRole(['ADMIN', 'DIRECTOR']), upload.s
       isPublic = false,
       allowExternalJoin = false,
       attendeeUserIds,
-      choirLocationIds
+      choirLocationIds,
+      songIds
     } = req.body;
 
     const userId = (req as any).user.id;
@@ -361,6 +380,33 @@ router.post('/', authenticateToken, requireRole(['ADMIN', 'DIRECTOR']), upload.s
       }
     }
 
+    // Agregar canciones al evento
+    if (songIds) {
+      console.log('🎵 Processing songIds:', songIds);
+      const songIds_parsed = Array.isArray(songIds) 
+        ? songIds 
+        : JSON.parse(songIds || '[]');
+      
+      console.log('🎵 Parsed songIds:', songIds_parsed);
+        
+      if (songIds_parsed.length > 0) {
+        const eventSongs = songIds_parsed.map((songId: string, index: number) => ({
+          eventId: event.id,
+          songId: songId,
+          order: index + 1
+        }));
+
+        console.log('🎵 Creating EventSongs:', eventSongs);
+
+        await prisma.eventSong.createMany({
+          data: eventSongs,
+          skipDuplicates: true
+        });
+
+        console.log('✅ EventSongs created successfully');
+      }
+    }
+
     // Obtener el evento completo para la respuesta
     const completeEvent = await prisma.event.findUnique({
       where: { id: event.id },
@@ -376,8 +422,28 @@ router.post('/', authenticateToken, requireRole(['ADMIN', 'DIRECTOR']), upload.s
             }
           }
         },
+        eventSongs: {
+          include: {
+            song: {
+              select: { 
+                id: true, 
+                title: true, 
+                artist: true, 
+                duration: true, 
+                voiceType: true,
+                filePath: true,
+                folderName: true,
+                fileName: true
+              }
+            }
+          },
+          orderBy: { order: 'asc' }
+        },
         _count: {
-          select: { attendees: true }
+          select: { 
+            attendees: true,
+            eventSongs: true
+          }
         }
       }
     });
@@ -1127,6 +1193,24 @@ router.get('/:id', authenticateToken, async (req, res) => {
             }
           }
         },
+        eventSongs: {
+          include: {
+            song: {
+              select: {
+                id: true,
+                title: true,
+                artist: true,
+                duration: true,
+                voiceType: true,
+                filePath: true,
+                folderName: true,
+                fileName: true,
+                parentSongId: true
+              }
+            }
+          },
+          orderBy: { order: 'asc' }
+        },
         joinRequests: {
           include: {
             user: {
@@ -1144,6 +1228,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
         _count: {
           select: {
             attendees: true,
+            eventSongs: true,
             joinRequests: { where: { status: 'PENDING' } }
           }
         }
@@ -1166,6 +1251,103 @@ router.get('/:id', authenticateToken, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error al obtener evento'
+    });
+  }
+});
+
+// GET /api/events/:id/songs - Obtener canciones de un evento (playlist del evento)
+router.get('/:id/songs', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const eventSongs = await prisma.eventSong.findMany({
+      where: { eventId: id },
+      include: {
+        song: {
+          select: {
+            id: true,
+            title: true,
+            artist: true,
+            duration: true,
+            voiceType: true,
+            filePath: true,
+            folderName: true,
+            fileName: true,
+            parentSongId: true
+          }
+        }
+      },
+      orderBy: { order: 'asc' }
+    });
+
+    // Calcular duración total
+    const totalDuration = eventSongs.reduce((total, item) => {
+      return total + (item.song.duration || 0);
+    }, 0);
+
+    res.json({
+      success: true,
+      data: {
+        songs: eventSongs.map(item => item.song),
+        totalSongs: eventSongs.length,
+        totalDuration
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching event songs:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al obtener canciones del evento'
+    });
+  }
+});
+
+// POST /api/events/:id/play - Agregar todas las canciones del evento a la cola de reproducción
+router.post('/:id/play', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const eventSongs = await prisma.eventSong.findMany({
+      where: { eventId: id },
+      include: {
+        song: {
+          select: {
+            id: true,
+            title: true,
+            artist: true,
+            duration: true,
+            voiceType: true,
+            filePath: true,
+            folderName: true,
+            fileName: true,
+            parentSongId: true
+          }
+        }
+      },
+      orderBy: { order: 'asc' }
+    });
+
+    if (eventSongs.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Este evento no tiene canciones configuradas'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: `Se agregaron ${eventSongs.length} canciones del evento a la cola de reproducción`,
+      data: {
+        songs: eventSongs.map(item => item.song),
+        totalSongs: eventSongs.length,
+        playingFirst: eventSongs[0]?.song || null
+      }
+    });
+  } catch (error) {
+    console.error('Error playing event songs:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al reproducir evento'
     });
   }
 });
@@ -1323,6 +1505,137 @@ router.put('/:id/join-requests/:requestId', authenticateToken, requireRole(['ADM
     res.status(500).json({
       success: false,
       message: 'Error al responder solicitud'
+    });
+  }
+});
+
+// GET /api/events/:id/playlist - Obtener playlist del evento (como las playlists normales)
+router.get('/:id/playlist', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const event = await prisma.event.findUnique({
+      where: { id },
+      include: {
+        eventSongs: {
+          include: {
+            song: {
+              select: {
+                id: true,
+                title: true,
+                artist: true,
+                duration: true,
+                voiceType: true,
+                filePath: true,
+                folderName: true,
+                fileName: true
+              }
+            }
+          },
+          orderBy: { order: 'asc' }
+        }
+      }
+    });
+
+    if (!event) {
+      return res.status(404).json({
+        success: false,
+        message: 'Evento no encontrado'
+      });
+    }
+
+    // Formatear como playlist
+    const playlist = {
+      id: event.id,
+      name: event.title,
+      description: event.description,
+      isPublic: event.isPublic,
+      totalSongs: event.eventSongs.length,
+      totalDuration: event.eventSongs.reduce((total, item) => {
+        return total + (item.song.duration || 0);
+      }, 0),
+      items: event.eventSongs.map(eventSong => ({
+        id: eventSong.id,
+        order: eventSong.order,
+        song: eventSong.song
+      })),
+      type: 'event' // Para distinguir de playlists normales
+    };
+
+    res.json({
+      success: true,
+      data: playlist
+    });
+  } catch (error) {
+    console.error('Error fetching event playlist:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al obtener playlist del evento'
+    });
+  }
+});
+
+// POST /api/events/:id/play - Reproducir evento como playlist
+router.post('/:id/play', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const event = await prisma.event.findUnique({
+      where: { id },
+      include: {
+        eventSongs: {
+          include: {
+            song: {
+              select: {
+                id: true,
+                title: true,
+                artist: true,
+                duration: true,
+                voiceType: true,
+                filePath: true,
+                folderName: true,
+                fileName: true
+              }
+            }
+          },
+          orderBy: { order: 'asc' }
+        }
+      }
+    });
+
+    if (!event) {
+      return res.status(404).json({
+        success: false,
+        message: 'Evento no encontrado'
+      });
+    }
+
+    if (event.eventSongs.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'El evento no tiene canciones para reproducir'
+      });
+    }
+
+    // Formatear canciones para la cola de reproducción
+    const songs = event.eventSongs.map(eventSong => eventSong.song);
+
+    res.json({
+      success: true,
+      data: {
+        eventId: event.id,
+        eventTitle: event.title,
+        songs: songs,
+        totalSongs: songs.length,
+        currentSong: songs[0] // Primer canción de la lista
+      },
+      message: `Reproduciendo evento: ${event.title}`
+    });
+  } catch (error) {
+    console.error('Error playing event:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al reproducir evento'
     });
   }
 });

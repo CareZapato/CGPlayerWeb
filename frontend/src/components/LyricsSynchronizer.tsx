@@ -375,10 +375,9 @@ const LyricsSynchronizer: React.FC<LyricsSynchronizerProps> = ({ song, onClose, 
       if (index === lineIndex) {
         return { 
           ...line, 
-          isHighlighted: !line.isHighlighted,
-          // Si se desactiva, limpiar los tiempos
-          startTime: !line.isHighlighted ? line.startTime : null,
-          endTime: !line.isHighlighted ? line.endTime : null
+          isHighlighted: !line.isHighlighted
+          // CORREGIDO: No eliminar los tiempos al quitar ON
+          // Los tiempos se mantienen para auto-sync pero la línea no se pinta
         };
       }
       return line;

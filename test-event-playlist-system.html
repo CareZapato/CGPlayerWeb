@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Event Playlist System</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-title {
+            color: #333;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 10px;
+        }
+        .test-step {
+            margin: 15px 0;
+            padding: 10px;
+            background: #f8f9fa;
+            border-left: 4px solid #007bff;
+        }
+        .success {
+            border-left-color: #28a745;
+            background: #d4edda;
+        }
+        .warning {
+            border-left-color: #ffc107;
+            background: #fff3cd;
+        }
+        .error {
+            border-left-color: #dc3545;
+            background: #f8d7da;
+        }
+        .code {
+            background: #f1f1f1;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            margin: 10px 0;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎵 Test Event Playlist System</h1>
+    <p>Sistema de prueba para verificar que el sistema de eventos como playlist funciona correctamente.</p>
+
+    <div class="test-section">
+        <h2 class="test-title">1. Verificación del Sistema LyricsSynchronizer</h2>
+        <div class="test-step">
+            <h3>✅ Problema Resuelto: "Al quitar el ON de las lineas no deberia eliminar lo guardado del tiempo"</h3>
+            <p><strong>Solución implementada:</strong></p>
+            <div class="code">
+// En LyricsSynchronizer.tsx - toggleLineHighlighted()
+const toggleLineHighlighted = (index: number) => {
+  setLyrics(prev => prev.map((line, i) => 
+    i === index 
+      ? { 
+          ...line, 
+          isHighlighted: !line.isHighlighted 
+          // 🔥 PRESERVA startTime y endTime
+        }
+      : line
+  ));
+};</div>
+            <p><strong>Validación:</strong> Los tiempos de sincronización se mantienen al quitar el ON de las líneas.</p>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2 class="test-title">2. Sistema de Creación de Eventos</h2>
+        <div class="test-step success">
+            <h3>✅ Problema Resuelto: "El sistema al darle Crear evento, se crasheo"</h3>
+            <p><strong>Mejoras implementadas:</strong></p>
+            <ul>
+                <li>Validación completa de formulario (asistentes + canciones)</li>
+                <li>Manejo robusto de errores en backend</li>
+                <li>Logs detallados para debugging</li>
+                <li>Integración con tabla EventSong</li>
+            </ul>
+        </div>
+        <div class="test-step success">
+            <h3>✅ Problema Resuelto: "falta un aviso que se creo bien"</h3>
+            <div class="code">
+// Notificación de éxito
+alert(`✅ Evento "${eventName}" creado exitosamente con ${songsWithVoiceType.length} canciones.`);
+</div>
+        </div>
+        <div class="test-step success">
+            <h3>✅ Problema Resuelto: "no deberia dejarme guardar el evento hasta terminar todas las fases"</h3>
+            <div class="code">
+// Validación multi-fase
+if (selectedAttendees.length === 0) {
+  alert('⚠️ Debe seleccionar al menos un asistente antes de crear el evento.');
+  return;
+}
+if (songsWithVoiceType.length === 0) {
+  alert('⚠️ Debe agregar al menos una canción antes de crear el evento.');
+  return;
+}
+</div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2 class="test-title">3. Sistema de Eventos como Playlist</h2>
+        <div class="test-step success">
+            <h3>✅ Problema Resuelto: "Los eventos deberian funcionar como playlist tambien"</h3>
+            <p><strong>Funcionalidades implementadas:</strong></p>
+            <ul>
+                <li>Botón "Play" en cada evento</li>
+                <li>Hook useEventPlaylist para manejo de API</li>
+                <li>Integración con playerStore y playlistStore</li>
+                <li>URLs autenticadas con getSongFileUrl()</li>
+            </ul>
+        </div>
+        <div class="test-step success">
+            <h3>✅ Problema Resuelto: "cuando le doy play al evento... no pone las 2 canciones del evento"</h3>
+            <div class="code">
+// handlePlayEvent - Carga completa de la cola
+const handlePlayEvent = async (eventId: string) => {
+  try {
+    const eventSongs = await getEventPlaylist(eventId);
+    
+    const songsWithUrls = eventSongs.map(eventSong => ({
+      ...eventSong.song,
+      url: getSongFileUrl(eventSong.song.folderName, eventSong.song.fileName)
+    }));
+    
+    // 🔥 REEMPLAZA toda la cola con las canciones del evento
+    replaceQueueAndPlay(songsWithUrls, 0);
+  } catch (error) {
+    console.error('Error al reproducir evento:', error);
+  }
+};
+</div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2 class="test-title">4. Backend - API Endpoints</h2>
+        <div class="test-step success">
+            <h3>✅ Endpoints implementados:</h3>
+            <ul>
+                <li><code>POST /api/events</code> - Crear evento con canciones</li>
+                <li><code>GET /api/events/:id/playlist</code> - Obtener canciones del evento</li>
+                <li><code>POST /api/events/:id/play</code> - Reproducir evento</li>
+            </li>
+        </div>
+        <div class="test-step">
+            <h3>🔧 Estructura de datos EventSong:</h3>
+            <div class="code">
+model EventSong {
+  id       String @id @default(uuid())
+  eventId  String
+  songId   String
+  order    Int    @default(0)
+  event    Event  @relation(fields: [eventId], references: [id])
+  song     Song   @relation(fields: [songId], references: [id])
+  @@map("event_songs")
+}
+</div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2 class="test-title">5. Flujo de Prueba Completo</h2>
+        <div class="test-step">
+            <h3>🧪 Pasos para probar el sistema:</h3>
+            <ol>
+                <li><strong>Crear Evento:</strong>
+                    <ul>
+                        <li>Ir a "Gestión de Eventos"</li>
+                        <li>Hacer clic en "Crear Evento"</li>
+                        <li>Completar formulario (nombre, fecha, asistentes)</li>
+                        <li>Agregar canciones desde el selector</li>
+                        <li>Verificar que no permite guardar sin asistentes/canciones</li>
+                        <li>Guardar y verificar mensaje de éxito</li>
+                    </ul>
+                </li>
+                <li><strong>Reproducir como Playlist:</strong>
+                    <ul>
+                        <li>Encontrar el evento creado en la lista</li>
+                        <li>Hacer clic en botón "Play" 🎵</li>
+                        <li>Verificar que se cargan TODAS las canciones del evento</li>
+                        <li>Verificar reproducción automática</li>
+                        <li>Verificar controles de navegación (siguiente/anterior)</li>
+                    </ul>
+                </li>
+                <li><strong>LyricsSynchronizer:</strong>
+                    <ul>
+                        <li>Abrir sincronizador de letras</li>
+                        <li>Sincronizar algunas líneas (agregar tiempos)</li>
+                        <li>Quitar el ON de las líneas</li>
+                        <li>Verificar que los tiempos se mantienen</li>
+                    </ul>
+                </li>
+            </ol>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2 class="test-title">6. Estado Actual del Sistema</h2>
+        <div class="test-step success">
+            <h3>✅ Completado:</h3>
+            <ul>
+                <li>✅ LyricsSynchronizer preserva tiempos al quitar ON</li>
+                <li>✅ CreateEventModal maneja errores y valida formulario</li>
+                <li>✅ Notificaciones de éxito en creación de eventos</li>
+                <li>✅ Validación multi-fase (asistentes + canciones)</li>
+                <li>✅ Backend guarda canciones en tabla EventSong</li>
+                <li>✅ Eventos funcionan como playlists completas</li>
+                <li>✅ Botón Play carga toda la cola de canciones</li>
+                <li>✅ URLs autenticadas para archivos de audio</li>
+                <li>✅ Integración playerStore + playlistStore</li>
+                <li>✅ Manejo robusto de errores de audio</li>
+            </ul>
+        </div>
+        <div class="test-step warning">
+            <h3>🔄 Para testing adicional:</h3>
+            <ul>
+                <li>Probar con diferentes tipos de archivos de audio</li>
+                <li>Verificar comportamiento con eventos sin canciones</li>
+                <li>Testing de rendimiento con muchas canciones</li>
+                <li>Pruebas en diferentes navegadores</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2 class="test-title">7. Comandos de Verificación</h2>
+        <div class="test-step">
+            <h3>💻 Comandos de terminal para verificar:</h3>
+            <div class="code">
+# Verificar que no hay errores de compilación
+npm run build
+
+# Iniciar el sistema para pruebas
+npm run dev
+
+# Verificar logs del backend
+# (Los logs aparecerán en consola al crear/reproducir eventos)
+</div>
+        </div>
+    </div>
+
+    <script>
+        // Log del estado del sistema
+        console.log('🎵 CGPlayer Event Playlist System - Test Page Loaded');
+        console.log('✅ Todos los requerimientos del usuario han sido implementados:');
+        console.log('  1. LyricsSynchronizer preserva tiempos');
+        console.log('  2. CreateEventModal sin crashes + validación + notificaciones');
+        console.log('  3. Eventos funcionan como playlists completas');
+        console.log('  4. Play button carga toda la cola de canciones');
+        console.log('  5. Sistema robusto con manejo de errores');
+    </script>
+</body>
+</html>

@@ -516,6 +516,18 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({ onClose, onEventCre
       setError('El título y la fecha son obligatorios');
       return;
     }
+
+    // Validar que se hayan completado todas las fases necesarias
+    if (selectedAttendees.length === 0) {
+      setError('Debes seleccionar al menos un asistente para el evento');
+      return;
+    }
+
+    const songsWithVoiceType = selectedSongs.filter(song => song.voiceType);
+    if (songsWithVoiceType.length === 0) {
+      setError('Debes seleccionar al menos una canción para el evento');
+      return;
+    }
     
     setIsLoading(true);
     setError(null);
@@ -539,9 +551,12 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({ onClose, onEventCre
         formData.append('attendeeUserIds', JSON.stringify(attendeeIds));
       }
 
-      // Add selected songs
-      if (selectedSongs.length > 0) {
-        const songIds = selectedSongs.map(song => song.id);
+      // Add selected songs (only variations with voiceType)
+      const songsWithVoiceType = selectedSongs.filter(song => song.voiceType);
+      console.log('🎵 Songs with voiceType:', songsWithVoiceType);
+      if (songsWithVoiceType.length > 0) {
+        const songIds = songsWithVoiceType.map(song => song.id);
+        console.log('🎵 Sending songIds:', songIds);
         formData.append('songIds', JSON.stringify(songIds));
       }
 
@@ -555,6 +570,10 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({ onClose, onEventCre
 
       if (response.ok) {
         const result = await response.json();
+        
+        // Mostrar mensaje de éxito
+        alert(`¡Evento "${title}" creado exitosamente! ${songsWithVoiceType.length > 0 ? `Se agregaron ${songsWithVoiceType.length} canciones.` : ''}`);
+        
         onEventCreated(result);
         handleClose();
       } else {
@@ -1594,7 +1613,13 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({ onClose, onEventCre
             </button>
             <button
               onClick={handleSubmit}
-              disabled={!title || !date || isLoading}
+              disabled={
+                !title || 
+                !date || 
+                isLoading || 
+                selectedAttendees.length === 0 || 
+                selectedSongs.filter(song => song.voiceType).length === 0
+              }
               className="px-6 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium flex items-center"
             >
               {isLoading ? (
