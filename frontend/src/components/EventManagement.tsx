@@ -164,14 +164,12 @@ const EventManagement: React.FC = () => {
           setCurrentSong(songsWithUrls[0] as any);
         }
         
-        // Mostrar notificación de éxito
-        alert(`🎵 Reproduciendo evento: ${result.eventTitle}\n${result.totalSongs} canciones agregadas a la cola`);
+        console.log(`✅ Evento reproducido: ${result.eventTitle} con ${result.totalSongs} canciones`);
       } else {
-        alert('⚠️ El evento no tiene canciones para reproducir');
+        console.warn('⚠️ El evento no tiene canciones para reproducir');
       }
     } catch (error) {
       console.error('Error al reproducir evento:', error);
-      alert('❌ Error al reproducir el evento');
     }
   };
 
@@ -381,12 +379,6 @@ const EventManagement: React.FC = () => {
                           Privado
                         </span>
                       )}
-                      {event.allowExternalJoin && (
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                          <UserPlus className="h-3 w-3 mr-1" />
-                          Solicitudes
-                        </span>
-                      )}
                     </div>
                   </div>
 
@@ -398,23 +390,23 @@ const EventManagement: React.FC = () => {
                   )}
 
                   {/* Date & Time */}
-                  <div className="flex items-center text-gray-500 mb-3">
-                    <Calendar className="h-4 w-4 mr-2" />
-                    <span className="text-sm">
+                  <div className="flex items-center text-slate-600 mb-3">
+                    <Calendar className="h-4 w-4 mr-2 text-indigo-500" />
+                    <span className="text-sm font-medium">
                       {formatDate(event.date)}
                     </span>
                     {event.time && (
                       <>
-                        <Clock className="h-4 w-4 ml-4 mr-2" />
-                        <span className="text-sm">{formatTime(event.time)}</span>
+                        <Clock className="h-4 w-4 ml-4 mr-2 text-emerald-500" />
+                        <span className="text-sm font-medium">{formatTime(event.time)}</span>
                       </>
                     )}
                   </div>
 
                   {/* Location */}
-                  <div className="flex items-center text-gray-500 mb-4">
-                    <MapPin className="h-4 w-4 mr-2" />
-                    <span className="text-sm line-clamp-1">
+                  <div className="flex items-center text-slate-600 mb-4">
+                    <MapPin className="h-4 w-4 mr-2 text-red-500" />
+                    <span className="text-sm font-medium line-clamp-1">
                       {event.eventCity || event.location?.city || 'Ubicación por confirmar'}
                       {event.eventAddress && `, ${event.eventAddress}`}
                     </span>
@@ -423,18 +415,22 @@ const EventManagement: React.FC = () => {
                   {/* Stats */}
                   <div className="flex items-center justify-between pt-4 border-t border-gray-100">
                     <div className="flex items-center space-x-4">
-                      <div className="flex items-center text-gray-500">
-                        <Users className="h-4 w-4 mr-1" />
-                        <span className="text-sm">
-                          {event._count?.attendees || 0}
+                      <div className="flex items-center text-indigo-600">
+                        <Users className="h-4 w-4 mr-1 text-indigo-500" />
+                        <span className="text-sm font-medium">
+                          {event._count?.attendees || 0} asistentes
                         </span>
                       </div>
-                      {event._count?.joinRequests && event._count.joinRequests > 0 && (
-                        <div className="flex items-center text-orange-500">
-                          <UserPlus className="h-4 w-4 mr-1" />
-                          <span className="text-sm">
-                            {event._count.joinRequests}
-                          </span>
+                      
+                      {/* Mostrar solicitudes como badge solo si hay más de 0 y permite solicitudes externas */}
+                      {event.allowExternalJoin && event._count?.joinRequests && event._count.joinRequests > 0 && (
+                        <div className="flex items-center">
+                          <div className="relative">
+                            <UserPlus className="h-4 w-4 text-orange-500" />
+                            <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                              {event._count.joinRequests}
+                            </span>
+                          </div>
                         </div>
                       )}
                     </div>
@@ -443,26 +439,26 @@ const EventManagement: React.FC = () => {
                       <button
                         onClick={() => handlePlayEvent(event)}
                         disabled={playLoading}
-                        className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-all duration-200 disabled:opacity-50"
+                        className="p-2 text-green-500 hover:text-green-700 hover:bg-green-50 rounded-lg transition-all duration-200 disabled:opacity-50"
                         title="Reproducir como playlist"
                       >
                         <Play className="h-4 w-4" />
                       </button>
                       <button
                         onClick={() => handleViewDetails(event)}
-                        className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all duration-200"
+                        className="p-2 text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-all duration-200"
                         title="Ver detalles"
                       >
                         <Eye className="h-4 w-4" />
                       </button>
                       <button
-                        className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-all duration-200"
+                        className="p-2 text-purple-500 hover:text-purple-700 hover:bg-purple-50 rounded-lg transition-all duration-200"
                         title="Editar evento"
                       >
                         <Edit className="h-4 w-4" />
                       </button>
                       <button
-                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200"
+                        className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-all duration-200"
                         title="Eliminar evento"
                       >
                         <Trash2 className="h-4 w-4" />

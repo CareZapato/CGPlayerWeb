@@ -1,7 +1,7 @@
 import React from 'react';
 import ResponsiveNavigation from '../Navigation/ResponsiveNavigation';
 import AudioManager from '../AudioManager/AudioManager';
-import StickyPlayerConnected from '../Player/StickyPlayerConnected';
+import BottomPlayer from '../BottomPlayer/BottomPlayer';
 import './Layout.css';
 
 interface LayoutProps {
@@ -21,7 +21,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       <AudioManager />
       
       {/* Reproductor principal que se conecta al store */}
-      <StickyPlayerConnected />
+      <BottomPlayer />
     </div>
   );
 };

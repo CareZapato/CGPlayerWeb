@@ -5,6 +5,7 @@ import { useServerInfo } from '../../hooks/useServerInfo';
 import { getSongFileUrl } from '../../config/api';
 import { updateFavicon, resetFavicon } from '../../utils/favicon';
 import type { Song } from '../../types';
+import MinimizedPlayer from './MinimizedPlayer';
 import {
   PlayIcon,
   PauseIcon,
@@ -156,6 +157,7 @@ const PlaylistItem: React.FC<PlaylistItemProps> = ({
 const BottomPlayer: React.FC = () => {
   const [showPlaylist, setShowPlaylist] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(false);
   
   const { serverInfo } = useServerInfo();
   
@@ -325,6 +327,11 @@ const BottomPlayer: React.FC = () => {
     return null;
   }
 
+  // Si está minimizado, mostrar solo la esfera flotante
+  if (isMinimized) {
+    return <MinimizedPlayer onExpand={() => setIsMinimized(false)} />;
+  }
+
   return (
     <>
       {/* Barra de reproducción principal */}
@@ -356,7 +363,11 @@ const BottomPlayer: React.FC = () => {
         <div className="bottom-player__content">
           {/* Información de la canción - Izquierda */}
           <div className="bottom-player__song-info">
-            <div className="bottom-player__artwork">
+            <div 
+              className="bottom-player__artwork bottom-player__artwork--clickable"
+              onClick={() => setIsMinimized(true)}
+              title="Haz clic para minimizar el reproductor"
+            >
               <div className="bottom-player__artwork-placeholder">
                 {currentSong.title.charAt(0).toUpperCase()}
               </div>
@@ -454,7 +465,7 @@ const BottomPlayer: React.FC = () => {
               )}
             </button>
 
-            {/* Botón de expandir */}
+            {/* Botón de expandir/contraer */}
             <button
               onClick={() => setIsExpanded(!isExpanded)}
               className="bottom-player__control bottom-player__control--secondary"

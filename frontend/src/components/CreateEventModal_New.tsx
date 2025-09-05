@@ -7,11 +7,9 @@ import {
   CheckCircle,
   AlertCircle,
   Search,
-  UserCheck,
   MapPin,
   Eye,
   EyeOff,
-  Globe,
   UserPlus,
   Trash2,
   Plus
