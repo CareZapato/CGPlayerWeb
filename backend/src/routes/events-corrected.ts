@@ -210,7 +210,9 @@ router.post('/events', authenticateToken, upload.single('image'), async (req: Au
       country = 'Chile',
       mapLink,
       isPublic = true,
-      allowExternalJoin = false
+      allowExternalJoin = false,
+      attendeeUserIds,
+      songIds
     } = req.body;
 
     if (!title || !date) {
@@ -225,6 +227,30 @@ router.post('/events', authenticateToken, upload.single('image'), async (req: Au
 
     if (!user || !user.assignedRoles.some(r => r.role === 'ADMIN' || r.role === 'DIRECTOR')) {
       return res.status(403).json({ error: 'No tienes permisos para crear eventos' });
+    }
+
+    // Parsear arrays si vienen como strings
+    let parsedAttendeeUserIds: string[] = [];
+    let parsedSongIds: string[] = [];
+
+    if (attendeeUserIds) {
+      try {
+        parsedAttendeeUserIds = typeof attendeeUserIds === 'string' 
+          ? JSON.parse(attendeeUserIds) 
+          : attendeeUserIds;
+      } catch (error) {
+        return res.status(400).json({ error: 'Formato inválido para attendeeUserIds' });
+      }
+    }
+
+    if (songIds) {
+      try {
+        parsedSongIds = typeof songIds === 'string' 
+          ? JSON.parse(songIds) 
+          : songIds;
+      } catch (error) {
+        return res.status(400).json({ error: 'Formato inválido para songIds' });
+      }
     }
 
     const eventData: any = {
@@ -246,34 +272,83 @@ router.post('/events', authenticateToken, upload.single('image'), async (req: Au
       eventData.imageUrl = `/uploads/events/${req.file.filename}`;
     }
 
-    const event = await prisma.event.create({
-      data: eventData,
-      include: {
-        location: true,
-        creator: {
-          select: { firstName: true, lastName: true }
-        },
-        eventPlaylists: {
-          include: {
-            playlist: {
-              include: {
-                items: {
-                  include: { song: true },
-                  orderBy: { order: 'asc' }
+    // Crear el evento y las relaciones en una transacción
+    const result = await prisma.$transaction(async (prisma) => {
+      // Crear el evento
+      const event = await prisma.event.create({
+        data: eventData
+      });
+
+      // Agregar asistentes si se especificaron
+      if (parsedAttendeeUserIds.length > 0) {
+        const attendeeData = parsedAttendeeUserIds.map(userId => ({
+          eventId: event.id,
+          userId: userId,
+          addedBy: req.user!.id
+        }));
+
+        await prisma.eventAttendee.createMany({
+          data: attendeeData,
+          skipDuplicates: true
+        });
+      }
+
+      // Agregar canciones si se especificaron
+      if (parsedSongIds.length > 0) {
+        const songData = parsedSongIds.map((songId, index) => ({
+          eventId: event.id,
+          songId: songId,
+          order: index + 1
+        }));
+
+        await prisma.eventSong.createMany({
+          data: songData,
+          skipDuplicates: true
+        });
+      }
+
+      // Retornar el evento completo con relaciones
+      return await prisma.event.findUnique({
+        where: { id: event.id },
+        include: {
+          location: true,
+          creator: {
+            select: { firstName: true, lastName: true }
+          },
+          eventPlaylists: {
+            include: {
+              playlist: {
+                include: {
+                  items: {
+                    include: { song: true },
+                    orderBy: { order: 'asc' }
+                  }
+                }
+              }
+            },
+            orderBy: { order: 'asc' }
+          },
+          eventSongs: {
+            include: { song: true },
+            orderBy: { order: 'asc' }
+          },
+          attendees: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  email: true
                 }
               }
             }
-          },
-          orderBy: { order: 'asc' }
-        },
-        eventSongs: {
-          include: { song: true },
-          orderBy: { order: 'asc' }
+          }
         }
-      }
+      });
     });
 
-    res.status(201).json(event);
+    res.status(201).json(result);
   } catch (error) {
     console.error('Error al crear evento:', error);
     res.status(500).json({ error: 'Error interno del servidor' });
@@ -571,6 +646,169 @@ router.delete('/events/:id/attendees/:userId', authenticateToken, async (req: Au
     res.json({ message: 'Asistente removido exitosamente' });
   } catch (error) {
     console.error('Error al remover asistente:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// POST /events/:id/songs - Agregar canciones a un evento
+router.post('/events/:id/songs', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+    const { songIds } = req.body;
+
+    if (!Array.isArray(songIds) || songIds.length === 0) {
+      return res.status(400).json({ error: 'Se requiere una lista de IDs de canciones' });
+    }
+
+    // Verificar que el evento existe
+    const event = await prisma.event.findUnique({
+      where: { id }
+    });
+
+    if (!event) {
+      return res.status(404).json({ error: 'Evento no encontrado' });
+    }
+
+    // Verificar permisos
+    const user = await prisma.user.findUnique({
+      where: { id: req.user!.id },
+      include: { assignedRoles: { select: { role: true } } }
+    });
+
+    if (!user || (!user.assignedRoles.some(r => r.role === 'ADMIN' || r.role === 'DIRECTOR') && event.createdBy !== req.user!.id)) {
+      return res.status(403).json({ error: 'No tienes permisos para gestionar canciones del evento' });
+    }
+
+    // Obtener el último orden para las nuevas canciones
+    const lastEventSong = await prisma.eventSong.findFirst({
+      where: { eventId: id },
+      orderBy: { order: 'desc' }
+    });
+
+    const startOrder = lastEventSong ? lastEventSong.order + 1 : 1;
+
+    // Agregar canciones con orden secuencial
+    const eventSongData = songIds.map((songId: string, index: number) => ({
+      eventId: id,
+      songId: songId,
+      order: startOrder + index
+    }));
+
+    await prisma.eventSong.createMany({
+      data: eventSongData,
+      skipDuplicates: true
+    });
+
+    // Obtener canciones actualizadas del evento
+    const updatedEventSongs = await prisma.eventSong.findMany({
+      where: { eventId: id },
+      include: { song: true },
+      orderBy: { order: 'asc' }
+    });
+
+    res.json({
+      message: 'Canciones agregadas exitosamente',
+      eventSongs: updatedEventSongs
+    });
+  } catch (error) {
+    console.error('Error al agregar canciones al evento:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// DELETE /events/:id/songs/:songId - Remover canción de un evento
+router.delete('/events/:id/songs/:songId', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const { id, songId } = req.params;
+
+    // Verificar que el evento existe
+    const event = await prisma.event.findUnique({
+      where: { id }
+    });
+
+    if (!event) {
+      return res.status(404).json({ error: 'Evento no encontrado' });
+    }
+
+    // Verificar permisos
+    const user = await prisma.user.findUnique({
+      where: { id: req.user!.id },
+      include: { assignedRoles: { select: { role: true } } }
+    });
+
+    if (!user || (!user.assignedRoles.some(r => r.role === 'ADMIN' || r.role === 'DIRECTOR') && event.createdBy !== req.user!.id)) {
+      return res.status(403).json({ error: 'No tienes permisos para gestionar canciones del evento' });
+    }
+
+    await prisma.eventSong.deleteMany({
+      where: {
+        eventId: id,
+        songId: songId
+      }
+    });
+
+    res.json({ message: 'Canción removida del evento exitosamente' });
+  } catch (error) {
+    console.error('Error al remover canción del evento:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// PUT /events/:id/songs/reorder - Reordenar canciones de un evento
+router.put('/events/:id/songs/reorder', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+    const { songOrders } = req.body; // Array de { songId, order }
+
+    if (!Array.isArray(songOrders)) {
+      return res.status(400).json({ error: 'Se requiere un array de ordenamiento de canciones' });
+    }
+
+    // Verificar que el evento existe
+    const event = await prisma.event.findUnique({
+      where: { id }
+    });
+
+    if (!event) {
+      return res.status(404).json({ error: 'Evento no encontrado' });
+    }
+
+    // Verificar permisos
+    const user = await prisma.user.findUnique({
+      where: { id: req.user!.id },
+      include: { assignedRoles: { select: { role: true } } }
+    });
+
+    if (!user || (!user.assignedRoles.some(r => r.role === 'ADMIN' || r.role === 'DIRECTOR') && event.createdBy !== req.user!.id)) {
+      return res.status(403).json({ error: 'No tienes permisos para gestionar canciones del evento' });
+    }
+
+    // Actualizar el orden de las canciones en una transacción
+    await prisma.$transaction(
+      songOrders.map((item: { songId: string; order: number }) =>
+        prisma.eventSong.updateMany({
+          where: {
+            eventId: id,
+            songId: item.songId
+          },
+          data: { order: item.order }
+        })
+      )
+    );
+
+    // Obtener canciones reordenadas
+    const reorderedEventSongs = await prisma.eventSong.findMany({
+      where: { eventId: id },
+      include: { song: true },
+      orderBy: { order: 'asc' }
+    });
+
+    res.json({
+      message: 'Canciones reordenadas exitosamente',
+      eventSongs: reorderedEventSongs
+    });
+  } catch (error) {
+    console.error('Error al reordenar canciones del evento:', error);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
