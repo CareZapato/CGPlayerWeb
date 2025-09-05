@@ -558,10 +558,11 @@ router.get('/search/singers', authenticateToken, requireRole(['ADMIN', 'DIRECTOR
     
     // Construir filtros dinámicos
     const whereConditions: any = {
-      isActive: true,
-      assignedRoles: {
+      // Incluir tanto activos como inactivos por defecto
+      // isActive: true, // Comentado para mostrar todos
+      roles: {
         some: {
-          role: { in: [UserRole.CANTANTE, UserRole.DIRECTOR] }
+          role: { in: ['CANTANTE', 'DIRECTOR'] }
         }
       }
     };
@@ -585,19 +586,22 @@ router.get('/search/singers', authenticateToken, requireRole(['ADMIN', 'DIRECTOR
     if (voiceType && voiceType !== '') {
       whereConditions.voiceProfiles = {
         some: {
-          voiceType: voiceType as string
+          voiceType: (voiceType as string).toUpperCase()
         }
       };
     }
 
-    // Filtro por rol específico
+    // Filtro por rol específico - corregido
     if (role && role !== '') {
-      whereConditions.assignedRoles = {
+      // Sobreescribir el filtro de roles por defecto si se especifica uno específico
+      whereConditions.roles = {
         some: {
-          role: role as string
+          role: (role as string).toUpperCase()
         }
       };
     }
+
+    console.log('Search conditions:', JSON.stringify(whereConditions, null, 2));
 
     const singers = await prisma.user.findMany({
       where: whereConditions,
@@ -609,6 +613,7 @@ router.get('/search/singers', authenticateToken, requireRole(['ADMIN', 'DIRECTOR
         username: true,
         phone: true,
         locationId: true,
+        isActive: true,
         createdAt: true,
         location: {
           select: { 
@@ -618,7 +623,7 @@ router.get('/search/singers', authenticateToken, requireRole(['ADMIN', 'DIRECTOR
             city: true 
           }
         },
-        assignedRoles: {
+        roles: {
           select: { 
             role: true,
             createdAt: true
@@ -658,16 +663,22 @@ router.get('/search/singers', authenticateToken, requireRole(['ADMIN', 'DIRECTOR
       ]
     });
 
+    console.log(`Found ${singers.length} singers`);
+
     // Agregar información adicional procesada
     const enrichedSingers = singers.map(singer => ({
       ...singer,
       fullName: `${singer.firstName} ${singer.lastName}`,
-      primaryRole: singer.assignedRoles[0]?.role || 'CANTANTE',
+      primaryRole: singer.roles[0]?.role || 'CANTANTE',
+      allRoles: singer.roles.map(r => r.role),
       primaryVoiceType: singer.voiceProfiles[0]?.voiceType || 'No asignado',
+      allVoiceTypes: singer.voiceProfiles.map(vp => vp.voiceType),
       totalEvents: singer._count.eventAttendees,
       recentEvents: singer.eventAttendees.length,
       isExperienced: singer._count.eventAttendees > 5,
-      lastEventDate: singer.eventAttendees[0]?.event?.date || null
+      lastEventDate: singer.eventAttendees[0]?.event?.date || null,
+      // Cambiar assignedRoles por roles para compatibilidad con frontend
+      assignedRoles: singer.roles
     }));
 
     res.json({

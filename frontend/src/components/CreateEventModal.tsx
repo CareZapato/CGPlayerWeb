@@ -15,7 +15,8 @@ import {
   UserPlus,
   Trash2,
   Plus,
-  Trash
+  Trash,
+  Check
 } from 'lucide-react';
 import { getApiUrl } from '../config/api';
 
@@ -171,7 +172,7 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({ onClose, onEventCre
     try {
       const token = localStorage.getItem('token');
       const params = new URLSearchParams();
-      if (singerSearchTerm) params.append('search', singerSearchTerm);
+      if (singerSearchTerm) params.append('query', singerSearchTerm);
       if (selectedLocation) params.append('locationId', selectedLocation);
       if (selectedRole) params.append('role', selectedRole);
 
@@ -197,9 +198,9 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({ onClose, onEventCre
     try {
       const token = localStorage.getItem('token');
       const params = new URLSearchParams();
-      if (songSearchTerm) params.append('search', songSearchTerm);
+      if (songSearchTerm) params.append('query', songSearchTerm);
 
-      const response = await fetch(getApiUrl(`/songs/for-playlist?${params}`), {
+      const response = await fetch(getApiUrl(`/songs?${params}`), {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -207,9 +208,12 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({ onClose, onEventCre
       });
       if (response.ok) {
         const result = await response.json();
-        // Solo mostrar canciones que tienen voiceType (tienen archivo de audio)
-        const songsWithAudio = result.data?.filter((song: Song) => song.voiceType) || [];
-        setSongs(songsWithAudio);
+        console.log('Songs response:', result); // Debug log
+        // Mostrar solo canciones padre (sin voiceType) para selección
+        const allSongs = result.data || result || [];
+        const parentSongs = allSongs.filter((song: Song) => !song.voiceType && !song.parentSongId);
+        console.log('Parent songs filtered:', parentSongs); // Debug log
+        setSongs(parentSongs);
       }
     } catch (error) {
       console.error('Error loading songs:', error);
@@ -223,7 +227,7 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({ onClose, onEventCre
     try {
       const token = localStorage.getItem('token');
       const params = new URLSearchParams();
-      if (playlistSearchTerm) params.append('search', playlistSearchTerm);
+      if (playlistSearchTerm) params.append('query', playlistSearchTerm);
 
       const response = await fetch(getApiUrl(`/playlists?${params}`), {
         headers: {
@@ -296,6 +300,47 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({ onClose, onEventCre
     setLocationToAdd(null);
   };
 
+  // Add all singers from all locations
+  const addAllSingersToEvent = async () => {
+    try {
+      // Primero obtener todos los cantantes sin filtros
+      const token = localStorage.getItem('token');
+      const response = await fetch(getApiUrl('/events/search/singers?limit=1000'), {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        const allSingers = result.data || [];
+        
+        const newAttendees: SelectedAttendee[] = [];
+        
+        allSingers.forEach((singer: Singer) => {
+          const isAlreadyAdded = selectedAttendees.some(attendee => attendee.id === singer.id);
+          if (!isAlreadyAdded) {
+            newAttendees.push({
+              id: singer.id,
+              firstName: singer.firstName,
+              lastName: singer.lastName,
+              email: singer.email,
+              role: singer.assignedRoles[0]?.role || 'CANTANTE',
+              location: `${singer.location.name}, ${singer.location.city}`,
+              addedBy: 'group',
+              groupName: 'Todos los Coristas'
+            });
+          }
+        });
+        
+        setSelectedAttendees(prev => [...prev, ...newAttendees]);
+      }
+    } catch (error) {
+      console.error('Error adding all singers:', error);
+    }
+  };
+
   // Remove attendee from list
   const removeAttendee = (attendeeId: string) => {
     setSelectedAttendees(prev => prev.filter(attendee => attendee.id !== attendeeId));
@@ -306,17 +351,58 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({ onClose, onEventCre
     setSelectedAttendees([]);
   };
 
-  // Add song to event playlist
-  const addSongToEvent = (song: Song) => {
+  // Add song to event playlist - for parent songs, add all variations
+  const addSongToEvent = async (song: Song) => {
     const isAlreadyAdded = selectedSongs.some(s => s.id === song.id);
     if (isAlreadyAdded) return;
 
-    setSelectedSongs(prev => [...prev, song]);
+    try {
+      const token = localStorage.getItem('token');
+      
+      // If it's a parent song (no voiceType), get all its variations
+      if (!song.voiceType && !song.parentSongId) {
+        const response = await fetch(getApiUrl(`/songs/${song.id}/versions`), {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (response.ok) {
+          const result = await response.json();
+          const variations = result.data || [];
+          
+          // Add all variations that have audio files
+          const validVariations = variations.filter((variation: Song) => 
+            variation.voiceType && variation.filePath
+          );
+          
+          if (validVariations.length > 0) {
+            setSelectedSongs(prev => [...prev, ...validVariations]);
+          } else {
+            // If no variations found, show a message
+            console.warn('No se encontraron variaciones con audio para esta canción');
+          }
+        }
+      } else {
+        // If it's already a variation, just add it directly
+        setSelectedSongs(prev => [...prev, song]);
+      }
+    } catch (error) {
+      console.error('Error adding song variations:', error);
+      // Fallback: add the song as is
+      setSelectedSongs(prev => [...prev, song]);
+    }
   };
 
   // Remove song from event playlist
   const removeSongFromEvent = (songId: string) => {
-    setSelectedSongs(prev => prev.filter(song => song.id !== songId));
+    setSelectedSongs(prev => {
+      // Remove the song itself
+      const withoutSong = prev.filter(song => song.id !== songId);
+      // Also remove any variations of this parent song
+      return withoutSong.filter(song => song.parentSongId !== songId);
+    });
   };
 
   // Add all songs from a playlist
@@ -433,9 +519,14 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({ onClose, onEventCre
     setIsLoading(false);
   };
 
+  // Helper function to check if a parent song has selected variations
+  const hasSelectedVariations = (parentSongId: string): boolean => {
+    return selectedSongs.some(song => song.parentSongId === parentSongId);
+  };
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-hidden">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[95vw] max-h-[98vh] overflow-hidden">
         <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-4 text-white">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-bold">Crear Nuevo Evento</h2>
@@ -499,7 +590,7 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({ onClose, onEventCre
           </nav>
         </div>
 
-        <div className="p-6 overflow-y-auto max-h-[60vh]">
+        <div className="p-6 overflow-y-auto max-h-[75vh]">
           {error && (
             <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center">
               <AlertCircle className="h-5 w-5 text-red-600 mr-2" />
@@ -707,190 +798,269 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({ onClose, onEventCre
                 </div>
               </div>
 
-              {/* Search and Filters */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Search className="h-4 w-4 text-gray-400" />
-                  </div>
-                  <input
-                    type="text"
-                    placeholder="Buscar por nombre..."
-                    value={singerSearchTerm}
-                    onChange={(e) => setSingerSearchTerm(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  />
-                </div>
+              {/* Diseño de dos columnas */}
+              <div className="grid grid-cols-2 gap-6 h-[600px]">
+                {/* Columna izquierda: Filtros y búsqueda */}
+                <div className="space-y-4 border-r border-gray-200 pr-6">
+                  <div className="sticky top-0 bg-white">
+                    <h5 className="text-lg font-medium text-gray-900 mb-4">Filtros de Búsqueda</h5>
+                    
+                    {/* Search and Filters - Solo mostrar si no está activa la selección por grupo */}
+                    {!showGroupSelection && (
+                      <div className="space-y-3">
+                        {/* Filtros en una sola fila */}
+                        <div className="grid grid-cols-3 gap-2">
+                          <div className="relative">
+                            <div className="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
+                              <Search className="h-3 w-3 text-gray-400" />
+                            </div>
+                            <input
+                              type="text"
+                              placeholder="Buscar nombre..."
+                              value={singerSearchTerm}
+                              onChange={(e) => setSingerSearchTerm(e.target.value)}
+                              className="w-full pl-7 pr-2 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-1 focus:ring-indigo-500 focus:border-transparent"
+                            />
+                          </div>
 
-                <select
-                  value={selectedLocation}
-                  onChange={(e) => setSelectedLocation(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                >
-                  <option value="">Todas las ubicaciones</option>
-                  {singerLocations.map(location => (
-                    <option key={location.id} value={location.id}>
-                      {location.name} ({location.singersCount})
-                    </option>
-                  ))}
-                </select>
-
-                <select
-                  value={selectedRole}
-                  onChange={(e) => setSelectedRole(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                >
-                  <option value="">Todos los roles</option>
-                  <option value="soprano">Soprano</option>
-                  <option value="contralto">Contralto</option>
-                  <option value="tenor">Tenor</option>
-                  <option value="bajo">Bajo</option>
-                  <option value="director">Director</option>
-                </select>
-              </div>
-
-              {/* Group Selection Mode */}
-              {showGroupSelection && (
-                <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-                  <h5 className="font-medium text-purple-900 mb-3 flex items-center">
-                    <MapPin className="h-4 w-4 mr-2" />
-                    Selección por Ubicación
-                  </h5>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {singerLocations.map(location => (
-                      <button
-                        key={location.id}
-                        onClick={() => showLocationConfirmation(location.id)}
-                        className="text-left p-3 bg-white border border-purple-300 rounded-lg hover:bg-purple-50 transition-colors flex items-center justify-between"
-                      >
-                        <div>
-                          <div className="font-medium text-purple-900">{location.name}</div>
-                          <div className="text-sm text-purple-600">{location.city}</div>
-                          <div className="text-xs text-purple-500">{location.singersCount} cantantes</div>
-                        </div>
-                        <Plus className="h-5 w-5 text-green-600" />
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Singers List */}
-              <div className="border border-gray-200 rounded-lg">
-                <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
-                  <h5 className="font-medium text-gray-900 flex items-center">
-                    <Users className="h-4 w-4 mr-2" />
-                    Cantantes Disponibles
-                    {loadingSingers && (
-                      <div className="ml-2 animate-spin h-4 w-4 border-2 border-indigo-500 border-t-transparent rounded-full"></div>
-                    )}
-                  </h5>
-                </div>
-                
-                <div className="max-h-96 overflow-y-auto">
-                  {singers.length === 0 ? (
-                    <div className="p-8 text-center text-gray-500">
-                      <Users className="mx-auto h-8 w-8 text-gray-300 mb-2" />
-                      <p>No se encontraron cantantes</p>
-                      <p className="text-sm">Intenta ajustar los filtros de búsqueda</p>
-                    </div>
-                  ) : (
-                    <div className="divide-y divide-gray-200">
-                      {singers.map(singer => {
-                        const isSelected = selectedAttendees.some(a => a.id === singer.id);
-                        return (
-                          <div
-                            key={singer.id}
-                            className={`p-4 hover:bg-gray-50 transition-colors ${
-                              isSelected ? 'bg-indigo-50' : ''
-                            }`}
+                          <select
+                            value={selectedLocation}
+                            onChange={(e) => setSelectedLocation(e.target.value)}
+                            className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-1 focus:ring-indigo-500 focus:border-transparent"
                           >
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center space-x-3">
-                                <button
-                                  onClick={() => addSingerToAttendees(singer)}
-                                  disabled={isSelected}
-                                  className={`p-1 rounded border-2 transition-colors ${
-                                    isSelected
-                                      ? 'bg-indigo-500 border-indigo-500 text-white'
-                                      : 'border-gray-300 hover:border-indigo-400'
-                                  }`}
-                                >
-                                  <UserCheck className="h-3 w-3" />
-                                </button>
-                                
-                                <div>
-                                  <h6 className="font-medium text-gray-900">
-                                    {singer.firstName} {singer.lastName}
-                                  </h6>
-                                  <p className="text-sm text-gray-500">
-                                    {singer.email}
-                                  </p>
-                                </div>
+                            <option value="">Todas las ubicaciones</option>
+                            {singerLocations.map(location => (
+                              <option key={location.id} value={location.id}>
+                                {location.name} ({location.singersCount})
+                              </option>
+                            ))}
+                          </select>
+
+                          <select
+                            value={selectedRole}
+                            onChange={(e) => setSelectedRole(e.target.value)}
+                            className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-1 focus:ring-indigo-500 focus:border-transparent"
+                          >
+                            <option value="">Todos los roles</option>
+                            <option value="cantante">Cantante</option>
+                            <option value="director">Director</option>
+                          </select>
+                        </div>
+
+                        {/* Lista de cantantes encontrados */}
+                        <div className="border border-gray-200 rounded-lg">
+                          <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
+                            <h6 className="font-medium text-gray-900 flex items-center">
+                              <Users className="h-4 w-4 mr-2" />
+                              Cantantes Encontrados
+                              {loadingSingers && (
+                                <div className="ml-2 animate-spin h-4 w-4 border-2 border-indigo-500 border-t-transparent rounded-full"></div>
+                              )}
+                            </h6>
+                          </div>
+                          
+                          <div className="max-h-80 overflow-y-auto">
+                            {singers.length === 0 ? (
+                              <div className="p-4 text-center text-gray-500">
+                                <Users className="mx-auto h-6 w-6 text-gray-300 mb-2" />
+                                <p className="text-sm">No se encontraron cantantes</p>
+                                <p className="text-xs">Intenta ajustar los filtros</p>
                               </div>
-                              
-                              <div className="text-right">
-                                <div className="flex flex-wrap gap-1 justify-end mb-1">
-                                  {singer.assignedRoles.map((roleObj, index) => (
-                                    <span
-                                      key={index}
-                                      className="inline-block px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full"
+                            ) : (
+                              <div className="divide-y divide-gray-200">
+                                {singers.map(singer => {
+                                  const isSelected = selectedAttendees.some(a => a.id === singer.id);
+                                  return (
+                                    <div
+                                      key={singer.id}
+                                      className={`p-2 hover:bg-gray-50 transition-colors ${
+                                        isSelected ? 'bg-indigo-50 border-l-4 border-indigo-500' : ''
+                                      }`}
                                     >
-                                      {roleObj.role}
-                                    </span>
-                                  ))}
-                                </div>
-                                <p className="text-xs text-gray-500 flex items-center justify-end">
-                                  <MapPin className="h-3 w-3 mr-1" />
-                                  {singer.location.name}, {singer.location.city}
-                                </p>
+                                      <div className="flex items-center justify-between">
+                                        <div className="flex items-center space-x-2">
+                                          <button
+                                            onClick={() => isSelected ? removeAttendee(singer.id) : addSingerToAttendees(singer)}
+                                            className={`p-1 rounded border transition-colors ${
+                                              isSelected
+                                                ? 'bg-indigo-500 border-indigo-500 text-white'
+                                                : 'border-gray-300 hover:border-indigo-400 hover:bg-indigo-50'
+                                            }`}
+                                          >
+                                            {isSelected ? <Check className="h-3 w-3" /> : <UserCheck className="h-3 w-3" />}
+                                          </button>
+                                          
+                                          <div>
+                                            <h6 className="font-medium text-gray-900 text-sm">
+                                              {singer.firstName} {singer.lastName}
+                                            </h6>
+                                            <p className="text-xs text-gray-500">
+                                              {singer.email}
+                                            </p>
+                                          </div>
+                                        </div>
+                                        
+                                        <div className="text-right">
+                                          <div className="flex flex-wrap gap-1 justify-end mb-1">
+                                            {singer.assignedRoles?.map((roleObj, index) => (
+                                              <span
+                                                key={index}
+                                                className="inline-block px-1 py-0.5 text-xs font-medium bg-blue-100 text-blue-800 rounded"
+                                              >
+                                                {roleObj.role}
+                                              </span>
+                                            ))}
+                                          </div>
+                                          <p className="text-xs text-gray-500 flex items-center justify-end">
+                                            <MapPin className="h-2 w-2 mr-1" />
+                                            {singer.location?.name}
+                                          </p>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Group Selection Mode */}
+                    {showGroupSelection && (
+                      <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                        <h6 className="font-medium text-purple-900 mb-3 flex items-center">
+                          <MapPin className="h-4 w-4 mr-2" />
+                          Selección por Ubicación
+                        </h6>
+                        <div className="space-y-3">
+                          {/* Opción especial para todos los coristas */}
+                          <button
+                            onClick={() => addAllSingersToEvent()}
+                            className="w-full text-left p-3 bg-gradient-to-r from-indigo-500 to-purple-600 text-white border border-indigo-600 rounded-lg hover:from-indigo-600 hover:to-purple-700 transition-all flex items-center justify-between shadow-lg"
+                          >
+                            <div>
+                              <div className="font-bold text-white">🎵 Todos los Coristas</div>
+                              <div className="text-sm text-indigo-100">Todas las ubicaciones</div>
+                              <div className="text-xs text-indigo-200">
+                                {singerLocations.reduce((total, loc) => total + loc.singersCount, 0)} cantantes
                               </div>
                             </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
+                            <Plus className="h-5 w-5 text-white" />
+                          </button>
+                          
+                          {/* Ubicaciones individuales */}
+                          {singerLocations.map(location => (
+                            <button
+                              key={location.id}
+                              onClick={() => showLocationConfirmation(location.id)}
+                              className="w-full text-left p-3 bg-white border border-purple-300 rounded-lg hover:bg-purple-50 transition-colors flex items-center justify-between"
+                            >
+                              <div>
+                                <div className="font-medium text-purple-900">{location.name}</div>
+                                <div className="text-sm text-purple-600">{location.city}</div>
+                                <div className="text-xs text-purple-500">{location.singersCount} cantantes</div>
+                              </div>
+                              <Plus className="h-5 w-5 text-green-600" />
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
 
-              {/* Selected attendees summary */}
-              {selectedAttendees.length > 0 && (
-                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <h5 className="font-medium text-green-900 flex items-center">
+                {/* Columna derecha: Lista de cantantes seleccionados */}
+                <div className="pl-6">
+                  <div className="h-full flex flex-col">
+                    <h5 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
                       <CheckCircle className="h-4 w-4 mr-2" />
                       Cantantes Seleccionados ({selectedAttendees.length})
                     </h5>
-                    <button
-                      onClick={clearAllAttendees}
-                      className="text-red-600 hover:text-red-800 text-sm font-medium flex items-center"
-                    >
-                      <Trash className="h-3 w-3 mr-1" />
-                      Limpiar Todo
-                    </button>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedAttendees.map(attendee => (
-                      <span
-                        key={attendee.id}
-                        className="inline-flex items-center px-3 py-1 text-sm bg-green-100 text-green-800 rounded-full"
-                      >
-                        {attendee.firstName} {attendee.lastName}
-                        {attendee.addedBy === 'group' && (
-                          <span className="ml-1 text-xs text-green-600">({attendee.groupName})</span>
-                        )}
-                        <button
-                          onClick={() => removeAttendee(attendee.id)}
-                          className="ml-1 text-green-600 hover:text-green-800"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </span>
-                    ))}
+
+                    {selectedAttendees.length === 0 ? (
+                      <div className="flex-1 border border-gray-200 rounded-lg bg-gray-50 flex items-center justify-center">
+                        <div className="text-center text-gray-500">
+                          <Users className="mx-auto h-12 w-12 text-gray-300 mb-4" />
+                          <p className="text-lg font-medium">No hay cantantes seleccionados</p>
+                          <p className="text-sm">Selecciona cantantes de la lista de la izquierda</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex-1 border border-gray-200 rounded-lg overflow-hidden">
+                        <div className="bg-green-50 px-4 py-3 border-b border-green-200 flex items-center justify-between">
+                          <span className="text-sm font-medium text-green-900">
+                            Lista de Asistentes al Evento
+                          </span>
+                          <button
+                            onClick={clearAllAttendees}
+                            className="text-red-600 hover:text-red-800 text-sm font-medium flex items-center"
+                          >
+                            <Trash className="h-3 w-3 mr-1" />
+                            Limpiar Todo
+                          </button>
+                        </div>
+                        
+                        <div className="h-full overflow-y-auto">
+                          <div className="divide-y divide-gray-200">
+                            {selectedAttendees.map((attendee, index) => (
+                              <div
+                                key={attendee.id}
+                                className="p-4 hover:bg-gray-50 transition-colors"
+                              >
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center space-x-3">
+                                    <span className="flex items-center justify-center w-8 h-8 bg-indigo-100 text-indigo-600 rounded-full text-sm font-medium">
+                                      {index + 1}
+                                    </span>
+                                    <div>
+                                      <h6 className="font-medium text-gray-900">
+                                        {attendee.firstName} {attendee.lastName}
+                                      </h6>
+                                      <p className="text-sm text-gray-500">
+                                        {attendee.email}
+                                      </p>
+                                      {attendee.addedBy === 'group' && (
+                                        <p className="text-xs text-green-600">
+                                          Agregado por ubicación: {attendee.groupName}
+                                        </p>
+                                      )}
+                                    </div>
+                                  </div>
+                                  
+                                  <div className="flex items-center space-x-2">
+                                    <span className="inline-block px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
+                                      {attendee.role}
+                                    </span>
+                                    <button
+                                      onClick={() => removeAttendee(attendee.id)}
+                                      className="p-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded"
+                                    >
+                                      <X className="h-4 w-4" />
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Mensaje para selección por grupo */}
+                    {showGroupSelection && selectedAttendees.length === 0 && (
+                      <div className="flex-1 border border-gray-200 rounded-lg bg-gray-50 flex items-center justify-center">
+                        <div className="text-center text-gray-500">
+                          <MapPin className="mx-auto h-12 w-12 text-gray-300 mb-4" />
+                          <p className="text-lg font-medium">Selección por Ubicación Activa</p>
+                          <p className="text-sm">Usa los botones de la izquierda para seleccionar cantantes por ubicación</p>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
-              )}
+              </div>
             </div>
           )}
 
@@ -905,219 +1075,263 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({ onClose, onEventCre
                 </span>
               </div>
 
-              {/* Song Search */}
-              <div className="space-y-4">
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Search className="h-4 w-4 text-gray-400" />
-                  </div>
-                  <input
-                    type="text"
-                    placeholder="Buscar canciones..."
-                    value={songSearchTerm}
-                    onChange={(e) => setSongSearchTerm(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  />
-                </div>
+              {/* Diseño de dos columnas para música */}
+              <div className="grid grid-cols-2 gap-6 h-[600px]">
+                {/* Columna izquierda: Filtros y búsqueda de música */}
+                <div className="space-y-4 border-r border-gray-200 pr-6">
+                  <div className="sticky top-0 bg-white">
+                    <h5 className="text-lg font-medium text-gray-900 mb-4">Búsqueda de Música</h5>
+                    
+                    {/* Song Search */}
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="relative">
+                          <div className="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
+                            <Search className="h-3 w-3 text-gray-400" />
+                          </div>
+                          <input
+                            type="text"
+                            placeholder="Buscar canciones..."
+                            value={songSearchTerm}
+                            onChange={(e) => setSongSearchTerm(e.target.value)}
+                            className="w-full pl-7 pr-2 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-1 focus:ring-indigo-500 focus:border-transparent"
+                          />
+                        </div>
 
-                {/* Songs List */}
-                <div className="border border-gray-200 rounded-lg">
-                  <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
-                    <h5 className="font-medium text-gray-900 flex items-center">
-                      <Music className="h-4 w-4 mr-2" />
-                      Canciones Disponibles
-                      {loadingSongs && (
-                        <div className="ml-2 animate-spin h-4 w-4 border-2 border-indigo-500 border-t-transparent rounded-full"></div>
-                      )}
-                    </h5>
-                  </div>
-                  
-                  <div className="max-h-64 overflow-y-auto">
-                    {songs.length === 0 ? (
-                      <div className="p-8 text-center text-gray-500">
-                        <Music className="mx-auto h-8 w-8 text-gray-300 mb-2" />
-                        <p>No se encontraron canciones</p>
-                        <p className="text-sm">Intenta ajustar la búsqueda</p>
+                        <div className="relative">
+                          <div className="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
+                            <Search className="h-3 w-3 text-gray-400" />
+                          </div>
+                          <input
+                            type="text"
+                            placeholder="Buscar playlists..."
+                            value={playlistSearchTerm}
+                            onChange={(e) => setPlaylistSearchTerm(e.target.value)}
+                            className="w-full pl-7 pr-2 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-1 focus:ring-indigo-500 focus:border-transparent"
+                          />
+                        </div>
                       </div>
-                    ) : (
-                      <div className="divide-y divide-gray-200">
-                        {songs.map(song => {
-                          const isSelected = selectedSongs.some(s => s.id === song.id);
-                          return (
-                            <div
-                              key={song.id}
-                              className={`p-4 hover:bg-gray-50 transition-colors ${
-                                isSelected ? 'bg-indigo-50' : ''
-                              }`}
-                            >
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center space-x-3">
-                                  <button
-                                    onClick={() => addSongToEvent(song)}
-                                    disabled={isSelected}
-                                    className={`p-1 rounded border-2 transition-colors ${
-                                      isSelected
-                                        ? 'bg-indigo-500 border-indigo-500 text-white'
-                                        : 'border-gray-300 hover:border-indigo-400'
+
+                      {/* Songs List */}
+                      <div className="border border-gray-200 rounded-lg">
+                        <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
+                          <h6 className="font-medium text-gray-900 flex items-center">
+                            <Music className="h-4 w-4 mr-2" />
+                            Canciones Disponibles
+                            {loadingSongs && (
+                              <div className="ml-2 animate-spin h-4 w-4 border-2 border-indigo-500 border-t-transparent rounded-full"></div>
+                            )}
+                          </h6>
+                        </div>
+                        
+                        <div className="max-h-80 overflow-y-auto">
+                          {songs.length === 0 ? (
+                            <div className="p-4 text-center text-gray-500">
+                              <Music className="mx-auto h-6 w-6 text-gray-300 mb-2" />
+                              <p className="text-sm">No se encontraron canciones</p>
+                              <p className="text-xs">Intenta ajustar la búsqueda</p>
+                            </div>
+                          ) : (
+                            <div className="divide-y divide-gray-200">
+                              {songs.map(song => {
+                                const isSelected = selectedSongs.some(s => s.id === song.id);
+                                const hasVariations = hasSelectedVariations(song.id);
+                                const showAsSelected = isSelected || hasVariations;
+                                
+                                return (
+                                  <div
+                                    key={song.id}
+                                    className={`p-2 hover:bg-gray-50 transition-colors ${
+                                      showAsSelected ? 'bg-indigo-50 border-l-4 border-indigo-500' : ''
                                     }`}
                                   >
-                                    <Plus className="h-3 w-3" />
-                                  </button>
-                                  
-                                  <div>
-                                    <h6 className="font-medium text-gray-900">
-                                      {song.title}
-                                    </h6>
-                                    <p className="text-sm text-gray-500">
-                                      {song.artist}
-                                    </p>
+                                    <div className="flex items-center justify-between">
+                                      <div className="flex items-center space-x-2">
+                                        <button
+                                          onClick={() => {
+                                            if (isSelected) {
+                                              removeSongFromEvent(song.id);
+                                            } else if (hasVariations) {
+                                              // Remove all variations of this parent song
+                                              removeSongFromEvent(song.id);
+                                            } else {
+                                              addSongToEvent(song);
+                                            }
+                                          }}
+                                          className={`p-1 rounded border transition-colors ${
+                                            showAsSelected
+                                              ? 'bg-indigo-500 border-indigo-500 text-white'
+                                              : 'border-gray-300 hover:border-indigo-400 hover:bg-indigo-50'
+                                          }`}
+                                        >
+                                          {showAsSelected ? <Check className="h-3 w-3" /> : <Plus className="h-3 w-3" />}
+                                        </button>
+                                        
+                                        <div>
+                                          <h6 className="font-medium text-gray-900 text-sm">
+                                            {song.title}
+                                          </h6>
+                                          <p className="text-xs text-gray-500">
+                                            {song.artist}
+                                            {hasVariations && !isSelected && (
+                                              <span className="ml-2 text-xs text-indigo-600 font-medium">
+                                                (variaciones seleccionadas)
+                                              </span>
+                                            )}
+                                          </p>
+                                        </div>
+                                      </div>
+                                      
+                                      <div className="text-right">
+                                        {song.voiceType && (
+                                          <span className="inline-block px-1 py-0.5 text-xs font-medium bg-blue-100 text-blue-800 rounded">
+                                            {song.voiceType}
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Playlists List */}
+                      <div className="border border-gray-200 rounded-lg">
+                        <div className="bg-gray-50 px-3 py-2 border-b border-gray-200">
+                          <h6 className="font-medium text-gray-900 text-sm flex items-center">
+                            <Users className="h-3 w-3 mr-2" />
+                            Playlists Disponibles
+                            {loadingPlaylists && (
+                              <div className="ml-2 animate-spin h-3 w-3 border-2 border-indigo-500 border-t-transparent rounded-full"></div>
+                            )}
+                          </h6>
+                        </div>
+                        
+                        <div className="max-h-40 overflow-y-auto">
+                          {playlists.length === 0 ? (
+                            <div className="p-4 text-center text-gray-500">
+                              <Users className="mx-auto h-4 w-4 text-gray-300 mb-2" />
+                              <p className="text-sm">No se encontraron playlists</p>
+                            </div>
+                          ) : (
+                            <div className="divide-y divide-gray-200">
+                              {playlists.map(playlist => (
+                                <div
+                                  key={playlist.id}
+                                  className="p-2 hover:bg-gray-50 transition-colors"
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center space-x-2">
+                                      <button
+                                        onClick={() => addPlaylistToEvent(playlist.id)}
+                                        className="p-1 rounded border border-gray-300 hover:border-indigo-400 hover:bg-indigo-50 transition-colors"
+                                      >
+                                        <Plus className="h-3 w-3" />
+                                      </button>
+                                      
+                                      <div>
+                                        <h6 className="font-medium text-gray-900 text-sm">
+                                          {playlist.name}
+                                        </h6>
+                                        <p className="text-xs text-gray-500">
+                                          Por {playlist.user.firstName} {playlist.user.lastName}
+                                        </p>
+                                      </div>
+                                    </div>
+                                    
+                                    <span className="inline-block px-1 py-0.5 text-xs font-medium bg-green-100 text-green-800 rounded">
+                                      {playlist._count.items} canciones
+                                    </span>
                                   </div>
                                 </div>
-                                
-                                <div className="text-right">
-                                  {song.voiceType && (
-                                    <span className="inline-block px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
-                                      {song.voiceType}
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
+                              ))}
                             </div>
-                          );
-                        })}
+                          )}
+                        </div>
                       </div>
-                    )}
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Playlist Search */}
-              <div className="space-y-4">
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Search className="h-4 w-4 text-gray-400" />
-                  </div>
-                  <input
-                    type="text"
-                    placeholder="Buscar playlists..."
-                    value={playlistSearchTerm}
-                    onChange={(e) => setPlaylistSearchTerm(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  />
-                </div>
-
-                {/* Playlists List */}
-                <div className="border border-gray-200 rounded-lg">
-                  <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
-                    <h5 className="font-medium text-gray-900 flex items-center">
-                      <Users className="h-4 w-4 mr-2" />
-                      Playlists Disponibles
-                      {loadingPlaylists && (
-                        <div className="ml-2 animate-spin h-4 w-4 border-2 border-indigo-500 border-t-transparent rounded-full"></div>
-                      )}
-                    </h5>
-                  </div>
-                  
-                  <div className="max-h-64 overflow-y-auto">
-                    {playlists.length === 0 ? (
-                      <div className="p-8 text-center text-gray-500">
-                        <Users className="mx-auto h-8 w-8 text-gray-300 mb-2" />
-                        <p>No se encontraron playlists</p>
-                        <p className="text-sm">Intenta ajustar la búsqueda</p>
-                      </div>
-                    ) : (
-                      <div className="divide-y divide-gray-200">
-                        {playlists.map(playlist => (
-                          <div
-                            key={playlist.id}
-                            className="p-4 hover:bg-gray-50 transition-colors"
-                          >
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center space-x-3">
-                                <button
-                                  onClick={() => addPlaylistToEvent(playlist.id)}
-                                  className="p-1 rounded border-2 border-gray-300 hover:border-indigo-400 transition-colors"
-                                >
-                                  <Plus className="h-3 w-3" />
-                                </button>
-                                
-                                <div>
-                                  <h6 className="font-medium text-gray-900">
-                                    {playlist.name}
-                                  </h6>
-                                  <p className="text-sm text-gray-500">
-                                    Por {playlist.user.firstName} {playlist.user.lastName}
-                                  </p>
-                                </div>
-                              </div>
-                              
-                              <div className="text-right">
-                                <span className="inline-block px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full">
-                                  {playlist._count.items} canciones
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Selected songs summary */}
-              {selectedSongs.length > 0 && (
-                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <h5 className="font-medium text-green-900 flex items-center">
+                {/* Columna derecha: Lista de canciones seleccionadas */}
+                <div className="pl-6">
+                  <div className="h-full flex flex-col">
+                    <h5 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
                       <CheckCircle className="h-4 w-4 mr-2" />
                       Canciones Seleccionadas ({selectedSongs.length})
                     </h5>
-                    <button
-                      onClick={() => setSelectedSongs([])}
-                      className="text-red-600 hover:text-red-800 text-sm font-medium flex items-center"
-                    >
-                      <Trash className="h-3 w-3 mr-1" />
-                      Limpiar Todo
-                    </button>
-                  </div>
-                  <div className="space-y-2">
-                    {selectedSongs.map((song, index) => (
-                      <div
-                        key={song.id}
-                        className="flex items-center justify-between p-2 bg-white rounded border"
-                      >
-                        <div className="flex items-center space-x-2">
-                          <span className="text-sm font-medium text-gray-500">
-                            {index + 1}.
-                          </span>
-                          <div>
-                            <h6 className="font-medium text-gray-900 text-sm">
-                              {song.title}
-                            </h6>
-                            <p className="text-xs text-gray-500">
-                              {song.artist}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          {song.voiceType && (
-                            <span className="inline-block px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
-                              {song.voiceType}
-                            </span>
-                          )}
-                          <button
-                            onClick={() => removeSongFromEvent(song.id)}
-                            className="text-red-600 hover:text-red-800"
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </button>
+
+                    {selectedSongs.length === 0 ? (
+                      <div className="flex-1 border border-gray-200 rounded-lg bg-gray-50 flex items-center justify-center">
+                        <div className="text-center text-gray-500">
+                          <Music className="mx-auto h-12 w-12 text-gray-300 mb-4" />
+                          <p className="text-lg font-medium">No hay canciones seleccionadas</p>
+                          <p className="text-sm">Selecciona canciones de la lista de la izquierda</p>
                         </div>
                       </div>
-                    ))}
+                    ) : (
+                      <div className="flex-1 border border-gray-200 rounded-lg overflow-hidden">
+                        <div className="bg-green-50 px-4 py-3 border-b border-green-200 flex items-center justify-between">
+                          <span className="text-sm font-medium text-green-900">
+                            Lista de Reproducción del Evento
+                          </span>
+                          <button
+                            onClick={() => setSelectedSongs([])}
+                            className="text-red-600 hover:text-red-800 text-sm font-medium flex items-center"
+                          >
+                            <Trash className="h-3 w-3 mr-1" />
+                            Limpiar Todo
+                          </button>
+                        </div>
+                        
+                        <div className="h-full overflow-y-auto">
+                          <div className="divide-y divide-gray-200">
+                            {selectedSongs.map((song, index) => (
+                              <div
+                                key={song.id}
+                                className="p-4 hover:bg-gray-50 transition-colors"
+                              >
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center space-x-3">
+                                    <span className="flex items-center justify-center w-8 h-8 bg-indigo-100 text-indigo-600 rounded-full text-sm font-medium">
+                                      {index + 1}
+                                    </span>
+                                    <div>
+                                      <h6 className="font-medium text-gray-900">
+                                        {song.title}
+                                      </h6>
+                                      <p className="text-sm text-gray-500">
+                                        {song.artist}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  
+                                  <div className="flex items-center space-x-2">
+                                    {song.voiceType && (
+                                      <span className="inline-block px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
+                                        {song.voiceType}
+                                      </span>
+                                    )}
+                                    <button
+                                      onClick={() => removeSongFromEvent(song.id)}
+                                      className="p-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
-              )}
+              </div>
             </div>
           )}
         </div>
@@ -1187,11 +1401,11 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({ onClose, onEventCre
             </h3>
             <p className="text-gray-700 mb-4">
               ¿Estás seguro de que quieres agregar todos los cantantes de{' '}
-              <strong>{locationToAdd.name}</strong>?
+              <strong>{locationToAdd?.name}</strong>?
             </p>
             <p className="text-sm text-gray-500 mb-6">
-              Se agregarán <strong>{locationToAdd.singersCount}</strong> cantantes de{' '}
-              <strong>{locationToAdd.city}</strong> al evento.
+              Se agregarán <strong>{locationToAdd?.singersCount}</strong> cantantes de{' '}
+              <strong>{locationToAdd?.city}</strong> al evento.
             </p>
             <div className="flex space-x-3 justify-end">
               <button
