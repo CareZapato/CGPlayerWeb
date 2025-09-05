@@ -432,35 +432,33 @@ const EventManagement: React.FC = () => {
                       </div>
                       
                       {/* Mostrar solicitudes como badge solo si hay más de 0 y permite solicitudes externas */}
-                      {/* {event.allowExternalJoin && event._count?.joinRequests && event._count.joinRequests > 0 && (
+                      {event.allowExternalJoin && (event._count?.joinRequests ?? 0) > 0 && (
                         <div className="flex items-center">
                           <div className="relative">
                             <UserPlus className="h-4 w-4 text-orange-500" />
                             <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
-                              {event._count.joinRequests}
+                              {event._count?.joinRequests ?? 0}
                             </span>
                           </div>
                         </div>
-                      )} */}
+                      )}
                     </div>
                     
                     <div className="flex items-center space-x-2">
                       {/* Contador de canciones */}
-                      {event._count?.eventSongs && event._count.eventSongs > 0 && (
-                        <div className="flex items-center text-green-600 bg-green-50 px-2 py-1 rounded-lg">
-                          <Music className="h-4 w-4 mr-1" />
-                          <span className="text-sm font-medium">{event._count.eventSongs}</span>
-                        </div>
+                      {(event._count?.eventSongs ?? 0) > 0 && (
+                        <button
+                          onClick={() => handlePlayEvent(event)}
+                          disabled={playLoading}
+                          className="flex items-center text-green-600 bg-green-50 px-2 py-1 rounded-lg hover:text-green-700 hover:bg-green-100 transition-all duration-200 disabled:opacity-50"
+                          title="Reproducir como playlist"
+                        >
+                          <span className="text-sm font-medium mr-1">
+                            {event._count?.eventSongs ?? 0}
+                          </span>
+                          <Play className="h-4 w-4" />
+                        </button>
                       )}
-                      
-                      <button
-                        onClick={() => handlePlayEvent(event)}
-                        disabled={playLoading}
-                        className="p-2 text-green-500 hover:text-green-700 hover:bg-green-50 rounded-lg transition-all duration-200 disabled:opacity-50"
-                        title="Reproducir como playlist"
-                      >
-                        <Play className="h-4 w-4" />
-                      </button>
                       <button
                         onClick={() => handleViewDetails(event)}
                         className="p-2 text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-all duration-200"

@@ -222,6 +222,92 @@ router.get('/public', async (req, res) => {
   }
 });
 
+// GET /api/events/visible - Obtener eventos visibles según el rol del usuario
+router.get('/visible', authenticateToken, async (req, res) => {
+  try {
+    const user = (req as any).user;
+    const userRoles = user.assignedRoles?.map((ar: any) => ar.role) || [];
+    
+    let whereCondition: any = {
+      isActive: true
+    };
+
+    // Si es ADMIN o DIRECTOR, puede ver todos los eventos
+    if (userRoles.includes('ADMIN') || userRoles.includes('DIRECTOR')) {
+      // No agregar restricciones adicionales - puede ver todos
+    } else {
+      // Para otros roles, solo eventos públicos o donde sea asistente
+      whereCondition = {
+        ...whereCondition,
+        OR: [
+          { isPublic: true },
+          { attendees: { some: { userId: user.id } } }
+        ]
+      };
+    }
+
+    const events = await prisma.event.findMany({
+      where: whereCondition,
+      include: {
+        location: true,
+        creator: {
+          select: { firstName: true, lastName: true }
+        },
+        attendees: {
+          include: {
+            user: {
+              select: { 
+                id: true,
+                firstName: true, 
+                lastName: true, 
+                locationId: true,
+                location: { select: { name: true } },
+                assignedRoles: { select: { role: true } }
+              }
+            },
+            addedByUser: {
+              select: { firstName: true, lastName: true }
+            }
+          }
+        },
+        joinRequests: {
+          where: { status: 'PENDING' },
+          include: {
+            user: {
+              select: { 
+                id: true,
+                firstName: true, 
+                lastName: true, 
+                locationId: true,
+                assignedRoles: { select: { role: true } }
+              }
+            }
+          }
+        },
+        _count: {
+          select: {
+            attendees: true,
+            joinRequests: { where: { status: 'PENDING' } },
+            eventSongs: true
+          }
+        }
+      },
+      orderBy: { date: 'asc' }
+    });
+
+    res.json({
+      success: true,
+      data: events
+    });
+  } catch (error) {
+    console.error('Error fetching visible events:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al obtener eventos visibles'
+    });
+  }
+});
+
 // GET /api/events/my - Obtener eventos del usuario actual
 router.get('/my', authenticateToken, async (req, res) => {
   try {

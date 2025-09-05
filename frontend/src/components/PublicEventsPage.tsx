@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, MapPin, Music, Eye, UserPlus } from 'lucide-react';
+import { getApiUrl } from '../config/api';
 
 interface Location {
   id: string;
@@ -59,7 +60,19 @@ const PublicEventsPage: React.FC = () => {
   const fetchEvents = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/events');
+      const token = localStorage.getItem('token');
+      
+      const response = await fetch(getApiUrl('/events/visible'), {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Error al cargar eventos');
+      }
+      
       const data: EventsResponse = await response.json();
       
       if (data.success) {
@@ -192,17 +205,17 @@ const PublicEventsPage: React.FC = () => {
                   <div className="flex items-center justify-between mt-4 pt-4 border-t">
                     <div className="flex items-center space-x-4">
                       {/* Mostrar contador de canciones solo si hay canciones */}
-                      {event._count?.eventSongs && event._count.eventSongs > 0 && (
+                      {typeof event._count?.eventSongs === 'number' && (
                         <div className="flex items-center text-gray-500">
                           <Music className="h-4 w-4 mr-1" />
                           <span className="text-sm">
-                            {event._count.eventSongs} canción{event._count.eventSongs !== 1 ? 'es' : ''}
+                            {event._count.eventSongs} {event._count.eventSongs === 1 ? 'canción' : 'canciones'}
                           </span>
                         </div>
                       )}
                       
                       {/* Mostrar badge de solicitudes solo si hay solicitudes pendientes */}
-                      {event.allowExternalJoin && event._count?.joinRequests && event._count.joinRequests > 0 && (
+                      {/* {event.allowExternalJoin && event._count?.joinRequests && event._count.joinRequests > 0 && (
                         <div className="flex items-center">
                           <div className="relative">
                             <UserPlus className="h-4 w-4 text-orange-500" />
@@ -212,7 +225,7 @@ const PublicEventsPage: React.FC = () => {
                           </div>
                           <span className="text-xs text-orange-600 ml-1">Solicitudes</span>
                         </div>
-                      )}
+                      )} */}
                     </div>
                     
                     <div className="flex items-center text-blue-600">
@@ -312,7 +325,7 @@ const PublicEventsPage: React.FC = () => {
                           <div>
                             <p className="font-medium">Repertorio</p>
                             <p className="text-gray-600">
-                              {selectedEvent._count.eventSongs} canción{selectedEvent._count.eventSongs !== 1 ? 'es' : ''}
+                              {selectedEvent._count.eventSongs} {selectedEvent._count.eventSongs === 1 ? 'canción' : 'canciones'}
                             </p>
                           </div>
                         </div>
