@@ -4,6 +4,7 @@ import { usePlaylistStore } from '../../store/playlistStore';
 import { useMediaSession } from '../../hooks/useMediaSession';
 import { updateFavicon, resetFavicon } from '../../utils/favicon';
 import { useLyrics } from '../../hooks/useLyrics';
+import MinimizedPlayer from '../BottomPlayer/MinimizedPlayer';
 import {
   DndContext,
   closestCenter,
@@ -644,7 +645,8 @@ import {
   XMarkIcon,
   ArrowsUpDownIcon,
   ArrowPathIcon,
-  TrashIcon
+  TrashIcon,
+  MinusIcon
 } from '@heroicons/react/24/outline';
 import {
   ArrowPathIcon as ArrowPathIconSolid
@@ -694,6 +696,7 @@ const StickyPlayer: React.FC = () => {
   const [isFullscreenLyrics, setIsFullscreenLyrics] = useState(false);
   const [isExpandedDesktop, setIsExpandedDesktop] = useState(false);
   const [isFullscreenQueue, setIsFullscreenQueue] = useState(false); // Nueva variable para cola en fullscreen móvil
+  const [isMinimized, setIsMinimized] = useState(false); // Nuevo estado para minimización
 
   // Estado del sincronizador automático - movido desde LyricsViewerInline
   const [autoSyncEnabled, setAutoSyncEnabled] = useState(() => {
@@ -823,6 +826,11 @@ const StickyPlayer: React.FC = () => {
 
   // No mostrar el reproductor si no hay canción actual
   if (!currentSong) return null;
+
+  // Si está minimizado, mostrar solo la esfera flotante
+  if (isMinimized) {
+    return <MinimizedPlayer onExpand={() => setIsMinimized(false)} />;
+  }
 
   // Función para alternar entre shuffle y repeat
   const togglePlaybackMode = () => {
@@ -971,7 +979,11 @@ const StickyPlayer: React.FC = () => {
         
         {/* Información de la canción - COLUMNA 1 */}
         <div className="song-info">
-          <div className="song-info__avatar">
+          <div 
+            className="song-info__avatar song-info__avatar--clickable"
+            onClick={() => setIsMinimized(true)}
+            title="Haz clic para minimizar el reproductor"
+          >
             <div className="song-info__avatar-circle">
               <span className="song-info__avatar-text">
                 {currentSong.title.charAt(0).toUpperCase()}
@@ -980,9 +992,30 @@ const StickyPlayer: React.FC = () => {
           </div>
           
           <div className="song-info__details">
-            <p className="song-info__title">
-              {currentSong.title}
-            </p>
+            <div className="song-info__title-container">
+              <p 
+                className="song-info__title song-info__title--with-tooltip"
+                title={`${currentSong.title} - ${currentSong.artist || 'Artista desconocido'}`}
+              >
+                {currentSong.title}
+              </p>
+              
+              {/* Tooltip/Globo de información */}
+              <div className="song-info__tooltip">
+                <div className="song-info__tooltip-content">
+                  <div className="song-info__tooltip-title">{currentSong.title}</div>
+                  <div className="song-info__tooltip-artist">{currentSong.artist || 'Artista desconocido'}</div>
+                  {currentSong.voiceType && (
+                    <div className="song-info__tooltip-voice">Voz: {currentSong.voiceType}</div>
+                  )}
+                  <div className="song-info__tooltip-time">
+                    {formatTime(currentTime)} / {formatTime(duration)}
+                  </div>
+                </div>
+                <div className="song-info__tooltip-arrow"></div>
+              </div>
+            </div>
+            
             <p className="song-info__subtitle">
               {currentSong.artist && (
                 <span>{currentSong.artist} • </span>
@@ -1066,6 +1099,9 @@ const StickyPlayer: React.FC = () => {
                 title="Expandir reproductor"
               >
                 <QueueListIcon className="control-button__icon" />
+                {queue && queue.length > 1 && (
+                  <span className="control-button__badge">{queue.length}</span>
+                )}
               </button>
             </>
           )}
@@ -1079,6 +1115,9 @@ const StickyPlayer: React.FC = () => {
                 title="Ver cola de reproducción"
               >
                 <QueueListIcon className="control-button__icon" />
+                {queue && queue.length > 1 && (
+                  <span className="control-button__badge">{queue.length}</span>
+                )}
               </button>
               
               <button

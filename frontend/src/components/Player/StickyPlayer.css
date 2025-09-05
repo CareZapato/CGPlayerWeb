@@ -1498,3 +1498,176 @@
   background-color: rgba(147, 51, 234, 0.05);
   transform: translateX(2px);
 }
+
+/* Estilos para el tooltip/globo del título de la canción */
+.song-info__title-container {
+  position: relative;
+  display: inline-block;
+}
+
+.song-info__title--with-tooltip {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.song-info__title--with-tooltip:hover {
+  color: #60a5fa;
+  text-shadow: 0 0 8px rgba(96, 165, 250, 0.3);
+}
+
+.song-info__tooltip {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-bottom: 8px;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 1000;
+  pointer-events: none;
+}
+
+.song-info__title-container:hover .song-info__tooltip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(-4px);
+}
+
+.song-info__tooltip-content {
+  background: linear-gradient(135deg, rgba(17, 24, 39, 0.95), rgba(31, 41, 55, 0.95));
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(75, 85, 99, 0.3);
+  border-radius: 12px;
+  padding: 12px 16px;
+  box-shadow: 
+    0 10px 25px rgba(0, 0, 0, 0.3),
+    0 4px 10px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  min-width: 200px;
+  max-width: 300px;
+}
+
+.song-info__tooltip-title {
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: #f9fafb;
+  margin-bottom: 4px;
+  line-height: 1.4;
+}
+
+.song-info__tooltip-artist {
+  font-size: 0.75rem;
+  color: #d1d5db;
+  margin-bottom: 6px;
+}
+
+.song-info__tooltip-voice {
+  font-size: 0.75rem;
+  color: #a78bfa;
+  margin-bottom: 6px;
+  font-style: italic;
+}
+
+.song-info__tooltip-time {
+  font-size: 0.75rem;
+  color: #60a5fa;
+  font-family: 'Courier New', monospace;
+  border-top: 1px solid rgba(75, 85, 99, 0.3);
+  padding-top: 6px;
+  text-align: center;
+}
+
+.song-info__tooltip-arrow {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-top: 8px solid rgba(31, 41, 55, 0.95);
+}
+
+.song-info__tooltip-arrow::before {
+  content: '';
+  position: absolute;
+  top: -9px;
+  left: -8px;
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-top: 8px solid rgba(75, 85, 99, 0.3);
+}
+
+/* Avatar clickeable para minimizar */
+.song-info__avatar--clickable {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.song-info__avatar--clickable:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Badge para indicador de cantidad de canciones */
+.control-button {
+  position: relative;
+}
+
+.control-button__badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background: #ef4444;
+  color: white;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border: 2px solid white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  z-index: 1;
+}
+
+/* Responsive para el tooltip */
+@media (max-width: 640px) {
+  .song-info__tooltip {
+    left: 0;
+    transform: none;
+    margin-left: 0;
+  }
+  
+  .song-info__title-container:hover .song-info__tooltip {
+    transform: translateY(-4px);
+  }
+  
+  .song-info__tooltip-arrow {
+    left: 24px;
+    transform: none;
+  }
+  
+  .song-info__tooltip-arrow::before {
+    left: -8px;
+  }
+  
+  .song-info__tooltip-content {
+    min-width: 180px;
+    max-width: 250px;
+  }
+  
+  .control-button__badge {
+    width: 18px;
+    height: 18px;
+    font-size: 0.6875rem;
+    top: -6px;
+    right: -6px;
+  }
+}
