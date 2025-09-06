@@ -1,6 +1,7 @@
 import express from 'express';
 import { PrismaClient, UserRole } from '@prisma/client';
 import { authenticateToken, requireRole } from '../middleware/auth';
+import { NewsService } from '../services/newsService';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
@@ -535,6 +536,19 @@ router.post('/', authenticateToken, requireRole(['ADMIN', 'DIRECTOR']), upload.s
       }
     });
 
+    // Create news notification about new event
+    try {
+      await NewsService.createEventCreatedNews(
+        title,
+        date,
+        event.id,
+        category || 'Culto'
+      );
+    } catch (error) {
+      console.error('❌ Error creating news for event:', error);
+      // Don't fail the whole event creation if news creation fails
+    }
+
     res.status(201).json({
       success: true,
       message: 'Evento creado exitosamente',
@@ -769,6 +783,21 @@ router.put('/:id', authenticateToken, upload.single('image'), async (req, res) =
         }
       }
     });
+
+    // Create news notification about event update
+    if (completeUpdatedEvent) {
+      try {
+        await NewsService.createEventUpdatedNews(
+          completeUpdatedEvent.title,
+          completeUpdatedEvent.date.toISOString(),
+          completeUpdatedEvent.id,
+          completeUpdatedEvent.category || 'Culto'
+        );
+      } catch (error) {
+        console.error('❌ Error creating news for event update:', error);
+        // Don't fail the whole event update if news creation fails
+      }
+    }
 
     res.status(200).json({
       success: true,

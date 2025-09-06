@@ -2,6 +2,7 @@ import express, { Response } from 'express';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { upload, multiUpload, handleMulterError, renameUploadedFiles, cleanupFiles, cleanupFolder } from '../middleware/uploadImproved';
 import { prisma } from '../utils/prisma';
+import { NewsService } from '../services/newsService';
 import path from 'path';
 import fs from 'fs';
 import os from 'os';
@@ -151,6 +152,20 @@ router.post('/upload', authenticateToken, upload.single('audio'), handleMulterEr
         }
       }
     });
+
+    // Create news notification for new song (only for parent songs, not voice variations)
+    if (!parentSongId) {
+      try {
+        await NewsService.createSongAddedNews(
+          title,
+          artist || 'Artista Desconocido',
+          song.id
+        );
+      } catch (error) {
+        console.error('❌ Error creating news for song:', error);
+        // Don't fail the whole upload if news creation fails
+      }
+    }
 
     res.status(201).json({
       message: 'Song uploaded successfully',
@@ -399,6 +414,18 @@ router.post('/multi-upload', authenticateToken, multiUpload.fields([
         
         }
       
+    }
+
+    // Create news notification about new song
+    try {
+      await NewsService.createSongAddedNews(
+        title,
+        artist || 'Artista Desconocido',
+        parentSong.id
+      );
+    } catch (error) {
+      console.error('❌ Error creating news for song:', error);
+      // Don't fail the whole upload if news creation fails
     }
 
     res.status(201).json({

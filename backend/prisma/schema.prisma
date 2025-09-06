@@ -373,6 +373,28 @@ enum LyricsType {
   DOCX
 }
 
+model News {
+  id          String    @id @default(cuid())
+  title       String
+  description String
+  type        NewsType
+  icon        String    // Icon name for the news type
+  actionUrl   String?   // URL to navigate when clicking the news
+  metadata    Json?     // Additional data like songId, eventId, etc.
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("news")
+}
+
+enum NewsType {
+  SONG_ADDED
+  EVENT_CREATED
+  EVENT_UPDATED
+  VERSION_RELEASED
+}
+
 enum LyricsFileType {
   PDF
   DOC

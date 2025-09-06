@@ -67,6 +67,15 @@ router.post('/seed-full', authenticateToken, requireRole(['ADMIN']), async (req:
 
     // 0. Limpiar base de datos
     console.log('🧹 Limpiando base de datos...');
+    
+    // Primero intentar limpiar la tabla de noticias si existe
+    try {
+      await (prisma as any).news.deleteMany();
+      console.log('📰 Tabla News limpiada');
+    } catch (error) {
+      console.log('⚠️ Tabla News no existe o no se pudo limpiar, continuando...');
+    }
+    
     await prisma.$transaction([
       (prisma as any).eventAttendance.deleteMany(),
       (prisma as any).eventPlaylist.deleteMany(),
@@ -334,14 +343,66 @@ router.post('/seed-full', authenticateToken, requireRole(['ADMIN']), async (req:
 
     const totalUsers = 2 + 3 + 4 + generatedUsers.length; // admin + directores + test + generados
 
+    // 7. Crear noticias base del sistema
+    console.log('📰 Creando noticias base...');
+    
+    try {
+      // Noticia de bienvenida al sistema
+      await (prisma as any).news.create({
+        data: {
+          title: '🎉 Sistema de Noticias Activado',
+          description: 'A partir de ahora recibirás notificaciones automáticas sobre nuevas canciones, eventos y versiones del sistema.',
+          type: 'VERSION_RELEASED',
+          icon: '🔔',
+          actionUrl: null,
+          metadata: { type: 'system_activation', priority: 'high' },
+          isActive: true
+        }
+      });
+
+      // Noticia de la nueva versión
+      await (prisma as any).news.create({
+        data: {
+          title: 'Nueva Versión v0.9.0 Disponible',
+          description: 'Sistema de noticias implementado: ¡Mantente al día con las novedades del sistema!',
+          type: 'VERSION_RELEASED',
+          icon: '🚀',
+          actionUrl: '/changelog',
+          metadata: { 
+            version: 'v0.9.0',
+            description: 'Sistema de noticias implementado'
+          },
+          isActive: true
+        }
+      });
+
+      // Noticia de UI actualizada
+      await (prisma as any).news.create({
+        data: {
+          title: '🌟 Bienvenido al Nuevo CGPlayer',
+          description: 'La página de inicio ha sido rediseñada para ser más simple y funcional. ¡Esperamos que disfrutes la nueva experiencia!',
+          type: 'VERSION_RELEASED',
+          icon: '✨',
+          actionUrl: '/',
+          metadata: { type: 'ui_update', component: 'homepage' },
+          isActive: true
+        }
+      });
+
+      console.log('✅ Noticias base creadas exitosamente');
+    } catch (error) {
+      console.warn('⚠️ Error creando noticias base (tabla puede no existir aún):', error);
+    }
+
     res.json({
       success: true,
-      message: 'Seed completo ejecutado exitosamente con 300+ cantantes',
+      message: 'Seed completo ejecutado exitosamente con 300+ cantantes y noticias',
       stats: {
         totalUsers,
         activeUsers: generatedUsers.filter(u => u.isActive).length + 9, // admin+directores+test siempre activos
         inactiveUsers: generatedUsers.filter(u => !u.isActive).length,
         locations: locations.length,
+        newsCreated: 3,
         byCity: distribucionCiudades,
         administrativeUsers: {
           admins: 2,
