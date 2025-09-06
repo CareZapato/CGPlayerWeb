@@ -14,7 +14,8 @@ import {
   UserX,
   X,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  Search
 } from 'lucide-react';
 import { getApiUrl, getSongFileUrl } from '../config/api';
 import { useEventPlaylist } from '../hooks/useEventPlaylist';
@@ -98,6 +99,12 @@ const PublicEventsPage: React.FC = () => {
   const [eventSongs, setEventSongs] = useState<EventSong[]>([]);
   const [songsLoading, setSongsLoading] = useState(false);
   const [joinRequestLoading, setJoinRequestLoading] = useState(false);
+  
+  // Estados para pestañas y filtros
+  const [activeTab, setActiveTab] = useState<'upcoming' | 'past'>('upcoming');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCity, setSelectedCity] = useState('');
+  const [selectedRegion, setSelectedRegion] = useState('');
 
   // Hooks para reproducir eventos como playlists
   const { playEvent, loading: playLoading } = useEventPlaylist();
@@ -107,6 +114,77 @@ const PublicEventsPage: React.FC = () => {
   useEffect(() => {
     fetchEvents();
   }, []);
+
+  // Función para filtrar eventos
+  const getFilteredEvents = () => {
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+
+    let filteredEvents = events;
+
+    // Filtrar por pestaña (próximos/pasados)
+    if (activeTab === 'upcoming') {
+      filteredEvents = filteredEvents.filter(event => new Date(event.date) >= now);
+    } else {
+      filteredEvents = filteredEvents.filter(event => new Date(event.date) < now);
+    }
+
+    // Filtrar por término de búsqueda
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase();
+      filteredEvents = filteredEvents.filter(event =>
+        event.title.toLowerCase().includes(term) ||
+        event.description?.toLowerCase().includes(term) ||
+        event.eventCity?.toLowerCase().includes(term) ||
+        event.location?.name.toLowerCase().includes(term) ||
+        event.location?.city.toLowerCase().includes(term)
+      );
+    }
+
+    // Filtrar por ciudad
+    if (selectedCity) {
+      filteredEvents = filteredEvents.filter(event =>
+        event.eventCity === selectedCity || event.location?.city === selectedCity
+      );
+    }
+
+    // Filtrar por región
+    if (selectedRegion) {
+      filteredEvents = filteredEvents.filter(event =>
+        event.location?.region === selectedRegion
+      );
+    }
+
+    // Ordenar por fecha
+    return filteredEvents.sort((a, b) => {
+      const dateA = new Date(a.date).getTime();
+      const dateB = new Date(b.date).getTime();
+      return activeTab === 'upcoming' ? dateA - dateB : dateB - dateA;
+    });
+  };
+
+  // Obtener ciudades únicas para el filtro
+  const getUniqueCities = () => {
+    const cities = new Set<string>();
+    events.forEach(event => {
+      if (event.eventCity) cities.add(event.eventCity);
+      if (event.location?.city) cities.add(event.location.city);
+    });
+    return Array.from(cities).sort();
+  };
+
+  // Obtener regiones únicas para el filtro
+  const getUniqueRegions = () => {
+    const regions = new Set<string>();
+    events.forEach(event => {
+      if (event.location?.region) regions.add(event.location.region);
+    });
+    return Array.from(regions).sort();
+  };
+
+  const filteredEvents = getFilteredEvents();
+  const uniqueCities = getUniqueCities();
+  const uniqueRegions = getUniqueRegions();
 
   const fetchEvents = async () => {
     try {
@@ -336,19 +414,99 @@ const PublicEventsPage: React.FC = () => {
           </p>
         </div>
 
-        {events.length === 0 ? (
+        {/* Pestañas */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 mb-8">
+          <div className="flex border-b border-gray-200">
+            <button
+              onClick={() => setActiveTab('upcoming')}
+              className={`flex-1 px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === 'upcoming'
+                  ? 'border-indigo-500 text-indigo-600 bg-indigo-50'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <Calendar className="w-5 h-5 inline mr-2" />
+              Próximos Eventos ({events.filter(e => new Date(e.date) >= new Date()).length})
+            </button>
+            <button
+              onClick={() => setActiveTab('past')}
+              className={`flex-1 px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === 'past'
+                  ? 'border-indigo-500 text-indigo-600 bg-indigo-50'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <Clock className="w-5 h-5 inline mr-2" />
+              Eventos Pasados ({events.filter(e => new Date(e.date) < new Date()).length})
+            </button>
+          </div>
+
+          {/* Filtros */}
+          <div className="p-6 bg-gray-50 border-t border-gray-100">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Búsqueda */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+                <input
+                  type="text"
+                  placeholder="Buscar eventos..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                />
+              </div>
+
+              {/* Filtro por ciudad */}
+              <div className="relative">
+                <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+                <select
+                  value={selectedCity}
+                  onChange={(e) => setSelectedCity(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent appearance-none bg-white"
+                >
+                  <option value="">Todas las ciudades</option>
+                  {uniqueCities.map(city => (
+                    <option key={city} value={city}>{city}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Filtro por región */}
+              <div className="relative">
+                <Globe className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+                <select
+                  value={selectedRegion}
+                  onChange={(e) => setSelectedRegion(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent appearance-none bg-white"
+                >
+                  <option value="">Todas las regiones</option>
+                  {uniqueRegions.map(region => (
+                    <option key={region} value={region}>{region}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {filteredEvents.length === 0 ? (
           <div className="text-center py-12">
             <div className="bg-white/80 backdrop-blur-sm rounded-xl p-8 border border-gray-100 shadow-lg max-w-md mx-auto">
               <Calendar className="mx-auto h-16 w-16 text-gray-400 mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No hay eventos disponibles</h3>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                {activeTab === 'upcoming' ? 'No hay próximos eventos' : 'No hay eventos pasados'}
+              </h3>
               <p className="text-gray-500">
-                Mantente atento para futuras presentaciones y conciertos.
+                {activeTab === 'upcoming' 
+                  ? 'Próximamente se publicarán nuevas fechas de conciertos.'
+                  : 'Aún no se han realizado eventos o no coinciden con los filtros aplicados.'
+                }
               </p>
             </div>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {events.map((event) => (
+            {filteredEvents.map((event) => (
               <div
                 key={event.id}
                 className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100 overflow-hidden group"
@@ -687,7 +845,7 @@ const PublicEventsPage: React.FC = () => {
                           </div>
                         ) : (
                           <div className="space-y-2 max-h-80 overflow-y-auto">
-                            {eventSongs.map((eventSong, index) => (
+                            {eventSongs.map((eventSong) => (
                               <div
                                 key={eventSong.id}
                                 className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"

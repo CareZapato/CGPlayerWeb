@@ -70,6 +70,11 @@ const EventManagement: React.FC = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [eventToEdit, setEventToEdit] = useState<Event | null>(null);
 
+  // Estados para pestañas y filtros adicionales
+  const [activeTab, setActiveTab] = useState<'upcoming' | 'past'>('upcoming');
+  const [selectedCity, setSelectedCity] = useState('');
+  const [selectedRegion, setSelectedRegion] = useState('');
+
   // Hooks para reproducir eventos como playlists
   const { playEvent, loading: playLoading } = useEventPlaylist();
   const { setCurrentSong } = usePlayerStore();
@@ -78,6 +83,77 @@ const EventManagement: React.FC = () => {
   useEffect(() => {
     fetchEvents();
   }, []);
+
+  // Función para filtrar eventos
+  const getFilteredEvents = () => {
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+
+    let filteredEvents = events;
+
+    // Filtrar por pestaña (próximos/pasados)
+    if (activeTab === 'upcoming') {
+      filteredEvents = filteredEvents.filter(event => new Date(event.date) >= now);
+    } else {
+      filteredEvents = filteredEvents.filter(event => new Date(event.date) < now);
+    }
+
+    // Filtrar por término de búsqueda
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase();
+      filteredEvents = filteredEvents.filter(event =>
+        event.title.toLowerCase().includes(term) ||
+        event.description?.toLowerCase().includes(term) ||
+        event.eventCity?.toLowerCase().includes(term) ||
+        event.location?.name.toLowerCase().includes(term) ||
+        event.location?.city.toLowerCase().includes(term)
+      );
+    }
+
+    // Filtrar por ciudad
+    if (selectedCity) {
+      filteredEvents = filteredEvents.filter(event =>
+        event.eventCity === selectedCity || event.location?.city === selectedCity
+      );
+    }
+
+    // Filtrar por región
+    if (selectedRegion) {
+      filteredEvents = filteredEvents.filter(event =>
+        event.location?.region === selectedRegion
+      );
+    }
+
+    // Ordenar por fecha
+    return filteredEvents.sort((a, b) => {
+      const dateA = new Date(a.date).getTime();
+      const dateB = new Date(b.date).getTime();
+      return activeTab === 'upcoming' ? dateA - dateB : dateB - dateA;
+    });
+  };
+
+  // Obtener ciudades únicas para el filtro
+  const getUniqueCities = () => {
+    const cities = new Set<string>();
+    events.forEach(event => {
+      if (event.eventCity) cities.add(event.eventCity);
+      if (event.location?.city) cities.add(event.location.city);
+    });
+    return Array.from(cities).sort();
+  };
+
+  // Obtener regiones únicas para el filtro
+  const getUniqueRegions = () => {
+    const regions = new Set<string>();
+    events.forEach(event => {
+      if (event.location?.region) regions.add(event.location.region);
+    });
+    return Array.from(regions).sort();
+  };
+
+  const filteredEvents = getFilteredEvents();
+  const uniqueCities = getUniqueCities();
+  const uniqueRegions = getUniqueRegions();
 
   const fetchEvents = async () => {
     try {
@@ -217,12 +293,6 @@ const EventManagement: React.FC = () => {
     }
   };
 
-  const filteredEvents = events.filter(event =>
-    event.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    event.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    event.eventCity?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('es-ES', {
@@ -274,19 +344,78 @@ const EventManagement: React.FC = () => {
           </button>
         </div>
 
-        {/* Search Bar */}
-        <div className="mb-8">
-          <div className="relative max-w-md">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Search className="h-5 w-5 text-gray-400" />
+        {/* Pestañas y Filtros */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 mb-8">
+          <div className="flex border-b border-gray-200">
+            <button
+              onClick={() => setActiveTab('upcoming')}
+              className={`flex-1 px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === 'upcoming'
+                  ? 'border-indigo-500 text-indigo-600 bg-indigo-50'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <Calendar className="w-5 h-5 inline mr-2" />
+              Próximos Eventos ({events.filter(e => new Date(e.date) >= new Date()).length})
+            </button>
+            <button
+              onClick={() => setActiveTab('past')}
+              className={`flex-1 px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === 'past'
+                  ? 'border-indigo-500 text-indigo-600 bg-indigo-50'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <Clock className="w-5 h-5 inline mr-2" />
+              Eventos Pasados ({events.filter(e => new Date(e.date) < new Date()).length})
+            </button>
+          </div>
+
+          {/* Filtros */}
+          <div className="p-6 bg-gray-50 border-t border-gray-100">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Búsqueda */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+                <input
+                  type="text"
+                  placeholder="Buscar eventos..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                />
+              </div>
+
+              {/* Filtro por ciudad */}
+              <div className="relative">
+                <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+                <select
+                  value={selectedCity}
+                  onChange={(e) => setSelectedCity(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent appearance-none bg-white"
+                >
+                  <option value="">Todas las ciudades</option>
+                  {uniqueCities.map(city => (
+                    <option key={city} value={city}>{city}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Filtro por región */}
+              <div className="relative">
+                <Globe className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+                <select
+                  value={selectedRegion}
+                  onChange={(e) => setSelectedRegion(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent appearance-none bg-white"
+                >
+                  <option value="">Todas las regiones</option>
+                  {uniqueRegions.map(region => (
+                    <option key={region} value={region}>{region}</option>
+                  ))}
+                </select>
+              </div>
             </div>
-            <input
-              type="text"
-              placeholder="Buscar eventos..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="block w-full pl-10 pr-3 py-3 border border-gray-200 rounded-xl leading-5 bg-white/80 backdrop-blur-sm placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
-            />
           </div>
         </div>
 
