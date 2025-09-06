@@ -9,13 +9,26 @@ interface LayoutProps {
 }
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
+  // Verificar si es HomePage revisando el contenido
+  const isHomePage = React.Children.toArray(children).some((child: any) => 
+    child?.props?.className?.includes('homepage-container')
+  );
+
   return (
     <div className="min-h-screen bg-gray-50">
       <ResponsiveNavigation />
       
-      <main className="max-w-full mx-auto px-2 sm:px-4 lg:px-6 py-4 lg:py-8 pb-24" style={{ paddingBottom: '100px' }}>
-        {children}
-      </main>
+      {isHomePage ? (
+        // Para HomePage: sin altura fija, solo contenedor
+        <main>
+          {children}
+        </main>
+      ) : (
+        // Para otras páginas: padding normal
+        <main className="max-w-full mx-auto px-2 sm:px-4 lg:px-6 py-4 lg:py-8 pb-24" style={{ paddingBottom: '100px' }}>
+          {children}
+        </main>
+      )}
       
       {/* Audio Manager para manejar la reproducción global */}
       <AudioManager />

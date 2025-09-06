@@ -1,13 +1,14 @@
 .news-card {
   background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-  border-radius: 16px;
-  padding: 20px;
+  border-radius: 12px;
+  padding: 16px;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
   border: 1px solid rgba(226, 232, 240, 0.8);
-  max-height: 600px;
-  overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: #cbd5e0 transparent;
+  height: 100%;
+  max-height: 500px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .news-card::-webkit-scrollbar {
@@ -36,12 +37,12 @@
 
 .news-card-title {
   margin: 0;
-  font-size: 1.25rem;
+  font-size: 1.125rem;
   font-weight: 700;
   color: #2d3748;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .refresh-button {
@@ -101,16 +102,38 @@
 .news-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
+  flex: 1;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e0 transparent;
+  min-height: 0;
+}
+
+.news-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.news-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.news-list::-webkit-scrollbar-thumb {
+  background-color: #cbd5e0;
+  border-radius: 3px;
+}
+
+.news-list::-webkit-scrollbar-thumb:hover {
+  background-color: #a0aec0;
 }
 
 .news-item {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
-  padding: 16px;
+  gap: 10px;
+  padding: 12px;
   background: white;
-  border-radius: 12px;
+  border-radius: 10px;
   border: 1px solid rgba(226, 232, 240, 0.6);
   transition: all 0.2s ease;
   position: relative;
