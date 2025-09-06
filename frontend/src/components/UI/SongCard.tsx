@@ -61,6 +61,9 @@ const SongCard: React.FC<SongCardProps> = ({ song, color, onClick }) => {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  // Calcular el número de variaciones accesibles para el usuario actual
+  const accessibleVariationsCount = song.childVersions ? getFilteredVersions(song.childVersions).length : 0;
+
   // Obtener duración de la primera variación si es canción contenedora
   const getSongDuration = () => {
     if (song.duration && song.duration > 0) {
@@ -349,10 +352,10 @@ const SongCard: React.FC<SongCardProps> = ({ song, color, onClick }) => {
         </p>
         <div className="flex items-center justify-between text-xs text-gray-500">
           <span className="hidden sm:inline">
-            {song.childVersions?.length ? `${song.childVersions.length} variaciones` : '1 pista'}
+            {accessibleVariationsCount > 0 ? `${accessibleVariationsCount} variaciones` : '1 pista'}
           </span>
           <span className="sm:hidden text-xs">
-            {song.childVersions?.length || '1'}
+            {accessibleVariationsCount || '1'}
           </span>
           {displayDuration > 0 && (
             <span className="text-xs">{formatDuration(displayDuration)}</span>
