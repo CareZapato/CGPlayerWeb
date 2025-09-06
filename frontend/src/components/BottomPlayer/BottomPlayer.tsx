@@ -210,7 +210,7 @@ const LyricsViewerInline: React.FC<LyricsViewerInlineProps> = ({
     loadSyncedLyrics
   } = useLyrics(song?.id);
   
-  const { currentTime, duration, seekTo, isPlaying } = usePlayerStore();
+  const { currentTime, seekTo, isPlaying } = usePlayerStore();
 
   // Cargar letras cuando cambie la canción
   useEffect(() => {
@@ -517,7 +517,6 @@ const BottomPlayer: React.FC = () => {
   const [showPlaylist, setShowPlaylist] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
-  const [isLyricsVisible, setIsLyricsVisible] = useState(false);
   const [isFullscreenLyrics, setIsFullscreenLyrics] = useState(false);
   const [isExpandedDesktop, setIsExpandedDesktop] = useState(false);
   
@@ -526,9 +525,6 @@ const BottomPlayer: React.FC = () => {
     const saved = localStorage.getItem('lyrics-auto-sync');
     return saved !== null ? JSON.parse(saved) : true;
   });
-
-  // Estado para recibir el estado de sincronización
-  const [hasSyncedLyrics, setHasSyncedLyrics] = useState(false);
   
   // Función para toggle del sincronizador automático
   const toggleAutoSync = () => {
@@ -538,8 +534,8 @@ const BottomPlayer: React.FC = () => {
   };
 
   // Callback para recibir el estado de sincronización
-  const handleSyncStatusChange = (syncStatus: boolean) => {
-    setHasSyncedLyrics(syncStatus);
+  const handleSyncStatusChange = (_syncStatus: boolean) => {
+    // Función placeholder para futura implementación
   };
 
   // Detectar si estamos en desktop o móvil

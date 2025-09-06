@@ -5,6 +5,8 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 
+// Rutas para gestión de playlists
+
 const router = express.Router();
 const prisma = new PrismaClient();
 
@@ -155,6 +157,136 @@ router.post('/', authenticateToken, upload.single('image'), async (req: AuthRequ
     });
   } catch (error) {
     console.error('Error creating playlist:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// PUT /api/playlists/:id - Actualizar playlist
+router.put('/:id', authenticateToken, upload.single('image'), async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { name, description, isPublic } = req.body;
+    const userId = req.user?.id;
+
+    // Verificar que la playlist existe y pertenece al usuario
+    const existingPlaylist = await prisma.playlist.findFirst({
+      where: {
+        id: id,
+        userId: userId
+      }
+    });
+
+    if (!existingPlaylist) {
+      return res.status(404).json({ error: 'Playlist no encontrada' });
+    }
+
+    // Preparar datos de actualización
+    const updateData: any = {
+      name,
+      description,
+      isPublic: isPublic === 'true' || isPublic === true
+    };
+
+    // Manejar imagen
+    const removeImage = req.body.removeImage === 'true';
+    
+    if (removeImage) {
+      // El usuario quiere eliminar la imagen actual
+      if (existingPlaylist.imageUrl) {
+        try {
+          const oldImagePath = path.join(__dirname, '../../uploads', existingPlaylist.imageUrl);
+          if (fs.existsSync(oldImagePath)) {
+            fs.unlinkSync(oldImagePath);
+          }
+        } catch (error) {
+          console.warn('No se pudo eliminar la imagen anterior:', error);
+        }
+      }
+      updateData.imageUrl = null;
+    } else if (req.file) {
+      // Si hay una nueva imagen, eliminar la anterior si existe
+      if (existingPlaylist.imageUrl) {
+        try {
+          const oldImagePath = path.join(__dirname, '../../uploads', existingPlaylist.imageUrl);
+          if (fs.existsSync(oldImagePath)) {
+            fs.unlinkSync(oldImagePath);
+          }
+        } catch (error) {
+          console.warn('No se pudo eliminar la imagen anterior:', error);
+        }
+      }
+      updateData.imageUrl = `/uploads/images/playlists/${req.file.filename}`;
+    }
+
+    // Manejar actualización de canciones si se proporciona
+    let songIds = req.body.songIds;
+    
+    // Si songIds viene como string (desde FormData), parsearlo
+    if (typeof songIds === 'string') {
+      try {
+        songIds = JSON.parse(songIds);
+      } catch (error) {
+        console.warn('No se pudo parsear songIds:', error);
+        songIds = null;
+      }
+    }
+
+    if (songIds && Array.isArray(songIds)) {
+      console.log(`🎵 Actualizando canciones para playlist ${id}:`, songIds.length, 'canciones');
+      console.log('📋 Lista de songIds:', songIds);
+      
+      // Usar transacción para asegurar atomicidad
+      await prisma.$transaction(async (tx) => {
+        // Primero, eliminar todas las canciones existentes de la playlist
+        const deletedCount = await tx.playlistItem.deleteMany({
+          where: { playlistId: id }
+        });
+        console.log(`🗑️ Eliminadas ${deletedCount.count} canciones existentes`);
+
+        // Luego, agregar las canciones en el orden especificado
+        if (songIds.length > 0) {
+          const playlistItems = songIds.map((songId: string, index: number) => ({
+            playlistId: id,
+            songId: songId,
+            order: index + 1
+          }));
+
+          await tx.playlistItem.createMany({
+            data: playlistItems
+          });
+          console.log(`✅ Agregadas ${playlistItems.length} nuevas canciones`);
+        }
+      });
+    }
+
+    // Actualizar playlist
+    const updatedPlaylist = await prisma.playlist.update({
+      where: { id },
+      data: updateData,
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            firstName: true,
+            lastName: true
+          }
+        },
+        _count: {
+          select: {
+            items: true
+          }
+        }
+      }
+    });
+
+    res.json({
+      ...updatedPlaylist,
+      totalSongs: updatedPlaylist._count.items,
+      totalDuration: 0 // Calcular si es necesario
+    });
+  } catch (error) {
+    console.error('Error updating playlist:', error);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 });

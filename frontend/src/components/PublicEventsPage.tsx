@@ -11,7 +11,6 @@ import {
   Lock,
   Play,
   UserCheck,
-  UserX,
   X,
   CheckCircle,
   AlertCircle,

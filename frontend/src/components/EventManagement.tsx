@@ -239,7 +239,7 @@ const EventManagement: React.FC = () => {
     }
   };
 
-  const handleEventUpdated = (updatedEventData: any) => {
+  const handleEventUpdated = (_updatedEventData: any) => {
     // Actualizar la lista de eventos
     fetchEvents();
     setShowEditModal(false);

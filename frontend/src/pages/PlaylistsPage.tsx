@@ -69,17 +69,22 @@ const PlaylistsPage: React.FC = () => {
     isPublic: false,
     image: null as File | null
   });
+  const [currentImageUrl, setCurrentImageUrl] = useState<string | null>(null);
 
   // Estado para el modal de creación/edición
   const [selectedSongsForNewPlaylist, setSelectedSongsForNewPlaylist] = useState<Song[]>([]);
   const [searchSongsInModal, setSearchSongsInModal] = useState('');
   const [filteredSongsInModal, setFilteredSongsInModal] = useState<Song[]>([]);
   const [loadingSongs, setLoadingSongs] = useState(false);
+  const [savingPlaylist, setSavingPlaylist] = useState(false);
+  const [preventModalReopen, setPreventModalReopen] = useState(false);
+  const [isEditingPlaylist, setIsEditingPlaylist] = useState(false); // Nueva protección para modo edición
   const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
 
   // Cargar playlists
   const loadPlaylists = async () => {
     try {
+      console.log('📋 Cargando lista de playlists...');
       const token = localStorage.getItem('token');
       const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/playlists`, {
         headers: {
@@ -95,6 +100,29 @@ const PlaylistsPage: React.FC = () => {
       console.error('Error loading playlists:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Actualizar una playlist específica en la lista sin recargar todo
+  const updatePlaylistInList = async (playlistId: string) => {
+    try {
+      console.log('🔄 Actualizando playlist en lista:', playlistId);
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/playlists/${playlistId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (response.ok) {
+        const updatedPlaylist = await response.json();
+        setPlaylists(prevPlaylists => 
+          prevPlaylists.map(p => p.id === playlistId ? updatedPlaylist : p)
+        );
+        console.log('✅ Playlist actualizada en lista:', updatedPlaylist.name);
+      }
+    } catch (error) {
+      console.error('Error updating playlist in list:', error);
     }
   };
 
@@ -127,15 +155,40 @@ const PlaylistsPage: React.FC = () => {
 
   // Crear o actualizar playlist
   const createPlaylist = async () => {
+    if (savingPlaylist) return; // Evitar múltiples envíos
+    
     try {
+      setSavingPlaylist(true);
+      setPreventModalReopen(true); // Bloquear reapertura del modal
+      console.log('💾 Iniciando guardado de playlist...');
+      
       const token = localStorage.getItem('token');
       const formData = new FormData();
       formData.append('name', newPlaylist.name);
       formData.append('description', newPlaylist.description);
       formData.append('isPublic', newPlaylist.isPublic.toString());
       
+      // Manejar imagen
       if (newPlaylist.image) {
         formData.append('image', newPlaylist.image);
+      } else if (selectedPlaylist && !currentImageUrl && selectedPlaylist.imageUrl) {
+        // El usuario eliminó la imagen actual
+        formData.append('removeImage', 'true');
+      }
+
+      // Agregar canciones para actualización (enviar IDs de todas las canciones actuales)
+      if (selectedPlaylist) {
+        console.log('🔍 Estado antes del envío:');
+        console.log('   - selectedPlaylist:', selectedPlaylist.name);
+        console.log('   - selectedSongsForNewPlaylist:', selectedSongsForNewPlaylist);
+        
+        // Convertir canciones a string JSON para envío
+        const songIds = selectedSongsForNewPlaylist.map(song => song.id);
+        console.log('🎵 Enviando canciones para actualizar playlist:');
+        console.log('   - selectedSongsForNewPlaylist.length:', selectedSongsForNewPlaylist.length);
+        console.log('   - songIds:', songIds);
+        console.log('   - selectedSongsForNewPlaylist titles:', selectedSongsForNewPlaylist.map(s => s.title));
+        formData.append('songIds', JSON.stringify(songIds));
       }
 
       let response;
@@ -161,6 +214,7 @@ const PlaylistsPage: React.FC = () => {
 
       if (response.ok) {
         const playlistData = await response.json();
+        console.log('✅ Respuesta exitosa del backend:', playlistData);
         
         // Agregar canciones seleccionadas a la nueva playlist (solo para crear)
         if (!selectedPlaylist && selectedSongsForNewPlaylist.length > 0) {
@@ -180,23 +234,112 @@ const PlaylistsPage: React.FC = () => {
           }
         }
 
-        closeCreateModal();
-        loadPlaylists();
+        // Solo cerrar modal si estamos creando, no editando
+        if (!selectedPlaylist) {
+          closeCreateModal();
+        }
+        (window as any).lastSaveTime = Date.now(); // Marcar tiempo de guardado
+        
+        // Forzar recarga completa después de un pequeño delay
+        setTimeout(async () => {
+          if (!selectedPlaylist) {
+            // Solo recargar lista si estamos creando, no editando
+            await loadPlaylists(); // Recargar la lista de playlists
+            console.log('✅ Playlist creada exitosamente y lista recargada');
+          } else {
+            // Si estamos editando, solo actualizar esa playlist en la lista
+            await updatePlaylistInList(selectedPlaylist.id);
+            // También refrescar los detalles completos de la playlist para asegurar sincronización
+            await loadPlaylistDetails(selectedPlaylist.id, true);
+            setIsEditingPlaylist(false); // Desactivar modo edición después del guardado exitoso
+            console.log('✅ Playlist actualizada exitosamente (mantener modal abierto)');
+          }
+          
+          // Desbloquear modal después de 3 segundos
+          setTimeout(() => {
+            setPreventModalReopen(false);
+            console.log('🔓 Modal desbloqueado - se puede volver a abrir');
+          }, 3000);
+        }, 500);
+      } else {
+        const errorData = await response.json();
+        console.error('❌ Error en respuesta del backend:', response.status, errorData);
+        alert(`Error al ${selectedPlaylist ? 'actualizar' : 'crear'} la playlist: ${errorData.error || errorData.message || 'Error desconocido'}`);
       }
     } catch (error) {
       console.error('Error creating/updating playlist:', error);
+      alert(`Error al ${selectedPlaylist ? 'actualizar' : 'crear'} la playlist. Intenta nuevamente.`);
+    } finally {
+      setSavingPlaylist(false);
+      // No desbloquear preventModalReopen aquí - se hace en el setTimeout
     }
   };
 
   // Funciones para gestionar canciones en el modal
   const addSongToNewPlaylist = (song: Song) => {
+    console.log('➕ Intentando agregar canción:', song.title);
+    console.log('🔍 Estado modal antes de agregar:', showCreateModal, selectedPlaylist?.id);
+    
     if (!selectedSongsForNewPlaylist.find(s => s.id === song.id)) {
-      setSelectedSongsForNewPlaylist([...selectedSongsForNewPlaylist, song]);
+      const updatedSongs = [...selectedSongsForNewPlaylist, song];
+      setSelectedSongsForNewPlaylist(updatedSongs);
+      console.log('✅ Canción agregada:', song.title, '- Total canciones:', updatedSongs.length);
+      console.log('🔍 Estado modal después de agregar:', showCreateModal, selectedPlaylist?.id);
+      
+      // Si estamos editando una playlist, también agregar a los items de la playlist
+      if (selectedPlaylist && selectedPlaylist.items) {
+        const newItem = {
+          id: `temp-${Date.now()}-${song.id}`, // ID temporal hasta que se guarde
+          order: selectedPlaylist.items.length,
+          song: song
+        };
+        const updatedPlaylist = {
+          ...selectedPlaylist,
+          items: [...selectedPlaylist.items, newItem],
+          totalSongs: (selectedPlaylist.totalSongs || 0) + 1
+        };
+        setSelectedPlaylist(updatedPlaylist);
+        console.log('📝 Playlist actualizada localmente - total canciones:', updatedPlaylist.items?.length);
+      }
+      
+      // Forzar recarga inmediata de la lista de canciones disponibles
+      setTimeout(() => {
+        console.log('🔄 Recargando lista de canciones disponibles después de agregar');
+        console.log('🔍 Estado modal antes de recargar canciones:', showCreateModal, selectedPlaylist?.id);
+        loadAvailableSongs(searchSongsInModal);
+      }, 100);
+    } else {
+      console.log('⚠️ Canción ya existe en la lista:', song.title);
     }
   };
 
   const removeSongFromNewPlaylist = (songId: string) => {
-    setSelectedSongsForNewPlaylist(selectedSongsForNewPlaylist.filter(s => s.id !== songId));
+    const removedSong = selectedSongsForNewPlaylist.find(s => s.id === songId);
+    console.log('➖ Intentando eliminar canción:', removedSong?.title);
+    console.log('🔍 Estado modal antes de eliminar:', showCreateModal, selectedPlaylist?.id);
+    
+    const updatedSongs = selectedSongsForNewPlaylist.filter(s => s.id !== songId);
+    setSelectedSongsForNewPlaylist(updatedSongs);
+    console.log('🗑️ Canción eliminada:', removedSong?.title, '- Total canciones restantes:', updatedSongs.length);
+    console.log('🔍 Estado modal después de eliminar:', showCreateModal, selectedPlaylist?.id);
+    
+    // Si estamos editando una playlist, también actualizar los items de la playlist
+    if (selectedPlaylist && selectedPlaylist.items) {
+      const updatedPlaylist = {
+        ...selectedPlaylist,
+        items: selectedPlaylist.items.filter(item => item.song.id !== songId),
+        totalSongs: Math.max((selectedPlaylist.totalSongs || 1) - 1, 0)
+      };
+      setSelectedPlaylist(updatedPlaylist);
+      console.log('📝 Playlist actualizada localmente - canciones restantes:', updatedPlaylist.items?.length);
+    }
+    
+    // Forzar recarga inmediata de la lista de canciones disponibles
+    setTimeout(() => {
+      console.log('🔄 Recargando lista de canciones disponibles después de eliminar');
+      console.log('🔍 Estado modal antes de recargar canciones:', showCreateModal, selectedPlaylist?.id);
+      loadAvailableSongs(searchSongsInModal);
+    }, 100);
   };
 
   // Abrir modal para crear
@@ -204,27 +347,92 @@ const PlaylistsPage: React.FC = () => {
     setSelectedPlaylist(null);
     setShowCreateModal(true);
     setNewPlaylist({ name: '', description: '', isPublic: false, image: null });
+    setCurrentImageUrl(null);
     setSelectedSongsForNewPlaylist([]);
     loadAvailableSongs();
   };
 
   // Abrir modal para editar
-  const openEditModal = (playlist: Playlist) => {
+  const openEditModal = async (playlist: Playlist) => {
+    const now = Date.now();
+    const timeSinceLastSave = (window as any).lastSaveTime ? now - (window as any).lastSaveTime : Infinity;
+    
+    console.log('🔍 Intento de abrir modal:', {
+      showCreateModal,
+      savingPlaylist,
+      preventModalReopen,
+      timeSinceLastSave,
+      playlistName: playlist.name
+    });
+    
+    if (showCreateModal || savingPlaylist || preventModalReopen) {
+      console.log('⚠️ Modal bloqueado - ya está abierto o se está guardando');
+      return;
+    }
+    
+    // Evitar abrir inmediatamente después de guardar
+    if (timeSinceLastSave < 2000) {
+      console.log('⚠️ Bloqueado - muy poco tiempo desde el último guardado:', timeSinceLastSave, 'ms');
+      return;
+    }
+    
+    console.log('🔧 Abriendo modal de edición para playlist:', playlist.name);
     setSelectedPlaylist(playlist);
+    setIsEditingPlaylist(true); // Marcar que estamos en modo edición
     setNewPlaylist({
       name: playlist.name,
       description: playlist.description || '',
       isPublic: playlist.isPublic,
       image: null
     });
-    loadPlaylistDetails(playlist.id);
-    setShowCreateModal(true);
+    setCurrentImageUrl(playlist.imageUrl);
+    
+    // Primero cargar canciones disponibles
     loadAvailableSongs();
+    
+    // Luego cargar los detalles de la playlist y poblar las canciones seleccionadas
+    await loadPlaylistDetails(playlist.id, true);
+    
+    // Finalmente abrir el modal
+    setShowCreateModal(true);
+    console.log('✅ Modal de edición abierto');
   };
 
   const closeCreateModal = () => {
+    // Obtener stack trace para saber quién está llamando esta función
+    const stack = new Error().stack;
+    console.log('🔒 Cerrando modal de creación/edición');
+    console.log('🔍 Stack trace del cierre:', stack);
+    console.log('🔍 Momento del cierre:', new Date().toISOString());
+    console.log('🔍 Estado actual - showCreateModal:', showCreateModal, 'selectedPlaylist:', selectedPlaylist?.id, 'isEditingPlaylist:', isEditingPlaylist);
+    
+    // Protección: No cerrar si estamos en modo edición y agregando/removiendo canciones
+    if (isEditingPlaylist && selectedPlaylist) {
+      console.log('⚠️ Bloqueado cierre - estamos en modo edición activo');
+      return;
+    }
+    
     setShowCreateModal(false);
     setNewPlaylist({ name: '', description: '', isPublic: false, image: null });
+    setCurrentImageUrl(null);
+    setSelectedSongsForNewPlaylist([]);
+    setSearchSongsInModal('');
+    setFilteredSongsInModal([]);
+    setSelectedPlaylist(null);
+    setIsEditingPlaylist(false); // Resetear modo edición
+    
+    if (searchTimeout) {
+      clearTimeout(searchTimeout);
+      setSearchTimeout(null);
+    }
+  };
+
+  const forceCloseModal = () => {
+    console.log('🔒 Cerrando modal FORZADO (usuario)');
+    setIsEditingPlaylist(false); // Desactivar protección
+    setShowCreateModal(false);
+    setNewPlaylist({ name: '', description: '', isPublic: false, image: null });
+    setCurrentImageUrl(null);
     setSelectedSongsForNewPlaylist([]);
     setSearchSongsInModal('');
     setFilteredSongsInModal([]);
@@ -251,55 +459,12 @@ const PlaylistsPage: React.FC = () => {
     setSearchTimeout(timeout);
   };
 
-  // Agregar canción a playlist existente
-  const addSongToPlaylist = async (playlistId: string, songId: string) => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/playlists/${playlistId}/songs`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ songId })
-      });
-
-      if (response.ok) {
-        if (selectedPlaylist?.id === playlistId) {
-          loadPlaylistDetails(playlistId);
-        }
-        loadPlaylists();
-      }
-    } catch (error) {
-      console.error('Error adding song to playlist:', error);
-    }
-  };
-
-  // Eliminar canción de playlist
-  const removeSongFromPlaylist = async (playlistId: string, playlistItemId: string) => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/playlists/${playlistId}/songs/${playlistItemId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (response.ok) {
-        if (selectedPlaylist?.id === playlistId) {
-          loadPlaylistDetails(playlistId);
-        }
-        loadPlaylists();
-      }
-    } catch (error) {
-      console.error('Error removing song from playlist:', error);
-    }
-  };
-
   // Cargar detalles de playlist para edición
-  const loadPlaylistDetails = async (playlistId: string) => {
+  const loadPlaylistDetails = async (playlistId: string, populateSongs: boolean = false) => {
     try {
+      const stack = new Error().stack;
+      console.log('🔍 Cargando detalles de playlist:', playlistId, 'populateSongs:', populateSongs);
+      console.log('📍 Llamado desde:', stack?.split('\n')[2]?.trim());
       const token = localStorage.getItem('token');
       const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/playlists/${playlistId}`, {
         headers: {
@@ -309,7 +474,26 @@ const PlaylistsPage: React.FC = () => {
       
       if (response.ok) {
         const data = await response.json();
+        console.log('📥 Datos recibidos del backend:', data);
         setSelectedPlaylist(data);
+        
+        // Si estamos editando, también poblar las canciones seleccionadas
+        if (populateSongs && data.items) {
+          const songs = data.items.map((item: any) => item.song);
+          console.log('🎵 Cargando canciones existentes para edición:', songs.length);
+          console.log('🎵 Canciones:', songs.map((s: any) => s.title));
+          setSelectedSongsForNewPlaylist(songs);
+          console.log('✅ selectedSongsForNewPlaylist actualizado con', songs.length, 'canciones');
+          
+          // También refrescar la lista de canciones disponibles para que no muestre las que ya están en la playlist
+          setTimeout(() => {
+            loadAvailableSongs(searchSongsInModal);
+          }, 100);
+        } else {
+          console.log('⏭️ No se poblaron canciones - populateSongs:', populateSongs, 'data.items:', !!data.items);
+        }
+      } else {
+        console.error('❌ Error en respuesta del backend:', response.status);
       }
     } catch (error) {
       console.error('Error loading playlist details:', error);
@@ -340,8 +524,6 @@ const PlaylistsPage: React.FC = () => {
         
         if (playlistItems.length > 0) {
           const songs = playlistItems.map((item: any) => item.song);
-          
-          console.log(`🎵 Reproduciendo playlist: ${playlist.name} con ${songs.length} canciones`);
           
           replaceQueueAndPlay(songs, 0);
           
@@ -380,7 +562,6 @@ const PlaylistsPage: React.FC = () => {
       if (response.ok) {
         closeCreateModal();
         loadPlaylists();
-        console.log('Playlist eliminada exitosamente');
       }
     } catch (error) {
       console.error('Error deleting playlist:', error);
@@ -536,7 +717,12 @@ const PlaylistsPage: React.FC = () => {
                   <PlayIcon className="w-4 h-4 text-white" />
                 </button>
                 <button 
-                  onClick={() => openEditModal(playlist)}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('🖱️ Click en botón Editar para:', playlist.name);
+                    openEditModal(playlist);
+                  }}
                   className="bg-blue-500 hover:bg-blue-600 p-1.5 rounded-full shadow-md transition-all transform hover:scale-110"
                   title="Editar playlist"
                 >
@@ -579,7 +765,7 @@ const PlaylistsPage: React.FC = () => {
             <div className="flex flex-col lg:flex-row h-full max-h-[95vh]">
               
               {/* Panel izquierdo - Buscador de canciones */}
-              <div className="w-full lg:w-1/2 p-6 border-b lg:border-b-0 lg:border-r border-gray-200 bg-gradient-to-br from-blue-50 to-white overflow-y-auto max-h-[45vh] lg:max-h-none">
+              <div className="w-full lg:w-1/2 p-6 border-b lg:border-b-0 lg:border-r border-gray-200 bg-gradient-to-br from-blue-50 to-white flex flex-col overflow-hidden max-h-[45vh] lg:max-h-none">
                 <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center">
                   <PlusIcon className="w-6 h-6 mr-3 text-blue-600" />
                   Buscar Canciones
@@ -598,7 +784,8 @@ const PlaylistsPage: React.FC = () => {
                 </div>
 
                 {/* Lista de canciones disponibles */}
-                <div className="space-y-2 max-h-80 overflow-y-auto">
+                <div className="flex-1 space-y-2 overflow-y-auto"
+                     style={{ maxHeight: 'calc(100vh - 300px)' }}>
                   {loadingSongs ? (
                     <div className="text-center py-8">
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
@@ -611,10 +798,7 @@ const PlaylistsPage: React.FC = () => {
                     </div>
                   ) : (
                     filteredSongsInModal
-                      .filter(song => selectedPlaylist ? 
-                        !selectedPlaylist.items?.some(item => item.song.id === song.id) : 
-                        !selectedSongsForNewPlaylist.some(s => s.id === song.id)
-                      )
+                      .filter(song => !selectedSongsForNewPlaylist.some(s => s.id === song.id))
                       .map((song) => (
                         <div key={song.id} className="flex items-center justify-between p-3 bg-white rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-all">
                           <div className="flex-1 min-w-0">
@@ -622,10 +806,7 @@ const PlaylistsPage: React.FC = () => {
                             <p className="text-xs text-gray-500 truncate">{song.artist || 'Desconocido'}</p>
                           </div>
                           <button
-                            onClick={() => selectedPlaylist ? 
-                              addSongToPlaylist(selectedPlaylist.id, song.id) : 
-                              addSongToNewPlaylist(song)
-                            }
+                            onClick={() => addSongToNewPlaylist(song)}
                             className="px-3 py-1.5 rounded-lg text-xs bg-blue-600 hover:bg-blue-700 text-white transition-all ml-3"
                           >
                             Agregar
@@ -643,7 +824,7 @@ const PlaylistsPage: React.FC = () => {
                     {selectedPlaylist ? 'Editar Playlist' : 'Nueva Playlist'}
                   </h2>
                   <button 
-                    onClick={closeCreateModal}
+                    onClick={forceCloseModal}
                     className="text-gray-400 hover:text-gray-600 p-2 rounded-full hover:bg-gray-100 transition-all"
                   >
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -684,12 +865,62 @@ const PlaylistsPage: React.FC = () => {
                     <label className="block text-sm font-medium text-gray-700 mb-3">
                       Imagen de portada (opcional)
                     </label>
+                    
+                    {/* Mostrar imagen actual si existe */}
+                    {currentImageUrl && !newPlaylist.image && (
+                      <div className="mb-3 p-3 border border-gray-200 rounded-lg bg-gray-50">
+                        <p className="text-sm text-gray-600 mb-2">Imagen actual:</p>
+                        <div className="flex items-center space-x-3">
+                          <img 
+                            src={`${import.meta.env.VITE_API_BASE_URL}${currentImageUrl}`}
+                            alt="Imagen actual"
+                            className="w-16 h-16 object-cover rounded-lg border border-gray-300"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setCurrentImageUrl(null)}
+                            className="px-3 py-1 text-sm text-red-600 hover:text-red-800 border border-red-200 hover:border-red-300 rounded-md transition-colors"
+                          >
+                            Eliminar imagen
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Preview de nueva imagen seleccionada */}
+                    {newPlaylist.image && (
+                      <div className="mb-3 p-3 border border-blue-200 rounded-lg bg-blue-50">
+                        <p className="text-sm text-gray-600 mb-2">Nueva imagen seleccionada:</p>
+                        <div className="flex items-center space-x-3">
+                          <img 
+                            src={URL.createObjectURL(newPlaylist.image)}
+                            alt="Nueva imagen"
+                            className="w-16 h-16 object-cover rounded-lg border border-gray-300"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setNewPlaylist({ ...newPlaylist, image: null })}
+                            className="px-3 py-1 text-sm text-red-600 hover:text-red-800 border border-red-200 hover:border-red-300 rounded-md transition-colors"
+                          >
+                            Quitar imagen
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                    
                     <input
                       type="file"
                       accept="image/*"
                       onChange={(e) => setNewPlaylist({ ...newPlaylist, image: e.target.files?.[0] || null })}
                       className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white shadow-sm"
                     />
+                    
+                    <p className="text-xs text-gray-500 mt-2">
+                      {currentImageUrl && !newPlaylist.image ? 
+                        'Selecciona una nueva imagen para reemplazar la actual' :
+                        'Formatos soportados: JPEG, PNG, GIF, WebP. Tamaño máximo: 5MB'
+                      }
+                    </p>
                   </div>
 
                   <div className="flex items-center">
@@ -710,88 +941,71 @@ const PlaylistsPage: React.FC = () => {
                 <div className="mt-8">
                   <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
                     <MusicalNoteIcon className="w-5 h-5 mr-2 text-green-600" />
-                    Canciones en la playlist ({selectedPlaylist ? selectedPlaylist.items?.length || 0 : selectedSongsForNewPlaylist.length})
+                    Canciones en la playlist ({selectedSongsForNewPlaylist.length})
                   </h3>
                   
                   <div className="max-h-48 overflow-y-auto border border-gray-200 rounded-xl bg-white shadow-inner">
-                    {selectedPlaylist ? (
-                      /* Si está editando, mostrar canciones de la playlist */
-                      selectedPlaylist.items && selectedPlaylist.items.length > 0 ? (
-                        <div className="space-y-1 p-3">
-                          {selectedPlaylist.items.map((item) => (
-                            <div key={item.id} className="flex items-center justify-between p-2 bg-green-50 rounded-lg border border-green-200">
-                              <div className="flex-1 min-w-0">
-                                <p className="font-medium text-gray-900 text-sm truncate">{item.song.title}</p>
-                              </div>
-                              <button
-                                onClick={() => removeSongFromPlaylist(selectedPlaylist.id, item.id)}
-                                className="text-red-600 hover:text-red-800 p-1 rounded hover:bg-red-50 transition-all ml-2"
-                                title="Eliminar canción"
-                              >
-                                <TrashIcon className="w-4 h-4" />
-                              </button>
+                    {selectedSongsForNewPlaylist.length > 0 ? (
+                      <div className="space-y-1 p-3">
+                        {selectedSongsForNewPlaylist.map((song) => (
+                          <div key={song.id} className="flex items-center justify-between p-2 bg-blue-50 rounded-lg border border-blue-200">
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-gray-900 text-sm truncate">{song.title}</p>
+                              <p className="text-xs text-gray-500 truncate">{song.artist || 'Desconocido'}</p>
                             </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="p-6 text-center text-gray-500">
-                          <MusicalNoteIcon className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                          <p className="text-sm">Esta playlist está vacía</p>
-                        </div>
-                      )
+                            <button
+                              onClick={() => removeSongFromNewPlaylist(song.id)}
+                              className="text-red-600 hover:text-red-800 p-1 rounded hover:bg-red-50 transition-all ml-2"
+                              title="Eliminar canción"
+                            >
+                              <TrashIcon className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
                     ) : (
-                      /* Si está creando, mostrar canciones seleccionadas */
-                      selectedSongsForNewPlaylist.length > 0 ? (
-                        <div className="space-y-1 p-3">
-                          {selectedSongsForNewPlaylist.map((song) => (
-                            <div key={song.id} className="flex items-center justify-between p-2 bg-blue-50 rounded-lg border border-blue-200">
-                              <div className="flex-1 min-w-0">
-                                <p className="font-medium text-gray-900 text-sm truncate">{song.title}</p>
-                              </div>
-                              <button
-                                onClick={() => removeSongFromNewPlaylist(song.id)}
-                                className="text-red-600 hover:text-red-800 p-1 rounded hover:bg-red-50 transition-all ml-2"
-                                title="Eliminar canción"
-                              >
-                                <TrashIcon className="w-4 h-4" />
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="p-6 text-center text-gray-500">
-                          <MusicalNoteIcon className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                          <p className="text-sm">No hay canciones seleccionadas</p>
-                          <p className="text-xs">Busca y agrega canciones desde la izquierda</p>
-                        </div>
-                      )
+                      <div className="p-6 text-center text-gray-500">
+                        <MusicalNoteIcon className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                        <p className="text-sm">{selectedPlaylist ? 'Esta playlist está vacía' : 'No hay canciones seleccionadas'}</p>
+                        <p className="text-xs">{selectedPlaylist ? 'Agrega canciones desde la izquierda' : 'Busca y agrega canciones desde la izquierda'}</p>
+                      </div>
                     )}
                   </div>
                 </div>
 
                 {/* Botones de acción */}
                 <div className="flex justify-end space-x-4 mt-8 pt-6 border-t border-gray-200">
+                  {selectedPlaylist && (
+                    <button
+                      onClick={() => handleDeletePlaylist(selectedPlaylist.id)}
+                      className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl transition-all font-medium shadow-lg hover:shadow-xl mr-auto"
+                    >
+                      Eliminar
+                    </button>
+                  )}
                   <button
-                    onClick={closeCreateModal}
+                    onClick={forceCloseModal}
                     className="px-6 py-3 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl transition-all font-medium"
                   >
                     Cancelar
                   </button>
                   <button
                     onClick={createPlaylist}
-                    disabled={!newPlaylist.name.trim()}
+                    disabled={!newPlaylist.name.trim() || savingPlaylist}
                     className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-xl transition-all font-medium shadow-lg hover:shadow-xl disabled:shadow-none"
                   >
-                    {selectedPlaylist ? 'Actualizar Playlist' : 'Crear Playlist'}
+                    {savingPlaylist ? (
+                      <span className="flex items-center">
+                        <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Guardando...
+                      </span>
+                    ) : (
+                      selectedPlaylist ? 'Actualizar Playlist' : 'Crear Playlist'
+                    )}
                   </button>
-                  {selectedPlaylist && (
-                    <button
-                      onClick={() => handleDeletePlaylist(selectedPlaylist.id)}
-                      className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl transition-all font-medium shadow-lg hover:shadow-xl"
-                    >
-                      Eliminar
-                    </button>
-                  )}
                 </div>
               </div>
             </div>
