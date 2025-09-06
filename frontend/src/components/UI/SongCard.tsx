@@ -210,6 +210,20 @@ const SongCard: React.FC<SongCardProps> = ({ song, color, onClick }) => {
 
           console.log(`🎵 [SONG-CARD] URL construida:`, songUrl);
 
+          // TEST: Verificar que la URL es accesible antes de enviarla al player
+          try {
+            const testResponse = await fetch(songUrl, { method: 'HEAD' });
+            console.log(`🔍 [SONG-CARD] URL test - Status: ${testResponse.status}, Content-Type: ${testResponse.headers.get('content-type')}`);
+            
+            if (!testResponse.ok) {
+              console.error(`❌ [SONG-CARD] URL no accesible: ${testResponse.status} - ${testResponse.statusText}`);
+              return;
+            }
+          } catch (testError) {
+            console.error(`❌ [SONG-CARD] Error probando URL:`, testError);
+            return;
+          }
+
           const { playSong } = usePlayerStore.getState();
           playSong({
             id: firstSong.id,

@@ -57,12 +57,17 @@ const SongsPage: React.FC = () => {
   const canUpload = user?.roles?.some(r => ['ADMIN', 'CANTANTE'].includes(r.role)) || false;
 
   // Función para filtrar versiones según los voice types del usuario
+  // Función para filtrar versiones según los voice types del usuario
   const getFilteredVersions = (childVersions: Song[]) => {
     // Si el usuario es ADMIN o DIRECTOR, puede ver todas las versiones
     const isAdmin = user?.roles?.some(r => r.role === 'ADMIN') || false;
     const isDirector = user?.roles?.some(r => r.role === 'DIRECTOR') || false;
     
+    console.log('🔍 [FILTERED-VERSIONS] Usuario roles:', user?.roles?.map(r => r.role));
+    console.log('🔍 [FILTERED-VERSIONS] isAdmin:', isAdmin, 'isDirector:', isDirector);
+    
     if (isAdmin || isDirector) {
+      console.log('🔍 [FILTERED-VERSIONS] Admin/Director - mostrando todas las versiones');
       return childVersions;
     }
 
@@ -70,9 +75,23 @@ const SongsPage: React.FC = () => {
     const userVoiceTypes = user?.voiceProfiles?.map(vp => vp.voiceType) || [];
     const allowedVoiceTypes = [...userVoiceTypes, 'CORO', 'ORIGINAL'];
     
-    return childVersions.filter(version => 
-      version.voiceType && allowedVoiceTypes.includes(version.voiceType)
-    );
+    console.log('🔍 [FILTERED-VERSIONS] userVoiceTypes:', userVoiceTypes);
+    console.log('🔍 [FILTERED-VERSIONS] allowedVoiceTypes:', allowedVoiceTypes);
+    
+    const filtered = childVersions.filter(version => {
+      // Si no tiene voiceType, considerarlo como ORIGINAL (siempre permitido)
+      if (!version.voiceType) {
+        console.log(`🔍 [FILTERED-VERSIONS] "${version.title}" - sin voiceType, permitido (ORIGINAL)`);
+        return true;
+      }
+      
+      const isAllowed = allowedVoiceTypes.includes(version.voiceType);
+      console.log(`🔍 [FILTERED-VERSIONS] "${version.title}" (${version.voiceType}) - ${isAllowed ? 'PERMITIDO' : 'BLOQUEADO'}`);
+      return isAllowed;
+    });
+    
+    console.log('🔍 [FILTERED-VERSIONS] Resultado:', filtered.length, 'de', childVersions.length);
+    return filtered;
   };
 
   useEffect(() => {
@@ -81,6 +100,11 @@ const SongsPage: React.FC = () => {
 
   const fetchSongs = async () => {
     try {
+      console.log('🎵 [SONGS-PAGE] === INICIANDO FETCHSONGS ===');
+      console.log('🎵 [SONGS-PAGE] Usuario:', user?.email);
+      console.log('🎵 [SONGS-PAGE] Roles:', user?.roles?.map(r => r.role));
+      console.log('🎵 [SONGS-PAGE] Voice Types:', user?.voiceProfiles?.map(vp => vp.voiceType));
+      
       const response = await fetch(getApiUrl('/songs?includeVersions=true'), {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -92,11 +116,48 @@ const SongsPage: React.FC = () => {
       }
 
       const data = await response.json();
+      console.log('🎵 [SONGS-PAGE] Canciones del backend:', data.songs?.length);
       
-      // Filtrar solo canciones principales (sin parentSongId) ya que includeVersions=true 
-      // traerá las versiones como childVersions en cada canción padre
+      // Filtrar solo canciones principales (sin parentSongId)
       const mainSongs = (data.songs || []).filter((song: SongWithVersions) => !song.parentSongId);
-      setSongs(mainSongs);
+      console.log('🎵 [SONGS-PAGE] Canciones principales:', mainSongs.length);
+      
+      // Log de cada canción principal con sus variaciones
+      mainSongs.forEach((song: SongWithVersions, index: number) => {
+        console.log(`🎵 [SONGS-PAGE] Canción ${index + 1}: "${song.title}"`);
+        console.log(`🎵 [SONGS-PAGE]   - Total childVersions: ${song.childVersions?.length || 0}`);
+        if (song.childVersions && song.childVersions.length > 0) {
+          song.childVersions.forEach(child => {
+            console.log(`🎵 [SONGS-PAGE]     - "${child.title}" (${child.voiceType || 'sin voiceType'})`);
+          });
+        }
+        
+        const accessibleVersions = getFilteredVersions(song.childVersions || []);
+        console.log(`🎵 [SONGS-PAGE]   - Versiones accesibles: ${accessibleVersions.length}`);
+        accessibleVersions.forEach(accessible => {
+          console.log(`🎵 [SONGS-PAGE]     ✅ "${accessible.title}" (${accessible.voiceType || 'sin voiceType'})`);
+        });
+        
+        if (accessibleVersions.length === 0) {
+          console.log(`🎵 [SONGS-PAGE]   ❌ CANCIÓN SERÁ OCULTADA: "${song.title}"`);
+        } else {
+          console.log(`🎵 [SONGS-PAGE]   ✅ CANCIÓN SERÁ MOSTRADA: "${song.title}"`);
+        }
+      });
+      
+      // FILTRADO POR VOICE TYPE: Solo mostrar canciones que tengan variaciones accesibles
+      const filteredSongs = mainSongs.filter((song: SongWithVersions) => {
+        const accessibleVersions = getFilteredVersions(song.childVersions || []);
+        return accessibleVersions.length > 0;
+      });
+      
+      console.log('🎵 [SONGS-PAGE] === RESULTADO FINAL ===');
+      console.log(`🎵 [SONGS-PAGE] Canciones que se mostrarán: ${filteredSongs.length}/${mainSongs.length}`);
+      filteredSongs.forEach((song: SongWithVersions) => {
+        console.log(`🎵 [SONGS-PAGE]   ✅ "${song.title}"`);
+      });
+      
+      setSongs(filteredSongs);
     } catch (error: any) {
       setError(error.message);
     } finally {

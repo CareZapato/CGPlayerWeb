@@ -109,14 +109,19 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     if (audioRef) {
       console.log(`🎵 [PLAYER-STORE] Setting audio source:`, song.url);
       
-      // Pausar el audio actual si está reproduciéndose
+      // Limpiar completamente el audio anterior
       audioRef.pause();
+      audioRef.currentTime = 0;
+      audioRef.src = '';  // Limpiar la fuente anterior
+      audioRef.load();    // Aplicar la limpieza
       
       // Configurar la nueva fuente
       audioRef.src = song.url;
       
       console.log(`🎵 [PLAYER-STORE] Loading audio...`);
       audioRef.load();
+      
+      console.log(`🎵 [PLAYER-STORE] After load() - currentSrc:`, audioRef.src);
       
       // Esperar a que el audio esté listo antes de reproducir
       const playWhenReady = () => {
@@ -146,10 +151,32 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       } else {
         // Esperar a que el audio esté listo
         const handleCanPlay = () => {
+          console.log(`🎵 [PLAYER-STORE] Audio ready for playback`);
           playWhenReady();
           audioRef.removeEventListener('canplay', handleCanPlay);
+          audioRef.removeEventListener('error', handleError);
         };
+        
+        const handleError = (error: Event) => {
+          console.error(`❌ [PLAYER-STORE] Audio load error:`, {
+            error: error,
+            audioError: audioRef.error,
+            src: audioRef.src,
+            networkState: audioRef.networkState
+          });
+          audioRef.removeEventListener('canplay', handleCanPlay);
+          audioRef.removeEventListener('error', handleError);
+        };
+        
         audioRef.addEventListener('canplay', handleCanPlay);
+        audioRef.addEventListener('error', handleError);
+        
+        // Timeout para detectar si nunca carga
+        setTimeout(() => {
+          if (audioRef.readyState < 2) {
+            console.error(`⏰ [PLAYER-STORE] Audio load timeout - readyState: ${audioRef.readyState}`);
+          }
+        }, 5000);
       }
       
     } else {

@@ -659,62 +659,12 @@ router.post('/', authenticateToken, async (req: AuthRequest, res: Response) => {
 router.get('/', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
     const { includeVersions = 'true' } = req.query;
-    const userId = req.user!.id;
-    const userRoles = req.user!.roles || [];
-    const userVoiceProfiles = req.user!.voiceProfiles || [];
     
-    // Verificar si el usuario es ADMIN o DIRECTOR
-    const isAdmin = userRoles.some((role: string) => role === 'ADMIN');
-    const isDirector = userRoles.some((role: string) => role === 'DIRECTOR');
-    const isCantante = userRoles.some((role: string) => role === 'CANTANTE');
-
+    // Construir where clause simple - dejar que el frontend haga el filtrado de voice types
     let whereClause: any = {
       isActive: true,
       ...(includeVersions === 'false' ? { parentSongId: null } : {})
     };
-
-    // Si es CANTANTE, filtrar por tipos de voz del usuario (incluir CORO y ORIGINAL)
-    if (isCantante && !isAdmin && !isDirector) {
-      if (userVoiceProfiles.length > 0) {
-        const userVoiceTypes = userVoiceProfiles.map((profile: any) => profile.voiceType);
-        
-        // Agregar CORO y ORIGINAL - todos pueden verlos
-        const allowedVoiceTypes = [...userVoiceTypes, 'CORO', 'ORIGINAL'];
-        
-        // Solo mostrar canciones que:
-        // 1. Tienen parentId (son variaciones) Y tienen voiceType permitido
-        // 2. O son canciones sin parentId pero sin voiceType (contenedoras generales)
-        whereClause = {
-          ...whereClause,
-          OR: [
-            {
-              parentSongId: { not: null },
-              voiceType: { in: allowedVoiceTypes }
-            },
-            {
-              parentSongId: null,
-              voiceType: null
-            }
-          ]
-        };
-      } else {
-        // Si no tiene tipos de voz asignados, solo mostrar CORO y ORIGINAL
-        whereClause = {
-          ...whereClause,
-          OR: [
-            {
-              parentSongId: { not: null },
-              voiceType: { in: ['CORO', 'ORIGINAL'] }
-            },
-            {
-              parentSongId: null,
-              voiceType: null
-            }
-          ]
-        };
-      }
-    } else {
-    }
     
     const songs = await prisma.song.findMany({
       where: whereClause,
@@ -1079,6 +1029,9 @@ router.get('/file/:folderName/:fileName', authenticateToken, async (req: AuthReq
     const isCantante = userRoles.some((role: string) => role === 'CANTANTE');
 
     if (!isAdmin && !isDirector && isCantante) {
+      console.log(`🔍 [SONG-FILE] CANTANTE accediendo a archivo: ${fileName}`);
+      console.log(`🔍 [SONG-FILE] Usuario ID: ${userId}`);
+      
       // Para CANTANTES, verificar si tienen acceso según su tipo de voz
       
       // Buscar la canción en la base de datos
@@ -1090,13 +1043,18 @@ router.get('/file/:folderName/:fileName', authenticateToken, async (req: AuthReq
       });
 
       if (!song) {
+        console.log(`🔍 [SONG-FILE] Archivo no encontrado en BD: ${fileName}`);
         return res.status(404).json({ message: 'Archivo no encontrado en base de datos' });
       }
 
+      console.log(`🔍 [SONG-FILE] Canción encontrada: "${song.title}" (${song.voiceType || 'sin voiceType'})`);
+
       // Si la canción es CORO u ORIGINAL, todos pueden acceder
-      if (song.voiceType === 'CORO' || song.voiceType === 'ORIGINAL') {
-        // Acceso permitido para CORO y ORIGINAL
+      if (song.voiceType === 'CORO' || song.voiceType === 'ORIGINAL' || !song.voiceType) {
+        console.log(`🔍 [SONG-FILE] Acceso permitido - voiceType: ${song.voiceType || 'sin voiceType'}`);
+        // Acceso permitido para CORO, ORIGINAL y sin voiceType
       } else {
+        console.log(`🔍 [SONG-FILE] Verificando voice types del usuario...`);
         // Verificar si el usuario tiene el tipo de voz de la canción
         const userVoiceProfiles = await prisma.userVoiceProfile.findMany({
           where: { userId },
@@ -1104,14 +1062,21 @@ router.get('/file/:folderName/:fileName', authenticateToken, async (req: AuthReq
         });
 
         const userVoiceTypes = userVoiceProfiles.map(profile => profile.voiceType);
+        console.log(`🔍 [SONG-FILE] Usuario voice types: ${userVoiceTypes.join(', ')}`);
+        console.log(`🔍 [SONG-FILE] Canción voice type: ${song.voiceType}`);
         
         if (!userVoiceTypes.includes(song.voiceType as any)) {
+          console.log(`🔍 [SONG-FILE] ❌ ACCESO DENEGADO`);
           return res.status(403).json({ 
             message: 'No tienes autorización para acceder a este archivo',
             reason: `Esta canción es para tipo de voz ${song.voiceType} y tu no tienes ese tipo asignado`
           });
+        } else {
+          console.log(`🔍 [SONG-FILE] ✅ ACCESO PERMITIDO - usuario tiene voice type compatible`);
         }
       }
+    } else {
+      console.log(`🔍 [SONG-FILE] ADMIN/DIRECTOR accediendo a archivo: ${fileName}`);
     }
 
     // Configurar headers para audio streaming

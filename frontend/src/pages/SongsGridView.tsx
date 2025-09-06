@@ -5,6 +5,15 @@ import { SongCard } from '../components/UI';
 import { SongDetailModal } from '../components/Modal';
 import type { Song } from '../types';
 
+// Extender el tipo Song para incluir childVersions
+interface SongWithVersions extends Song {
+  parentSong?: {
+    id: string;
+    title: string;
+  };
+  childVersions: Song[];
+}
+
 // Paleta de colores predefinida
 const COLOR_PALETTE = [
   '#FF6B6B', // Rosa coral
@@ -22,25 +31,66 @@ const COLOR_PALETTE = [
 ];
 
 const SongsGridView: React.FC = () => {
-  const { token } = useAuthStore();
-  const [selectedSong, setSelectedSong] = useState<Song | null>(null);
+  const { token, user } = useAuthStore();
+  const [selectedSong, setSelectedSong] = useState<SongWithVersions | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [songs, setSongs] = useState<Song[]>([]);
+  const [songs, setSongs] = useState<SongWithVersions[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Obtener canciones principales (sin parentSongId) - filtradas por rol
+  // Función para filtrar versiones según los voice types del usuario
+  const getFilteredVersions = (childVersions: Song[]) => {
+    // Si el usuario es ADMIN o DIRECTOR, puede ver todas las versiones
+    const isAdmin = user?.roles?.some(r => r.role === 'ADMIN') || false;
+    const isDirector = user?.roles?.some(r => r.role === 'DIRECTOR') || false;
+    
+    console.log('🔍 [GRID-FILTERED-VERSIONS] Usuario roles:', user?.roles?.map(r => r.role));
+    console.log('🔍 [GRID-FILTERED-VERSIONS] isAdmin:', isAdmin, 'isDirector:', isDirector);
+    
+    if (isAdmin || isDirector) {
+      console.log('🔍 [GRID-FILTERED-VERSIONS] Admin/Director - mostrando todas las versiones');
+      return childVersions;
+    }
+
+    // Si es CANTANTE, filtrar por sus voice types + CORO + ORIGINAL
+    const userVoiceTypes = user?.voiceProfiles?.map(vp => vp.voiceType) || [];
+    const allowedVoiceTypes = [...userVoiceTypes, 'CORO', 'ORIGINAL'];
+    
+    console.log('🔍 [GRID-FILTERED-VERSIONS] userVoiceTypes:', userVoiceTypes);
+    console.log('🔍 [GRID-FILTERED-VERSIONS] allowedVoiceTypes:', allowedVoiceTypes);
+    
+    const filtered = childVersions.filter(version => {
+      // Si no tiene voiceType, considerarlo como ORIGINAL (siempre permitido)
+      if (!version.voiceType) {
+        console.log(`🔍 [GRID-FILTERED-VERSIONS] "${version.title}" - sin voiceType, permitido (ORIGINAL)`);
+        return true;
+      }
+      
+      const isAllowed = allowedVoiceTypes.includes(version.voiceType);
+      console.log(`🔍 [GRID-FILTERED-VERSIONS] "${version.title}" (${version.voiceType}) - ${isAllowed ? 'PERMITIDO' : 'BLOQUEADO'}`);
+      return isAllowed;
+    });
+    
+    console.log('🔍 [GRID-FILTERED-VERSIONS] Resultado:', filtered.length, 'de', childVersions.length);
+    return filtered;
+  };
+
+  // Obtener canciones principales con filtrado por voice type
   useEffect(() => {
     const fetchSongs = async () => {
       if (!token) return;
 
       try {
+        console.log('🎵 [SONGS-GRID] === INICIANDO FETCHSONGS ===');
+        console.log('🎵 [SONGS-GRID] Usuario:', user?.email);
+        console.log('🎵 [SONGS-GRID] Roles:', user?.roles?.map(r => r.role));
+        console.log('🎵 [SONGS-GRID] Voice Types:', user?.voiceProfiles?.map(vp => vp.voiceType));
+        
         setLoading(true);
         setError(null);
 
-        // La API /songs ya aplica el filtrado por rol automáticamente
-        // Solo necesitamos obtener las canciones principales
-        const response = await fetch(getApiUrl('/songs?includeVersions=false'), {
+        // Obtener canciones con childVersions para hacer filtrado
+        const response = await fetch(getApiUrl('/songs?includeVersions=true'), {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
@@ -52,9 +102,48 @@ const SongsGridView: React.FC = () => {
         }
 
         const data = await response.json();
-        // La API ya filtra por rol, solo necesitamos las canciones principales
-        const mainSongs = (data.songs || []).filter((song: Song) => !song.parentSongId);
-        setSongs(mainSongs);
+        console.log('🎵 [SONGS-GRID] Canciones del backend:', data.songs?.length);
+        
+        // Filtrar solo canciones principales (sin parentSongId)
+        const mainSongs = (data.songs || []).filter((song: SongWithVersions) => !song.parentSongId);
+        console.log('🎵 [SONGS-GRID] Canciones principales:', mainSongs.length);
+        
+        // Log de cada canción principal con sus variaciones
+        mainSongs.forEach((song: SongWithVersions, index: number) => {
+          console.log(`🎵 [SONGS-GRID] Canción ${index + 1}: "${song.title}"`);
+          console.log(`🎵 [SONGS-GRID]   - Total childVersions: ${song.childVersions?.length || 0}`);
+          if (song.childVersions && song.childVersions.length > 0) {
+            song.childVersions.forEach(child => {
+              console.log(`🎵 [SONGS-GRID]     - "${child.title}" (${child.voiceType || 'sin voiceType'})`);
+            });
+          }
+          
+          const accessibleVersions = getFilteredVersions(song.childVersions || []);
+          console.log(`🎵 [SONGS-GRID]   - Versiones accesibles: ${accessibleVersions.length}`);
+          accessibleVersions.forEach(accessible => {
+            console.log(`🎵 [SONGS-GRID]     ✅ "${accessible.title}" (${accessible.voiceType || 'sin voiceType'})`);
+          });
+          
+          if (accessibleVersions.length === 0) {
+            console.log(`🎵 [SONGS-GRID]   ❌ CANCIÓN SERÁ OCULTADA: "${song.title}"`);
+          } else {
+            console.log(`🎵 [SONGS-GRID]   ✅ CANCIÓN SERÁ MOSTRADA: "${song.title}"`);
+          }
+        });
+        
+        // FILTRADO POR VOICE TYPE: Solo mostrar canciones que tengan variaciones accesibles
+        const filteredSongs = mainSongs.filter((song: SongWithVersions) => {
+          const accessibleVersions = getFilteredVersions(song.childVersions || []);
+          return accessibleVersions.length > 0;
+        });
+        
+        console.log('🎵 [SONGS-GRID] === RESULTADO FINAL ===');
+        console.log(`🎵 [SONGS-GRID] Canciones que se mostrarán: ${filteredSongs.length}/${mainSongs.length}`);
+        filteredSongs.forEach((song: SongWithVersions) => {
+          console.log(`🎵 [SONGS-GRID]   ✅ "${song.title}"`);
+        });
+        
+        setSongs(filteredSongs);
       } catch (error: any) {
         setError(error.message);
       } finally {
@@ -63,16 +152,16 @@ const SongsGridView: React.FC = () => {
     };
 
     fetchSongs();
-  }, [token]);
+  }, [token, user]); // Agregar user como dependencia
 
   // Filtrar canciones según búsqueda
-  const filteredSongs = songs.filter(song =>
+  const filteredSongs = songs.filter((song: SongWithVersions) =>
     song.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (song.artist && song.artist.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   // Obtener color para una canción (usar el guardado o generar uno aleatorio)
-  const getSongColor = (song: Song): string => {
+  const getSongColor = (song: SongWithVersions): string => {
     if (song.coverColor) {
       return song.coverColor;
     }

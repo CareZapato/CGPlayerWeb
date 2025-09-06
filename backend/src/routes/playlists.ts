@@ -269,10 +269,12 @@ router.get('/search', authenticateToken, async (req: AuthRequest, res: Response)
 });
 
 // GET /api/playlists/:id - Obtener playlist específica
+// GET /api/playlists/:id - Obtener playlist específica
 router.get('/:id', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     const userId = req.user?.id;
+    const userRoles = req.user?.roles || [];
 
     const playlist = await prisma.playlist.findFirst({
       where: {
@@ -306,14 +308,40 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res: Response) =>
       return res.status(404).json({ error: 'Playlist no encontrada' });
     }
 
-    const totalDuration = playlist.items.reduce((total, item) => {
+    let filteredItems = playlist.items;
+
+    // Aplicar filtrado de voice types si es CANTANTE
+    const isAdmin = userRoles.some((role: string) => role === 'ADMIN');
+    const isDirector = userRoles.some((role: string) => role === 'DIRECTOR');
+    const isCantante = userRoles.some((role: string) => role === 'CANTANTE');
+
+    if (isCantante && !isAdmin && !isDirector) {
+      // Obtener voice types del usuario
+      const userVoiceProfiles = await prisma.userVoiceProfile.findMany({
+        where: { userId: userId },
+        select: { voiceType: true }
+      });
+      
+      const userVoiceTypes = userVoiceProfiles.map(profile => profile.voiceType);
+      const allowedVoiceTypes = [...userVoiceTypes, 'CORO', 'ORIGINAL'];
+      
+      filteredItems = playlist.items.filter(item => {
+        // Si no tiene voiceType, considerarlo como ORIGINAL (permitido)
+        if (!item.song.voiceType) return true;
+        return allowedVoiceTypes.includes(item.song.voiceType);
+      });
+    }
+
+    // Recalcular duración total con canciones filtradas
+    const totalDuration = filteredItems.reduce((total, item) => {
       return total + (item.song.duration || 0);
     }, 0);
 
     res.json({
       ...playlist,
+      items: filteredItems,
       totalDuration,
-      totalSongs: playlist.items.length
+      totalSongs: filteredItems.length
     });
   } catch (error) {
     console.error('Error fetching playlist:', error);

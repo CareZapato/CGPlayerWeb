@@ -1657,6 +1657,8 @@ router.get('/:id/songs', authenticateToken, async (req, res) => {
 router.post('/:id/play', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
+    const userId = (req as any).user?.id;
+    const userRoles = (req as any).user?.roles || [];
     
     const eventSongs = await prisma.eventSong.findMany({
       where: { eventId: id },
@@ -1685,13 +1687,37 @@ router.post('/:id/play', authenticateToken, async (req, res) => {
       });
     }
 
+    let filteredSongs = eventSongs.map(item => item.song);
+    
+    // Aplicar filtrado de voice types si es CANTANTE
+    const isAdmin = userRoles.some((role: string) => role === 'ADMIN');
+    const isDirector = userRoles.some((role: string) => role === 'DIRECTOR');
+    const isCantante = userRoles.some((role: string) => role === 'CANTANTE');
+
+    if (isCantante && !isAdmin && !isDirector) {
+      // Obtener voice types del usuario
+      const userVoiceProfiles = await prisma.userVoiceProfile.findMany({
+        where: { userId: userId },
+        select: { voiceType: true }
+      });
+      
+      const userVoiceTypes = userVoiceProfiles.map(profile => profile.voiceType);
+      const allowedVoiceTypes = [...userVoiceTypes, 'CORO', 'ORIGINAL'];
+      
+      filteredSongs = filteredSongs.filter(song => {
+        // Si no tiene voiceType, considerarlo como ORIGINAL (permitido)
+        if (!song.voiceType) return true;
+        return allowedVoiceTypes.includes(song.voiceType);
+      });
+    }
+
     res.json({
       success: true,
-      message: `Se agregaron ${eventSongs.length} canciones del evento a la cola de reproducción`,
+      message: `Se agregaron ${filteredSongs.length} canciones del evento a la cola de reproducción`,
       data: {
-        songs: eventSongs.map(item => item.song),
-        totalSongs: eventSongs.length,
-        playingFirst: eventSongs[0]?.song || null
+        songs: filteredSongs,
+        totalSongs: filteredSongs.length,
+        playingFirst: filteredSongs[0] || null
       }
     });
   } catch (error) {
@@ -1930,6 +1956,8 @@ router.get('/:id/playlist', authenticateToken, async (req, res) => {
 router.post('/:id/play', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
+    const userId = (req as any).user?.id;
+    const userRoles = (req as any).user?.roles || [];
 
     const event = await prisma.event.findUnique({
       where: { id },
@@ -1969,7 +1997,29 @@ router.post('/:id/play', authenticateToken, async (req, res) => {
     }
 
     // Formatear canciones para la cola de reproducción
-    const songs = event.eventSongs.map(eventSong => eventSong.song);
+    let songs = event.eventSongs.map(eventSong => eventSong.song);
+
+    // Aplicar filtrado de voice types si es CANTANTE
+    const isAdmin = userRoles.some((role: string) => role === 'ADMIN');
+    const isDirector = userRoles.some((role: string) => role === 'DIRECTOR');
+    const isCantante = userRoles.some((role: string) => role === 'CANTANTE');
+
+    if (isCantante && !isAdmin && !isDirector) {
+      // Obtener voice types del usuario
+      const userVoiceProfiles = await prisma.userVoiceProfile.findMany({
+        where: { userId: userId },
+        select: { voiceType: true }
+      });
+      
+      const userVoiceTypes = userVoiceProfiles.map(profile => profile.voiceType);
+      const allowedVoiceTypes = [...userVoiceTypes, 'CORO', 'ORIGINAL'];
+      
+      songs = songs.filter(song => {
+        // Si no tiene voiceType, considerarlo como ORIGINAL (permitido)
+        if (!song.voiceType) return true;
+        return allowedVoiceTypes.includes(song.voiceType);
+      });
+    }
 
     res.json({
       success: true,
