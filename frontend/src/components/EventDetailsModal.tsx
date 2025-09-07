@@ -269,7 +269,9 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
       setLoading(true);
       const token = localStorage.getItem('token');
       
-      const response_data = await fetch(`/api/events/${event.id}/join-requests/${requestId}`, {
+      console.log(`📝 Procesando solicitud: ${status} para request ${requestId}`);
+      
+      const response_data = await fetch(getApiUrl(`/events/${event.id}/join-requests/${requestId}`), {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -279,10 +281,17 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
       });
 
       if (response_data.ok) {
+        const result = await response_data.json();
+        console.log(`✅ Solicitud ${status.toLowerCase()} exitosamente:`, result);
         onEventUpdated();
+      } else {
+        const errorData = await response_data.json();
+        console.error(`❌ Error al ${status.toLowerCase()} solicitud:`, errorData);
+        throw new Error(errorData.message || `Error al ${status.toLowerCase()} la solicitud`);
       }
     } catch (error) {
       console.error('Error responding to join request:', error);
+      throw error; // Re-throw para que el componente padre pueda manejarlo si es necesario
     } finally {
       setLoading(false);
     }

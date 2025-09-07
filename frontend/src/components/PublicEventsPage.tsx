@@ -302,9 +302,7 @@ const PublicEventsPage: React.FC = () => {
       setJoinRequestLoading(true);
       const token = localStorage.getItem('token');
       
-      const endpoint = action === 'join' 
-        ? `/events/${eventId}/join-request`
-        : `/events/${eventId}/join-request/cancel`;
+      const endpoint = `/events/${eventId}/join-request`;
       
       const response = await fetch(getApiUrl(endpoint), {
         method: action === 'join' ? 'POST' : 'DELETE',
@@ -321,11 +319,60 @@ const PublicEventsPage: React.FC = () => {
       const data = await response.json();
       
       if (data.success) {
-        // Actualizar eventos para reflejar el cambio
-        fetchEvents();
+        // Actualizar el estado local dinámicamente sin recargar todos los eventos
+        if (action === 'join') {
+          // Agregar solicitud pendiente con el ID real devuelto por el backend
+          const newJoinRequest = {
+            id: data.data?.id || 'temp-id',
+            status: 'PENDING' as const
+          };
+          
+          setEvents(prevEvents => 
+            prevEvents.map(event => 
+              event.id === eventId 
+                ? {
+                    ...event,
+                    userJoinRequest: newJoinRequest
+                  }
+                : event
+            )
+          );
+          
+          // Actualizar selectedEvent si está abierto
+          if (selectedEvent && selectedEvent.id === eventId) {
+            setSelectedEvent(prev => prev ? {
+              ...prev,
+              userJoinRequest: newJoinRequest
+            } : null);
+          }
+        } else {
+          // Cancelar solicitud - remover userJoinRequest
+          setEvents(prevEvents => 
+            prevEvents.map(event => 
+              event.id === eventId 
+                ? {
+                    ...event,
+                    userJoinRequest: undefined
+                  }
+                : event
+            )
+          );
+          
+          // Actualizar selectedEvent si está abierto
+          if (selectedEvent && selectedEvent.id === eventId) {
+            setSelectedEvent(prev => prev ? {
+              ...prev,
+              userJoinRequest: undefined
+            } : null);
+          }
+        }
+        
+        console.log(`✅ ${action === 'join' ? 'Solicitud enviada' : 'Solicitud cancelada'} correctamente`);
       }
     } catch (error) {
       console.error('Error handling join request:', error);
+      // En caso de error, recargar los eventos como fallback
+      fetchEvents();
     } finally {
       setJoinRequestLoading(false);
     }

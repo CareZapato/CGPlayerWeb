@@ -228,6 +228,7 @@ router.get('/visible', authenticateToken, async (req, res) => {
   try {
     const user = (req as any).user;
     const userRoles = user.assignedRoles?.map((ar: any) => ar.role) || [];
+    const userId = user.id;
     
     let whereCondition: any = {
       isActive: true
@@ -242,7 +243,7 @@ router.get('/visible', authenticateToken, async (req, res) => {
         ...whereCondition,
         OR: [
           { isPublic: true },
-          { attendees: { some: { userId: user.id } } }
+          { attendees: { some: { userId: userId } } }
         ]
       };
     }
@@ -272,7 +273,6 @@ router.get('/visible', authenticateToken, async (req, res) => {
           }
         },
         joinRequests: {
-          where: { status: 'PENDING' },
           include: {
             user: {
               select: { 
@@ -296,9 +296,33 @@ router.get('/visible', authenticateToken, async (req, res) => {
       orderBy: { date: 'asc' }
     });
 
+    // Enriquecer cada evento con información específica del usuario
+    const eventsWithUserInfo = events.map(event => {
+      // Verificar si el usuario es asistente
+      const isUserAttendee = event.attendees.some(attendee => attendee.userId === userId);
+      
+      // Buscar solicitud del usuario para este evento
+      const userJoinRequest = event.joinRequests.find(request => request.userId === userId);
+      
+      return {
+        ...event,
+        isUserAttendee,
+        userJoinRequest: userJoinRequest ? {
+          id: userJoinRequest.id,
+          status: userJoinRequest.status,
+          message: userJoinRequest.message,
+          response: userJoinRequest.response,
+          createdAt: userJoinRequest.createdAt,
+          updatedAt: userJoinRequest.updatedAt
+        } : null
+      };
+    });
+
+    console.log(`📋 Found ${eventsWithUserInfo.length} visible events for user ${userId}`);
+
     res.json({
       success: true,
-      data: events
+      data: eventsWithUserInfo
     });
   } catch (error) {
     console.error('Error fetching visible events:', error);
@@ -1833,16 +1857,28 @@ router.put('/:id/join-requests/:requestId', authenticateToken, requireRole(['ADM
     const { status, response } = req.body;
     const userId = (req as any).user.id;
 
+    console.log(`🔄 Processing join request response: EventID=${id}, RequestID=${requestId}, Status=${status}, UserID=${userId}`);
+
     if (!['APPROVED', 'REJECTED'].includes(status)) {
       return res.status(400).json({
         success: false,
-        message: 'Estado inválido'
+        message: 'Estado inválido. Solo se permite APPROVED o REJECTED'
       });
     }
 
+    // Buscar la solicitud con el evento incluido
     const joinRequest = await prisma.eventJoinRequest.findUnique({
       where: { id: requestId },
-      include: { event: true }
+      include: { 
+        event: true,
+        user: { 
+          select: { 
+            firstName: true, 
+            lastName: true, 
+            email: true 
+          } 
+        }
+      }
     });
 
     if (!joinRequest || joinRequest.eventId !== id) {
@@ -1852,24 +1888,66 @@ router.put('/:id/join-requests/:requestId', authenticateToken, requireRole(['ADM
       });
     }
 
+    // Verificar permisos: solo el creador del evento o ADMIN puede responder
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: { assignedRoles: { select: { role: true } } }
+    });
+
+    const isAdmin = user?.assignedRoles?.some((role: any) => role.role === 'ADMIN');
+    const isEventCreator = joinRequest.event.createdBy === userId;
+
+    if (!isAdmin && !isEventCreator) {
+      return res.status(403).json({
+        success: false,
+        message: 'Solo el creador del evento o un administrador puede responder a las solicitudes'
+      });
+    }
+
+    console.log(`✅ Permission check passed. IsAdmin=${isAdmin}, IsEventCreator=${isEventCreator}`);
+
+    // Actualizar el estado de la solicitud
     const updatedRequest = await prisma.eventJoinRequest.update({
       where: { id: requestId },
       data: {
         status,
-        response
+        response: response || (status === 'APPROVED' ? 'Solicitud aprobada' : 'Solicitud rechazada'),
+        updatedAt: new Date()
+      },
+      include: {
+        user: { 
+          select: { 
+            firstName: true, 
+            lastName: true, 
+            email: true 
+          } 
+        }
       }
     });
 
-    // Si se acepta la solicitud, agregar como asistente
+    console.log(`📝 Request updated:`, updatedRequest);
+
+    // Si se acepta la solicitud, agregar como asistente EXTERNO
     if (status === 'APPROVED') {
-      await prisma.eventAttendee.create({
-        data: {
-          eventId: id,
-          userId: joinRequest.userId,
-          addedBy: userId,
-          status: 'CONFIRMED'
+      try {
+        await prisma.eventAttendee.create({
+          data: {
+            eventId: id,
+            userId: joinRequest.userId,
+            addedBy: userId,
+            status: 'CONFIRMED',
+            notes: `🔗 EXTERNO: Agregado por solicitud externa. Aprobado por: ${user?.firstName} ${user?.lastName || ''}`
+          }
+        });
+        console.log(`✅ User ${joinRequest.userId} added as external attendee to event ${id}`);
+      } catch (attendeeError: any) {
+        // Si ya existe como asistente, simplemente continuar
+        if (attendeeError.code === 'P2002') {
+          console.log(`⚠️ User ${joinRequest.userId} already exists as attendee`);
+        } else {
+          throw attendeeError;
         }
-      });
+      }
     }
 
     res.json({
@@ -1877,11 +1955,66 @@ router.put('/:id/join-requests/:requestId', authenticateToken, requireRole(['ADM
       message: `Solicitud ${status === 'APPROVED' ? 'aceptada' : 'rechazada'} exitosamente`,
       data: updatedRequest
     });
+
+    console.log(`✅ Join request response completed successfully`);
   } catch (error) {
-    console.error('Error responding to join request:', error);
+    console.error('❌ Error responding to join request:', error);
     res.status(500).json({
       success: false,
       message: 'Error al responder solicitud'
+    });
+  }
+});
+
+// DELETE /api/events/:id/join-request - Cancelar solicitud de unión
+router.delete('/:id/join-request', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = (req as any).user.id;
+
+    console.log(`🗑️ Canceling join request for EventID=${id}, UserID=${userId}`);
+
+    // Verificar que la solicitud existe
+    const existingRequest = await prisma.eventJoinRequest.findUnique({
+      where: {
+        eventId_userId: {
+          eventId: id,
+          userId
+        }
+      }
+    });
+
+    if (!existingRequest) {
+      return res.status(404).json({
+        success: false,
+        message: 'No tienes solicitudes pendientes para este evento'
+      });
+    }
+
+    // Solo se pueden cancelar solicitudes pendientes
+    if (existingRequest.status !== 'PENDING') {
+      return res.status(400).json({
+        success: false,
+        message: 'Solo se pueden cancelar solicitudes pendientes'
+      });
+    }
+
+    // Eliminar la solicitud
+    await prisma.eventJoinRequest.delete({
+      where: { id: existingRequest.id }
+    });
+
+    console.log(`✅ Join request cancelled successfully for EventID=${id}, UserID=${userId}`);
+
+    res.json({
+      success: true,
+      message: 'Solicitud cancelada exitosamente'
+    });
+  } catch (error) {
+    console.error('❌ Error canceling join request:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al cancelar solicitud'
     });
   }
 });

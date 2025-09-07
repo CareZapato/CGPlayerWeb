@@ -253,6 +253,7 @@ model EventAttendee {
   status      EventAttendeeStatus @default(CONFIRMED)
   addedBy     String
   notes       String?
+  isExternal  Boolean             @default(false) // Indica si el asistente fue agregado por solicitud externa
   createdAt   DateTime            @default(now())
   updatedAt   DateTime            @updatedAt
   addedByUser User                @relation("EventAttendeeAdder", fields: [addedBy], references: [id])
