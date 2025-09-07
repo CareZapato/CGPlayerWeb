@@ -143,11 +143,11 @@ export const usePermissions = () => {
             requiredPermission: 'MANAGEMENT'
           },
           {
-            key: 'REPORTS',
-            label: 'Reportes',
-            icon: 'ChartBar',
-            path: '/reports',
-            requiredPermission: 'REPORTS'
+            key: 'BACKUP',
+            label: 'Backup',
+            icon: 'Database',
+            path: '/admin',
+            requiredPermission: 'BACKUP'
           }
         ]
       },

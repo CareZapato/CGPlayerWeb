@@ -18,7 +18,8 @@ import {
   XMarkIcon,
   ArrowRightOnRectangleIcon,
   ChevronDownIcon,
-  ChevronRightIcon
+  ChevronRightIcon,
+  CircleStackIcon
 } from '@heroicons/react/24/outline';
 
 const iconMap = {
@@ -30,7 +31,8 @@ const iconMap = {
   Users: UsersIcon,
   User: UserIcon,
   FolderOpen: FolderOpenIcon,
-  ChartBar: ChartBarIcon
+  ChartBar: ChartBarIcon,
+  Database: CircleStackIcon
 };
 
 const ResponsiveNavigation: React.FC = () => {

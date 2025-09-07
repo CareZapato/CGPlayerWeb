@@ -89,3 +89,16 @@ export const requireRole = (roles: string[]) => {
     next();
   };
 };
+
+// Middleware específico para requerer privilegios de administrador
+export const requireAdmin = (req: AuthRequest, res: Response, next: NextFunction) => {
+  if (!req.user) {
+    return res.status(401).json({ message: 'Authentication required' });
+  }
+
+  if (!req.user.roles.includes('ADMIN')) {
+    return res.status(403).json({ message: 'Admin privileges required' });
+  }
+
+  next();
+};

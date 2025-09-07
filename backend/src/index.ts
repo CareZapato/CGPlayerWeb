@@ -17,6 +17,7 @@ import eventRoutes from './routes/events';
 import dashboardRoutes from './routes/dashboard';
 import adminRoutes from './routes/admin';
 import newsRoutes from './routes/news';
+import backupRoutes from './routes/backup';
 import { swaggerUi, specs } from './config/swagger';
 import { prisma } from './utils/prisma';
 import DatabaseInitializationService from './services/databaseInitialization';
@@ -214,6 +215,7 @@ app.use('/api/events', eventRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/news', newsRoutes);
+app.use('/api/admin', backupRoutes);
 
 // Ruta de salud
 app.get('/api/health', (req, res) => {

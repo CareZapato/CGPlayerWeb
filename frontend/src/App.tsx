@@ -11,11 +11,11 @@ import ChangelogPage from './pages/ChangelogPage';
 import SongsPage from './pages/SongsPage';
 import PlaylistsPage from './pages/PlaylistsPage';
 import ProfilePage from './pages/ProfilePage';
-import AdminPage from './pages/AdminPage';
 import EventsPage from './pages/EventsPage';
 import SongsGridView from './pages/SongsGridView';
 import ManagementPage from './pages/ManagementPage';
 import UsersPage from './pages/UsersPage';
+import BackupPage from './pages/BackupPage';
 
 // Components
 import { Layout, ProtectedRoute } from './components';
@@ -132,7 +132,7 @@ function App() {
             <Route path="/admin" element={
               <ProtectedRoute allowedRoles={['ADMIN']}>
                 <Layout>
-                  <AdminPage />
+                  <BackupPage />
                 </Layout>
               </ProtectedRoute>
             } />

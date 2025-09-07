@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
-import { Calendar, Users, Music, Settings, BarChart3 } from 'lucide-react';
+import { Calendar, Users, Music, Settings, BarChart3, Database } from 'lucide-react';
 import EventManagement from '../components/EventManagement';
+import BackupManagement from '../components/BackupManagement';
 
 const AdminPage: React.FC = () => {
-  const [activeSection, setActiveSection] = useState<'events' | 'users' | 'music' | 'stats' | 'settings'>('events');
+  const [activeSection, setActiveSection] = useState<'events' | 'users' | 'music' | 'stats' | 'settings' | 'backup'>('events');
 
   const sections = [
     { id: 'events' as const, label: 'Gestión de Eventos', icon: Calendar, component: EventManagement },
     { id: 'users' as const, label: 'Usuarios', icon: Users, component: null },
     { id: 'music' as const, label: 'Música', icon: Music, component: null },
+    { id: 'backup' as const, label: 'Backup', icon: Database, component: BackupManagement },
     { id: 'stats' as const, label: 'Estadísticas', icon: BarChart3, component: null },
     { id: 'settings' as const, label: 'Configuración', icon: Settings, component: null }
   ];
