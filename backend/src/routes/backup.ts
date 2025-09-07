@@ -74,46 +74,70 @@ router.post('/backup/create', authenticateToken, requireAdmin, async (req: Reque
 
     // 2. Copiar archivos uploads
     console.log('📁 Copiando archivos...');
-    const uploadsDir = path.join(projectRoot, 'uploads');
+    const uploadsDir = path.join(projectRoot, 'backend', 'uploads');
     const backupUploadsDir = path.join(tempDir, 'uploads');
 
-    const copyDir = (src: string, dest: string) => {
-      if (!fs.existsSync(src)) return;
+    let totalFilesCopied = 0;
+    const copyDir = (src: string, dest: string): number => {
+      let fileCount = 0;
+      
+      if (!fs.existsSync(src)) {
+        console.log(`⚠️ Directorio de origen no existe: ${src}`);
+        return 0;
+      }
       
       if (!fs.existsSync(dest)) {
         fs.mkdirSync(dest, { recursive: true });
       }
       
       const files = fs.readdirSync(src);
+      console.log(`📂 Procesando directorio: ${src} (${files.length} elementos)`);
+      
       for (const file of files) {
         const srcFile = path.join(src, file);
         const destFile = path.join(dest, file);
+        const stats = fs.statSync(srcFile);
         
-        if (fs.statSync(srcFile).isDirectory()) {
-          copyDir(srcFile, destFile);
+        if (stats.isDirectory()) {
+          console.log(`📁 Creando directorio: ${file}`);
+          fileCount += copyDir(srcFile, destFile);
         } else {
+          console.log(`📄 Copiando archivo: ${file} (${stats.size} bytes)`);
           fs.copyFileSync(srcFile, destFile);
+          fileCount++;
         }
       }
+      
+      return fileCount;
     };
 
-    copyDir(uploadsDir, backupUploadsDir);
-    console.log('✅ Archivos copiados');
+    totalFilesCopied = copyDir(uploadsDir, backupUploadsDir);
+    console.log(`✅ Archivos procesados: ${totalFilesCopied} archivos copiados`);
 
     // 3. Crear archivo de información
     const infoPath = path.join(tempDir, 'backup-info.json');
     const backupInfo = {
-      version: '1.0',
+      version: '2.0',
       created: new Date().toISOString(),
       type: 'complete',
       database: 'included',
       files: 'included',
       tables: Object.keys(backupData),
-      totalRecords: Object.values(backupData).reduce((sum, table) => sum + table.length, 0)
+      totalRecords: Object.values(backupData).reduce((sum, table) => sum + table.length, 0),
+      totalFiles: totalFilesCopied,
+      uploadsStructure: {
+        baseDirectory: 'backend/uploads',
+        totalFiles: totalFilesCopied,
+        processing: 'recursive_copy_completed'
+      }
     };
     
     fs.writeFileSync(infoPath, JSON.stringify(backupInfo, null, 2), 'utf8');
     console.log('✅ Información del backup creada');
+    console.log('📋 RESUMEN DEL BACKUP:');
+    console.log(`   📊 Registros de BD: ${backupInfo.totalRecords}`);
+    console.log(`   📁 Archivos: ${backupInfo.totalFiles}`);
+    console.log(`   📂 Estructura completa incluida`);
 
     // 4. Crear archivo ZIP
     console.log('📦 Creando archivo ZIP...');
@@ -565,7 +589,7 @@ router.post('/backup/restore', authenticateToken, requireAdmin, upload.single('b
     console.log('📁 Iniciando restauración de archivos...');
     let filesRestored = 0;
     if (fs.existsSync(uploadsPath)) {
-      const targetUploadsDir = path.join(projectRoot, 'uploads');
+      const targetUploadsDir = path.join(projectRoot, 'backend', 'uploads');
       
       // Hacer backup de uploads actuales
       const backupUploadsDir = path.join(projectRoot, `uploads-backup-${Date.now()}`);
@@ -635,6 +659,87 @@ router.post('/backup/restore', authenticateToken, requireAdmin, upload.single('b
       error: 'Error restaurando backup',
       details: error instanceof Error ? error.message : 'Error desconocido'
     });
+  }
+});
+
+// Obtener información del sistema para el frontend
+router.get('/system-info', authenticateToken, requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const stats = await Promise.all([
+      prisma.user.count(),
+      prisma.song.count(),
+      prisma.playlist.count(),
+      prisma.event.count()
+    ]);
+
+    // Calcular tamaño del directorio uploads (backend/uploads)
+    const uploadsDir = path.join(projectRoot, 'backend', 'uploads');
+    let storageUsed = 0;
+    
+    const calculateDirSize = (dirPath: string): number => {
+      if (!fs.existsSync(dirPath)) return 0;
+      let size = 0;
+      const files = fs.readdirSync(dirPath);
+      for (const file of files) {
+        const filePath = path.join(dirPath, file);
+        const stats = fs.statSync(filePath);
+        if (stats.isDirectory()) {
+          size += calculateDirSize(filePath);
+        } else {
+          size += stats.size;
+        }
+      }
+      return size;
+    };
+
+    storageUsed = calculateDirSize(uploadsDir);
+    const storageMB = (storageUsed / (1024 * 1024)).toFixed(2);
+
+    res.json({
+      totalUsers: stats[0],
+      totalSongs: stats[1],
+      totalPlaylists: stats[2],
+      totalEvents: stats[3],
+      storageUsed: `${storageMB} MB`,
+      storageBytes: storageUsed
+    });
+  } catch (error) {
+    console.error('Error getting system info:', error);
+    res.status(500).json({ error: 'Error obteniendo información del sistema' });
+  }
+});
+
+// Obtener lista de backups disponibles
+router.get('/backups', authenticateToken, requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const backupsDir = path.join(projectRoot, 'backups');
+    
+    if (!fs.existsSync(backupsDir)) {
+      return res.json([]);
+    }
+
+    const files = fs.readdirSync(backupsDir);
+    const backupFiles = files.filter(file => file.endsWith('.zip'));
+    
+    const backups = backupFiles.map(file => {
+      const filePath = path.join(backupsDir, file);
+      const stats = fs.statSync(filePath);
+      const sizeKB = (stats.size / 1024).toFixed(2);
+      
+      return {
+        id: file.replace('.zip', ''),
+        filename: file,
+        size: `${sizeKB} KB`,
+        created: stats.birthtime.toISOString(),
+        description: `Backup completo del sistema`,
+        status: 'completed' as const
+      };
+    }).sort((a, b) => new Date(b.created).getTime() - new Date(a.created).getTime());
+
+    res.json(backups);
+  } catch (error) {
+    console.error('Error getting backup list:', error);
+    res.status(500).json({ error: 'Error obteniendo lista de backups' });
   }
 });
 
