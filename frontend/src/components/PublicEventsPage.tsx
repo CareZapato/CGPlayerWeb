@@ -98,6 +98,9 @@ const PublicEventsPage: React.FC = () => {
   const [eventSongs, setEventSongs] = useState<EventSong[]>([]);
   const [songsLoading, setSongsLoading] = useState(false);
   const [joinRequestLoading, setJoinRequestLoading] = useState(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [showNonAttendanceModal, setShowNonAttendanceModal] = useState(false);
+  const [nonAttendanceComment, setNonAttendanceComment] = useState('');
   
   // Estados para pestañas y filtros
   const [activeTab, setActiveTab] = useState<'upcoming' | 'past'>('upcoming');
@@ -112,6 +115,7 @@ const PublicEventsPage: React.FC = () => {
 
   useEffect(() => {
     fetchEvents();
+    fetchCurrentUser();
   }, []);
 
   // Función para filtrar eventos
@@ -184,6 +188,27 @@ const PublicEventsPage: React.FC = () => {
   const filteredEvents = getFilteredEvents();
   const uniqueCities = getUniqueCities();
   const uniqueRegions = getUniqueRegions();
+
+  const fetchCurrentUser = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(getApiUrl('/auth/me'), {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.ok) {
+        const userData = await response.json();
+        if (userData.success) {
+          setCurrentUser(userData.data);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching current user:', error);
+    }
+  };
 
   const fetchEvents = async () => {
     try {
@@ -373,6 +398,100 @@ const PublicEventsPage: React.FC = () => {
       console.error('Error handling join request:', error);
       // En caso de error, recargar los eventos como fallback
       fetchEvents();
+    } finally {
+      setJoinRequestLoading(false);
+    }
+  };
+
+  // Función para reenviar solicitudes rechazadas
+  const handleResubmitRequest = async (eventId: string, message?: string) => {
+    try {
+      setJoinRequestLoading(true);
+      const token = localStorage.getItem('token');
+      
+      const response = await fetch(getApiUrl(`/events/${eventId}/resubmit-join-request`), {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ message })
+      });
+      
+      if (!response.ok) {
+        throw new Error('Error al reenviar solicitud');
+      }
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        // Actualizar el estado local para mostrar solicitud pendiente
+        const newJoinRequest = {
+          id: data.data?.id || 'temp-id',
+          status: 'PENDING' as const
+        };
+        
+        setEvents(prevEvents => 
+          prevEvents.map(event => 
+            event.id === eventId 
+              ? {
+                  ...event,
+                  userJoinRequest: newJoinRequest
+                }
+              : event
+          )
+        );
+        
+        // Actualizar selectedEvent si está abierto
+        if (selectedEvent && selectedEvent.id === eventId) {
+          setSelectedEvent(prev => prev ? {
+            ...prev,
+            userJoinRequest: newJoinRequest
+          } : null);
+        }
+        
+        console.log('✅ Solicitud reenviada correctamente');
+      }
+    } catch (error) {
+      console.error('Error resubmitting join request:', error);
+      // En caso de error, recargar los eventos como fallback
+      fetchEvents();
+    } finally {
+      setJoinRequestLoading(false);
+    }
+  };
+
+  // Función para confirmar asistencia
+  const handleAttendanceConfirmation = async (eventId: string, confirmed: boolean, comment?: string) => {
+    try {
+      setJoinRequestLoading(true);
+      const token = localStorage.getItem('token');
+      
+      const response = await fetch(getApiUrl(`/events/${eventId}/attendance-confirmation`), {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          attendanceConfirmed: confirmed,
+          nonAttendanceComment: comment
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error('Error al confirmar asistencia');
+      }
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        console.log(`✅ Asistencia ${confirmed ? 'confirmada' : 'denegada'} correctamente`);
+        // Aquí podrías actualizar el estado local si es necesario
+        // Por ahora, mostrar un mensaje de éxito
+      }
+    } catch (error) {
+      console.error('Error confirming attendance:', error);
     } finally {
       setJoinRequestLoading(false);
     }
@@ -639,17 +758,62 @@ const PublicEventsPage: React.FC = () => {
                         </span>
                       </div>
                       
-                      {/* Mostrar solicitudes como badge solo si hay más de 0 y permite solicitudes externas */}
-                      {event.allowExternalJoin && (event._count?.joinRequests ?? 0) > 0 && (
-                        <div className="flex items-center">
-                          <div className="relative">
-                            <UserPlus className="h-4 w-4 text-orange-500" />
-                            <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
-                              {event._count?.joinRequests ?? 0}
-                            </span>
-                          </div>
-                        </div>
-                      )}
+                      {/* Mostrar iconos según el rol del usuario */}
+                      {(() => {
+                        const isCreatorOrAdmin = currentUser && (
+                          currentUser.assignedRoles?.some((role: any) => role.role === 'ADMIN') ||
+                          event.creator?.id === currentUser.id
+                        );
+
+                        // Para creadores y admins: mostrar solicitudes pendientes
+                        if (isCreatorOrAdmin && event.allowExternalJoin && (event._count?.joinRequests ?? 0) > 0) {
+                          return (
+                            <div className="flex items-center">
+                              <div className="relative">
+                                <UserPlus className="h-4 w-4 text-orange-500" />
+                                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                                  {event._count?.joinRequests ?? 0}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        // Para usuarios regulares: mostrar estado de su solicitud
+                        if (!isCreatorOrAdmin && event.userJoinRequest) {
+                          const { status } = event.userJoinRequest;
+                          if (status === 'PENDING') {
+                            return (
+                              <div className="flex items-center" title="Solicitud enviada - Pendiente">
+                                <div className="relative">
+                                  <AlertCircle className="h-4 w-4 text-yellow-500" />
+                                </div>
+                              </div>
+                            );
+                          } else if (status === 'APPROVED') {
+                            return (
+                              <div className="flex items-center" title="Solicitud aprobada">
+                                <div className="relative">
+                                  <CheckCircle className="h-4 w-4 text-green-500" />
+                                </div>
+                              </div>
+                            );
+                          }
+                        }
+
+                        // Para usuarios regulares: mostrar si es cantante invitado (sin solicitud pero es asistente)
+                        if (!isCreatorOrAdmin && !event.userJoinRequest && event.isUserAttendee) {
+                          return (
+                            <div className="flex items-center" title="Cantante invitado">
+                              <div className="relative">
+                                <UserCheck className="h-4 w-4 text-blue-500" />
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        return null;
+                      })()}
                     </div>
                     
                     <div className="flex items-center space-x-2">
@@ -858,6 +1022,16 @@ const PublicEventsPage: React.FC = () => {
                                 {joinRequestLoading ? 'Cancelando...' : 'Cancelar solicitud'}
                               </button>
                             )}
+                            
+                            {selectedEvent.userJoinRequest.status === 'REJECTED' && (
+                              <button
+                                onClick={() => handleResubmitRequest(selectedEvent.id)}
+                                disabled={joinRequestLoading}
+                                className="w-full bg-amber-600 text-white py-2 px-4 rounded-lg hover:bg-amber-700 transition-colors disabled:opacity-50"
+                              >
+                                {joinRequestLoading ? 'Reenviando...' : 'Reenviar solicitud'}
+                              </button>
+                            )}
                           </div>
                         ) : (
                           <button
@@ -872,10 +1046,33 @@ const PublicEventsPage: React.FC = () => {
                     )}
 
                     {selectedEvent.isUserAttendee && (
-                      <div className="mb-6 p-4 bg-green-50 rounded-xl border border-green-200">
-                        <div className="flex items-center">
-                          <UserCheck className="h-5 w-5 text-green-500 mr-2" />
-                          <span className="text-green-700 font-medium">Eres participante de este evento</span>
+                      <div className="mb-6 space-y-4">
+                        <div className="p-4 bg-green-50 rounded-xl border border-green-200">
+                          <div className="flex items-center mb-3">
+                            <UserCheck className="h-5 w-5 text-green-500 mr-2" />
+                            <span className="text-green-700 font-medium">Eres participante de este evento</span>
+                          </div>
+                        </div>
+                        
+                        {/* Confirmación de asistencia */}
+                        <div className="p-4 bg-gray-50 rounded-xl border border-gray-200">
+                          <h3 className="text-lg font-semibold text-gray-900 mb-3">Confirmación de Asistencia</h3>
+                          <div className="space-y-3">
+                            <div className="flex space-x-3">
+                              <button
+                                onClick={() => handleAttendanceConfirmation(selectedEvent.id, true)}
+                                className="flex-1 bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors"
+                              >
+                                Confirmar Asistencia
+                              </button>
+                              <button
+                                onClick={() => setShowNonAttendanceModal(true)}
+                                className="flex-1 bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700 transition-colors"
+                              >
+                                No Podré Asistir
+                              </button>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     )}
@@ -938,6 +1135,51 @@ const PublicEventsPage: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Modal de comentario de inasistencia */}
+      {showNonAttendanceModal && selectedEvent && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl max-w-md w-full p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Comentario de Inasistencia</h3>
+            <p className="text-gray-600 mb-4">
+              Por favor, comparte brevemente por qué no podrás asistir al evento (opcional, máximo 300 caracteres):
+            </p>
+            
+            <textarea
+              value={nonAttendanceComment}
+              onChange={(e) => setNonAttendanceComment(e.target.value.slice(0, 300))}
+              className="w-full p-3 border border-gray-300 rounded-lg resize-none h-24 mb-4"
+              placeholder="Ej: Tengo otro compromiso familiar ese día..."
+            />
+            
+            <div className="text-sm text-gray-500 mb-4">
+              {nonAttendanceComment.length}/300 caracteres
+            </div>
+            
+            <div className="flex space-x-3">
+              <button
+                onClick={() => {
+                  setShowNonAttendanceModal(false);
+                  setNonAttendanceComment('');
+                }}
+                className="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-400 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => {
+                  handleAttendanceConfirmation(selectedEvent.id, false, nonAttendanceComment);
+                  setShowNonAttendanceModal(false);
+                  setNonAttendanceComment('');
+                }}
+                className="flex-1 bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700 transition-colors"
+              >
+                Confirmar Inasistencia
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

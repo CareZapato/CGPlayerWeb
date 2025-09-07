@@ -1936,6 +1936,7 @@ router.put('/:id/join-requests/:requestId', authenticateToken, requireRole(['ADM
             userId: joinRequest.userId,
             addedBy: userId,
             status: 'CONFIRMED',
+            isExternal: true, // 🆕 Marcar como asistente externo
             notes: `🔗 EXTERNO: Agregado por solicitud externa. Aprobado por: ${user?.firstName} ${user?.lastName || ''}`
           }
         });
@@ -2170,6 +2171,177 @@ router.post('/:id/play', authenticateToken, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error al reproducir evento'
+    });
+  }
+});
+
+// PUT /api/events/:id/attendance-confirmation - Confirmar/Negar asistencia
+router.put('/:id/attendance-confirmation', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { attendanceConfirmed, nonAttendanceComment } = req.body;
+    const userId = (req as any).user.id;
+
+    console.log(`📝 Attendance confirmation for EventID=${id}, UserID=${userId}, Confirmed=${attendanceConfirmed}`);
+
+    // Verificar que el usuario es asistente del evento
+    const attendee = await prisma.eventAttendee.findUnique({
+      where: {
+        eventId_userId: {
+          eventId: id,
+          userId
+        }
+      },
+      include: {
+        event: {
+          select: { title: true }
+        }
+      }
+    });
+
+    if (!attendee) {
+      return res.status(404).json({
+        success: false,
+        message: 'No estás registrado como asistente en este evento'
+      });
+    }
+
+    // Validar comentario si no va a asistir
+    if (attendanceConfirmed === false && nonAttendanceComment && nonAttendanceComment.length > 300) {
+      return res.status(400).json({
+        success: false,
+        message: 'El comentario de inasistencia no puede exceder 300 caracteres'
+      });
+    }
+
+    // Actualizar confirmación de asistencia
+    const updatedAttendee = await prisma.eventAttendee.update({
+      where: {
+        eventId_userId: {
+          eventId: id,
+          userId
+        }
+      },
+      data: {
+        attendanceConfirmed,
+        nonAttendanceComment: attendanceConfirmed === false ? nonAttendanceComment : null
+      }
+    });
+
+    res.status(200).json({
+      success: true,
+      message: attendanceConfirmed 
+        ? 'Asistencia confirmada exitosamente' 
+        : 'Inasistencia registrada exitosamente',
+      data: updatedAttendee
+    });
+  } catch (error) {
+    console.error('❌ Error confirming attendance:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al confirmar asistencia'
+    });
+  }
+});
+
+// POST /api/events/:id/resubmit-join-request - Reenviar solicitud rechazada (apelación)
+router.post('/:id/resubmit-join-request', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { message } = req.body;
+    const userId = (req as any).user.id;
+
+    console.log(`🔄 Resubmitting join request for EventID=${id}, UserID=${userId}`);
+
+    const event = await prisma.event.findUnique({
+      where: { id }
+    });
+
+    if (!event) {
+      return res.status(404).json({
+        success: false,
+        message: 'Evento no encontrado'
+      });
+    }
+
+    if (!event.isPublic || !event.allowExternalJoin) {
+      return res.status(403).json({
+        success: false,
+        message: 'Este evento no permite solicitudes externas'
+      });
+    }
+
+    // Verificar que existe una solicitud rechazada
+    const existingRequest = await prisma.eventJoinRequest.findUnique({
+      where: {
+        eventId_userId: {
+          eventId: id,
+          userId
+        }
+      }
+    });
+
+    if (!existingRequest) {
+      return res.status(404).json({
+        success: false,
+        message: 'No tienes solicitudes previas para este evento'
+      });
+    }
+
+    if (existingRequest.status !== 'REJECTED') {
+      return res.status(400).json({
+        success: false,
+        message: 'Solo puedes reenviar solicitudes que hayan sido rechazadas'
+      });
+    }
+
+    // Verificar si ya es asistente
+    const existingAttendee = await prisma.eventAttendee.findUnique({
+      where: {
+        eventId_userId: {
+          eventId: id,
+          userId
+        }
+      }
+    });
+
+    if (existingAttendee) {
+      return res.status(400).json({
+        success: false,
+        message: 'Ya estás registrado en este evento'
+      });
+    }
+
+    // Actualizar la solicitud existente a PENDING
+    const resubmittedRequest = await prisma.eventJoinRequest.update({
+      where: {
+        eventId_userId: {
+          eventId: id,
+          userId
+        }
+      },
+      data: {
+        message,
+        status: 'PENDING',
+        response: null // Limpiar respuesta anterior
+      },
+      include: {
+        user: {
+          select: { firstName: true, lastName: true, locationId: true }
+        }
+      }
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Solicitud reenviada exitosamente',
+      data: resubmittedRequest
+    });
+  } catch (error) {
+    console.error('❌ Error resubmitting join request:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al reenviar solicitud'
     });
   }
 });
