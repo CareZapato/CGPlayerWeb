@@ -244,12 +244,16 @@ const ResponsiveNavigation: React.FC = () => {
                     src={profile.profileImageUrl}
                     alt={`${user?.firstName}`}
                     className="w-8 h-8 rounded-full object-cover border border-gray-200"
+                    onError={(e) => {
+                      console.error('❌ [NAV] Error cargando imagen:', profile.profileImageUrl);
+                      e.currentTarget.style.display = 'none';
+                      e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                    }}
                   />
-                ) : (
-                  <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
-                    <UserIcon className="w-4 h-4 text-blue-600" />
-                  </div>
-                )}
+                ) : null}
+                <div className={`w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center ${profile?.profileImageUrl ? 'hidden' : ''}`}>
+                  <UserIcon className="w-4 h-4 text-blue-600" />
+                </div>
                 <span className="text-sm font-medium text-gray-700 hover:text-blue-600">
                   {user?.firstName}
                 </span>
@@ -325,12 +329,16 @@ const ResponsiveNavigation: React.FC = () => {
                     src={profile.profileImageUrl}
                     alt={`${user?.firstName}`}
                     className="w-10 h-10 rounded-full object-cover border border-gray-200"
+                    onError={(e) => {
+                      console.error('❌ [NAV-MOBILE] Error cargando imagen:', profile.profileImageUrl);
+                      e.currentTarget.style.display = 'none';
+                      e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                    }}
                   />
-                ) : (
-                  <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
-                    <UserIcon className="w-5 h-5 text-blue-600" />
-                  </div>
-                )}
+                ) : null}
+                <div className={`w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center ${profile?.profileImageUrl ? 'hidden' : ''}`}>
+                  <UserIcon className="w-5 h-5 text-blue-600" />
+                </div>
                 <div>
                   <p className="text-sm font-medium text-gray-900">{user?.firstName} {user?.lastName}</p>
                   <p className="text-xs text-gray-500 capitalize">

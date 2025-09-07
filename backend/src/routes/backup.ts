@@ -70,7 +70,7 @@ router.post('/backup/create', authenticateToken, requireAdmin, async (req: Reque
     fs.writeFileSync(dbPath, JSON.stringify(backupData, null, 2), 'utf8');
     console.log('✅ Base de datos exportada (formato JSON)');
 
-    // 2. Copiar archivos uploads
+    // 2. Copiar archivos uploads (incluyendo imágenes de perfil)
     console.log('📁 Copiando archivos...');
     const uploadsDir = path.join(projectRoot, 'backend', 'uploads');
     const backupUploadsDir = path.join(tempDir, 'uploads');
@@ -96,18 +96,38 @@ router.post('/backup/create', authenticateToken, requireAdmin, async (req: Reque
     };
 
     copyDir(uploadsDir, backupUploadsDir);
-    console.log('✅ Archivos copiados');
+    
+    // Verificar si se copiaron las imágenes de perfil
+    const profileImagesDir = path.join(backupUploadsDir, 'images', 'profiles');
+    let profileImagesCount = 0;
+    if (fs.existsSync(profileImagesDir)) {
+      const profileImages = fs.readdirSync(profileImagesDir);
+      profileImagesCount = profileImages.length;
+      console.log(`✅ Archivos copiados (incluyendo ${profileImagesCount} imágenes de perfil)`);
+    } else {
+      console.log('✅ Archivos copiados');
+    }
 
-    // 3. Crear archivo de información
+    // 3. Crear archivo de información (incluyendo información de perfiles)
     const infoPath = path.join(tempDir, 'backup-info.json');
+    
+    // Contar usuarios con imágenes de perfil
+    const usersWithProfileImages = backupData.users.filter((user: any) => user.profileImage).length;
+    
     const backupInfo = {
-      version: '1.0',
+      version: '1.1', // Incrementado para indicar soporte de perfiles
       created: new Date().toISOString(),
       type: 'complete',
       database: 'included',
       files: 'included',
+      profileSystem: 'included', // Nueva característica
       tables: Object.keys(backupData),
-      totalRecords: Object.values(backupData).reduce((sum, table) => sum + table.length, 0)
+      totalRecords: Object.values(backupData).reduce((sum, table) => sum + table.length, 0),
+      profileStats: {
+        totalUsers: backupData.users.length,
+        usersWithProfileImages,
+        profileImagesFiles: profileImagesCount
+      }
     };
     
     fs.writeFileSync(infoPath, JSON.stringify(backupInfo, null, 2), 'utf8');
@@ -569,7 +589,7 @@ router.post('/backup/restore', authenticateToken, requireAdmin, upload.single('b
       throw new Error('Error restaurando base de datos: ' + (error instanceof Error ? error.message : 'Error desconocido'));
     }
 
-    // 5. Restaurar archivos
+    // 5. Restaurar archivos (incluyendo imágenes de perfil)
     console.log('📁 Iniciando restauración de archivos...');
     let filesRestored = 0;
     if (fs.existsSync(uploadsPath)) {
@@ -605,7 +625,15 @@ router.post('/backup/restore', authenticateToken, requireAdmin, upload.single('b
       };
       
       filesRestored = copyDir(uploadsPath, targetUploadsDir);
-      console.log(`✅ ${filesRestored} archivos restaurados`);
+      
+      // Verificar restauración específica de imágenes de perfil
+      const restoredProfileImagesDir = path.join(targetUploadsDir, 'images', 'profiles');
+      if (fs.existsSync(restoredProfileImagesDir)) {
+        const profileImages = fs.readdirSync(restoredProfileImagesDir);
+        console.log(`✅ ${filesRestored} archivos restaurados (incluyendo ${profileImages.length} imágenes de perfil)`);
+      } else {
+        console.log(`✅ ${filesRestored} archivos restaurados`);
+      }
     } else {
       console.log('ℹ️ No hay archivos para restaurar');
     }
@@ -655,10 +683,20 @@ router.get('/system-info', authenticateToken, requireAdmin, async (req: Request,
       prisma.playlist.count(),
       prisma.event.count()
     ]);
+    
+    // Contar usuarios con imagen de perfil por separado
+    const usersWithProfileImagesCount = await prisma.user.count({ 
+      where: { profileImage: { not: null } } 
+    } as any); // Temporal hasta que se recargue el TypeScript
 
     // Calcular tamaño del directorio uploads (backend/uploads)
     const uploadsDir = path.join(projectRoot, 'backend', 'uploads');
     let storageUsed = 0;
+    
+    // Calcular tamaño específico del directorio de imágenes de perfil
+    const profileImagesDir = path.join(uploadsDir, 'images', 'profiles');
+    let profileStorageUsed = 0;
+    let profileImagesCount = 0;
     
     const calculateDirSize = (dirPath: string): number => {
       if (!fs.existsSync(dirPath)) return 0;
@@ -678,12 +716,24 @@ router.get('/system-info', authenticateToken, requireAdmin, async (req: Request,
 
     storageUsed = calculateDirSize(uploadsDir);
     const storageMB = (storageUsed / (1024 * 1024)).toFixed(2);
+    
+    if (fs.existsSync(profileImagesDir)) {
+      profileStorageUsed = calculateDirSize(profileImagesDir);
+      profileImagesCount = fs.readdirSync(profileImagesDir).length;
+    }
+    const profileStorageMB = (profileStorageUsed / (1024 * 1024)).toFixed(2);
 
     res.json({
       totalUsers: stats[0],
       totalSongs: stats[1],
       totalPlaylists: stats[2],
       totalEvents: stats[3],
+      usersWithProfileImages: usersWithProfileImagesCount, // Nueva estadística
+      profileImages: {
+        count: profileImagesCount,
+        storageUsed: `${profileStorageMB} MB`,
+        storageBytes: profileStorageUsed
+      },
       storageUsed: `${storageMB} MB`,
       storageBytes: storageUsed
     });

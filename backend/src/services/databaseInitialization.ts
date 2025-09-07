@@ -29,10 +29,41 @@ export class DatabaseInitializationService {
       const locationCount = await this.prisma.location.count();
       console.log(`🔍 Tablas verificadas: ${userCount} usuarios, ${locationCount} ubicaciones`);
       return true;
-    } catch (error) {
-      console.log('🔍 Tablas no encontradas o error de conexión:', error);
+    } catch (error: any) {
+      console.log('🔍 Tablas no encontradas o error de conexión:', error.message);
       return false;
     }
+  }
+
+  private async waitForTablesAndReconnect(maxAttempts: number = 3): Promise<boolean> {
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      console.log(`🔄 Intento ${attempt}/${maxAttempts} - Verificando tablas...`);
+      
+      try {
+        // Esperar un poco entre intentos
+        if (attempt > 1) {
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+        
+        // Reconectar el cliente
+        await this.prisma.$disconnect();
+        this.prisma = new PrismaClient();
+        await this.prisma.$connect();
+        
+        // Verificar tablas
+        const tablesExist = await this.checkTablesExist();
+        if (tablesExist) {
+          console.log('✅ Tablas verificadas exitosamente');
+          return true;
+        }
+        
+      } catch (error: any) {
+        console.log(`⚠️ Intento ${attempt} falló:`, error.message);
+      }
+    }
+    
+    console.log('❌ No se pudieron verificar las tablas después de varios intentos');
+    return false;
   }
 
   async getDatabaseStatus() {
@@ -61,31 +92,80 @@ export class DatabaseInitializationService {
     try {
       console.log('🔨 Creando estructura de base de datos...');
       
+      // Desconectar el cliente actual
+      await this.prisma.$disconnect();
+      
       try {
         console.log('📋 Intentando aplicar migraciones existentes...');
         execSync('npx prisma migrate deploy', { 
           cwd: process.cwd(),
-          stdio: 'ignore'
+          stdio: 'pipe'
         });
         console.log('✅ Migraciones aplicadas exitosamente');
+        
+        // Solo regenerar cliente si no estamos en modo desarrollo
+        if (process.env.NODE_ENV !== 'development') {
+          console.log('🔄 Regenerando cliente Prisma...');
+          try {
+            execSync('npx prisma generate', { 
+              cwd: process.cwd(),
+              stdio: 'pipe',
+              timeout: 10000 // 10 segundos timeout
+            });
+            console.log('✅ Cliente Prisma regenerado');
+          } catch (generateError) {
+            console.log('⚠️ Warning: No se pudo regenerar el cliente (puede ser normal en desarrollo)');
+          }
+        }
+        
+        // Reconectar con el nuevo esquema
+        this.prisma = new PrismaClient();
+        await this.prisma.$connect();
+        console.log('✅ Cliente Prisma reconectado');
+        
         return true;
-      } catch (migrateError) {
+        
+      } catch (migrateError: any) {
         console.log('⚠️ Migrate falló, intentando db push...');
+        console.log('📋 Error de migrate:', migrateError.message);
         
         try {
+          console.log('🔄 Ejecutando prisma db push --force-reset...');
           execSync('npx prisma db push --force-reset', { 
             cwd: process.cwd(),
-            stdio: 'ignore'
+            stdio: 'pipe'
           });
           console.log('✅ DB Push completado exitosamente');
+          
+          // Solo regenerar cliente si no estamos en modo desarrollo
+          if (process.env.NODE_ENV !== 'development') {
+            console.log('🔄 Regenerando cliente Prisma...');
+            try {
+              execSync('npx prisma generate', { 
+                cwd: process.cwd(),
+                stdio: 'pipe',
+                timeout: 10000
+              });
+              console.log('✅ Cliente Prisma regenerado');
+            } catch (generateError) {
+              console.log('⚠️ Warning: No se pudo regenerar el cliente (puede ser normal en desarrollo)');
+            }
+          }
+          
+          // Reconectar con el nuevo esquema
+          this.prisma = new PrismaClient();
+          await this.prisma.$connect();
+          console.log('✅ Cliente Prisma reconectado');
+          
           return true;
-        } catch (pushError) {
-          console.error('❌ Error en db push:', pushError);
+          
+        } catch (pushError: any) {
+          console.error('❌ Error en db push:', pushError.message);
           return false;
         }
       }
-    } catch (error) {
-      console.error('❌ Error creando tablas:', error);
+    } catch (error: any) {
+      console.error('❌ Error creando tablas:', error.message);
       return false;
     }
   }
@@ -200,13 +280,13 @@ export class DatabaseInitializationService {
         
         tablesCreated = true;
         
-        // Verificar nuevamente después de crear las tablas
-        const tablesExistAfterCreation = await this.checkTablesExist();
-        if (!tablesExistAfterCreation) {
+        // Verificar nuevamente después de crear las tablas con reintentos
+        const tablesAvailable = await this.waitForTablesAndReconnect();
+        if (!tablesAvailable) {
           return {
             success: false,
-            message: 'Las tablas aún no están disponibles después del intento de creación',
-            error: 'Tables still not accessible after creation attempt'
+            message: 'Las tablas no están disponibles después de crearlas',
+            error: 'Tables still not accessible after creation attempts'
           };
         }
       }

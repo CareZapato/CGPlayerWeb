@@ -13,7 +13,8 @@ import {
   Music,
   Calendar,
   Terminal,
-  X
+  X,
+  UserCircle // Icono para perfiles
 } from 'lucide-react';
 
 interface BackupInfo {
@@ -39,6 +40,12 @@ const BackupManagement: React.FC = () => {
     totalUsers: 0,
     totalPlaylists: 0,
     totalEvents: 0,
+    usersWithProfileImages: 0, // Nueva estadística
+    profileImages: {
+      count: 0,
+      storageUsed: '0 MB',
+      storageBytes: 0
+    },
     storageUsed: '0 MB'
   });
 
@@ -262,7 +269,7 @@ const BackupManagement: React.FC = () => {
         </div>
 
         {/* Información del Sistema */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mt-6">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mt-6">
           <div className="bg-blue-50 p-4 rounded-lg text-center">
             <HardDrive className="h-6 w-6 text-blue-600 mx-auto mb-2" />
             <div className="text-lg font-semibold text-blue-900">{systemInfo.totalSongs}</div>
@@ -283,12 +290,45 @@ const BackupManagement: React.FC = () => {
             <div className="text-lg font-semibold text-yellow-900">{systemInfo.totalEvents}</div>
             <div className="text-sm text-yellow-700">Eventos</div>
           </div>
+          <div className="bg-indigo-50 p-4 rounded-lg text-center">
+            <UserCircle className="h-6 w-6 text-indigo-600 mx-auto mb-2" />
+            <div className="text-lg font-semibold text-indigo-900">{systemInfo.usersWithProfileImages}</div>
+            <div className="text-sm text-indigo-700">Perfiles con Imagen</div>
+          </div>
           <div className="bg-gray-50 p-4 rounded-lg text-center">
             <Database className="h-6 w-6 text-gray-600 mx-auto mb-2" />
             <div className="text-lg font-semibold text-gray-900">{systemInfo.storageUsed}</div>
             <div className="text-sm text-gray-700">Almacenamiento</div>
           </div>
         </div>
+        
+        {/* Información detallada de perfiles */}
+        {systemInfo.profileImages.count > 0 && (
+          <div className="mt-4 p-4 bg-indigo-50 rounded-lg border border-indigo-200">
+            <div className="flex items-center mb-2">
+              <UserCircle className="h-5 w-5 text-indigo-600 mr-2" />
+              <span className="text-sm font-medium text-indigo-900">Sistema de Perfiles</span>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+              <div>
+                <span className="text-indigo-700">Imágenes de perfil:</span>
+                <span className="font-semibold text-indigo-900 ml-1">{systemInfo.profileImages.count}</span>
+              </div>
+              <div>
+                <span className="text-indigo-700">Espacio usado:</span>
+                <span className="font-semibold text-indigo-900 ml-1">{systemInfo.profileImages.storageUsed}</span>
+              </div>
+              <div>
+                <span className="text-indigo-700">% con imagen:</span>
+                <span className="font-semibold text-indigo-900 ml-1">
+                  {systemInfo.totalUsers > 0 
+                    ? Math.round((systemInfo.usersWithProfileImages / systemInfo.totalUsers) * 100)
+                    : 0}%
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Crear Backup */}
@@ -297,7 +337,7 @@ const BackupManagement: React.FC = () => {
           <Download className="h-6 w-6 text-green-600 mr-3" />
           <div>
             <h3 className="text-xl font-semibold text-gray-900">Crear Backup</h3>
-            <p className="text-gray-600">Genera un backup completo del sistema incluyendo base de datos y archivos</p>
+            <p className="text-gray-600">Genera un backup completo del sistema incluyendo base de datos, archivos e imágenes de perfil</p>
           </div>
         </div>
 
@@ -333,7 +373,7 @@ const BackupManagement: React.FC = () => {
           <Upload className="h-6 w-6 text-orange-600 mr-3" />
           <div>
             <h3 className="text-xl font-semibold text-gray-900">Restaurar Backup</h3>
-            <p className="text-gray-600">Sube un archivo de backup para restaurar el sistema completo</p>
+            <p className="text-gray-600">Sube un archivo de backup para restaurar el sistema completo incluyendo perfiles e imágenes</p>
           </div>
         </div>
 
