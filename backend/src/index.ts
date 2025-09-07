@@ -18,6 +18,7 @@ import dashboardRoutes from './routes/dashboard';
 import adminRoutes from './routes/admin';
 import newsRoutes from './routes/news';
 import backupRoutes from './routes/backup';
+import profileRoutes from './routes/profile';
 import { swaggerUi, specs } from './config/swagger';
 import { prisma } from './utils/prisma';
 import DatabaseInitializationService from './services/databaseInitialization';
@@ -174,8 +175,11 @@ app.use((req, res, next) => {
 // Los archivos de audio ahora solo se sirven a través de endpoints autenticados
 // app.use('/uploads', express.static(path.join(__dirname, '../../uploads')));
 
-// Servir imágenes de playlists (solo imágenes, no archivos de audio)
+// Servir imágenes de playlists y perfiles (solo imágenes, no archivos de audio)
 app.use('/uploads/images', express.static(path.join(__dirname, '../uploads/images')));
+
+// Endpoint específico para servir imágenes de perfil con autenticación
+app.use('/api/uploads/images/profiles', express.static(path.join(__dirname, '../uploads/images/profiles')));
 
 // Servir archivos de letras (PDF, DOC, DOCX, TXT)
 app.use('/uploads/lyrics', express.static(path.join(__dirname, '../uploads/lyrics')));
@@ -216,6 +220,7 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/news', newsRoutes);
 app.use('/api/admin', backupRoutes);
+app.use('/api/profile', profileRoutes);
 
 // Ruta de salud
 app.get('/api/health', (req, res) => {

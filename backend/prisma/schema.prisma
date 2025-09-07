@@ -14,6 +14,7 @@ model User {
   password              String
   firstName             String
   lastName              String
+  profileImage          String?            // Nueva columna para imagen de perfil
   isActive              Boolean            @default(true)
   createdAt             DateTime           @default(now())
   updatedAt             DateTime           @updatedAt

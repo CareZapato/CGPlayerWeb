@@ -1,66 +1,34 @@
-import React, { useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import React, { useState, useEffect } from 'react';
 import { useAuthStore } from '../store/authStore';
 import api from '../services/api';
 
-interface VoiceType {
-  voiceType: string;
-  assignedBy: string;
-  assignedAt: string;
+interface UserProfile {
+  id: string;
+  username: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string | null;
+  profileImage: string | null;
+  profileImageUrl: string | null;
+  createdAt: string;
 }
 
-const ProfilePage: React.FC = () => {
-  const { updateUser } = useAuthStore();
-  const queryClient = useQueryClient();
-  
-  // Función para formatear nombres de tipos de voz
-  const formatVoiceType = (voiceType: string) => {
-    const voiceMap: { [key: string]: string } = {
-      'SOPRANO': 'Soprano',
-      'CONTRALTO': 'Contralto',
-      'MESOSOPRANO': 'Mezzosoprano',
-      'TENOR': 'Tenor',
-      'BARITONO': 'Barítono',
-      'BAJO': 'Bajo',
-      'CORO': 'Coro',
-      'ORIGINAL': 'Original'
-    };
-    return voiceMap[voiceType] || voiceType;
-  };
-
-  // Usar useQuery para cargar el perfil
-  const { data: profile, isLoading: loading } = useQuery({
-    queryKey: ['profile'],
-    queryFn: async () => {
-      const response = await api.get('/profile/me');
-      console.log('🔍 [PROFILE] Datos del perfil recibidos:', response.data);
-      console.log('🖼️ [PROFILE] URL de imagen:', response.data.profileImageUrl);
-      return response.data;
-    }
-  });
-
-  // Log adicional cuando el perfil cambia
-  React.useEffect(() => {
-    if (profile) {
-      console.log('📸 [PROFILE] Perfil cargado:', {
-        profileImage: profile.profileImage,
-        profileImageUrl: profile.profileImageUrl,
-        fullProfile: profile
-      });
-    }
-  }, [profile]);
-
+const Profile: React.FC = () => {
+  const { user } = useAuthStore();
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
   // Estados para edición
   const [editMode, setEditMode] = useState(false);
   const [editData, setEditData] = useState({
-    firstName: profile?.firstName || '',
-    lastName: profile?.lastName || '',
-    email: profile?.email || '',
-    username: profile?.username || '',
-    phone: profile?.phone || ''
+    firstName: '',
+    lastName: '',
+    email: '',
+    username: '',
+    phone: ''
   });
 
   // Estados para cambio de contraseña
@@ -74,61 +42,47 @@ const ProfilePage: React.FC = () => {
   // Estados para imagen
   const [imageUploading, setImageUploading] = useState(false);
 
-  // Inicializar editData cuando el perfil se carga
-  React.useEffect(() => {
-    if (profile) {
+  useEffect(() => {
+    loadProfile();
+  }, []);
+
+  const loadProfile = async () => {
+    try {
+      const response = await api.get('/profile/me');
+      setProfile(response.data);
       setEditData({
-        firstName: profile.firstName,
-        lastName: profile.lastName,
-        email: profile.email,
-        username: profile.username,
-        phone: profile.phone || ''
+        firstName: response.data.firstName,
+        lastName: response.data.lastName,
+        email: response.data.email,
+        username: response.data.username,
+        phone: response.data.phone || ''
       });
+    } catch (error: any) {
+      setError(error.response?.data?.error || 'Error al cargar el perfil');
+    } finally {
+      setLoading(false);
     }
-  }, [profile]);
+  };
 
   const handleEditSave = async () => {
     try {
       const response = await api.put('/profile/me', editData);
-      
-      // Invalidar cache del perfil para refrescar los datos
-      await queryClient.invalidateQueries({ queryKey: ['profile'] });
-      
-      // Actualizar el authStore con la información básica del usuario
-      if (response.data && profile) {
-        const currentUser = useAuthStore.getState().user;
-        if (currentUser) {
-          updateUser({
-            ...currentUser,
-            firstName: response.data.firstName,
-            lastName: response.data.lastName,
-            email: response.data.email,
-            username: response.data.username
-          });
-        }
-      }
-      
+      setProfile(response.data);
       setEditMode(false);
       setSuccess('Perfil actualizado exitosamente');
-      
-      // Limpiar mensaje después de unos segundos
-      setTimeout(() => setSuccess(null), 5000);
     } catch (error: any) {
       setError(error.response?.data?.error || 'Error al actualizar el perfil');
-      setTimeout(() => setError(null), 5000);
     }
   };
 
   const handlePasswordChange = async () => {
     if (passwordData.newPassword !== passwordData.confirmPassword) {
       setError('Las contraseñas no coinciden');
-      setTimeout(() => setError(null), 5000);
       return;
     }
 
     if (passwordData.newPassword.length < 6) {
       setError('La contraseña debe tener al menos 6 caracteres');
-      setTimeout(() => setError(null), 5000);
       return;
     }
 
@@ -140,10 +94,8 @@ const ProfilePage: React.FC = () => {
       setPasswordDialog(false);
       setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
       setSuccess('Contraseña cambiada exitosamente');
-      setTimeout(() => setSuccess(null), 5000);
     } catch (error: any) {
       setError(error.response?.data?.error || 'Error al cambiar la contraseña');
-      setTimeout(() => setError(null), 5000);
     }
   };
 
@@ -153,13 +105,11 @@ const ProfilePage: React.FC = () => {
 
     if (!file.type.startsWith('image/')) {
       setError('Solo se permiten archivos de imagen');
-      setTimeout(() => setError(null), 5000);
       return;
     }
 
     if (file.size > 5 * 1024 * 1024) {
       setError('El archivo no debe superar los 5MB');
-      setTimeout(() => setError(null), 5000);
       return;
     }
 
@@ -168,37 +118,25 @@ const ProfilePage: React.FC = () => {
 
     setImageUploading(true);
     try {
-      await api.post('/profile/me/image', formData, {
+      const response = await api.post('/profile/me/image', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
-      
-      // Invalidar cache del perfil para refrescar los datos
-      await queryClient.invalidateQueries({ queryKey: ['profile'] });
-      
+      setProfile(prev => prev ? { ...prev, ...response.data } : null);
       setSuccess('Imagen de perfil actualizada');
-      setTimeout(() => setSuccess(null), 5000);
     } catch (error: any) {
       setError(error.response?.data?.error || 'Error al subir la imagen');
-      setTimeout(() => setError(null), 5000);
     } finally {
       setImageUploading(false);
-      // Reset input
-      event.target.value = '';
     }
   };
 
   const handleImageDelete = async () => {
     try {
       await api.delete('/profile/me/image');
-      
-      // Invalidar cache del perfil para refrescar los datos
-      await queryClient.invalidateQueries({ queryKey: ['profile'] });
-      
+      setProfile(prev => prev ? { ...prev, profileImage: null, profileImageUrl: null } : null);
       setSuccess('Imagen de perfil eliminada');
-      setTimeout(() => setSuccess(null), 5000);
     } catch (error: any) {
       setError(error.response?.data?.error || 'Error al eliminar la imagen');
-      setTimeout(() => setError(null), 5000);
     }
   };
 
@@ -337,42 +275,20 @@ const ProfilePage: React.FC = () => {
                       className="mx-auto h-32 w-32 rounded-full object-cover"
                       src={profile.profileImageUrl}
                       alt={`${profile.firstName} ${profile.lastName}`}
-                      onError={(e) => {
-                        console.error('❌ [PROFILE] Error cargando imagen:', profile.profileImageUrl);
-                        e.currentTarget.style.display = 'none';
-                        e.currentTarget.nextElementSibling?.classList.remove('hidden');
-                      }}
                     />
-                  ) : null}
-                  <div className={`mx-auto h-32 w-32 rounded-full bg-gray-300 flex items-center justify-center ${profile.profileImageUrl ? 'hidden' : ''}`}>
-                    <span className="text-2xl font-medium text-gray-700">
-                      {profile.firstName[0]}{profile.lastName[0]}
-                    </span>
-                  </div>
+                  ) : (
+                    <div className="mx-auto h-32 w-32 rounded-full bg-gray-300 flex items-center justify-center">
+                      <span className="text-2xl font-medium text-gray-700">
+                        {profile.firstName[0]}{profile.lastName[0]}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 <h3 className="text-lg font-medium text-gray-900">
                   {profile.firstName} {profile.lastName}
                 </h3>
                 <p className="text-sm text-gray-500">@{profile.username}</p>
-
-                {/* Tipos de Voz */}
-                {profile.voiceTypes && profile.voiceTypes.length > 0 && (
-                  <div className="mt-3 space-y-2">
-                    <h4 className="text-sm font-medium text-gray-900">Tipos de Voz</h4>
-                    <div className="flex flex-wrap gap-2">
-                      {profile.voiceTypes.map((voice: VoiceType, index: number) => (
-                        <span
-                          key={index}
-                          className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
-                          title={`Asignado por: ${voice.assignedBy}`}
-                        >
-                          {formatVoiceType(voice.voiceType)}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
 
                 <div className="mt-4 space-y-2">
                   <label className="cursor-pointer">
@@ -541,4 +457,4 @@ const ProfilePage: React.FC = () => {
   );
 };
 
-export default ProfilePage;
+export default Profile;

@@ -9,7 +9,7 @@ export const SECTION_PERMISSIONS = {
   SONGS: ['ADMIN', 'CANTANTE', 'DIRECTOR'] as const, // Vista de canciones en cuadros
   PLAYLISTS: ['ADMIN', 'CANTANTE', 'DIRECTOR'] as const,
   EVENTS: ['ADMIN', 'CANTANTE', 'DIRECTOR'] as const, // Cantantes pueden ver eventos
-  PROFILE: ['ADMIN', 'CANTANTE', 'DIRECTOR'] as const,
+  // PROFILE removido - ahora se accede via ícono de usuario
   
   // Secciones para administradores
   MANAGEMENT: ['ADMIN'] as const, // Panel de gestión
@@ -150,14 +150,8 @@ export const usePermissions = () => {
             requiredPermission: 'BACKUP'
           }
         ]
-      },
-      {
-        key: 'PROFILE',
-        label: 'Perfil',
-        icon: 'User',
-        path: '/profile',
-        type: 'single'
       }
+      // ⚠️  PERFIL REMOVIDO - Ahora se accede clickeando el nombre/ícono de usuario
     ];
 
     return menuItems.filter(item => {

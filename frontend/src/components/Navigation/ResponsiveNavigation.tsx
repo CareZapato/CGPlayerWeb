@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import { usePermissions } from '../../utils/permissions';
+import { useQuery } from '@tanstack/react-query';
+import api from '../../services/api';
 import './ResponsiveNavigation.css';
 import LogoCGP from '../../images/LogoCGP.png';
 import { 
@@ -41,6 +43,19 @@ const ResponsiveNavigation: React.FC = () => {
   const location = useLocation();
   const { user, logout } = useAuthStore();
   const { getMenuItems } = usePermissions();
+
+  // Obtener perfil del usuario para la imagen
+  const { data: profile } = useQuery({
+    queryKey: ['profile'],
+    queryFn: async () => {
+      const response = await api.get('/profile/me');
+      console.log('🧭 [NAV] Datos de perfil para navegación:', response.data);
+      console.log('🖼️ [NAV] URL de imagen en navegación:', response.data.profileImageUrl);
+      return response.data;
+    },
+    enabled: !!user,
+    staleTime: 5 * 60 * 1000 // 5 minutos
+  });
 
   console.log('🧭 [NAV] Componente renderizado, usuario:', user?.firstName, user?.roles);
   const menuItems = getMenuItems(user);
@@ -219,9 +234,26 @@ const ResponsiveNavigation: React.FC = () => {
                 </svg>
               </Link>
               
-              <span className="text-sm text-gray-700">
-                Hola, {user?.firstName}
-              </span>
+              <Link
+                to="/profile"
+                className="flex items-center space-x-2 px-3 py-2 rounded-md hover:bg-gray-50 transition-colors"
+                title={`Ver perfil de ${user?.firstName} ${user?.lastName}`}
+              >
+                {profile?.profileImageUrl ? (
+                  <img
+                    src={profile.profileImageUrl}
+                    alt={`${user?.firstName}`}
+                    className="w-8 h-8 rounded-full object-cover border border-gray-200"
+                  />
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+                    <UserIcon className="w-4 h-4 text-blue-600" />
+                  </div>
+                )}
+                <span className="text-sm font-medium text-gray-700 hover:text-blue-600">
+                  {user?.firstName}
+                </span>
+              </Link>
               <button
                 onClick={handleLogout}
                 className="inline-flex items-center px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-red-600 hover:bg-gray-50"
@@ -282,19 +314,32 @@ const ResponsiveNavigation: React.FC = () => {
             </div>
 
             {/* User Info */}
-            <div className="p-4 border-b border-gray-200 bg-gray-50">
+            <Link
+              to="/profile"
+              onClick={closeMobileMenu}
+              className="block p-4 border-b border-gray-200 bg-gray-50 hover:bg-gray-100 transition-colors"
+            >
               <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
-                  <UserIcon className="w-5 h-5 text-blue-600" />
-                </div>
+                {profile?.profileImageUrl ? (
+                  <img
+                    src={profile.profileImageUrl}
+                    alt={`${user?.firstName}`}
+                    className="w-10 h-10 rounded-full object-cover border border-gray-200"
+                  />
+                ) : (
+                  <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                    <UserIcon className="w-5 h-5 text-blue-600" />
+                  </div>
+                )}
                 <div>
                   <p className="text-sm font-medium text-gray-900">{user?.firstName} {user?.lastName}</p>
                   <p className="text-xs text-gray-500 capitalize">
                     {user?.roles?.map(r => r.role).join(', ').toLowerCase() || 'Sin rol'}
                   </p>
+                  <p className="text-xs text-blue-600 mt-1">Ver perfil →</p>
                 </div>
               </div>
-            </div>
+            </Link>
 
             {/* Menu Items */}
             <div className="flex-1 overflow-y-auto">
