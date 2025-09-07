@@ -62,6 +62,10 @@ interface Event {
     status: 'PENDING' | 'APPROVED' | 'REJECTED';
   };
   isUserAttendee?: boolean;
+  userAttendanceStatus?: {
+    attendanceConfirmed: boolean | null;
+    nonAttendanceComment?: string;
+  };
 }
 
 interface EventSong {
@@ -487,8 +491,31 @@ const PublicEventsPage: React.FC = () => {
       
       if (data.success) {
         console.log(`✅ Asistencia ${confirmed ? 'confirmada' : 'denegada'} correctamente`);
-        // Aquí podrías actualizar el estado local si es necesario
-        // Por ahora, mostrar un mensaje de éxito
+        
+        // Actualizar el estado local para reflejar el cambio
+        const attendanceStatus = {
+          attendanceConfirmed: confirmed,
+          nonAttendanceComment: comment
+        };
+        
+        setEvents(prevEvents => 
+          prevEvents.map(event => 
+            event.id === eventId 
+              ? {
+                  ...event,
+                  userAttendanceStatus: attendanceStatus
+                }
+              : event
+          )
+        );
+        
+        // Actualizar selectedEvent si está abierto
+        if (selectedEvent && selectedEvent.id === eventId) {
+          setSelectedEvent(prev => prev ? {
+            ...prev,
+            userAttendanceStatus: attendanceStatus
+          } : null);
+        }
       }
     } catch (error) {
       console.error('Error confirming attendance:', error);
@@ -1057,19 +1084,60 @@ const PublicEventsPage: React.FC = () => {
                         {/* Confirmación de asistencia */}
                         <div className="p-4 bg-gray-50 rounded-xl border border-gray-200">
                           <h3 className="text-lg font-semibold text-gray-900 mb-3">Confirmación de Asistencia</h3>
+                          
+                          {/* Estado actual de asistencia */}
+                          {selectedEvent.userAttendanceStatus?.attendanceConfirmed !== null && (
+                            <div className="mb-4 p-3 rounded-lg border">
+                              {selectedEvent.userAttendanceStatus?.attendanceConfirmed === true ? (
+                                <div className="flex items-center text-green-700 bg-green-50 border-green-200">
+                                  <CheckCircle className="h-5 w-5 mr-2" />
+                                  <span className="font-medium">Has confirmado tu asistencia</span>
+                                </div>
+                              ) : (
+                                <div className="text-red-700 bg-red-50 border-red-200">
+                                  <div className="flex items-center mb-2">
+                                    <X className="h-5 w-5 mr-2" />
+                                    <span className="font-medium">Has indicado que no podrás asistir</span>
+                                  </div>
+                                  {selectedEvent.userAttendanceStatus?.nonAttendanceComment && (
+                                    <div className="text-sm text-red-600 ml-7">
+                                      <strong>Comentario:</strong> {selectedEvent.userAttendanceStatus.nonAttendanceComment}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          
                           <div className="space-y-3">
+                            <p className="text-sm text-gray-600 mb-3">
+                              {selectedEvent.userAttendanceStatus?.attendanceConfirmed !== null 
+                                ? "Puedes cambiar tu respuesta cuando quieras:"
+                                : "Por favor, confirma si podrás asistir al evento:"
+                              }
+                            </p>
                             <div className="flex space-x-3">
                               <button
                                 onClick={() => handleAttendanceConfirmation(selectedEvent.id, true)}
-                                className="flex-1 bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors"
+                                disabled={joinRequestLoading}
+                                className={`flex-1 py-2 px-4 rounded-lg transition-colors disabled:opacity-50 ${
+                                  selectedEvent.userAttendanceStatus?.attendanceConfirmed === true
+                                    ? 'bg-green-700 text-white' 
+                                    : 'bg-green-600 text-white hover:bg-green-700'
+                                }`}
                               >
-                                Confirmar Asistencia
+                                {joinRequestLoading ? 'Confirmando...' : 'Confirmar Asistencia'}
                               </button>
                               <button
                                 onClick={() => setShowNonAttendanceModal(true)}
-                                className="flex-1 bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700 transition-colors"
+                                disabled={joinRequestLoading}
+                                className={`flex-1 py-2 px-4 rounded-lg transition-colors disabled:opacity-50 ${
+                                  selectedEvent.userAttendanceStatus?.attendanceConfirmed === false
+                                    ? 'bg-red-700 text-white' 
+                                    : 'bg-red-600 text-white hover:bg-red-700'
+                                }`}
                               >
-                                No Podré Asistir
+                                {joinRequestLoading ? 'Actualizando...' : 'No Podré Asistir'}
                               </button>
                             </div>
                           </div>

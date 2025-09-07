@@ -246,6 +246,13 @@ router.post('/login', [
         isActive: true
       },
       include: {
+        roles: {
+          select: {
+            id: true,
+            role: true,
+            createdAt: true
+          }
+        },
         voiceProfiles: {
           include: {
             assignedByUser: {
@@ -269,11 +276,8 @@ router.post('/login', [
       return res.status(400).json({ message: 'Invalid credentials' });
     }
 
-    // Obtener roles del usuario usando query raw
-    const userRoleRows = await prisma.$queryRaw`
-      SELECT role FROM user_roles WHERE "userId" = ${user.id}
-    `;
-    const userRoles = (userRoleRows as any[]).map(r => r.role);
+    // Extraer roles del usuario
+    const userRoles = user.roles.map(r => r.role);
 
     // Generar token JWT
     const token = jwt.sign(
@@ -285,18 +289,29 @@ router.post('/login', [
     // Respuesta sin contraseña  
     const { password: _, ...userWithoutPassword } = user;
 
-    // Mapear roles al formato esperado por el frontend
-    const formattedRoles = userRoles.map((role: string) => ({
-      id: `${user.id}_${role}`, // ID temporal para el frontend
+    // Formatear roles para el frontend
+    const formattedRoles = user.roles.map((roleEntry) => ({
+      id: roleEntry.id,
       userId: user.id,
-      role: role,
+      role: roleEntry.role,
       isActive: true,
-      assignedAt: new Date().toISOString()
+      assignedAt: roleEntry.createdAt.toISOString()
     }));
+
+    console.log('🔐 [LOGIN] Usuario autenticado:', {
+      id: user.id,
+      firstName: user.firstName,
+      roles: userRoles,
+      formattedRoles
+    });
 
     res.json({
       message: 'Login successful',
-      user: { ...userWithoutPassword, roles: formattedRoles, voiceProfiles: user.voiceProfiles },
+      user: { 
+        ...userWithoutPassword, 
+        roles: formattedRoles, 
+        voiceProfiles: user.voiceProfiles 
+      },
       token
     });
 

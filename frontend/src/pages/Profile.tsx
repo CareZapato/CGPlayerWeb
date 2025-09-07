@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useAuthStore } from '../store/authStore';
 import api from '../services/api';
 
 interface UserProfile {
@@ -15,7 +14,6 @@ interface UserProfile {
 }
 
 const Profile: React.FC = () => {
-  const { user } = useAuthStore();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

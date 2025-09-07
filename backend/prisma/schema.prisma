@@ -250,7 +250,7 @@ model EventAttendee {
   id                    String              @id @default(cuid())
   eventId               String
   userId                String
-  status                EventAttendeeStatus @default(CONFIRMED)
+  status                EventAttendeeStatus @default(PENDING)
   addedBy               String
   notes                 String?
   isExternal            Boolean             @default(false) // Indica si el asistente fue agregado por solicitud externa
@@ -327,6 +327,7 @@ model Soloist {
 }
 
 enum EventAttendeeStatus {
+  PENDING
   CONFIRMED
   CANCELLED
   NO_SHOW

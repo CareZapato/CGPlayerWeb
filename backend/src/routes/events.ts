@@ -299,10 +299,17 @@ router.get('/visible', authenticateToken, async (req, res) => {
     // Enriquecer cada evento con información específica del usuario
     const eventsWithUserInfo = events.map(event => {
       // Verificar si el usuario es asistente
-      const isUserAttendee = event.attendees.some(attendee => attendee.userId === userId);
+      const userAttendee = event.attendees.find(attendee => attendee.userId === userId);
+      const isUserAttendee = !!userAttendee;
       
       // Buscar solicitud del usuario para este evento
       const userJoinRequest = event.joinRequests.find(request => request.userId === userId);
+      
+      // Información de confirmación de asistencia
+      const userAttendanceStatus = userAttendee ? {
+        attendanceConfirmed: (userAttendee as any).attendanceConfirmed,
+        nonAttendanceComment: (userAttendee as any).nonAttendanceComment
+      } : null;
       
       return {
         ...event,
@@ -314,7 +321,8 @@ router.get('/visible', authenticateToken, async (req, res) => {
           response: userJoinRequest.response,
           createdAt: userJoinRequest.createdAt,
           updatedAt: userJoinRequest.updatedAt
-        } : null
+        } : null,
+        userAttendanceStatus
       };
     });
 
@@ -1938,7 +1946,7 @@ router.put('/:id/join-requests/:requestId', authenticateToken, requireRole(['ADM
             status: 'CONFIRMED',
             isExternal: true, // 🆕 Marcar como asistente externo
             notes: `🔗 EXTERNO: Agregado por solicitud externa. Aprobado por: ${user?.firstName} ${user?.lastName || ''}`
-          }
+          } as any
         });
         console.log(`✅ User ${joinRequest.userId} added as external attendee to event ${id}`);
       } catch (attendeeError: any) {
@@ -2223,9 +2231,9 @@ router.put('/:id/attendance-confirmation', authenticateToken, async (req, res) =
         }
       },
       data: {
-        attendanceConfirmed,
+        attendanceConfirmed: attendanceConfirmed,
         nonAttendanceComment: attendanceConfirmed === false ? nonAttendanceComment : null
-      }
+      } as any
     });
 
     res.status(200).json({

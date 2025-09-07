@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test - Gestión de Solicitudes Mejorada</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <style>
+        .fade-in {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .status-indicator {
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .status-indicator::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+            transition: left 0.5s;
+        }
+        
+        .status-indicator.updated::after {
+            left: 100%;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div class="container mx-auto px-4 py-8">
+        <div class="max-w-4xl mx-auto">
+            <h1 class="text-3xl font-bold text-gray-800 mb-8">
+                Test - Gestión de Solicitudes de Eventos Mejorada
+            </h1>
+            
+            <div class="bg-white rounded-lg shadow-lg overflow-hidden mb-8">
+                <div class="p-6 border-b border-gray-200">
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4">Funcionalidades Implementadas</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center">
+                                <i data-lucide="check" class="w-4 h-4 text-green-600"></i>
+                            </div>
+                            <span class="text-sm text-gray-700">Eliminada pestaña "Agregar cantantes" duplicada</span>
+                        </div>
+                        <div class="flex items-center space-x-3">
+                            <div class="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center">
+                                <i data-lucide="check" class="w-4 h-4 text-green-600"></i>
+                            </div>
+                            <span class="text-sm text-gray-700">Pestañas separadas para solicitudes pendientes y procesadas</span>
+                        </div>
+                        <div class="flex items-center space-x-3">
+                            <div class="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center">
+                                <i data-lucide="check" class="w-4 h-4 text-green-600"></i>
+                            </div>
+                            <span class="text-sm text-gray-700">Visual persistence de decisiones de admin</span>
+                        </div>
+                        <div class="flex items-center space-x-3">
+                            <div class="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center">
+                                <i data-lucide="check" class="w-4 h-4 text-green-600"></i>
+                            </div>
+                            <span class="text-sm text-gray-700">Opción de reactivar solicitudes rechazadas</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Simulación de la interfaz mejorada -->
+            <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+                <div class="p-6">
+                    <!-- Header con tabs de solicitudes -->
+                    <div class="flex items-center justify-between mb-6">
+                        <h4 class="text-lg font-medium text-gray-900">
+                            Solicitudes de Unión
+                        </h4>
+                        <div class="flex space-x-1 bg-gray-100 rounded-lg p-1">
+                            <button id="pendingTab" 
+                                class="px-3 py-1 rounded-md text-sm font-medium transition-colors bg-white text-indigo-700 shadow-sm">
+                                Pendientes (<span id="pendingCount">2</span>)
+                            </button>
+                            <button id="processedTab" 
+                                class="px-3 py-1 rounded-md text-sm font-medium transition-colors text-gray-500 hover:text-gray-700">
+                                Procesadas (<span id="processedCount">3</span>)
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Container de solicitudes -->
+                    <div id="requestsContainer" class="space-y-4">
+                        <!-- Las solicitudes se cargarán aquí dinámicamente -->
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Test controls -->
+            <div class="mt-8 bg-blue-50 rounded-lg p-6">
+                <h3 class="text-lg font-semibold text-blue-800 mb-4">Controles de Prueba</h3>
+                <div class="flex flex-wrap gap-3">
+                    <button id="testAcceptBtn" class="px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700">
+                        Simular Aceptar Solicitud
+                    </button>
+                    <button id="testRejectBtn" class="px-4 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700">
+                        Simular Rechazar Solicitud  
+                    </button>
+                    <button id="testReactivateBtn" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700">
+                        Simular Reactivar Solicitud
+                    </button>
+                    <button id="switchTabBtn" class="px-4 py-2 bg-gray-600 text-white rounded-lg text-sm hover:bg-gray-700">
+                        Cambiar a Procesadas
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize lucide icons
+        lucide.createIcons();
+        
+        // Datos de prueba
+        const mockRequests = {
+            pending: [
+                {
+                    id: '1',
+                    user: { firstName: 'María', lastName: 'García', assignedRoles: [{role: 'SOPRANO'}] },
+                    message: 'Me encantaría participar en este evento. Tengo experiencia en coros.',
+                    status: 'PENDING',
+                    createdAt: '2024-01-15T10:30:00Z'
+                },
+                {
+                    id: '2', 
+                    user: { firstName: 'Carlos', lastName: 'López', assignedRoles: [{role: 'TENOR'}] },
+                    message: 'Estoy muy interesado en unirme al evento.',
+                    status: 'PENDING',
+                    createdAt: '2024-01-16T14:20:00Z'
+                }
+            ],
+            processed: [
+                {
+                    id: '3',
+                    user: { firstName: 'Ana', lastName: 'Martínez', assignedRoles: [{role: 'ALTO'}] },
+                    message: 'Por favor consideren mi solicitud.',
+                    status: 'APPROVED',
+                    createdAt: '2024-01-10T09:15:00Z'
+                },
+                {
+                    id: '4',
+                    user: { firstName: 'Pedro', lastName: 'Rodríguez', assignedRoles: [{role: 'BASS'}] },
+                    message: 'Quiero participar en este evento.',
+                    status: 'REJECTED',
+                    createdAt: '2024-01-12T16:45:00Z'
+                },
+                {
+                    id: '5',
+                    user: { firstName: 'Laura', lastName: 'Sánchez', assignedRoles: [{role: 'SOPRANO'}] },
+                    message: null,
+                    status: 'APPROVED', 
+                    createdAt: '2024-01-14T11:30:00Z'
+                }
+            ]
+        };
+        
+        let currentView = 'pending';
+        
+        function formatDate(dateString) {
+            return new Date(dateString).toLocaleDateString('es-ES');
+        }
+        
+        function renderRequest(request) {
+            const statusColors = {
+                PENDING: { bg: 'bg-white', border: 'border-gray-200', userIcon: 'text-blue-600', userBg: 'bg-blue-100', messageBg: 'bg-gray-50' },
+                APPROVED: { bg: 'bg-green-50', border: 'border-green-200', userIcon: 'text-green-600', userBg: 'bg-green-100', messageBg: 'bg-green-100' },
+                REJECTED: { bg: 'bg-red-50', border: 'border-red-200', userIcon: 'text-red-600', userBg: 'bg-red-100', messageBg: 'bg-red-100' }
+            };
+            
+            const colors = statusColors[request.status];
+            
+            return `
+                <div class="border rounded-lg p-4 transition-all fade-in status-indicator ${colors.border} ${colors.bg}" data-request-id="${request.id}">
+                    <div class="flex items-start justify-between">
+                        <div class="flex-1">
+                            <div class="flex items-center space-x-3 mb-2">
+                                <div class="p-2 rounded-lg ${colors.userBg}">
+                                    <i data-lucide="user" class="h-5 w-5 ${colors.userIcon}"></i>
+                                </div>
+                                <div>
+                                    <p class="font-medium text-gray-900">
+                                        ${request.user.firstName} ${request.user.lastName}
+                                    </p>
+                                    <p class="text-sm text-gray-600">
+                                        ${request.user.assignedRoles.map(r => r.role).join(', ')}
+                                    </p>
+                                </div>
+                            </div>
+                            
+                            ${request.message ? `
+                                <div class="ml-11 mb-3">
+                                    <div class="rounded-lg p-3 ${colors.messageBg}">
+                                        <div class="flex items-start space-x-2">
+                                            <i data-lucide="message-square" class="h-4 w-4 text-gray-400 mt-0.5"></i>
+                                            <p class="text-sm text-gray-700">${request.message}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            ` : ''}
+                            
+                            <div class="ml-11 text-xs text-gray-500">
+                                Solicitud enviada el ${formatDate(request.createdAt)}
+                                ${request.status !== 'PENDING' ? `
+                                    <span class="ml-2">• ${request.status === 'APPROVED' ? 'Aceptada' : 'Rechazada'}</span>
+                                ` : ''}
+                            </div>
+                        </div>
+                        
+                        <div class="ml-4 flex flex-col space-y-2">
+                            ${request.status === 'PENDING' ? `
+                                <button class="accept-btn inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded-full text-white bg-green-600 hover:bg-green-700" 
+                                        data-request-id="${request.id}">
+                                    <i data-lucide="check-circle" class="h-3 w-3 mr-1"></i>
+                                    Aceptar
+                                </button>
+                                <button class="reject-btn inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded-full text-white bg-red-600 hover:bg-red-700"
+                                        data-request-id="${request.id}">
+                                    <i data-lucide="x-circle" class="h-3 w-3 mr-1"></i>
+                                    Rechazar
+                                </button>
+                            ` : `
+                                <div class="flex flex-col space-y-2">
+                                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                        request.status === 'APPROVED' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                                    }">
+                                        <i data-lucide="${request.status === 'APPROVED' ? 'check-circle' : 'x-circle'}" class="h-3 w-3 mr-1"></i>
+                                        ${request.status === 'APPROVED' ? 'Aceptada' : 'Rechazada'}
+                                    </span>
+                                    ${request.status === 'REJECTED' ? `
+                                        <button class="reactivate-btn inline-flex items-center px-2 py-1 border border-green-300 text-xs font-medium rounded text-green-700 bg-white hover:bg-green-50"
+                                                data-request-id="${request.id}">
+                                            Reactivar
+                                        </button>
+                                    ` : ''}
+                                </div>
+                            `}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function renderRequests(view) {
+            const container = document.getElementById('requestsContainer');
+            const requests = mockRequests[view];
+            
+            if (requests.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-12 text-gray-500">
+                        <i data-lucide="mail" class="h-12 w-12 mx-auto mb-4 text-gray-300"></i>
+                        <p>${view === 'pending' ? 'No hay solicitudes pendientes' : 'No hay solicitudes procesadas'}</p>
+                    </div>
+                `;
+            } else {
+                container.innerHTML = requests.map(renderRequest).join('');
+            }
+            
+            // Re-initialize icons
+            lucide.createIcons();
+            
+            // Add event listeners
+            addEventListeners();
+        }
+        
+        function addEventListeners() {
+            document.querySelectorAll('.accept-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const requestId = e.target.closest('button').dataset.requestId;
+                    simulateAccept(requestId);
+                });
+            });
+            
+            document.querySelectorAll('.reject-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const requestId = e.target.closest('button').dataset.requestId;
+                    simulateReject(requestId);
+                });
+            });
+            
+            document.querySelectorAll('.reactivate-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const requestId = e.target.closest('button').dataset.requestId;
+                    simulateReactivate(requestId);
+                });
+            });
+        }
+        
+        function simulateAccept(requestId) {
+            // Find and move request
+            const requestIndex = mockRequests.pending.findIndex(r => r.id === requestId);
+            if (requestIndex !== -1) {
+                const request = mockRequests.pending.splice(requestIndex, 1)[0];
+                request.status = 'APPROVED';
+                mockRequests.processed.unshift(request);
+                updateCounts();
+                
+                // Add visual feedback
+                const requestElement = document.querySelector(`[data-request-id="${requestId}"]`);
+                if (requestElement) {
+                    requestElement.classList.add('updated');
+                    setTimeout(() => {
+                        renderRequests(currentView);
+                    }, 500);
+                }
+            }
+        }
+        
+        function simulateReject(requestId) {
+            const requestIndex = mockRequests.pending.findIndex(r => r.id === requestId);
+            if (requestIndex !== -1) {
+                const request = mockRequests.pending.splice(requestIndex, 1)[0];
+                request.status = 'REJECTED';
+                mockRequests.processed.unshift(request);
+                updateCounts();
+                
+                const requestElement = document.querySelector(`[data-request-id="${requestId}"]`);
+                if (requestElement) {
+                    requestElement.classList.add('updated');
+                    setTimeout(() => {
+                        renderRequests(currentView);
+                    }, 500);
+                }
+            }
+        }
+        
+        function simulateReactivate(requestId) {
+            const requestIndex = mockRequests.processed.findIndex(r => r.id === requestId);
+            if (requestIndex !== -1) {
+                const request = mockRequests.processed.splice(requestIndex, 1)[0];
+                request.status = 'APPROVED';
+                mockRequests.processed.unshift(request);
+                updateCounts();
+                renderRequests(currentView);
+            }
+        }
+        
+        function updateCounts() {
+            document.getElementById('pendingCount').textContent = mockRequests.pending.length;
+            document.getElementById('processedCount').textContent = mockRequests.processed.length;
+        }
+        
+        function switchTab(view) {
+            currentView = view;
+            
+            // Update tab appearance
+            const pendingTab = document.getElementById('pendingTab');
+            const processedTab = document.getElementById('processedTab');
+            
+            if (view === 'pending') {
+                pendingTab.className = 'px-3 py-1 rounded-md text-sm font-medium transition-colors bg-white text-indigo-700 shadow-sm';
+                processedTab.className = 'px-3 py-1 rounded-md text-sm font-medium transition-colors text-gray-500 hover:text-gray-700';
+            } else {
+                pendingTab.className = 'px-3 py-1 rounded-md text-sm font-medium transition-colors text-gray-500 hover:text-gray-700';
+                processedTab.className = 'px-3 py-1 rounded-md text-sm font-medium transition-colors bg-white text-indigo-700 shadow-sm';
+            }
+            
+            renderRequests(view);
+        }
+        
+        // Event listeners para tabs
+        document.getElementById('pendingTab').addEventListener('click', () => switchTab('pending'));
+        document.getElementById('processedTab').addEventListener('click', () => switchTab('processed'));
+        
+        // Event listeners para controles de prueba
+        document.getElementById('testAcceptBtn').addEventListener('click', () => {
+            if (mockRequests.pending.length > 0) {
+                simulateAccept(mockRequests.pending[0].id);
+            }
+        });
+        
+        document.getElementById('testRejectBtn').addEventListener('click', () => {
+            if (mockRequests.pending.length > 0) {
+                simulateReject(mockRequests.pending[0].id);
+            }
+        });
+        
+        document.getElementById('testReactivateBtn').addEventListener('click', () => {
+            const rejectedRequest = mockRequests.processed.find(r => r.status === 'REJECTED');
+            if (rejectedRequest) {
+                simulateReactivate(rejectedRequest.id);
+            }
+        });
+        
+        document.getElementById('switchTabBtn').addEventListener('click', () => {
+            switchTab(currentView === 'pending' ? 'processed' : 'pending');
+            document.getElementById('switchTabBtn').textContent = 
+                currentView === 'pending' ? 'Cambiar a Procesadas' : 'Cambiar a Pendientes';
+        });
+        
+        // Initialize
+        updateCounts();
+        renderRequests('pending');
+    </script>
+</body>
+</html>
