@@ -67,21 +67,9 @@ const BackupManagement: React.FC = () => {
   };
 
   const loadBackupHistory = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/admin/backups`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setBackupHistory(data);
-      }
-    } catch (error) {
-      console.error('Error loading backup history:', error);
-    }
+    // Los backups ya no se almacenan en el servidor, solo se descargan
+    // Mantenemos un historial local simple o lo eliminamos
+    setBackupHistory([]);
   };
 
   const createBackup = async () => {
