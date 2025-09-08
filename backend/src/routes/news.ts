@@ -5,8 +5,8 @@ import { authenticateToken, AuthRequest } from '../middleware/auth';
 const router = express.Router();
 const prisma = new PrismaClient();
 
-// Get all active news
-router.get('/', authenticateToken, async (req: AuthRequest, res: Response) => {
+// Get all active news (public endpoint)
+router.get('/', async (req: Request, res: Response) => {
   try {
     const { limit = 20 } = req.query;
     const limitNum = parseInt(limit as string);

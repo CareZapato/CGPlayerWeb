@@ -95,27 +95,27 @@ export class DatabaseInitializationService {
       // Desconectar el cliente actual
       await this.prisma.$disconnect();
       
+      // Estrategia más robusta: usar db push directo para desarrollo
       try {
-        console.log('📋 Intentando aplicar migraciones existentes...');
-        execSync('npx prisma migrate deploy', { 
+        console.log('� Ejecutando prisma db push --force-reset...');
+        execSync('npx prisma db push --force-reset', { 
           cwd: process.cwd(),
-          stdio: 'pipe'
+          stdio: 'pipe',
+          timeout: 30000 // 30 segundos timeout
         });
-        console.log('✅ Migraciones aplicadas exitosamente');
+        console.log('✅ DB Push completado exitosamente');
         
-        // Solo regenerar cliente si no estamos en modo desarrollo
-        if (process.env.NODE_ENV !== 'development') {
-          console.log('🔄 Regenerando cliente Prisma...');
-          try {
-            execSync('npx prisma generate', { 
-              cwd: process.cwd(),
-              stdio: 'pipe',
-              timeout: 10000 // 10 segundos timeout
-            });
-            console.log('✅ Cliente Prisma regenerado');
-          } catch (generateError) {
-            console.log('⚠️ Warning: No se pudo regenerar el cliente (puede ser normal en desarrollo)');
-          }
+        // Regenerar cliente siempre después de db push
+        console.log('🔄 Regenerando cliente Prisma...');
+        try {
+          execSync('npx prisma generate', { 
+            cwd: process.cwd(),
+            stdio: 'pipe',
+            timeout: 15000
+          });
+          console.log('✅ Cliente Prisma regenerado');
+        } catch (generateError) {
+          console.log('⚠️ Warning: Error regenerando cliente, continuando...');
         }
         
         // Reconectar con el nuevo esquema
@@ -125,42 +125,54 @@ export class DatabaseInitializationService {
         
         return true;
         
-      } catch (migrateError: any) {
-        console.log('⚠️ Migrate falló, intentando db push...');
-        console.log('📋 Error de migrate:', migrateError.message);
+      } catch (pushError: any) {
+        console.log('⚠️ DB push falló, intentando con migraciones...');
+        console.log('📋 Error de db push:', pushError.message);
         
+        // Fallback: intentar limpiar y aplicar migraciones
         try {
-          console.log('🔄 Ejecutando prisma db push --force-reset...');
-          execSync('npx prisma db push --force-reset', { 
-            cwd: process.cwd(),
-            stdio: 'pipe'
-          });
-          console.log('✅ DB Push completado exitosamente');
-          
-          // Solo regenerar cliente si no estamos en modo desarrollo
-          if (process.env.NODE_ENV !== 'development') {
-            console.log('🔄 Regenerando cliente Prisma...');
-            try {
-              execSync('npx prisma generate', { 
-                cwd: process.cwd(),
-                stdio: 'pipe',
-                timeout: 10000
-              });
-              console.log('✅ Cliente Prisma regenerado');
-            } catch (generateError) {
-              console.log('⚠️ Warning: No se pudo regenerar el cliente (puede ser normal en desarrollo)');
-            }
+          console.log('🧹 Limpiando estado de migraciones...');
+          try {
+            execSync('npx prisma migrate reset --force --skip-seed', { 
+              cwd: process.cwd(),
+              stdio: 'pipe',
+              timeout: 20000
+            });
+            console.log('✅ Estado de migraciones limpiado');
+          } catch (resetError) {
+            console.log('⚠️ Reset falló, continuando...');
           }
           
-          // Reconectar con el nuevo esquema
+          console.log('📋 Aplicando migraciones...');
+          execSync('npx prisma migrate deploy', { 
+            cwd: process.cwd(),
+            stdio: 'pipe',
+            timeout: 20000
+          });
+          console.log('✅ Migraciones aplicadas exitosamente');
+          
+          // Regenerar cliente
+          console.log('🔄 Regenerando cliente Prisma...');
+          try {
+            execSync('npx prisma generate', { 
+              cwd: process.cwd(),
+              stdio: 'pipe',
+              timeout: 15000
+            });
+            console.log('✅ Cliente Prisma regenerado');
+          } catch (generateError) {
+            console.log('⚠️ Warning: No se pudo regenerar el cliente');
+          }
+          
+          // Reconectar
           this.prisma = new PrismaClient();
           await this.prisma.$connect();
           console.log('✅ Cliente Prisma reconectado');
           
           return true;
           
-        } catch (pushError: any) {
-          console.error('❌ Error en db push:', pushError.message);
+        } catch (migrateError: any) {
+          console.error('❌ Error en migraciones:', migrateError.message);
           return false;
         }
       }

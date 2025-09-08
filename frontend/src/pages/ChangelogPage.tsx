@@ -15,6 +15,55 @@ interface ChangelogEntry {
 
 const changelogData: ChangelogEntry[] = [
   {
+    version: '1.10.9',
+    date: '2024-12-22',
+    type: 'major',
+    title: 'Sistema de Distribución de Voces Mejorado - Voice Distribution Mastery',
+    highlights: [
+      'Sistema completo de voces primarias con distribución específica',
+      '100% usuarios con voz primaria + 30% con voz secundaria',
+      'Campo isPrimary para identificación de voz principal',
+      'Endpoints actualizados con información de voz primaria',
+      'Corrección completa de visualización de voces en homepage'
+    ],
+    changes: [
+      {
+        category: 'added',
+        items: [
+          'Sistema de distribución: 100% usuarios con SOPRANO/CONTRALTO/TENOR + 30% con BAJO/BARITONO/MESOSOPRANO',
+          'Campo isPrimary en UserVoiceProfile para identificar voz principal',
+          'Endpoint de estadísticas de voces para monitoreo de distribución',
+          'Ordenamiento automático que prioriza voz primaria en consultas',
+          'Dashboard con estadísticas de voces por sede',
+          'Gestión completa de perfiles de voz primarias y secundarias',
+          'Validación automática de cumplimiento de distribución de voces'
+        ]
+      },
+      {
+        category: 'improved',
+        items: [
+          'Endpoints de login y /me incluyen información isPrimary con ordenamiento',
+          'Gestión de usuarios con soporte completo para sistema de voces',
+          'Inicialización de base de datos con estrategia db push robusta',
+          'Middleware de autenticación con mejor manejo de errores',
+          'Type safety con soluciones de type casting para Prisma',
+          'Sistema de migración que maneja estados de base de datos correctamente'
+        ]
+      },
+      {
+        category: 'fixed',
+        items: [
+          'Eliminados archivos duplicados admin_new.ts vs admin.ts',
+          'Corrección completa de visualización de voz primaria en homepage',
+          'Resolución de errores TypeScript relacionados con campo isPrimary',
+          'Bugs de inicialización en migración de base de datos',
+          'Errores de middleware cuando base de datos no está disponible',
+          'Problemas de compilación por archivos admin duplicados'
+        ]
+      }
+    ]
+  },
+  {
     version: '0.9.0',
     date: '2025-09-05',
     type: 'major',
@@ -410,7 +459,7 @@ const changelogData: ChangelogEntry[] = [
 ];
 
 const ChangelogPage: React.FC = () => {
-  const [expandedVersions, setExpandedVersions] = useState<string[]>(['0.9.0']);
+  const [expandedVersions, setExpandedVersions] = useState<string[]>(['1.10.9']);
 
   const toggleVersion = (version: string) => {
     setExpandedVersions(prev => 
@@ -473,7 +522,7 @@ const ChangelogPage: React.FC = () => {
               <p><strong>Versión actual:</strong> {changelogData[0].version}</p>
               <p><strong>Última actualización:</strong> {new Date(changelogData[0].date).toLocaleDateString('es-ES')}</p>
               <p><strong>Tecnologías:</strong> React, TypeScript, Node.js, PostgreSQL, Prisma</p>
-              <p><strong>Nuevo en v0.9.0:</strong> Sistema avanzado de edición de eventos con sincronización inteligente de variaciones musicales y gestión de estado refinada</p>
+              <p><strong>Nuevo en v1.10.9:</strong> Sistema completo de distribución de voces con voces primarias, corrección de duplicados admin, y mejoras robustas en autenticación y base de datos</p>
             </div>
           </div>
           <div className="text-6xl">

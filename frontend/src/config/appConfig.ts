@@ -5,7 +5,7 @@
 
 // Obtener versión desde package.json en tiempo de build
 const packageInfo = {
-  version: process.env.REACT_APP_VERSION || '0.9.0'
+  version: process.env.REACT_APP_VERSION || '1.10.9'
 };
 
 export const APP_CONFIG = {

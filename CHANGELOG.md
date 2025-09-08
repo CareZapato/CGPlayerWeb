@@ -5,6 +5,197 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto se adhiere al [Versionado Semántico](https://semver.org/lang/es/).
 
+## [1.10.9] - 2024-12-22
+
+### 🎯 **SISTEMA DE DISTRIBUCIÓN DE VOCES MEJORADO**
+
+#### 🎵 **Sistema de Voces Primarias Completo**
+- **Distribución específica**: 100% de usuarios con voz primaria (SOPRANO/CONTRALTO/TENOR) + 30% con voz secundaria (BAJO/BARITONO/MESOSOPRANO)
+- **Campo isPrimary**: Implementación completa del campo `isPrimary` en `UserVoiceProfile` para identificar la voz principal
+- **Ordenamiento automático**: Sistema que prioriza automáticamente la voz primaria en todas las consultas y visualizaciones
+- **Validación de distribución**: Endpoint de estadísticas para monitorear el cumplimiento de los requerimientos de distribución
+
+#### 🔧 **Mejoras en Autenticación y Gestión de Usuarios**
+- **Endpoints actualizados**: Login y `/me` incluyen información de voz primaria con ordenamiento correcto
+- **Gestión de perfiles**: Soporte completo para voces primarias y secundarias en gestión de usuarios
+- **Visualización mejorada**: Corrección de visualización de voz primaria en homepage y perfil de usuario
+- **Type safety**: Solución con type casting para compatibilidad con cliente Prisma y campo `isPrimary`
+
+#### 🗄️ **Robustez en Base de Datos**
+- **Inicialización mejorada**: Estrategia de inicialización con `db push` primero y fallbacks robustos
+- **Middleware actualizado**: Mejor manejo de errores cuando la base de datos no está disponible
+- **Migración limpia**: Sistema de migración que maneja correctamente los estados de la base de datos
+- **Estadísticas de voces**: Endpoint para monitoreo y validación de cumplimiento de distribución
+
+### ✨ **Correcciones y Optimizaciones**
+- **Archivos duplicados**: Eliminación de `admin_new.ts`, manteniendo solo `admin.ts` correcto con funcionalidad completa
+- **Errores TypeScript**: Resolución completa de errores de compilación relacionados con `isPrimary`
+- **Bug de visualización**: Corrección de visualización de voz primaria en homepage y componentes de usuario
+- **Inicialización**: Corrección de bugs en inicialización de base de datos y middleware de autenticación
+
+## [1.10.8] - 2024-12-22
+
+### 🎯 **SISTEMA COMPLETO DE GESTIÓN DE EVENTOS**
+
+#### 🎉 **Gestión de Eventos Avanzada**
+- **CRUD completo**: Creación, edición, eliminación y listado de eventos con API robusta
+- **Modal unificado**: Interfaz única para creación y edición de eventos con validación completa
+- **Estados de aprobación**: Sistema de estados (pendiente, aprobado, rechazado) con gestión de permisos
+- **Participantes**: Sistema completo para asignación y gestión de cantantes en eventos
+
+#### 🎵 **Sincronización Musical**
+- **Variaciones inteligentes**: Sistema automático para detección y sincronización de variaciones de canciones
+- **Gestión de música**: Integración perfecta entre eventos y catálogo musical
+- **Validación robusta**: Sistema de validación para datos de eventos y relaciones musicales
+
+### 🔧 **Backend Optimizado**
+- **API RESTful**: Endpoints completos para gestión de eventos con documentación
+- **Performance**: Optimizaciones en consultas de base de datos para eventos y participantes
+- **Seguridad**: Validación de permisos y autorización por rol en operaciones de eventos
+
+## [0.10.7] - 2024-12-22
+
+### 🔄 **SISTEMA DE BACKUP Y MANTENIMIENTO**
+
+#### 💾 **Backup Completo**
+- **Respaldo automático**: Sistema completo de backup de base de datos y archivos
+- **Scripts de limpieza**: Herramientas automatizadas para limpieza de logs y archivos temporales
+- **Recuperación**: Procesos documentados para restauración de respaldos
+
+#### 🗂️ **Gestión de Archivos**
+- **Organización mejorada**: Sistema optimizado para subida y organización de archivos de audio
+- **Limpieza automática**: Scripts para eliminación de archivos temporales y logs antiguos
+- **Validación**: Mejoras en validación de archivos de audio y metadatos
+
+### ⚡ **Performance y Estabilidad**
+- **Optimización de consultas**: Mejoras significativas en performance de base de datos
+- **Manejo de errores**: Sistema robusto de manejo de errores en toda la aplicación
+- **Logging mejorado**: Sistema de logs más detallado para debugging y monitoreo
+
+## [0.10.6] - 2024-12-21
+
+### 👤 **GESTIÓN DE PERFILES AVANZADA**
+
+#### 🔧 **Sistema de Perfiles Mejorado**
+- **Gestión completa**: Sistema avanzado para gestión de perfiles de usuario con validación
+- **Configuración centralizada**: Sistema unificado de configuración de IP y red
+- **Scripts automatizados**: Herramientas de mantenimiento y configuración automatizadas
+
+#### 🔒 **Seguridad Mejorada**
+- **Autenticación robusta**: Mejoras en sistemas de autenticación y autorización
+- **Validación de permisos**: Sistema granular de permisos por funcionalidad
+- **Encriptación**: Mejoras en seguridad de datos sensibles
+
+### 🎨 **Refinamientos de UI/UX**
+- **Interfaz pulida**: Mejoras en diseño y experiencia de usuario
+- **Navegación**: Sistema de navegación más intuitivo y responsive
+- **Feedback visual**: Mejor feedback visual para acciones de usuario
+
+## [0.10.5] - 2024-12-21
+
+### 📑 **SISTEMA DE PESTAÑAS Y FILTROS**
+
+#### 🔍 **Navegación por Pestañas**
+- **Sistema completo**: Implementación integral de sistema de navegación por pestañas
+- **Filtros avanzados**: Sistema multi-criterio para filtrado de contenido
+- **Estado persistente**: Mantenimiento de estado de pestañas durante navegación
+
+#### 🎤 **Gestión de Cantantes por Eventos**
+- **Asignación inteligente**: Sistema específico para asignación de cantantes a eventos
+- **Filtros por voz**: Filtrado inteligente por tipo de voz y disponibilidad
+- **Gestión de participación**: Sistema completo de gestión de participantes
+
+### 🚀 **Mejoras en Navegación**
+- **Pestañas responsive**: Diseño adaptativo para diferentes tamaños de pantalla
+- **Performance**: Optimizaciones en cambio de pestañas y filtrado
+- **UX mejorada**: Transiciones suaves y feedback visual
+
+## [0.10.4] - 2024-12-21
+
+### 🎵 **REPRODUCTOR MINIMIZADO**
+
+#### 📱 **Experiencia de Reproducción Mejorada**
+- **Modo compacto**: Versión minimizada del reproductor para mejor aprovechamiento de espacio
+- **Cola avanzada**: Sistema mejorado de gestión de cola de reproducción
+- **Controles optimizados**: Controles de reproducción más elegantes y funcionales
+
+#### ⚡ **Performance de Audio**
+- **Optimizaciones**: Mejoras significativas en performance de reproducción
+- **Streaming**: Optimizaciones en streaming de archivos de audio
+- **Memoria**: Gestión más eficiente de memoria durante reproducción
+
+### 🎯 **UX Refinada**
+- **Interfaz elegante**: Diseño más pulido y moderno del reproductor
+- **Transiciones**: Animaciones suaves y transiciones elegantes
+- **Responsive**: Mejor adaptación a diferentes tamaños de pantalla
+
+## [0.10.3] - 2024-12-21
+
+### 📰 **SISTEMA DE NOTICIAS COMPLETO**
+
+#### 📢 **Comunicación Integral**
+- **Sistema de noticias**: Implementación completa de sistema de noticias y comunicación
+- **Notificaciones real-time**: Sistema de notificaciones en tiempo real para usuarios
+- **Feed de actividades**: Visualización cronológica de actividades y noticias
+
+#### 🔔 **Gestión de Notificaciones**
+- **Tipos de notificación**: Sistema categorizado por tipos (eventos, actualizaciones, música)
+- **Configuración personalizada**: Usuarios pueden configurar sus preferencias de notificación
+- **Persistencia**: Sistema de almacenamiento persistente de notificaciones
+
+### 📊 **Integración con Dashboard**
+- **Dashboard actualizado**: Integración completa de noticias en dashboard principal
+- **Métricas**: Estadísticas de engagement y lectura de noticias
+- **Administración**: Panel de administración para gestión de noticias
+
+## [0.10.2] - 2024-12-21
+
+### 🎉 **REFINAMIENTO DEL SISTEMA DE EVENTOS**
+
+#### ✨ **Optimizaciones Avanzadas**
+- **Gestión de participantes**: Sistema más robusto para manejo de participantes en eventos
+- **Validaciones mejoradas**: Sistema de validación más estricto y confiable
+- **Performance**: Optimizaciones en consultas y operaciones de eventos
+
+#### 🔧 **Estabilidad Mejorada**
+- **Manejo de errores**: Sistema más robusto de manejo de errores en eventos
+- **Validación de datos**: Validaciones más estrictas en formularios y operaciones
+- **Consistencia**: Mejoras en consistencia de datos y estado
+
+## [0.10.1] - 2024-12-21
+
+### 🎼 **SISTEMA DE LYRICS SINCRONIZADO**
+
+#### 🎤 **Letras Inteligentes**
+- **Sincronización temporal**: Sistema de sincronización precisa de letras con audio
+- **Visualizador avanzado**: Interfaz completa para visualización de letras durante reproducción
+- **Highlighting**: Sistema de resaltado dinámico de líneas actuales
+
+#### 🎵 **Integración Perfecta**
+- **Reproductor integrado**: Integración seamless con el sistema de reproducción existente
+- **UI enriquecida**: Interfaz más rica y completa durante la reproducción
+- **Experiencia inmersiva**: Mayor inmersión durante la experiencia de reproducción
+
+## [0.10.0] - 2024-12-20
+
+### 🎼 **SISTEMA DE PLAYLISTS AVANZADO**
+
+#### 📝 **Gestión Completa**
+- **Editor de playlists**: Interfaz completa para creación y edición de playlists
+- **Metadatos personalizables**: Sistema completo de metadatos (nombre, descripción, visibilidad)
+- **Imágenes personalizadas**: Soporte para subida y gestión de imágenes de playlists
+- **Permisos granulares**: Sistema de playlists públicas y privadas con control de acceso
+
+#### 🎯 **Funcionalidad Avanzada**
+- **Reproducción automática**: Sistema que reproduce automáticamente al activar playlist
+- **Gestión de contenido**: Agregar/quitar canciones con búsqueda en tiempo real
+- **Integración total**: Integración perfecta con sistema de cola y reproductor existente
+
+### 🎨 **UI Moderna**
+- **Diseño de cards**: Interfaz moderna con sistema de cards responsive
+- **Grid adaptativo**: Sistema de grid que se adapta automáticamente al tamaño de pantalla
+- **Experiencia visual**: Interfaz más atractiva y fácil de usar
+
 ## [0.9.0] - 2025-09-05
 
 ### 🎯 **NUEVA FUNCIONALIDAD PRINCIPAL: Sistema de Edición Avanzada de Eventos**

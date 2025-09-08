@@ -168,14 +168,15 @@ router.get('/', authenticateToken, requireRole(['DIRECTOR', 'ADMIN']), async (re
             select: {
               id: true,
               name: true,
-              city: true
-              // color: true // Temporalmente comentado hasta que TypeScript reconozca el campo
+              city: true,
+              color: true
             }
           },
           voiceProfiles: {
             select: {
               id: true,
               voiceType: true,
+              isPrimary: true,
               createdAt: true,
               assignedByUser: {
                 select: {
@@ -183,7 +184,7 @@ router.get('/', authenticateToken, requireRole(['DIRECTOR', 'ADMIN']), async (re
                   lastName: true
                 }
               }
-            }
+            } as any
           },
           roles: {
             select: {
@@ -393,14 +394,22 @@ router.get('/profile', authenticateToken, async (req: AuthRequest, res: Response
         lastName: true,
         createdAt: true,
         voiceProfiles: {
-          include: {
+          select: {
+            id: true,
+            voiceType: true,
+            isPrimary: true,
+            createdAt: true,
             assignedByUser: {
               select: {
                 firstName: true,
                 lastName: true
               }
             }
-          }
+          } as any,
+          orderBy: [
+            { isPrimary: 'desc' } as any,
+            { voiceType: 'asc' }
+          ]
         }
       }
     });
@@ -444,6 +453,7 @@ router.get('/:userId', authenticateToken, requireRole(['DIRECTOR', 'ADMIN']), as
           select: {
             id: true,
             voiceType: true,
+            isPrimary: true,
             createdAt: true,
             assignedByUser: {
               select: {
@@ -451,7 +461,11 @@ router.get('/:userId', authenticateToken, requireRole(['DIRECTOR', 'ADMIN']), as
                 lastName: true
               }
             }
-          }
+          } as any,
+          orderBy: [
+            { isPrimary: 'desc' } as any,
+            { voiceType: 'asc' }
+          ]
         },
         roles: {
           select: {
@@ -541,7 +555,9 @@ router.put('/:userId', authenticateToken, requireRole(['DIRECTOR', 'ADMIN']), as
 router.put('/:userId/voices', authenticateToken, requireRole(['DIRECTOR', 'ADMIN']), async (req: AuthRequest, res: Response) => {
   try {
     const { userId } = req.params;
-    const { voiceTypes } = req.body; // Array de tipos de voz
+    const { voiceTypes, primaryVoice } = req.body; // Array de tipos de voz y voz primaria
+
+    console.log('Updating voices for user:', userId, 'voices:', voiceTypes, 'primary:', primaryVoice);
 
     // Verificar que el usuario existe
     const user = await prisma.user.findUnique({
@@ -552,20 +568,31 @@ router.put('/:userId/voices', authenticateToken, requireRole(['DIRECTOR', 'ADMIN
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Eliminar todas las voces actuales
-    await prisma.userVoiceProfile.deleteMany({
-      where: { userId }
-    });
+    // Verificar que la voz primaria esté en la lista de voces
+    if (primaryVoice && !voiceTypes.includes(primaryVoice)) {
+      return res.status(400).json({ 
+        message: 'Primary voice must be one of the selected voice types' 
+      });
+    }
 
-    // Agregar las nuevas voces
-    const voiceProfiles = voiceTypes.map((voiceType: string) => ({
-      userId,
-      voiceType,
-      assignedBy: req.user!.id
-    }));
+    // Usar transacción para asegurar consistencia
+    await prisma.$transaction(async (tx) => {
+      // Eliminar todas las voces actuales
+      await tx.userVoiceProfile.deleteMany({
+        where: { userId }
+      });
 
-    await prisma.userVoiceProfile.createMany({
-      data: voiceProfiles
+      // Agregar las nuevas voces con indicador de primaria
+      const voiceProfiles = voiceTypes.map((voiceType: string) => ({
+        userId,
+        voiceType,
+        isPrimary: voiceType === primaryVoice, // Solo la voz primaria será true
+        assignedBy: req.user!.id
+      }));
+
+      await tx.userVoiceProfile.createMany({
+        data: voiceProfiles
+      });
     });
 
     // Obtener las voces actualizadas
@@ -574,6 +601,7 @@ router.put('/:userId/voices', authenticateToken, requireRole(['DIRECTOR', 'ADMIN
       select: {
         id: true,
         voiceType: true,
+        isPrimary: true,
         createdAt: true,
         assignedByUser: {
           select: {
@@ -581,13 +609,19 @@ router.put('/:userId/voices', authenticateToken, requireRole(['DIRECTOR', 'ADMIN
             lastName: true
           }
         }
-      }
+      } as any,
+      orderBy: [
+        { isPrimary: 'desc' } as any, // Mostrar la voz primaria primero
+        { voiceType: 'asc' }
+      ]
     });
+
+    console.log('Voices updated successfully:', updatedVoices);
 
     res.json({
       success: true,
       voiceProfiles: updatedVoices,
-      message: 'Voice profiles updated successfully'
+      message: 'Voice profiles updated successfully with primary voice'
     });
   } catch (error) {
     console.error('Error updating user voices:', error);
@@ -714,19 +748,27 @@ router.post('/create', authenticateToken, requireRole(['ADMIN']), async (req: Au
     });
 
     // Asignar rol único
-    await prisma.$executeRaw`
-      INSERT INTO user_roles (id, "userId", role, "assignedBy", "createdAt")
-      VALUES (gen_random_uuid(), ${newUser.id}, ${role}::"UserRole", ${req.user!.id}, NOW())
-    `;
+    await prisma.userRole_DB.create({
+      data: {
+        userId: newUser.id,
+        role: role as any,
+        assignedBy: req.user!.id
+      }
+    });
 
     // Asignar tipos de voz si se proporcionaron
     if (voiceTypes && Array.isArray(voiceTypes) && voiceTypes.length > 0) {
-      for (const voiceType of voiceTypes) {
-        await prisma.$executeRaw`
-          INSERT INTO user_voice_profiles (id, "userId", "voiceType", "assignedBy", "createdAt")
-          VALUES (gen_random_uuid(), ${newUser.id}, ${voiceType}::"VoiceType", ${req.user!.id}, NOW())
-        `;
-      }
+      // Crear perfiles de voz con sistema de voz primaria
+      const voiceProfiles = voiceTypes.map((voiceType: string, index: number) => ({
+        userId: newUser.id,
+        voiceType: voiceType as any,
+        isPrimary: index === 0, // Primera voz es primaria por defecto
+        assignedBy: req.user!.id
+      }));
+
+      await prisma.userVoiceProfile.createMany({
+        data: voiceProfiles as any
+      });
     }
 
     res.status(201).json({
@@ -766,16 +808,22 @@ router.put('/:userId/role', authenticateToken, requireRole(['ADMIN']), async (re
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Eliminar todos los roles actuales del usuario
-    await prisma.$executeRaw`
-      DELETE FROM user_roles WHERE "userId" = ${userId}
-    `;
+    // Usar transacción para asegurar consistencia
+    await prisma.$transaction(async (tx) => {
+      // Eliminar todos los roles actuales del usuario
+      await tx.userRole_DB.deleteMany({
+        where: { userId }
+      });
 
-    // Asignar el nuevo rol único
-    await prisma.$executeRaw`
-      INSERT INTO user_roles (id, "userId", role, "assignedBy", "createdAt")
-      VALUES (gen_random_uuid(), ${userId}, ${role}::"UserRole", ${req.user!.id}, NOW())
-    `;
+      // Asignar el nuevo rol único
+      await tx.userRole_DB.create({
+        data: {
+          userId,
+          role: role as any,
+          assignedBy: req.user!.id
+        }
+      });
+    });
 
     res.json({
       success: true,
@@ -873,20 +921,31 @@ router.post('/import-csv', authenticateToken, requireRole(['ADMIN']), async (req
         });
 
         // Asignar rol CANTANTE por defecto
-        await prisma.$executeRaw`
-          INSERT INTO user_roles (id, "userId", role, "assignedBy", "createdAt")
-          VALUES (gen_random_uuid(), ${newUser.id}, 'CANTANTE'::"UserRole", ${req.user!.id}, NOW())
-        `;
+        await prisma.userRole_DB.create({
+          data: {
+            userId: newUser.id,
+            role: 'CANTANTE',
+            assignedBy: req.user!.id
+          }
+        });
 
         // Asignar tipos de voz si se proporcionaron
         if (voiceTypes && Array.isArray(voiceTypes) && voiceTypes.length > 0) {
-          for (const voiceType of voiceTypes) {
-            if (['SOPRANO', 'MESOSOPRANO', 'CONTRALTO', 'TENOR', 'BARITONO', 'BAJO'].includes(voiceType)) {
-              await prisma.$executeRaw`
-                INSERT INTO user_voice_profiles (id, "userId", "voiceType", "assignedBy", "createdAt")
-                VALUES (gen_random_uuid(), ${newUser.id}, ${voiceType}::"VoiceType", ${req.user!.id}, NOW())
-              `;
-            }
+          const validVoiceTypes = voiceTypes.filter(voiceType => 
+            ['SOPRANO', 'MESOSOPRANO', 'CONTRALTO', 'TENOR', 'BARITONO', 'BAJO'].includes(voiceType)
+          );
+
+          if (validVoiceTypes.length > 0) {
+            const voiceProfiles = validVoiceTypes.map((voiceType: string, index: number) => ({
+              userId: newUser.id,
+              voiceType: voiceType as any,
+              isPrimary: index === 0, // Primera voz es primaria
+              assignedBy: req.user!.id
+            }));
+
+            await prisma.userVoiceProfile.createMany({
+              data: voiceProfiles as any
+            });
           }
         }
 

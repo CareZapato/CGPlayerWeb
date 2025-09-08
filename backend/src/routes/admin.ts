@@ -33,7 +33,63 @@ const apellidos = [
   'Medina', 'Garrido', 'Cortes', 'Castillo', 'Santos', 'Lozano', 'Guerrero', 'Cano', 'Prieto', 'Mendez'
 ];
 
-const tiposVoz = ['SOPRANO', 'CONTRALTO', 'TENOR', 'BARITONO', 'BAJO'];
+const tiposVoz = ['SOPRANO', 'CONTRALTO', 'TENOR', 'BARITONO', 'MESOSOPRANO', 'BAJO'];
+
+// Configuración de voces por género para coherencia
+const vocesPorGenero = {
+  female: ['SOPRANO', 'MESOSOPRANO', 'CONTRALTO'],
+  male: ['TENOR', 'BARITONO', 'BAJO']
+};
+
+// Función para determinar género por nombre
+function determinarGenero(firstName: string): 'male' | 'female' {
+  const nombresFemeninos = [
+    'Maria', 'Carmen', 'Josefa', 'Isabel', 'Ana', 'Francisca', 'Dolores', 'Antonia', 'Pilar', 'Teresa',
+    'Rosa', 'Concepcion', 'Mercedes', 'Esperanza', 'Amparo', 'Soledad', 'Remedios', 'Milagros', 'Encarnacion', 'Asuncion',
+    'Cristina', 'Elena', 'Patricia', 'Laura', 'Monica', 'Sandra', 'Beatriz', 'Rocio', 'Silvia', 'Nuria',
+    'Lucia', 'Paula', 'Claudia', 'Andrea', 'Sofia', 'Valentina', 'Martina', 'Catalina', 'Fernanda', 'Javiera',
+    'Camila', 'Florencia', 'Constanza', 'Maite', 'Ignacia', 'Emilia', 'Agustina', 'Isidora', 'Barbara', 'Carla', 
+    'Daniela', 'Gabriela', 'Alejandra', 'Natalia', 'Vanessa', 'Veronica', 'Carolina', 'Lorena'
+  ];
+  
+  return nombresFemeninos.includes(firstName) ? 'female' : 'male';
+}
+
+// Función para obtener voces para un cantante con nueva distribución:
+// 100% tienen voz principal (TENOR, SOPRANO, CONTRALTO)
+// 30% adicional tienen segunda voz (BAJO, BARITONO, MESOSOPRANO)
+function obtenerVocesPorCantante(firstName: string): string[] {
+  const genero = determinarGenero(firstName);
+  
+  // Voces principales que TODOS deben tener
+  const vocesPrincipales = {
+    female: ['SOPRANO', 'CONTRALTO'],
+    male: ['TENOR']
+  };
+  
+  // Voces secundarias adicionales para el 30%
+  const vocesSecundarias = {
+    female: ['MESOSOPRANO'],
+    male: ['BAJO', 'BARITONO']
+  };
+  
+  // Todos tienen una voz principal obligatoria
+  const vocesPrincipalesDisponibles = vocesPrincipales[genero];
+  const vozPrincipal = getRandomElement(vocesPrincipalesDisponibles);
+  
+  const vocesSeleccionadas = [vozPrincipal];
+  
+  // 30% tienen una voz secundaria adicional
+  const tieneVozSecundaria = Math.random() < 0.3;
+  
+  if (tieneVozSecundaria) {
+    const vocesSecundariasDisponibles = vocesSecundarias[genero];
+    const vozSecundaria = getRandomElement(vocesSecundariasDisponibles);
+    vocesSeleccionadas.push(vozSecundaria);
+  }
+  
+  return vocesSeleccionadas;
+}
 
 const distribucionCiudades = {
   'Santiago': 90,
@@ -298,49 +354,117 @@ router.post('/seed-full', authenticateToken, requireRole(['ADMIN']), async (req:
       `;
     }
 
-    // 5. Asignar perfiles de voz
-    console.log('🎼 Asignando perfiles de voz...');
+    // 5. Asignar perfiles de voz con sistema de voz primaria
+    console.log('🎼 Asignando perfiles de voz con sistema de voz primaria...');
     
-    // Perfiles específicos para usuarios de prueba
+    // Perfiles específicos para usuarios de prueba (con voz primaria)
     await prisma.userVoiceProfile.create({
       data: {
         userId: testSinger1.id,
-        voiceType: 'SOPRANO'
-      }
+        voiceType: 'SOPRANO',
+        isPrimary: true, // Voz primaria
+        assignedBy: admin1.id
+      } as any
     });
 
     await prisma.userVoiceProfile.create({
       data: {
         userId: testSinger2.id,
-        voiceType: 'CONTRALTO'
-      }
+        voiceType: 'CONTRALTO',
+        isPrimary: true, // Voz primaria
+        assignedBy: admin1.id
+      } as any
     });
 
     await prisma.userVoiceProfile.create({
       data: {
         userId: testSinger3.id,
-        voiceType: 'TENOR'
-      }
+        voiceType: 'TENOR',
+        isPrimary: true, // Voz primaria
+        assignedBy: admin1.id
+      } as any
     });
 
     await prisma.userVoiceProfile.create({
       data: {
         userId: testSinger4.id,
-        voiceType: 'BAJO'
-      }
+        voiceType: 'BAJO',
+        isPrimary: true, // Voz primaria
+        assignedBy: admin1.id
+      } as any
     });
 
-    // Perfiles aleatorios para cantantes generados
-    for (const user of generatedUsers) {
-      const voiceType = getRandomElement(tiposVoz);
+    // Asignar múltiples voces a directores (pueden tener 2-3 voces)
+    console.log('🎭 Asignando voces a directores...');
+    
+    // Director 1 (Carlos) - masculino
+    const director1Voices = obtenerVocesPorCantante('Carlos');
+    for (let i = 0; i < director1Voices.length; i++) {
       await prisma.userVoiceProfile.create({
         data: {
-          userId: user.id,
-          voiceType: voiceType as any
-        }
+          userId: director1.id,
+          voiceType: director1Voices[i] as any,
+          isPrimary: i === 0, // Primera voz es primaria
+          assignedBy: admin1.id
+        } as any
       });
     }
 
+    // Director 2 (Ana Cristina) - femenino
+    const director2Voices = obtenerVocesPorCantante('Ana');
+    for (let i = 0; i < director2Voices.length; i++) {
+      await prisma.userVoiceProfile.create({
+        data: {
+          userId: director2.id,
+          voiceType: director2Voices[i] as any,
+          isPrimary: i === 0, // Primera voz es primaria
+          assignedBy: admin1.id
+        } as any
+      });
+    }
+
+    // Director 3 (Luis Fernando) - masculino
+    const director3Voices = obtenerVocesPorCantante('Luis');
+    for (let i = 0; i < director3Voices.length; i++) {
+      await prisma.userVoiceProfile.create({
+        data: {
+          userId: director3.id,
+          voiceType: director3Voices[i] as any,
+          isPrimary: i === 0, // Primera voz es primaria
+          assignedBy: admin1.id
+        } as any
+      });
+    }
+
+    // Perfiles inteligentes para cantantes generados con coherencia de género
+    console.log('🎵 Asignando voces coherentes a 300+ cantantes...');
+    
+    let cantantesConMultiplesVoces = 0;
+    let totalAsignacionesVoz = 0;
+    
+    for (const user of generatedUsers) {
+      const vocesParaUsuario = obtenerVocesPorCantante(user.firstName);
+      
+      if (vocesParaUsuario.length > 1) {
+        cantantesConMultiplesVoces++;
+      }
+      
+      // Crear perfiles de voz con sistema de voz primaria
+      for (let i = 0; i < vocesParaUsuario.length; i++) {
+        await prisma.userVoiceProfile.create({
+          data: {
+            userId: user.id,
+            voiceType: vocesParaUsuario[i] as any,
+            isPrimary: i === 0, // La primera voz siempre es la primaria
+            assignedBy: admin1.id
+          } as any
+        });
+        totalAsignacionesVoz++;
+      }
+    }
+    
+    console.log(`✅ Voces asignadas: ${totalAsignacionesVoz} total, ${cantantesConMultiplesVoces} cantantes con múltiples voces (${((cantantesConMultiplesVoces / generatedUsers.length) * 100).toFixed(1)}%)`);
+    
     const totalUsers = 2 + 3 + 4 + generatedUsers.length; // admin + directores + test + generados
 
     // 7. Crear noticias base del sistema
@@ -363,13 +487,13 @@ router.post('/seed-full', authenticateToken, requireRole(['ADMIN']), async (req:
       // Noticia de la nueva versión
       await (prisma as any).news.create({
         data: {
-          title: 'Nueva Versión v0.9.0 Disponible',
+          title: 'Nueva Versión v1.10.9 Disponible',
           description: 'Sistema de noticias implementado: ¡Mantente al día con las novedades del sistema!',
           type: 'VERSION_RELEASED',
           icon: '🚀',
           actionUrl: '/changelog',
           metadata: { 
-            version: 'v0.9.0',
+            version: 'v1.10.9',
             description: 'Sistema de noticias implementado'
           },
           isActive: true
@@ -500,6 +624,138 @@ router.post('/reinitialize-database', authenticateToken, requireRole(['ADMIN']),
     res.status(500).json({
       success: false,
       message: 'Error en re-inicialización de base de datos',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+// Endpoint para obtener estadísticas de distribución de voces
+router.get('/voice-stats', authenticateToken, requireRole(['ADMIN']), async (req: AuthRequest, res: Response) => {
+  try {
+    console.log('📊 Obteniendo estadísticas de distribución de voces...');
+    
+    // Obtener todos los usuarios con sus voces
+    const usuarios = await prisma.user.findMany({
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        voiceProfiles: {
+          select: {
+            voiceType: true,
+            isPrimary: true
+          } as any
+        }
+      },
+      where: {
+        voiceProfiles: {
+          some: {} // Solo usuarios que tienen al menos una voz
+        }
+      }
+    });
+
+    // Calcular estadísticas
+    const totalUsuarios = usuarios.length;
+    let usuariosConVozPrincipal = 0;
+    let usuariosConVozSecundaria = 0;
+    let usuariosConMultiplesVoces = 0;
+    
+    const conteoVoces = {
+      // Voces principales
+      'SOPRANO': 0,
+      'CONTRALTO': 0,
+      'TENOR': 0,
+      // Voces secundarias
+      'BAJO': 0,
+      'BARITONO': 0,
+      'MESOSOPRANO': 0
+    };
+    
+    const conteoVocesPrimarias = { ...conteoVoces };
+    const conteoVocesSecundarias = { ...conteoVoces };
+
+    usuarios.forEach(usuario => {
+      const vocesUsuario = (usuario as any).voiceProfiles;
+      const tieneMultiplesVoces = vocesUsuario.length > 1;
+      
+      if (tieneMultiplesVoces) {
+        usuariosConMultiplesVoces++;
+      }
+      
+      // Verificar voces principales (SOPRANO, CONTRALTO, TENOR)
+      const tieneVozPrincipal = vocesUsuario.some((voz: any) => 
+        ['SOPRANO', 'CONTRALTO', 'TENOR'].includes(voz.voiceType)
+      );
+      
+      if (tieneVozPrincipal) {
+        usuariosConVozPrincipal++;
+      }
+      
+      // Verificar voces secundarias (BAJO, BARITONO, MESOSOPRANO)
+      const tieneVozSecundaria = vocesUsuario.some((voz: any) => 
+        ['BAJO', 'BARITONO', 'MESOSOPRANO'].includes(voz.voiceType)
+      );
+      
+      if (tieneVozSecundaria) {
+        usuariosConVozSecundaria++;
+      }
+      
+      // Contar cada tipo de voz
+      vocesUsuario.forEach((voz: any) => {
+        if (conteoVoces.hasOwnProperty(voz.voiceType)) {
+          conteoVoces[voz.voiceType as keyof typeof conteoVoces]++;
+          
+          if (voz.isPrimary) {
+            conteoVocesPrimarias[voz.voiceType as keyof typeof conteoVocesPrimarias]++;
+          } else {
+            conteoVocesSecundarias[voz.voiceType as keyof typeof conteoVocesSecundarias]++;
+          }
+        }
+      });
+    });
+
+    // Calcular porcentajes
+    const porcentajeVozPrincipal = totalUsuarios > 0 ? (usuariosConVozPrincipal / totalUsuarios * 100) : 0;
+    const porcentajeVozSecundaria = totalUsuarios > 0 ? (usuariosConVozSecundaria / totalUsuarios * 100) : 0;
+    const porcentajeMultiplesVoces = totalUsuarios > 0 ? (usuariosConMultiplesVoces / totalUsuarios * 100) : 0;
+
+    const estadisticas = {
+      totalUsuarios,
+      usuariosConVozPrincipal,
+      usuariosConVozSecundaria,
+      usuariosConMultiplesVoces,
+      porcentajes: {
+        vozPrincipal: Math.round(porcentajeVozPrincipal * 100) / 100,
+        vozSecundaria: Math.round(porcentajeVozSecundaria * 100) / 100,
+        multiplesVoces: Math.round(porcentajeMultiplesVoces * 100) / 100
+      },
+      distribucionVoces: {
+        total: conteoVoces,
+        primarias: conteoVocesPrimarias,
+        secundarias: conteoVocesSecundarias
+      },
+      objetivos: {
+        vozPrincipalObjetivo: '100%',
+        vozSecundariaObjetivo: '30%',
+        vozPrincipalActual: `${Math.round(porcentajeVozPrincipal)}%`,
+        vozSecundariaActual: `${Math.round(porcentajeVozSecundaria)}%`,
+        cumpleObjetivos: porcentajeVozPrincipal >= 99 && porcentajeVozSecundaria >= 25 && porcentajeVozSecundaria <= 35
+      }
+    };
+
+    console.log('📊 Estadísticas calculadas:', estadisticas);
+
+    res.json({
+      success: true,
+      data: estadisticas,
+      message: `Estadísticas de ${totalUsuarios} usuarios calculadas exitosamente`
+    });
+
+  } catch (error: any) {
+    console.error('❌ Error obteniendo estadísticas de voces:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error obteniendo estadísticas de voces',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }

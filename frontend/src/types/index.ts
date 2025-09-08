@@ -35,6 +35,7 @@ export interface UserVoiceProfile {
   assignedBy?: string;
   assignedAt: string;
   isActive: boolean;
+  isPrimary: boolean; // Nueva propiedad para voz primaria
   assignedByUser?: {
     firstName: string;
     lastName: string;

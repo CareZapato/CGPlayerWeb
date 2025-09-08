@@ -155,6 +155,7 @@ const UsersPage: React.FC = () => {
     locationId: '',
     isActive: true,
     selectedVoices: [] as string[],
+    primaryVoice: '', // Nueva propiedad para voz primaria
     selectedRole: ''
   });
 
@@ -169,6 +170,7 @@ const UsersPage: React.FC = () => {
     locationId: '',
     isActive: true,
     selectedVoices: [] as string[],
+    primaryVoice: '', // Nueva propiedad para voz primaria
     selectedRole: 'CANTANTE'
   });
 
@@ -246,27 +248,78 @@ const UsersPage: React.FC = () => {
 
   // Manejar toggle de tipos de voz
   const handleVoiceToggle = (voiceType: string) => {
-    setEditForm(prev => ({
-      ...prev,
-      selectedVoices: prev.selectedVoices.includes(voiceType)
+    setEditForm(prev => {
+      const isRemoving = prev.selectedVoices.includes(voiceType);
+      const newVoices = isRemoving 
         ? prev.selectedVoices.filter(v => v !== voiceType)
-        : [...prev.selectedVoices, voiceType]
-    }));
+        : [...prev.selectedVoices, voiceType];
+      
+      // Si se está removiendo la voz primaria, elegir otra como primaria
+      let newPrimaryVoice = prev.primaryVoice;
+      if (isRemoving && prev.primaryVoice === voiceType) {
+        newPrimaryVoice = newVoices.length > 0 ? newVoices[0] : '';
+      }
+      // Si no hay voz primaria y se está agregando una voz, hacerla primaria
+      else if (!prev.primaryVoice && !isRemoving) {
+        newPrimaryVoice = voiceType;
+      }
+
+      return {
+        ...prev,
+        selectedVoices: newVoices,
+        primaryVoice: newPrimaryVoice
+      };
+    });
   };
 
   // Manejar toggle de tipos de voz para creación
   const handleCreateVoiceToggle = (voiceType: string) => {
+    setCreateForm(prev => {
+      const isRemoving = prev.selectedVoices.includes(voiceType);
+      const newVoices = isRemoving 
+        ? prev.selectedVoices.filter(v => v !== voiceType)
+        : [...prev.selectedVoices, voiceType];
+      
+      // Si se está removiendo la voz primaria, elegir otra como primaria
+      let newPrimaryVoice = prev.primaryVoice;
+      if (isRemoving && prev.primaryVoice === voiceType) {
+        newPrimaryVoice = newVoices.length > 0 ? newVoices[0] : '';
+      }
+      // Si no hay voz primaria y se está agregando una voz, hacerla primaria
+      else if (!prev.primaryVoice && !isRemoving) {
+        newPrimaryVoice = voiceType;
+      }
+
+      return {
+        ...prev,
+        selectedVoices: newVoices,
+        primaryVoice: newPrimaryVoice
+      };
+    });
+  };
+
+  // Manejar cambio de voz primaria en edición
+  const handlePrimaryVoiceChange = (voiceType: string) => {
+    setEditForm(prev => ({
+      ...prev,
+      primaryVoice: voiceType
+    }));
+  };
+
+  // Manejar cambio de voz primaria en creación
+  const handleCreatePrimaryVoiceChange = (voiceType: string) => {
     setCreateForm(prev => ({
       ...prev,
-      selectedVoices: prev.selectedVoices.includes(voiceType)
-        ? prev.selectedVoices.filter(v => v !== voiceType)
-        : [...prev.selectedVoices, voiceType]
+      primaryVoice: voiceType
     }));
   };
 
   // Seleccionar usuario para el panel lateral
   const handleSelectUser = (user: User) => {
     setSelectedUser(user);
+    // Encontrar la voz primaria
+    const primaryVoiceProfile = user.voiceProfiles?.find(vp => (vp as any).isPrimary);
+    
     setEditForm({
       firstName: user.firstName,
       lastName: user.lastName,
@@ -275,8 +328,9 @@ const UsersPage: React.FC = () => {
       phone: user.phone || '',
       locationId: user.location?.id || '',
       isActive: user.isActive,
-      selectedVoices: user.voiceProfiles.map(vp => vp.voiceType),
-      selectedRole: user.roles.length > 0 ? user.roles[0].role : ''
+      selectedVoices: user.voiceProfiles?.map(vp => vp.voiceType) || [],
+      primaryVoice: primaryVoiceProfile?.voiceType || '',
+      selectedRole: user.roles && user.roles.length > 0 ? user.roles[0].role : ''
     });
   };
 
@@ -315,7 +369,8 @@ const UsersPage: React.FC = () => {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
         body: JSON.stringify({
-          voiceTypes: editForm.selectedVoices
+          voiceTypes: editForm.selectedVoices,
+          primaryVoice: editForm.primaryVoice
         })
       });
 
@@ -406,6 +461,7 @@ const UsersPage: React.FC = () => {
           locationId: createForm.locationId,
           isActive: createForm.isActive,
           voiceTypes: createForm.selectedVoices,
+          primaryVoice: createForm.primaryVoice,
           role: createForm.selectedRole
         })
       });
@@ -428,6 +484,7 @@ const UsersPage: React.FC = () => {
         locationId: '',
         isActive: true,
         selectedVoices: [],
+        primaryVoice: '',
         selectedRole: 'CANTANTE'
       });
     } catch (error: any) {
@@ -734,11 +791,19 @@ const UsersPage: React.FC = () => {
                         </td>
                         <td className="hidden lg:table-cell px-3 lg:px-6 py-4 whitespace-nowrap">
                           <div className="flex flex-wrap gap-1">
-                            {user.voiceProfiles.map((voice) => (
+                            {user.voiceProfiles
+                              .sort((a, b) => ((b as any).isPrimary ? 1 : 0) - ((a as any).isPrimary ? 1 : 0)) // Voz primaria primero
+                              .map((voice) => (
                               <span
                                 key={voice.id}
-                                className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                                className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                  (voice as any).isPrimary 
+                                    ? 'bg-yellow-100 text-yellow-800 border border-yellow-300 font-semibold' 
+                                    : 'bg-blue-100 text-blue-800'
+                                }`}
+                                title={(voice as any).isPrimary ? 'Voz Primaria' : 'Voz Secundaria'}
                               >
+                                {(voice as any).isPrimary && <span className="mr-1">⭐</span>}
                                 {formatVoiceType(voice.voiceType)}
                               </span>
                             ))}
@@ -956,6 +1021,35 @@ const UsersPage: React.FC = () => {
                           </label>
                         ))}
                       </div>
+                      
+                      {/* Selector de Voz Primaria */}
+                      {editForm.selectedVoices.length > 1 && (
+                        <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                          <label className="block text-sm font-medium text-blue-800 mb-2">
+                            <span className="flex items-center">
+                              <span className="text-blue-600 mr-1">⭐</span>
+                              Voz Primaria
+                            </span>
+                          </label>
+                          <div className="grid grid-cols-1 gap-2">
+                            {editForm.selectedVoices.map(voice => (
+                              <label key={voice} className="flex items-center">
+                                <input
+                                  type="radio"
+                                  name="primaryVoice"
+                                  className="border-blue-300 text-blue-600 focus:ring-blue-500"
+                                  checked={editForm.primaryVoice === voice}
+                                  onChange={() => handlePrimaryVoiceChange(voice)}
+                                />
+                                <span className="ml-2 text-sm text-blue-700">{formatVoiceType(voice)}</span>
+                              </label>
+                            ))}
+                          </div>
+                          <p className="text-xs text-blue-600 mt-1">
+                            Esta será la voz principal mostrada en el perfil
+                          </p>
+                        </div>
+                      )}
                     </div>
 
                     <div className="flex items-center">
@@ -1166,6 +1260,35 @@ const UsersPage: React.FC = () => {
                     </label>
                   ))}
                 </div>
+                
+                {/* Selector de Voz Primaria */}
+                {createForm.selectedVoices.length > 1 && (
+                  <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                    <label className="block text-sm font-medium text-blue-800 mb-2">
+                      <span className="flex items-center">
+                        <span className="text-blue-600 mr-1">⭐</span>
+                        Voz Primaria
+                      </span>
+                    </label>
+                    <div className="grid grid-cols-1 gap-2">
+                      {createForm.selectedVoices.map(voice => (
+                        <label key={voice} className="flex items-center">
+                          <input
+                            type="radio"
+                            name="createPrimaryVoice"
+                            className="border-blue-300 text-blue-600 focus:ring-blue-500"
+                            checked={createForm.primaryVoice === voice}
+                            onChange={() => handleCreatePrimaryVoiceChange(voice)}
+                          />
+                          <span className="ml-2 text-sm text-blue-700">{formatVoiceType(voice)}</span>
+                        </label>
+                      ))}
+                    </div>
+                    <p className="text-xs text-blue-600 mt-1">
+                      Esta será la voz principal mostrada en el perfil
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div className="mt-6 flex items-center">

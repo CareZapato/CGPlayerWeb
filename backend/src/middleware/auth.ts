@@ -36,39 +36,54 @@ export const authenticateToken = async (req: AuthRequest, res: Response, next: N
     const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
     
     // Verificar que el usuario aún existe y obtener datos completos
-    const user = await prisma.user.findUnique({
-      where: { id: decoded.userId },
-      include: { 
-        roles: {
-          select: {
-            role: true
-          }
-        },
-        voiceProfiles: {
-          select: {
-            voiceType: true,
-            createdAt: true
+    try {
+      const user = await prisma.user.findUnique({
+        where: { id: decoded.userId },
+        include: { 
+          roles: {
+            select: {
+              role: true
+            }
+          },
+          voiceProfiles: {
+            select: {
+              voiceType: true,
+              createdAt: true
+            }
           }
         }
-      }
-    });
+      });
 
-    if (!user || !user.isActive) {
-      console.log(`❌ [AUTH] User not found or inactive: ${decoded.userId}`);
-      return res.status(401).json({ message: 'User not found or inactive' });
+      if (!user || !user.isActive) {
+        console.log(`❌ [AUTH] User not found or inactive: ${decoded.userId}`);
+        console.log(`   ❌ Error Status: 401`);
+        return res.status(401).json({ message: 'User not found or inactive' });
+      }
+      
+      req.user = {
+        id: user.id,
+        email: user.email,
+        roles: user.roles.map((r: any) => r.role),
+        locationId: user.locationId || undefined,
+        voiceProfiles: user.voiceProfiles || []
+      };
+
+      next();
+      
+    } catch (dbError: any) {
+      // Manejar errores de base de datos (tablas no existen, etc.)
+      if (dbError.code === 'P2021' || dbError.message?.includes('does not exist')) {
+        console.log(`⚠️ [AUTH] Database not ready (tables not exist), rejecting auth`);
+        return res.status(503).json({ message: 'Database not ready' });
+      }
+      
+      console.log(`❌ [AUTH] Database error during auth:`, dbError.message);
+      return res.status(500).json({ message: 'Database error' });
     }
     
-    req.user = {
-      id: user.id,
-      email: user.email,
-      roles: user.roles.map((r: any) => r.role),
-      locationId: user.locationId || undefined,
-      voiceProfiles: user.voiceProfiles || []
-    };
-
-    next();
   } catch (error) {
     console.log(`❌ [AUTH] Token verification failed:`, error);
+    console.log(`   ❌ Error Status: 403`);
     return res.status(403).json({ message: 'Invalid or expired token' });
   }
 };

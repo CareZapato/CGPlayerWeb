@@ -39,14 +39,22 @@ function HomePage() {
             <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2">¡Hola, {user.firstName}!</h1>
             <p className="text-base sm:text-lg opacity-90 mb-3">Bienvenido a CGPlayer</p>
             
-            {/* Mostrar tipos de voz del usuario si los tiene - Más espaciado */}
+            {/* Mostrar tipos de voz del usuario si los tiene - Destacar voz primaria */}
             {user.voiceProfiles && user.voiceProfiles.length > 0 && (
               <div className="flex flex-wrap justify-center gap-2">
-                {user.voiceProfiles.map((profile) => (
+                {user.voiceProfiles
+                  .sort((a, b) => ((b as any).isPrimary ? 1 : 0) - ((a as any).isPrimary ? 1 : 0)) // Voz primaria primero
+                  .map((profile) => (
                   <span
                     key={profile.id}
-                    className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-semibold bg-white/20 text-white border border-white/30 backdrop-blur-sm"
+                    className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-semibold border backdrop-blur-sm ${
+                      (profile as any).isPrimary
+                        ? 'bg-yellow-300/30 text-white border-yellow-300/50 shadow-lg'
+                        : 'bg-white/20 text-white border-white/30'
+                    }`}
+                    title={(profile as any).isPrimary ? 'Voz Primaria' : 'Voz Secundaria'}
                   >
+                    {(profile as any).isPrimary && <span className="mr-1">⭐</span>}
                     🎵 {formatVoiceType(profile.voiceType)}
                   </span>
                 ))}

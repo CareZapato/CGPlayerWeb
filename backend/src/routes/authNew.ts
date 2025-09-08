@@ -254,14 +254,22 @@ router.post('/login', [
           }
         },
         voiceProfiles: {
-          include: {
+          select: {
+            id: true,
+            voiceType: true,
+            isPrimary: true,
+            createdAt: true,
             assignedByUser: {
               select: {
                 firstName: true,
                 lastName: true
               }
             }
-          }
+          } as any,
+          orderBy: [
+            { isPrimary: 'desc' } as any, // Voz primaria primero
+            { voiceType: 'asc' }
+          ]
         }
       }
     });
@@ -337,14 +345,22 @@ router.get('/me', async (req: Request, res: Response) => {
       where: { id: decoded.userId },
       include: {
         voiceProfiles: {
-          include: {
+          select: {
+            id: true,
+            voiceType: true,
+            isPrimary: true,
+            createdAt: true,
             assignedByUser: {
               select: {
                 firstName: true,
                 lastName: true
               }
             }
-          }
+          } as any,
+          orderBy: [
+            { isPrimary: 'desc' } as any, // Voz primaria primero
+            { voiceType: 'asc' }
+          ]
         }
       }
     });

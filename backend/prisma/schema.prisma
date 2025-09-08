@@ -14,12 +14,12 @@ model User {
   password              String
   firstName             String
   lastName              String
-  profileImage          String?            // Nueva columna para imagen de perfil
   isActive              Boolean            @default(true)
   createdAt             DateTime           @default(now())
   updatedAt             DateTime           @updatedAt
   locationId            String?
   phone                 String?
+  profileImage          String?
   eventAttendance       EventAttendance[]  @relation("EventAttendance")
   addedAttendees        EventAttendee[]    @relation("EventAttendeeAdder")
   eventAttendees        EventAttendee[]    @relation("EventAttendees")
@@ -59,6 +59,7 @@ model UserVoiceProfile {
   voiceType      VoiceType
   assignedBy     String?
   createdAt      DateTime  @default(now())
+  isPrimary      Boolean   @default(false)
   assignedByUser User?     @relation("VoiceAssignments", fields: [assignedBy], references: [id])
   user           User      @relation("UserVoiceProfiles", fields: [userId], references: [id], onDelete: Cascade)
 
@@ -207,20 +208,20 @@ model Event {
   title             String
   description       String?
   date              DateTime
-  time              String?
-  category          String             @default("Culto")
   locationId        String?
-  eventCity         String?
-  eventAddress      String?
-  country           String             @default("Chile")
-  imageUrl          String?
-  mapLink           String?
   isActive          Boolean            @default(true)
-  isPublic          Boolean            @default(true)
-  allowExternalJoin Boolean            @default(false)
-  createdBy         String
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
+  allowExternalJoin Boolean            @default(false)
+  country           String             @default("Chile")
+  eventAddress      String?
+  eventCity         String?
+  imageUrl          String?
+  isPublic          Boolean            @default(true)
+  mapLink           String?
+  time              String?
+  createdBy         String
+  category          String             @default("Culto")
   attendanceHistory EventAttendance[]
   attendees         EventAttendee[]
   joinRequests      EventJoinRequest[]
@@ -247,20 +248,20 @@ model EventPlaylist {
 }
 
 model EventAttendee {
-  id                    String              @id @default(cuid())
-  eventId               String
-  userId                String
-  status                EventAttendeeStatus @default(PENDING)
-  addedBy               String
-  notes                 String?
-  isExternal            Boolean             @default(false) // Indica si el asistente fue agregado por solicitud externa
-  attendanceConfirmed   Boolean?            // null = no confirmado, true = confirma asistencia, false = confirma inasistencia
-  nonAttendanceComment  String?             // Comentario de hasta 300 caracteres para inasistencia
-  createdAt             DateTime            @default(now())
-  updatedAt             DateTime            @updatedAt
-  addedByUser           User                @relation("EventAttendeeAdder", fields: [addedBy], references: [id])
-  event                 Event               @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  user                  User                @relation("EventAttendees", fields: [userId], references: [id], onDelete: Cascade)
+  id                   String              @id @default(cuid())
+  eventId              String
+  userId               String
+  status               EventAttendeeStatus @default(CONFIRMED)
+  addedBy              String
+  notes                String?
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+  isExternal           Boolean             @default(false)
+  attendanceConfirmed  Boolean?
+  nonAttendanceComment String?
+  addedByUser          User                @relation("EventAttendeeAdder", fields: [addedBy], references: [id])
+  event                Event               @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user                 User                @relation("EventAttendees", fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([eventId, userId])
   @@map("event_attendees")
@@ -326,8 +327,22 @@ model Soloist {
   @@map("soloists")
 }
 
+model News {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  type        NewsType
+  icon        String
+  actionUrl   String?
+  metadata    Json?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("news")
+}
+
 enum EventAttendeeStatus {
-  PENDING
   CONFIRMED
   CANCELLED
   NO_SHOW
@@ -376,21 +391,6 @@ enum LyricsType {
   PDF
   DOC
   DOCX
-}
-
-model News {
-  id          String    @id @default(cuid())
-  title       String
-  description String
-  type        NewsType
-  icon        String    // Icon name for the news type
-  actionUrl   String?   // URL to navigate when clicking the news
-  metadata    Json?     // Additional data like songId, eventId, etc.
-  isActive    Boolean   @default(true)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  @@map("news")
 }
 
 enum NewsType {

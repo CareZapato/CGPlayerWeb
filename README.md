@@ -1,6 +1,38 @@
 # CGPlayerWeb 🎵
 
-[![Version](https://img.shields.io/badge/version-0.9.0-blue.svg)](https://github.com/CareZapato/CGPlayerWeb/releases/tag/v0.9.0)
+[![Versio### 🔧 **Sistema de Edición Avanzada de Eventos** *(v0.9.0)*
+- **Editor de eventos completo** - Modificación integral de eventos existentes con preservación de relaciones
+- **Carga automática de datos** - Los eventos cargan automáticamente con asistentes y música completa
+- **Sincronización de variaciones musicales** - Detección y carga inteligente de variaciones de canciones
+- **Panel de variaciones inteligente** - Visualización clara de todas las variaciones en modo edición
+- **Gestión de estado refinada** - Coordinación perfecta entre datos del evento y componentes de UI
+- **Sistema robusto de debugging** - Logs comprehensivos para troubleshooting y monitoreo
+
+## 🎉 Sistema de Eventos Detallado *(v0.9.0)*
+
+### 🔧 **Editor de Eventos Completo**
+- **Edición de eventos existentes**: Modificación completa de eventos ya creados con todas sus propiedades
+- **Carga automática de datos**: Los eventos se cargan con toda su información incluyendo asistentes y música
+- **Sincronización de variaciones musicales**: Sistema inteligente que detecta y carga automáticamente las variaciones de canciones
+- **Preservación de relaciones**: Mantiene intactas las relaciones entre eventos, asistentes y música durante la edición
+
+### 🎵 **Sistema de Variaciones Musicales Mejorado**
+- **Detección automática en modo edición**: Identifica automáticamente las variaciones musicales cuando se edita un evento
+- **Panel de variaciones inteligente**: Muestra las variaciones de cada canción en el panel derecho durante la edición
+- **Carga de canciones padre**: Sistema que carga automáticamente las canciones padre necesarias para mostrar variaciones
+- **Función especializada para edición**: `updateVariationsInfoForEditMode()` optimizada específicamente para el modo de edición
+
+### 🔄 **Arquitectura de Carga Mejorada**
+- **Carga completa de eventos**: Al editar, se carga el evento completo con `eventSongs` desde el backend
+- **API optimizada**: Endpoint GET `/events/:id` incluye toda la información necesaria para edición
+- **Fallback robusto**: Sistema de respaldo que maneja errores de carga gracefully
+- **Logs de debugging**: Sistema completo de logs para troubleshooting y monitoreo
+
+### 📝 **Gestión de Estado Refinada**
+- **useEffect especializado**: Efectos dedicados para manejar la carga de datos en modo edición
+- **Condiciones inteligentes**: Lógica mejorada para detectar cuándo usar funciones de edición vs. creación
+- **Sincronización de estado**: Coordinación perfecta entre `selectedSongs`, `variationsInfo` y datos del evento
+- **Persistencia de cambios**: Los cambios realizados se mantienen durante toda la sesión de edicións://img.shields.io/badge/version-1.10.9-blue.svg)](https://github.com/CareZapato/CGPlayerWeb/releases/tag/v1.10.9)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
 [![React](https://img.shields.io/badge/React-19+-blue.svg)](https://reactjs.org/)
@@ -11,7 +43,60 @@
 
 ## 🚀 Características Principales
 
-### 🔧 **Sistema de Edición Avanzada de Eventos** *(NUEVO en v0.9.0)*
+### 🎤 **Sistema de Distribución de Voces Completo** *(NUEVO en v1.10.9)*
+- **Distribución específica de voces** - 100% de usuarios con voz primaria (SOPRANO/CONTRALTO/TENOR) + 30% adicional con voz secundaria (BAJO/BARITONO/MESOSOPRANO)
+- **Campo isPrimary** - Sistema robusto de identificación de voz principal con ordenamiento automático
+- **Estadísticas de voces** - Endpoint de monitoreo para validar cumplimiento de distribución
+- **Gestión de perfiles avanzada** - Sistema completo para manejo de voces primarias y secundarias
+- **Visualización mejorada** - Corrección completa de visualización de voz primaria en homepage y perfil
+- **Base de datos robusta** - Inicialización mejorada con estrategia db push y manejo de errores
+
+### 📊 **Gestión de Eventos Aprobados/Rechazados** *(v1.10.8)*
+- **Sistema de estados avanzado** - Estados de pendiente, aprobado y rechazado para eventos
+- **Confirmación de asistencia** - Sistema completo para confirmar participación en eventos
+- **Reenvío de solicitudes** - Funcionalidad para reenviar solicitudes de eventos
+- **Iconos diferenciados** - Visualización clara del estado de cada evento
+- **Events management** - Gestión integral de eventos con workflow completo
+
+### 🏠 **Mejoras Visuales Homepage** *(v0.10.7)*
+- **Interfaz renovada** - Diseño más limpio y moderno para la página principal
+- **Navegación mejorada** - Mejor organización de elementos y accesos rápidos
+- **Responsive design** - Optimización completa para dispositivos móviles
+- **Performance** - Carga más rápida y experiencia de usuario optimizada
+
+### 🎭 **Gestión de Perfiles y Edición** *(v0.10.6)*
+- **Editor de perfiles avanzado** - Interfaz completa para edición de información personal
+- **Gestión de roles** - Sistema mejorado para asignación y modificación de roles
+- **Configuración personalizada** - Opciones avanzadas de personalización por usuario
+- **Validación robusta** - Sistema de validación mejorado para datos de perfil
+
+### 🎯 **Sistema de Filtros y Pestañas** *(v0.10.5)*
+- **Filtros avanzados** - Sistema completo de filtrado por múltiples criterios
+- **Navegación por pestañas** - Interfaz organizada con sistema de tabs responsive
+- **Filtrado por canciones** - Aplicación correcta de filtros en canciones y eventos
+- **Filtrado por tipo de usuario** - Vistas personalizadas según rol y permisos
+
+### 🎵 **Mejoras en Playlists** *(v0.10.4)*
+- **Editor avanzado** - Herramientas mejoradas para creación y edición de playlists
+- **Reproductor sticky** - Player persistente que se mantiene visible durante navegación
+- **Globalización** - Sistema de minimización del reproductor para mejor UX
+- **Lista de reproducción** - Funcionalidad completa con iconos de conteo
+
+### 📰 **Sistema de Noticias** *(v0.10.3-0.10.0)*
+- **Implementación completa** - Sistema integral de noticias y comunicación
+- **Parametrización de versión** - Gestión automática de versiones en el home
+- **Fix visual** - Correcciones visuales en homepage y componentes
+- **Cambio de información** - Actualización dinámica de contenido informativo
+
+### � **Sistema de Backup y Recuperación** *(NUEVO en v0.10.7)*
+- **Backup automático de base de datos** - Respaldo completo y programado de todos los datos
+- **Scripts de limpieza automatizados** - Herramientas para limpiar logs y archivos temporales
+- **Sistema de recuperación** - Procesos documentados para restauración de respaldos
+- **Gestión de archivos mejorada** - Organización optimizada de archivos de audio y metadatos
+- **Validación de integridad** - Verificación automática de consistencia de datos
+- **Monitoreo de espacio** - Control de uso de disco y limpieza preventiva
+
+### �🔧 **Sistema de Edición Avanzada de Eventos** *(v0.9.0)*
 - **Editor de eventos completo** - Modificación integral de eventos existentes con preservación de relaciones
 - **Carga automática de datos** - Los eventos cargan automáticamente con asistentes y música completa
 - **Sincronización de variaciones musicales** - Detección y carga inteligente de variaciones de canciones
@@ -142,6 +227,32 @@
 - **Gestión individual**: Remover canciones específicas con confirmación
 - **Controles completos**: Editar nombre, descripción, imagen, eliminar playlist
 - **Validación robusta**: Verificación de permisos y existencia de archivos
+
+## 💾 Sistema de Backup y Recuperación Detallado *(v0.10.7)*
+
+### 🔄 **Backup Automático**
+- **Respaldo programado**: Sistema de backup automático de base de datos PostgreSQL
+- **Scripts PowerShell**: Herramientas automatizadas para Windows (`clean-backend-logs.ps1`, `clean-console-logs.ps1`)
+- **Backup completo**: Incluye datos de usuarios, canciones, eventos, playlists y configuraciones
+- **Compresión inteligente**: Archivos de backup comprimidos para optimizar espacio
+
+### 🧹 **Limpieza Automatizada**
+- **clean-backend-logs.ps1**: Limpieza automática de logs del backend
+- **clean-console-logs-simple.ps1**: Limpieza básica de logs de consola
+- **cleanup-project.ps1**: Script maestro para limpieza completa del proyecto
+- **Archivos temporales**: Eliminación automática de archivos temp y caché
+
+### 🛡️ **Seguridad y Recuperación**
+- **Verificación de integridad**: Validación automática de consistencia de datos
+- **Restauración documentada**: Procesos paso a paso en `INSTRUCCIONES_RESTAURACION.md`
+- **Respaldo de configuración**: Backup de variables de entorno y configuraciones
+- **Monitoreo de espacio**: Control automático de uso de disco y alertas
+
+### 📊 **Gestión Avanzada**
+- **Logs detallados**: Registro completo de operaciones de backup y limpieza
+- **Programación flexible**: Scripts configurables para diferentes frecuencias
+- **Notificaciones**: Sistema de alertas para operaciones exitosas/fallidas
+- **Historial de backups**: Mantenimiento de múltiples versiones de respaldo
 
 ## 🛠️ Tecnologías Utilizadas
 
