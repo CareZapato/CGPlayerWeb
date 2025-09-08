@@ -36,7 +36,8 @@ const BackupManagement: React.FC = () => {
   const [restoreLogs, setRestoreLogs] = useState<string[]>([]);
   const [showLogs, setShowLogs] = useState(false);
   const [systemInfo, setSystemInfo] = useState({
-    totalSongs: 0,
+    totalSongs: 0,        // Canciones principales
+    totalAudioFiles: 0,   // Archivos de audio/variaciones
     totalUsers: 0,
     totalPlaylists: 0,
     totalEvents: 0,
@@ -272,8 +273,18 @@ const BackupManagement: React.FC = () => {
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mt-6">
           <div className="bg-blue-50 p-4 rounded-lg text-center">
             <HardDrive className="h-6 w-6 text-blue-600 mx-auto mb-2" />
-            <div className="text-lg font-semibold text-blue-900">{systemInfo.totalSongs}</div>
-            <div className="text-sm text-blue-700">Canciones</div>
+            <div className="text-lg font-semibold text-blue-900">
+              {systemInfo.totalSongs > 0 && systemInfo.totalAudioFiles > 0 
+                ? `${systemInfo.totalSongs} ${systemInfo.totalSongs === 1 ? 'canción' : 'canciones'}`
+                : systemInfo.totalSongs || 0
+              }
+            </div>
+            <div className="text-sm text-blue-700">
+              {systemInfo.totalSongs > 0 && systemInfo.totalAudioFiles > 0 
+                ? `${systemInfo.totalAudioFiles} ${systemInfo.totalAudioFiles === 1 ? 'archivo' : 'archivos'} de audio`
+                : 'Canciones'
+              }
+            </div>
           </div>
           <div className="bg-green-50 p-4 rounded-lg text-center">
             <Users className="h-6 w-6 text-green-600 mx-auto mb-2" />

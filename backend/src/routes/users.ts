@@ -506,6 +506,20 @@ router.put('/:userId', authenticateToken, requireRole(['DIRECTOR', 'ADMIN']), as
       return res.status(404).json({ message: 'User not found' });
     }
 
+    // Validar locationId si se proporciona
+    let validLocationId = null;
+    if (locationId && locationId !== 'null' && locationId.trim() !== '') {
+      const locationExists = await prisma.location.findUnique({
+        where: { id: locationId }
+      });
+      
+      if (!locationExists) {
+        console.log('Location ID not found for update:', locationId);
+        return res.status(400).json({ message: 'Invalid location ID provided' });
+      }
+      validLocationId = locationId;
+    }
+
     // Actualizar usuario
     const updatedUser = await prisma.user.update({
       where: { id: userId },
@@ -515,7 +529,7 @@ router.put('/:userId', authenticateToken, requireRole(['DIRECTOR', 'ADMIN']), as
         email,
         username,
         phone: phone || null,
-        locationId: locationId || null,
+        locationId: validLocationId,
         isActive
       },
       select: {
@@ -707,8 +721,22 @@ router.post('/create', authenticateToken, requireRole(['ADMIN']), async (req: Au
       locationId, 
       isActive, 
       voiceTypes, 
+      primaryVoice,  // Agregar primaryVoice del frontend
       role 
     } = req.body;
+
+    console.log('Creating user with data:', {
+      firstName,
+      lastName,
+      email,
+      username,
+      phone,
+      locationId: locationId || 'NULL',
+      isActive,
+      voiceTypes,
+      primaryVoice,
+      role
+    });
 
     // Validar campos requeridos
     if (!firstName || !lastName || !email || !username || !password || !role) {
@@ -729,6 +757,23 @@ router.post('/create', authenticateToken, requireRole(['ADMIN']), async (req: Au
       return res.status(400).json({ message: 'User with this email or username already exists' });
     }
 
+    // Validar locationId si se proporciona
+    let validLocationId = null;
+    if (locationId && locationId !== 'null' && locationId.trim() !== '') {
+      const locationExists = await prisma.location.findUnique({
+        where: { id: locationId }
+      });
+      
+      if (!locationExists) {
+        console.log('Location ID not found:', locationId);
+        return res.status(400).json({ message: 'Invalid location ID provided' });
+      }
+      validLocationId = locationId;
+      console.log('Valid location ID set:', validLocationId);
+    } else {
+      console.log('No location ID provided, setting to null');
+    }
+
     // Hash de la contraseña
     const bcrypt = require('bcryptjs');
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -742,7 +787,7 @@ router.post('/create', authenticateToken, requireRole(['ADMIN']), async (req: Au
         username,
         phone: phone || null,
         password: hashedPassword,
-        locationId: locationId || null,
+        locationId: validLocationId,
         isActive: isActive !== undefined ? isActive : true
       }
     });
@@ -759,10 +804,10 @@ router.post('/create', authenticateToken, requireRole(['ADMIN']), async (req: Au
     // Asignar tipos de voz si se proporcionaron
     if (voiceTypes && Array.isArray(voiceTypes) && voiceTypes.length > 0) {
       // Crear perfiles de voz con sistema de voz primaria
-      const voiceProfiles = voiceTypes.map((voiceType: string, index: number) => ({
+      const voiceProfiles = voiceTypes.map((voiceType: string) => ({
         userId: newUser.id,
         voiceType: voiceType as any,
-        isPrimary: index === 0, // Primera voz es primaria por defecto
+        isPrimary: voiceType === primaryVoice || (!primaryVoice && voiceType === voiceTypes[0]), // Usar primaryVoice del frontend
         assignedBy: req.user!.id
       }));
 
@@ -783,9 +828,22 @@ router.post('/create', authenticateToken, requireRole(['ADMIN']), async (req: Au
       }
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error creating user:', error);
-    res.status(500).json({ message: 'Failed to create user' });
+    
+    // Manejar errores específicos de Prisma
+    if (error.code === 'P2002') {
+      return res.status(400).json({ message: 'Usuario con este email o nombre de usuario ya existe' });
+    }
+    
+    if (error.code === 'P2003') {
+      return res.status(400).json({ message: 'Error de referencia: verifique que la ubicación sea válida' });
+    }
+    
+    res.status(500).json({ 
+      message: 'Error al crear usuario',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 });
 

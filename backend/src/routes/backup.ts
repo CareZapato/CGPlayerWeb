@@ -677,17 +677,27 @@ router.post('/backup/restore', authenticateToken, requireAdmin, upload.single('b
 // Obtener información del sistema para el frontend
 router.get('/system-info', authenticateToken, requireAdmin, async (req: Request, res: Response) => {
   try {
-    const stats = await Promise.all([
+    const [
+      totalUsers,
+      totalPlaylists,
+      totalEvents,
+      totalSongs,        // Canciones principales (voiceType = null)
+      totalAudioFiles,   // Archivos de audio (voiceType != null)
+      usersWithProfileImagesCount
+    ] = await Promise.all([
       prisma.user.count(),
-      prisma.song.count(),
       prisma.playlist.count(),
-      prisma.event.count()
+      prisma.event.count(),
+      prisma.song.count({
+        where: { voiceType: null }  // Solo canciones principales
+      }),
+      prisma.song.count({
+        where: { voiceType: { not: null } }  // Solo archivos de audio (variaciones)
+      }),
+      prisma.user.count({ 
+        where: { profileImage: { not: null } } 
+      } as any) // Temporal hasta que se recargue el TypeScript
     ]);
-    
-    // Contar usuarios con imagen de perfil por separado
-    const usersWithProfileImagesCount = await prisma.user.count({ 
-      where: { profileImage: { not: null } } 
-    } as any); // Temporal hasta que se recargue el TypeScript
 
     // Calcular tamaño del directorio uploads (backend/uploads)
     const uploadsDir = path.join(projectRoot, 'backend', 'uploads');
@@ -724,11 +734,12 @@ router.get('/system-info', authenticateToken, requireAdmin, async (req: Request,
     const profileStorageMB = (profileStorageUsed / (1024 * 1024)).toFixed(2);
 
     res.json({
-      totalUsers: stats[0],
-      totalSongs: stats[1],
-      totalPlaylists: stats[2],
-      totalEvents: stats[3],
-      usersWithProfileImages: usersWithProfileImagesCount, // Nueva estadística
+      totalUsers,
+      totalSongs,           // Canciones principales
+      totalAudioFiles,      // Archivos de audio/variaciones
+      totalPlaylists,
+      totalEvents,
+      usersWithProfileImages: usersWithProfileImagesCount,
       profileImages: {
         count: profileImagesCount,
         storageUsed: `${profileStorageMB} MB`,

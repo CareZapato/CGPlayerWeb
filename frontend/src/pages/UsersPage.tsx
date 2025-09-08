@@ -215,7 +215,7 @@ const UsersPage: React.FC = () => {
   // Cargar ubicaciones
   const fetchLocations = async () => {
     try {
-      const response = await fetch(getApiUrl('/users/data/locations'), {
+      const response = await fetch(getApiUrl('/api/locations'), {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
@@ -226,9 +226,11 @@ const UsersPage: React.FC = () => {
       }
 
       const data = await response.json();
-      setLocations(data.locations);
+      console.log('Locations loaded:', data); // Debug log
+      setLocations(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching locations:', error);
+      setLocations([]); // Fallback a array vacío
     }
   };
 
@@ -316,6 +318,8 @@ const UsersPage: React.FC = () => {
 
   // Seleccionar usuario para el panel lateral
   const handleSelectUser = (user: User) => {
+    console.log('Selected user:', user); // Debug log
+    console.log('User location:', user.location); // Debug log
     setSelectedUser(user);
     // Encontrar la voz primaria
     const primaryVoiceProfile = user.voiceProfiles?.find(vp => (vp as any).isPrimary);
@@ -351,8 +355,8 @@ const UsersPage: React.FC = () => {
           lastName: editForm.lastName,
           email: editForm.email,
           username: editForm.username,
-          phone: editForm.phone,
-          locationId: editForm.locationId,
+          phone: editForm.phone || null,
+          locationId: editForm.locationId || null, // Convertir cadena vacía a null
           isActive: editForm.isActive
         })
       });
@@ -456,19 +460,20 @@ const UsersPage: React.FC = () => {
           lastName: createForm.lastName,
           email: createForm.email,
           username: createForm.username,
-          phone: createForm.phone,
+          phone: createForm.phone || null,
           password: createForm.password,
-          locationId: createForm.locationId,
+          locationId: createForm.locationId || null, // Convertir cadena vacía a null
           isActive: createForm.isActive,
           voiceTypes: createForm.selectedVoices,
-          primaryVoice: createForm.primaryVoice,
+          primaryVoice: createForm.primaryVoice || null, // Convertir cadena vacía a null
           role: createForm.selectedRole
         })
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to create user');
+        console.error('Server error response:', errorData);
+        throw new Error(errorData.message || 'Error al crear usuario');
       }
 
       toast.success('Usuario creado correctamente');
@@ -996,11 +1001,17 @@ const UsersPage: React.FC = () => {
                         onChange={(e) => setEditForm(prev => ({ ...prev, locationId: e.target.value }))}
                       >
                         <option value="">Sin ubicación</option>
-                        {locations.map(location => (
-                          <option key={location.id} value={location.id}>
-                            {location.name} - {location.city}
-                          </option>
-                        ))}
+                        {locations.length === 0 && (
+                          <option value="" disabled>Cargando ubicaciones...</option>
+                        )}
+                        {locations.map(location => {
+                          console.log('Rendering edit location option:', location); // Debug log
+                          return (
+                            <option key={location.id} value={location.id}>
+                              {location.name} - {location.city}
+                            </option>
+                          );
+                        })}
                       </select>
                     </div>
 
@@ -1234,11 +1245,17 @@ const UsersPage: React.FC = () => {
                     onChange={(e) => setCreateForm(prev => ({ ...prev, locationId: e.target.value }))}
                   >
                     <option value="">Sin ubicación</option>
-                    {locations.map(location => (
-                      <option key={location.id} value={location.id}>
-                        {location.name} - {location.city}
-                      </option>
-                    ))}
+                    {locations.length === 0 && (
+                      <option value="" disabled>Cargando ubicaciones...</option>
+                    )}
+                    {locations.map(location => {
+                      console.log('Rendering location option:', location); // Debug log
+                      return (
+                        <option key={location.id} value={location.id}>
+                          {location.name} - {location.city}
+                        </option>
+                      );
+                    })}
                   </select>
                 </div>
               </div>
