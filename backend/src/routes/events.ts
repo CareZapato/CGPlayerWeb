@@ -1735,7 +1735,7 @@ router.post('/:id/play', authenticateToken, async (req, res) => {
       });
       
       const userVoiceTypes = userVoiceProfiles.map(profile => profile.voiceType);
-      const allowedVoiceTypes = [...userVoiceTypes, 'CORO', 'ORIGINAL'];
+      const allowedVoiceTypes = [...userVoiceTypes, 'CORO', 'ORIGINAL', 'INSTRUMENTAL'];
       
       filteredSongs = filteredSongs.filter(song => {
         // Si no tiene voiceType, considerarlo como ORIGINAL (permitido)
@@ -2155,7 +2155,7 @@ router.post('/:id/play', authenticateToken, async (req, res) => {
       });
       
       const userVoiceTypes = userVoiceProfiles.map(profile => profile.voiceType);
-      const allowedVoiceTypes = [...userVoiceTypes, 'CORO', 'ORIGINAL'];
+      const allowedVoiceTypes = [...userVoiceTypes, 'CORO', 'ORIGINAL', 'INSTRUMENTAL'];
       
       songs = songs.filter(song => {
         // Si no tiene voiceType, considerarlo como ORIGINAL (permitido)

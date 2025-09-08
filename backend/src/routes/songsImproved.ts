@@ -59,7 +59,7 @@ const LOCAL_IP = getLocalIP();
  *                 type: array
  *                 items:
  *                   type: string
- *                   enum: [SOPRANO, MEZZOSOPRANO, ALTO, TENOR, BARITONO, BAJO, CORO, ORIGINAL]
+ *                   enum: [SOPRANO, MEZZOSOPRANO, ALTO, TENOR, BARITONO, BAJO, CORO, ORIGINAL, INSTRUMENTAL]
  *                 description: Tipos de voz para la canción
  *     responses:
  *       201:
@@ -501,7 +501,7 @@ router.post('/multi-upload', authenticateToken, multiUpload.fields([
  *                 type: array
  *                 items:
  *                   type: string
- *                   enum: [SOPRANO, CONTRALTO, TENOR, BARITONO, BAJO, CORO, ORIGINAL]
+ *                   enum: [SOPRANO, CONTRALTO, TENOR, BARITONO, BAJO, CORO, ORIGINAL, INSTRUMENTAL]
  *                 description: Tipos de voz para crear variantes
  *     responses:
  *       201:
@@ -736,12 +736,12 @@ router.get('/for-playlist', authenticateToken, async (req: AuthRequest, res: Res
     // Si es CANTANTE (y no es ADMIN ni DIRECTOR), filtrar por tipos de voz del usuario
     if (isCantante && !isAdmin && !isDirector) {
       if (userVoiceProfiles.length === 0) {
-        // Si no tiene tipos asignados, solo mostrar CORO y ORIGINAL
-        whereClause.voiceType = { in: ['CORO', 'ORIGINAL'] };
+        // Si no tiene tipos asignados, solo mostrar CORO, ORIGINAL e INSTRUMENTAL
+        whereClause.voiceType = { in: ['CORO', 'ORIGINAL', 'INSTRUMENTAL'] };
         } else {
         // Extraer los tipos de voz del usuario y agregar CORO y ORIGINAL
         const userVoiceTypes = userVoiceProfiles.map((profile: any) => profile.voiceType);
-        const allowedVoiceTypes = [...userVoiceTypes, 'CORO', 'ORIGINAL'];
+        const allowedVoiceTypes = [...userVoiceTypes, 'CORO', 'ORIGINAL', 'INSTRUMENTAL'];
         whereClause.voiceType = { in: allowedVoiceTypes };
         }
     } else {
@@ -897,7 +897,7 @@ router.get('/:id/versions', authenticateToken, async (req: AuthRequest, res: Res
     const userRoles = req.user!.roles || [];
     
     // Determinar los tipos de voz permitidos según el rol del usuario
-    let allowedVoiceTypes: ('SOPRANO' | 'CONTRALTO' | 'TENOR' | 'BAJO' | 'CORO' | 'ORIGINAL')[] = [];
+    let allowedVoiceTypes: ('SOPRANO' | 'CONTRALTO' | 'TENOR' | 'BAJO' | 'CORO' | 'ORIGINAL' | 'INSTRUMENTAL')[] = [];
     
     const isAdmin = userRoles.some((role: string) => role === 'ADMIN');
     const isDirector = userRoles.some((role: string) => role === 'DIRECTOR');
@@ -905,7 +905,7 @@ router.get('/:id/versions', authenticateToken, async (req: AuthRequest, res: Res
 
     if (isAdmin || isDirector) {
       // ADMIN y DIRECTOR pueden ver todas las variaciones
-      allowedVoiceTypes = ['SOPRANO', 'CONTRALTO', 'TENOR', 'BAJO', 'CORO', 'ORIGINAL'];
+      allowedVoiceTypes = ['SOPRANO', 'CONTRALTO', 'TENOR', 'BAJO', 'CORO', 'ORIGINAL', 'INSTRUMENTAL'];
     } else if (isCantante) {
       // CANTANTE solo puede ver sus tipos de voz + CORO + ORIGINAL
       const user = await prisma.user.findUnique({
@@ -915,9 +915,9 @@ router.get('/:id/versions', authenticateToken, async (req: AuthRequest, res: Res
       
       if (user?.voiceProfiles) {
         const userVoiceTypes = user.voiceProfiles.map(vp => vp.voiceType as any);
-        allowedVoiceTypes = [...userVoiceTypes, 'CORO', 'ORIGINAL'];
+        allowedVoiceTypes = [...userVoiceTypes, 'CORO', 'ORIGINAL', 'INSTRUMENTAL'];
       } else {
-        allowedVoiceTypes = ['CORO', 'ORIGINAL']; // Solo CORO y ORIGINAL por defecto
+        allowedVoiceTypes = ['CORO', 'ORIGINAL', 'INSTRUMENTAL']; // Solo CORO, ORIGINAL e INSTRUMENTAL por defecto
       }
     }
     
@@ -946,7 +946,7 @@ router.get('/:id/versions', authenticateToken, async (req: AuthRequest, res: Res
         childVersions: {
           where: {
             voiceType: {
-              in: allowedVoiceTypes
+              in: allowedVoiceTypes as any
             }
           },
           select: {
@@ -977,7 +977,7 @@ router.get('/:id/versions', authenticateToken, async (req: AuthRequest, res: Res
           }
         }
       }
-    });
+    }) as any;
 
     if (!containerSong) {
       return res.status(404).json({ message: 'Canción no encontrada' });
@@ -1049,10 +1049,10 @@ router.get('/file/:folderName/:fileName', authenticateToken, async (req: AuthReq
 
       console.log(`🔍 [SONG-FILE] Canción encontrada: "${song.title}" (${song.voiceType || 'sin voiceType'})`);
 
-      // Si la canción es CORO u ORIGINAL, todos pueden acceder
-      if (song.voiceType === 'CORO' || song.voiceType === 'ORIGINAL' || !song.voiceType) {
+      // Si la canción es CORO, ORIGINAL o INSTRUMENTAL, todos pueden acceder
+      if (song.voiceType === 'CORO' || song.voiceType === 'ORIGINAL' || (song.voiceType as any) === 'INSTRUMENTAL' || !song.voiceType) {
         console.log(`🔍 [SONG-FILE] Acceso permitido - voiceType: ${song.voiceType || 'sin voiceType'}`);
-        // Acceso permitido para CORO, ORIGINAL y sin voiceType
+        // Acceso permitido para CORO, ORIGINAL, INSTRUMENTAL y sin voiceType
       } else {
         console.log(`🔍 [SONG-FILE] Verificando voice types del usuario...`);
         // Verificar si el usuario tiene el tipo de voz de la canción
@@ -1150,9 +1150,9 @@ router.get('/file/:fileName', authenticateToken, async (req: AuthRequest, res: R
         return res.status(404).json({ message: 'Archivo no encontrado en base de datos' });
       }
 
-      // Si la canción es CORO u ORIGINAL, todos pueden acceder
-      if (song.voiceType === 'CORO' || song.voiceType === 'ORIGINAL') {
-        // Acceso permitido para CORO y ORIGINAL
+      // Si la canción es CORO, ORIGINAL o INSTRUMENTAL, todos pueden acceder
+      if (song.voiceType === 'CORO' || song.voiceType === 'ORIGINAL' || (song.voiceType as any) === 'INSTRUMENTAL') {
+        // Acceso permitido para CORO, ORIGINAL e INSTRUMENTAL
       } else {
         // Verificar si el usuario tiene el tipo de voz de la canción
         const userVoiceProfiles = await prisma.userVoiceProfile.findMany({

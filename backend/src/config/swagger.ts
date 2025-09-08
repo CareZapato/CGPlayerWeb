@@ -95,7 +95,7 @@ const options = {
               type: 'array',
               items: {
                 type: 'string',
-                enum: ['SOPRANO', 'MEZZOSOPRANO', 'ALTO', 'TENOR', 'BARITONO', 'BAJO', 'CORO', 'ORIGINAL']
+                enum: ['SOPRANO', 'MEZZOSOPRANO', 'ALTO', 'TENOR', 'BARITONO', 'BAJO', 'CORO', 'ORIGINAL', 'INSTRUMENTAL']
               },
               description: 'Tipos de voz disponibles para la canción'
             },

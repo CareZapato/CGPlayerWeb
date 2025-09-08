@@ -371,6 +371,7 @@ enum VoiceType {
   BAJO
   CORO
   ORIGINAL
+  INSTRUMENTAL
 }
 
 enum SoloistType {

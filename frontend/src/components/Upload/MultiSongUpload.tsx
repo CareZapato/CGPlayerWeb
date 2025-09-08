@@ -54,7 +54,8 @@ const MultiSongUpload: React.FC<MultiSongUploadProps> = ({ onUploadComplete, par
     { value: 'MESOSOPRANO', label: 'Mesosoprano', color: 'bg-indigo-100 text-indigo-800' },
     { value: 'BAJO', label: 'Bajo', color: 'bg-yellow-100 text-yellow-800' },
     { value: 'CORO', label: 'Coro', color: 'bg-orange-100 text-orange-800' },
-    { value: 'ORIGINAL', label: 'Original', color: 'bg-gray-100 text-gray-800' }
+    { value: 'ORIGINAL', label: 'Original', color: 'bg-gray-100 text-gray-800' },
+    { value: 'INSTRUMENTAL', label: 'Instrumental', color: 'bg-red-100 text-red-800' }
   ];
 
   // Configuración del dropzone para archivos de audio

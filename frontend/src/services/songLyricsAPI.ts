@@ -1,7 +1,7 @@
 // Ejemplo de uso del servicio desde el frontend
 
 interface UploadedVariant {
-  voiceType: 'SOPRANO' | 'CONTRALTO' | 'TENOR' | 'BARITONO' | 'MESOSOPRANO' | 'BAJO' | 'CORO' | 'ORIGINAL';
+  voiceType: 'SOPRANO' | 'CONTRALTO' | 'TENOR' | 'BARITONO' | 'MESOSOPRANO' | 'BAJO' | 'CORO' | 'ORIGINAL' | 'INSTRUMENTAL';
   fileName: string;
   filePath: string;
   fileSize: number;
