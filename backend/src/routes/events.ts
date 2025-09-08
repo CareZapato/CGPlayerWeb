@@ -308,7 +308,8 @@ router.get('/visible', authenticateToken, async (req, res) => {
       // Información de confirmación de asistencia
       const userAttendanceStatus = userAttendee ? {
         attendanceConfirmed: (userAttendee as any).attendanceConfirmed,
-        nonAttendanceComment: (userAttendee as any).nonAttendanceComment
+        nonAttendanceComment: (userAttendee as any).nonAttendanceComment,
+        status: (userAttendee as any).status
       } : null;
       
       return {
@@ -2192,6 +2193,16 @@ router.put('/:id/attendance-confirmation', authenticateToken, async (req, res) =
 
     console.log(`📝 Attendance confirmation for EventID=${id}, UserID=${userId}, Confirmed=${attendanceConfirmed}`);
 
+    // Determinar el status basado en la confirmación
+    let status;
+    if (attendanceConfirmed === true) {
+      status = 'CONFIRMED';
+    } else if (attendanceConfirmed === false) {
+      status = 'REFUSED';
+    } else {
+      status = 'PENDING';
+    }
+
     // Verificar que el usuario es asistente del evento
     const attendee = await prisma.eventAttendee.findUnique({
       where: {
@@ -2222,7 +2233,7 @@ router.put('/:id/attendance-confirmation', authenticateToken, async (req, res) =
       });
     }
 
-    // Actualizar confirmación de asistencia
+    // Actualizar confirmación de asistencia usando el campo status
     const updatedAttendee = await prisma.eventAttendee.update({
       where: {
         eventId_userId: {
@@ -2231,7 +2242,8 @@ router.put('/:id/attendance-confirmation', authenticateToken, async (req, res) =
         }
       },
       data: {
-        attendanceConfirmed: attendanceConfirmed,
+        status: status as any,
+        attendanceConfirmed: attendanceConfirmed, // Mantener compatibilidad
         nonAttendanceComment: attendanceConfirmed === false ? nonAttendanceComment : null
       } as any
     });

@@ -6,17 +6,17 @@ const prisma = new PrismaClient();
 // Función para crear noticia de versión
 async function createVersionNews() {
   try {
-    console.log('📰 Creando noticia de versión v1.10.9...');
+    console.log('📰 Creando noticia de versión v0.10.9...');
     
     const news = await (prisma as any).news.create({
       data: {
-        title: 'Nueva Versión v1.10.9 Disponible',
+        title: 'Nueva Versión v0.10.9 Disponible',
         description: 'Sistema de noticias implementado: ¡Mantente al día con las novedades del sistema!',
         type: 'VERSION_RELEASED',
         icon: '🚀',
         actionUrl: '/changelog',
         metadata: { 
-          version: 'v1.10.9',
+          version: 'v0.10.9',
           description: 'Sistema de noticias implementado: ¡Mantente al día con las novedades del sistema!'
         },
         isActive: true

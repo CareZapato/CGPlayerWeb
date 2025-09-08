@@ -19,54 +19,54 @@
 ## 📝 **ACTUALIZACIONES DE DOCUMENTACIÓN**
 
 ### 1. **CHANGELOG.md** ✅
-- ✅ Agregadas versiones faltantes desde 0.10.0 hasta 1.10.9
+- ✅ Agregadas versiones faltantes desde 0.10.0 hasta 0.10.9
 - ✅ Documentación detallada de cada versión con características específicas
 - ✅ Basado en análisis de commits reales del proyecto
 
 ### 2. **README.md** ✅
-- ✅ Actualizado badge de versión: `version-1.10.9-blue.svg`
+- ✅ Actualizado badge de versión: `version-0.10.9-blue.svg`
 - ✅ Agregada nueva sección principal para sistema de distribución de voces
-- ✅ Características destacadas de la versión 1.10.9
+- ✅ Características destacadas de la versión 0.10.9
 
 ### 3. **ARCHIVOS DE CONFIGURACIÓN** ✅
 
 #### package.json (Principal)
 ```json
-"version": "1.10.9"
+"version": "0.10.9"
 ```
 
 #### frontend/package.json  
 ```json
-"version": "1.10.9"
+"version": "0.10.9"
 ```
 
 #### backend/package.json
 ```json
-"version": "1.10.9"
+"version": "0.10.9"
 ```
 
 #### frontend/src/config/appConfig.ts
 ```typescript
-version: process.env.REACT_APP_VERSION || '1.10.9'
+version: process.env.REACT_APP_VERSION || '0.10.9'
 ```
 
 ### 4. **INTERFAZ DE USUARIO** ✅
 
 #### frontend/src/pages/ChangelogPage.tsx
-- ✅ Agregada nueva versión 1.10.9 con detalles completos
-- ✅ Configurado para expandir v1.10.9 por defecto
+- ✅ Agregada nueva versión 0.10.9 con detalles completos
+- ✅ Configurado para expandir v0.10.9 por defecto
 - ✅ Actualizada descripción principal de características
 
 ### 5. **BACKEND** ✅
 
 #### backend/src/routes/admin.ts
-- ✅ Actualizada noticia de versión: "Nueva Versión v1.10.9 Disponible"
+- ✅ Actualizada noticia de versión: "Nueva Versión v0.10.9 Disponible"
 - ✅ Actualizado metadata de versión
 
 #### backend/create-version-news.ts
-- ✅ Actualizado script para crear noticias de versión 1.10.9
+- ✅ Actualizado script para crear noticias de versión 0.10.9
 
-## 🎯 **CARACTERÍSTICAS PRINCIPALES DE v1.10.9**
+## 🎯 **CARACTERÍSTICAS PRINCIPALES DE v0.10.9**
 
 ### 📊 **Sistema de Distribución de Voces**
 1. **100% de usuarios** tienen una voz primaria (SOPRANO, CONTRALTO, TENOR)
@@ -83,7 +83,7 @@ version: process.env.REACT_APP_VERSION || '1.10.9'
 5. **Middleware actualizado** - Mejor manejo de errores de conectividad
 
 ### 🎨 **Experiencia de Usuario**
-1. **Homepage actualizada** - Muestra version 1.10.9 correctamente
+1. **Homepage actualizada** - Muestra version 0.10.9 correctamente
 2. **Changelog expandido** - Nueva versión visible por defecto
 3. **Perfil de usuario** - Voz primaria destacada visualmente
 4. **Dashboard de admin** - Estadísticas de distribución de voces
@@ -91,7 +91,7 @@ version: process.env.REACT_APP_VERSION || '1.10.9'
 ## ✅ **VERIFICACIÓN DE ACTUALIZACIÓN**
 
 ### 🔍 **Archivos Actualizados**
-- [x] `CHANGELOG.md` - Versiones 0.10.0 a 1.10.9 agregadas
+- [x] `CHANGELOG.md` - Versiones 0.10.0 a 0.10.9 agregadas
 - [x] `README.md` - Badge y características actualizadas  
 - [x] `package.json` - Versión principal actualizada
 - [x] `frontend/package.json` - Versión frontend
@@ -103,16 +103,16 @@ version: process.env.REACT_APP_VERSION || '1.10.9'
 
 ### 🚀 **Para Verificar la Actualización**
 
-1. **Frontend**: Verificar que homepage muestra v1.10.9
+1. **Frontend**: Verificar que homepage muestra v0.10.9
 ```bash
 http://localhost:5173/
-# Verificar esquina inferior: "CGPlayerWeb 1.10.9"
+# Verificar esquina inferior: "CGPlayerWeb 0.10.9"
 ```
 
 2. **Changelog**: Verificar nueva versión expandida
 ```bash
 http://localhost:5173/changelog
-# Verificar que v1.10.9 aparece primero y expandida
+# Verificar que v0.10.9 aparece primero y expandida
 ```
 
 3. **API**: Verificar endpoints con isPrimary
@@ -129,7 +129,7 @@ GET http://localhost:3001/api/admin/voice-stats
 
 ## 🎉 **RESUMEN FINAL**
 
-✅ **PROYECTO ACTUALIZADO COMPLETAMENTE A VERSIÓN 1.10.9**
+✅ **PROYECTO ACTUALIZADO COMPLETAMENTE A VERSIÓN 0.10.9**
 
 - 🔄 **Todas las funcionalidades técnicas implementadas y funcionando**
 - 📚 **Documentación completamente actualizada con changelog detallado**  
@@ -137,4 +137,4 @@ GET http://localhost:3001/api/admin/voice-stats
 - 🎨 **Interfaz actualizada para mostrar nueva versión**
 - 🔧 **Backend preparado con noticias de versión actualizadas**
 
-**¡El proyecto CGPlayerWeb v1.10.9 está completamente actualizado y listo para uso!** 🎵✨
+**¡El proyecto CGPlayerWeb v0.10.9 está completamente actualizado y listo para uso!** 🎵✨

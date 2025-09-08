@@ -111,7 +111,7 @@ const LyricsSynchronizer: React.FC<LyricsSynchronizerProps> = ({ song, onClose, 
   // Manejo de teclas para navegación y marcado
   useEffect(() => {
     const handleKeyPress = (event: KeyboardEvent) => {
-      if (event.code === 'Space') {
+      if (event.code === 'AltLeft') {
         event.preventDefault();
         markCurrentLineAndAdvance();
       } else if (event.code === 'ArrowUp') {
@@ -540,7 +540,7 @@ const LyricsSynchronizer: React.FC<LyricsSynchronizerProps> = ({ song, onClose, 
           <div className="flex items-center justify-between text-xs text-gray-600 bg-gradient-to-r from-purple-50 to-indigo-50 rounded-lg p-3 border border-purple-100">
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-1">
-                <kbd className="px-2 py-1 bg-white border border-gray-300 rounded text-xs font-mono">ESPACIO</kbd>
+                <kbd className="px-2 py-1 bg-white border border-gray-300 rounded text-xs font-mono">ALT IZQ</kbd>
                 <span>Marcar línea actual</span>
               </div>
               <div className="flex items-center space-x-1">
@@ -568,7 +568,7 @@ const LyricsSynchronizer: React.FC<LyricsSynchronizerProps> = ({ song, onClose, 
                   ¡Prepárate para sincronizar!
                 </div>
                 <div className="text-lg text-gray-300 mt-2">
-                  Presiona ESPACIO para marcar cada línea
+                  Presiona ALT IZQUIERDO para marcar cada línea
                 </div>
                 <div className="text-md text-gray-400 mt-1">
                   Línea actual: "{lyricsLines[currentLineIndex]?.content || ''}"

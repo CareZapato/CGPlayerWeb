@@ -32,7 +32,9 @@
 - **useEffect especializado**: Efectos dedicados para manejar la carga de datos en modo edición
 - **Condiciones inteligentes**: Lógica mejorada para detectar cuándo usar funciones de edición vs. creación
 - **Sincronización de estado**: Coordinación perfecta entre `selectedSongs`, `variationsInfo` y datos del evento
-- **Persistencia de cambios**: Los cambios realizados se mantienen durante toda la sesión de edicións://img.shields.io/badge/version-1.10.9-blue.svg)](https://github.com/CareZapato/CGPlayerWeb/releases/tag/v1.10.9)
+- **Persistencia de cambios**: Los cambios realizados se mantienen durante toda la sesión de edición
+
+[![Version](https://img.shields.io/badge/version-0.10.9-blue.svg)](https://github.com/CareZapato/CGPlayerWeb/releases/tag/v0.10.9)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
 [![React](https://img.shields.io/badge/React-19+-blue.svg)](https://reactjs.org/)
@@ -43,7 +45,7 @@
 
 ## 🚀 Características Principales
 
-### 🎤 **Sistema de Distribución de Voces Completo** *(NUEVO en v1.10.9)*
+### 🎤 **Sistema de Distribución de Voces Completo** *(NUEVO en v0.10.9)*
 - **Distribución específica de voces** - 100% de usuarios con voz primaria (SOPRANO/CONTRALTO/TENOR) + 30% adicional con voz secundaria (BAJO/BARITONO/MESOSOPRANO)
 - **Campo isPrimary** - Sistema robusto de identificación de voz principal con ordenamiento automático
 - **Estadísticas de voces** - Endpoint de monitoreo para validar cumplimiento de distribución

@@ -65,6 +65,7 @@ interface Event {
   userAttendanceStatus?: {
     attendanceConfirmed: boolean | null;
     nonAttendanceComment?: string;
+    status?: 'CONFIRMED' | 'REFUSED' | 'PENDING';
   };
 }
 
@@ -1086,14 +1087,14 @@ const PublicEventsPage: React.FC = () => {
                           <h3 className="text-lg font-semibold text-gray-900 mb-3">Confirmación de Asistencia</h3>
                           
                           {/* Estado actual de asistencia */}
-                          {selectedEvent.userAttendanceStatus?.attendanceConfirmed !== null && (
+                          {(selectedEvent.userAttendanceStatus?.attendanceConfirmed !== null || selectedEvent.userAttendanceStatus?.status) && (
                             <div className="mb-4 p-3 rounded-lg border">
-                              {selectedEvent.userAttendanceStatus?.attendanceConfirmed === true ? (
+                              {(selectedEvent.userAttendanceStatus?.status === 'CONFIRMED' || selectedEvent.userAttendanceStatus?.attendanceConfirmed === true) ? (
                                 <div className="flex items-center text-green-700 bg-green-50 border-green-200">
                                   <CheckCircle className="h-5 w-5 mr-2" />
                                   <span className="font-medium">Has confirmado tu asistencia</span>
                                 </div>
-                              ) : (
+                              ) : (selectedEvent.userAttendanceStatus?.status === 'REFUSED' || selectedEvent.userAttendanceStatus?.attendanceConfirmed === false) ? (
                                 <div className="text-red-700 bg-red-50 border-red-200">
                                   <div className="flex items-center mb-2">
                                     <X className="h-5 w-5 mr-2" />
@@ -1105,13 +1106,18 @@ const PublicEventsPage: React.FC = () => {
                                     </div>
                                   )}
                                 </div>
+                              ) : (
+                                <div className="flex items-center text-amber-700 bg-amber-50 border-amber-200">
+                                  <Clock className="h-5 w-5 mr-2" />
+                                  <span className="font-medium">Asistencia pendiente de confirmación</span>
+                                </div>
                               )}
                             </div>
                           )}
                           
                           <div className="space-y-3">
                             <p className="text-sm text-gray-600 mb-3">
-                              {selectedEvent.userAttendanceStatus?.attendanceConfirmed !== null 
+                              {(selectedEvent.userAttendanceStatus?.attendanceConfirmed !== null || selectedEvent.userAttendanceStatus?.status)
                                 ? "Puedes cambiar tu respuesta cuando quieras:"
                                 : "Por favor, confirma si podrás asistir al evento:"
                               }
@@ -1120,10 +1126,11 @@ const PublicEventsPage: React.FC = () => {
                               <button
                                 onClick={() => handleAttendanceConfirmation(selectedEvent.id, true)}
                                 disabled={joinRequestLoading}
-                                className={`flex-1 py-2 px-4 rounded-lg transition-colors disabled:opacity-50 ${
+                                className={`flex-1 py-2 px-4 rounded-lg font-medium transition-all duration-200 disabled:opacity-50 ${
+                                  selectedEvent.userAttendanceStatus?.status === 'CONFIRMED' ||
                                   selectedEvent.userAttendanceStatus?.attendanceConfirmed === true
-                                    ? 'bg-green-700 text-white' 
-                                    : 'bg-green-600 text-white hover:bg-green-700'
+                                    ? 'bg-green-700 text-white shadow-lg scale-105 border-2 border-green-600' 
+                                    : 'bg-green-600 text-white hover:bg-green-700 hover:scale-105 opacity-70 hover:opacity-100'
                                 }`}
                               >
                                 {joinRequestLoading ? 'Confirmando...' : 'Confirmar Asistencia'}
@@ -1131,10 +1138,11 @@ const PublicEventsPage: React.FC = () => {
                               <button
                                 onClick={() => setShowNonAttendanceModal(true)}
                                 disabled={joinRequestLoading}
-                                className={`flex-1 py-2 px-4 rounded-lg transition-colors disabled:opacity-50 ${
+                                className={`flex-1 py-2 px-4 rounded-lg font-medium transition-all duration-200 disabled:opacity-50 ${
+                                  selectedEvent.userAttendanceStatus?.status === 'REFUSED' ||
                                   selectedEvent.userAttendanceStatus?.attendanceConfirmed === false
-                                    ? 'bg-red-700 text-white' 
-                                    : 'bg-red-600 text-white hover:bg-red-700'
+                                    ? 'bg-red-700 text-white shadow-lg scale-105 border-2 border-red-600' 
+                                    : 'bg-red-600 text-white hover:bg-red-700 hover:scale-105 opacity-70 hover:opacity-100'
                                 }`}
                               >
                                 {joinRequestLoading ? 'Actualizando...' : 'No Podré Asistir'}

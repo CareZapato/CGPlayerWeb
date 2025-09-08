@@ -15,7 +15,7 @@ interface ChangelogEntry {
 
 const changelogData: ChangelogEntry[] = [
   {
-    version: '1.10.9',
+    version: '0.10.9',
     date: '2024-12-22',
     type: 'major',
     title: 'Sistema de Distribución de Voces Mejorado - Voice Distribution Mastery',
@@ -459,7 +459,7 @@ const changelogData: ChangelogEntry[] = [
 ];
 
 const ChangelogPage: React.FC = () => {
-  const [expandedVersions, setExpandedVersions] = useState<string[]>(['1.10.9']);
+  const [expandedVersions, setExpandedVersions] = useState<string[]>(['0.10.9']);
 
   const toggleVersion = (version: string) => {
     setExpandedVersions(prev => 
@@ -522,7 +522,7 @@ const ChangelogPage: React.FC = () => {
               <p><strong>Versión actual:</strong> {changelogData[0].version}</p>
               <p><strong>Última actualización:</strong> {new Date(changelogData[0].date).toLocaleDateString('es-ES')}</p>
               <p><strong>Tecnologías:</strong> React, TypeScript, Node.js, PostgreSQL, Prisma</p>
-              <p><strong>Nuevo en v1.10.9:</strong> Sistema completo de distribución de voces con voces primarias, corrección de duplicados admin, y mejoras robustas en autenticación y base de datos</p>
+              <p><strong>Nuevo en v0.10.9:</strong> Sistema completo de distribución de voces con voces primarias, corrección de duplicados admin, y mejoras robustas en autenticación y base de datos</p>
             </div>
           </div>
           <div className="text-6xl">
