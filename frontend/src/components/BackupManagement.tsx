@@ -281,7 +281,7 @@ const BackupManagement: React.FC = () => {
             </div>
             <div className="text-sm text-blue-700">
               {systemInfo.totalSongs > 0 && systemInfo.totalAudioFiles > 0 
-                ? `${systemInfo.totalAudioFiles} ${systemInfo.totalAudioFiles === 1 ? 'archivo' : 'archivos'} de audio`
+                ? `en ${systemInfo.totalAudioFiles} ${systemInfo.totalAudioFiles === 1 ? 'archivo' : 'archivos'} de audio`
                 : 'Canciones'
               }
             </div>

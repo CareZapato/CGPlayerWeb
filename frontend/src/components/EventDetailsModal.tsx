@@ -46,6 +46,10 @@ interface Event {
       lastName: string;
       location?: { name: string };
       assignedRoles: Array<{ role: string }>;
+      voiceProfiles?: Array<{
+        voiceType: string;
+        isPrimary: boolean;
+      }>;
     };
     addedByUser: {
       firstName: string;
@@ -77,6 +81,61 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
   onClose, 
   onEventUpdated 
 }) => {
+  
+  // 🐛 DEBUG: Log completo del objeto event que llega como prop
+  console.log('🎭 [FRONTEND DEBUG] Event prop recibido:', {
+    id: event.id,
+    title: event.title,
+    hasAttendees: !!event.attendees,
+    attendeesLength: event.attendees?.length || 0,
+    attendeesRaw: event.attendees
+  });
+  
+  // 🐛 DEBUG: Verificar estructura específica del primer attendee si existe
+  if (event.attendees && event.attendees.length > 0) {
+    const firstAttendee = event.attendees[0];
+    console.log('👤 [FRONTEND DEBUG] Primer attendee raw:', {
+      status: firstAttendee.status,
+      user: firstAttendee.user,
+      userKeys: Object.keys(firstAttendee.user),
+      hasVoiceProfiles: 'voiceProfiles' in firstAttendee.user,
+      voiceProfilesValue: (firstAttendee.user as any).voiceProfiles
+    });
+  }
+
+  // Estado para las voces obtenidas del endpoint específico
+  const [eventVoices, setEventVoices] = useState<any[]>([]);
+  const [voicesLoaded, setVoicesLoaded] = useState(false);
+  
+  // Función para obtener voces del endpoint específico
+  const fetchEventVoices = async () => {
+    try {
+      console.log('🎤 Obteniendo voces del evento...');
+      const response = await fetch(`http://localhost:3001/api/events/${event.id}/voices`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('🎯 Voces recibidas del backend:', data);
+        if (data.success) {
+          setEventVoices(data.data.voicesData);
+          setVoicesLoaded(true);
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error obteniendo voces:', error);
+    }
+  };
+
+  // Llamar al endpoint de voces cuando se monta el componente
+  React.useEffect(() => {
+    fetchEventVoices();
+  }, [event.id]);
   const [activeTab, setActiveTab] = useState<'info' | 'attendees' | 'requests' | 'singers'>('info');
   const [loading, setLoading] = useState(false);
   
@@ -96,61 +155,218 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
     switch (status.toUpperCase()) {
       case 'CONFIRMED':
       case 'CONFIRMADO':
-        return { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', icon: 'text-emerald-600' };
+        return { bg: 'bg-green-50', text: 'text-green-700', border: 'border-green-200', icon: 'text-green-600' };
       case 'REJECTED':
       case 'RECHAZADO':
+      case 'REFUSED':
         return { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200', icon: 'text-red-600' };
       case 'PENDING':
       case 'PENDIENTE':
-        return { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', icon: 'text-amber-600' };
+        return { bg: 'bg-gray-50', text: 'text-gray-700', border: 'border-gray-200', icon: 'text-gray-600' };
       default:
         return { bg: 'bg-gray-50', text: 'text-gray-700', border: 'border-gray-200', icon: 'text-gray-600' };
     }
   };
 
-  // Datos para el gráfico de torta
-  const chartData = useMemo(() => {
-    if (!event.attendees) return [];
-
-    const stats = {
-      SOPRANO: 0,
-      TENOR: 0,
-      CONTRALTO: 0,
-      CONFIRMADOS: 0,
-      PENDIENTES: 0,
-      SIN_CONFIRMAR: 0
-    };
-
-    event.attendees.forEach(attendee => {
-      // Contar por estado
-      const status = attendee.status.toUpperCase();
-      if (status === 'CONFIRMED' || status === 'CONFIRMADO') {
-        stats.CONFIRMADOS++;
-      } else if (status === 'PENDING' || status === 'PENDIENTE') {
-        stats.PENDIENTES++;
-      } else {
-        stats.SIN_CONFIRMAR++;
-      }
-
-      // Contar por tipo de voz (asumiendo que está en assignedRoles o voiceProfiles)
-      // Por ahora simulamos los datos de voz
-      const voiceTypes = attendee.user.assignedRoles?.map(r => r.role) || [];
-      voiceTypes.forEach(voice => {
-        if (voice === 'SOPRANO') stats.SOPRANO++;
-        else if (voice === 'TENOR') stats.TENOR++;
-        else if (voice === 'CONTRALTO') stats.CONTRALTO++;
+  // Función para calcular la composición del coro
+  const calculateChoirComposition = useMemo(() => {
+    console.log('🎵 INICIO - Calculando composición del coro');
+    
+    // Si tenemos datos del endpoint específico de voces, usarlos
+    if (voicesLoaded && eventVoices.length > 0) {
+      console.log('🎤 Usando datos del endpoint /voices');
+      console.log('🎵 Event voices data:', eventVoices);
+      
+      // Filtrar solo los confirmados
+      const confirmedVoices = eventVoices.filter(v => v.status.toUpperCase() === 'CONFIRMED');
+      console.log('✅ Confirmados con voces:', confirmedVoices.length);
+      
+      // Contar voces
+      const voiceCounts = {
+        SOPRANO: 0,
+        MESOSOPRANO: 0,
+        CONTRALTO: 0,
+        TENOR: 0,
+        BARITONO: 0,
+        BAJO: 0
+      };
+      
+      confirmedVoices.forEach((voiceData, index) => {
+        console.log(`👤 Usuario ${index + 1}: ${voiceData.name}`);
+        console.log('🎤 VoiceProfiles:', voiceData.voiceProfiles);
+        console.log('🎯 Voz principal:', voiceData.primaryVoice);
+        
+        if (voiceData.primaryVoice) {
+          const voiceType = voiceData.primaryVoice.voiceType;
+          if (voiceType === 'SOPRANO') voiceCounts.SOPRANO++;
+          else if (voiceType === 'MESOSOPRANO') voiceCounts.MESOSOPRANO++;
+          else if (voiceType === 'CONTRALTO') voiceCounts.CONTRALTO++;
+          else if (voiceType === 'TENOR') voiceCounts.TENOR++;
+          else if (voiceType === 'BARITONO') voiceCounts.BARITONO++;
+          else if (voiceType === 'BAJO') voiceCounts.BAJO++;
+          console.log(`✅ Contado: ${voiceType}`);
+        } else {
+          console.log('❌ No tiene voz principal');
+        }
+      });
+      
+      console.log('🎶 Conteo final de voces (desde endpoint):', voiceCounts);
+      
+      // Contar estados
+      const statusCounts = {
+        CONFIRMED: eventVoices.filter(v => v.status.toUpperCase() === 'CONFIRMED').length,
+        REFUSED: eventVoices.filter(v => v.status.toUpperCase() === 'REFUSED' || v.status.toUpperCase() === 'REJECTED').length,
+        PENDING: eventVoices.filter(v => v.status.toUpperCase() === 'PENDING').length
+      };
+      
+      const totalAttendees = eventVoices.length;
+      
+      return {
+        voices: voiceCounts,
+        statuses: statusCounts,
+        total: totalAttendees,
+        percentages: {
+          SOPRANO: totalAttendees > 0 ? Math.round((voiceCounts.SOPRANO / totalAttendees) * 100) : 0,
+          MESOSOPRANO: totalAttendees > 0 ? Math.round((voiceCounts.MESOSOPRANO / totalAttendees) * 100) : 0,
+          CONTRALTO: totalAttendees > 0 ? Math.round((voiceCounts.CONTRALTO / totalAttendees) * 100) : 0,
+          TENOR: totalAttendees > 0 ? Math.round((voiceCounts.TENOR / totalAttendees) * 100) : 0,
+          BARITONO: totalAttendees > 0 ? Math.round((voiceCounts.BARITONO / totalAttendees) * 100) : 0,
+          BAJO: totalAttendees > 0 ? Math.round((voiceCounts.BAJO / totalAttendees) * 100) : 0,
+          CONFIRMED: totalAttendees > 0 ? Math.round((statusCounts.CONFIRMED / totalAttendees) * 100) : 0,
+          REFUSED: totalAttendees > 0 ? Math.round((statusCounts.REFUSED / totalAttendees) * 100) : 0,
+          PENDING: totalAttendees > 0 ? Math.round((statusCounts.PENDING / totalAttendees) * 100) : 0,
+        }
+      };
+    }
+    
+    // FALLBACK: Código original (que no funciona por falta de voiceProfiles)
+    console.log('📊 FALLBACK: Usando datos originales del evento');
+    console.log('📊 Event attendees:', event.attendees);
+    
+    console.log('🎭 === INICIO CÁLCULO COMPOSICIÓN DEL CORO ===');
+    console.log('📊 Total de attendees:', event.attendees?.length || 0);
+    
+    // Debug completo de la estructura del evento
+    console.log('🔍 Estructura completa del evento:', {
+      id: event.id,
+      title: event.title,
+      attendeesCount: event.attendees?.length || 0,
+      hasAttendees: !!event.attendees
+    });
+    
+    // Debug completo de cada attendee
+    event.attendees?.forEach((attendee, index) => {
+      console.log(`📋 Attendee ${index + 1}:`, {
+        status: attendee.status,
+        user: {
+          id: attendee.user.id,
+          name: `${attendee.user.firstName} ${attendee.user.lastName}`,
+          voiceProfiles: attendee.user.voiceProfiles,
+          hasVoiceProfiles: !!attendee.user.voiceProfiles,
+          voiceProfilesLength: attendee.user.voiceProfiles?.length || 0
+        }
       });
     });
+    
+    if (!event.attendees || event.attendees.length === 0) {
+      console.log('⚠️ No hay attendees en el evento');
+      return { 
+        voices: { SOPRANO: 0, MESOSOPRANO: 0, CONTRALTO: 0, TENOR: 0, BARITONO: 0, BAJO: 0 }, 
+        statuses: { CONFIRMED: 0, REFUSED: 0, PENDING: 0 }, 
+        total: 0, 
+        percentages: { SOPRANO: 0, MESOSOPRANO: 0, CONTRALTO: 0, TENOR: 0, BARITONO: 0, BAJO: 0, CONFIRMED: 0, REFUSED: 0, PENDING: 0 } 
+      };
+    }
+    
+    // Filtrar solo los confirmados para obtener las voces
+    const confirmedAttendees = event.attendees.filter(a => a.status.toUpperCase() === 'CONFIRMED');
+    console.log(`✅ Confirmados: ${confirmedAttendees.length} de ${event.attendees.length} total`);
+    
+    // Contar voces primarias de los confirmados
+    const voiceCounts = {
+      SOPRANO: 0,
+      MESOSOPRANO: 0,
+      CONTRALTO: 0,  
+      TENOR: 0,
+      BARITONO: 0,
+      BAJO: 0
+    };
 
+    // Contar por cada cantante confirmado su voz principal
+    confirmedAttendees.forEach((attendee, index) => {
+      console.log(`👤 Usuario ${index + 1}: ${attendee.user.firstName} ${attendee.user.lastName}`);
+      console.log('🎤 VoiceProfiles:', attendee.user.voiceProfiles);
+      
+      // Buscar la voz principal del usuario (isPrimary = true)
+      const primaryVoice = attendee.user.voiceProfiles?.find(vp => vp.isPrimary);
+      console.log('🎯 Voz principal encontrada:', primaryVoice);
+      
+      if (primaryVoice) {
+        const voiceType = primaryVoice.voiceType.toUpperCase();
+        console.log(`📝 Tipo de voz: ${voiceType}`);
+        
+        if (voiceType === 'SOPRANO') voiceCounts.SOPRANO++;
+        else if (voiceType === 'MESOSOPRANO') voiceCounts.MESOSOPRANO++;
+        else if (voiceType === 'CONTRALTO') voiceCounts.CONTRALTO++;
+        else if (voiceType === 'TENOR') voiceCounts.TENOR++;
+        else if (voiceType === 'BARITONO' || voiceType === 'BARÍTONO') voiceCounts.BARITONO++;
+        else if (voiceType === 'BAJO') voiceCounts.BAJO++;
+        else {
+          console.log(`⚠️ Tipo de voz no reconocido: ${voiceType}`);
+        }
+      } else {
+        console.log('❌ No se encontró voz principal para este usuario');
+      }
+    });
+
+    // Contar estados
+    const statusCounts = {
+      CONFIRMED: event.attendees.filter(a => a.status.toUpperCase() === 'CONFIRMED').length,
+      REFUSED: event.attendees.filter(a => a.status.toUpperCase() === 'REFUSED' || a.status.toUpperCase() === 'REJECTED').length,  
+      PENDING: event.attendees.filter(a => a.status.toUpperCase() === 'PENDING').length
+    };
+
+    console.log('🎶 Conteo final de voces:', voiceCounts);
+    console.log('📊 Conteo de estados:', statusCounts);
+
+    const totalAttendees = event.attendees.length;
+
+    const result = {
+      voices: voiceCounts,
+      statuses: statusCounts,
+      total: totalAttendees,
+      percentages: {
+        SOPRANO: totalAttendees > 0 ? Math.round((voiceCounts.SOPRANO / totalAttendees) * 100) : 0,
+        MESOSOPRANO: totalAttendees > 0 ? Math.round((voiceCounts.MESOSOPRANO / totalAttendees) * 100) : 0,
+        CONTRALTO: totalAttendees > 0 ? Math.round((voiceCounts.CONTRALTO / totalAttendees) * 100) : 0,
+        TENOR: totalAttendees > 0 ? Math.round((voiceCounts.TENOR / totalAttendees) * 100) : 0,
+        BARITONO: totalAttendees > 0 ? Math.round((voiceCounts.BARITONO / totalAttendees) * 100) : 0,
+        BAJO: totalAttendees > 0 ? Math.round((voiceCounts.BAJO / totalAttendees) * 100) : 0,
+        CONFIRMED: totalAttendees > 0 ? Math.round((statusCounts.CONFIRMED / totalAttendees) * 100) : 0,
+        REFUSED: totalAttendees > 0 ? Math.round((statusCounts.REFUSED / totalAttendees) * 100) : 0,
+        PENDING: totalAttendees > 0 ? Math.round((statusCounts.PENDING / totalAttendees) * 100) : 0,
+      }
+    };
+
+    console.log('📈 Resultado final:', result);
+    console.log('🎵 FIN - Calculando composición del coro');
+    return result;
+  }, [event.attendees, voicesLoaded, eventVoices]);
+
+  // Datos para el gráfico de torta
+  const chartData = useMemo(() => {
+    const composition = calculateChoirComposition;
     return [
-      { name: 'Soprano', value: stats.SOPRANO, color: '#ec4899' },
-      { name: 'Tenor', value: stats.TENOR, color: '#3b82f6' },
-      { name: 'Contralto', value: stats.CONTRALTO, color: '#8b5cf6' },
-      { name: 'Confirmados', value: stats.CONFIRMADOS, color: '#10b981' },
-      { name: 'Pendientes', value: stats.PENDIENTES, color: '#6b7280' },
-      { name: 'Sin Confirmar', value: stats.SIN_CONFIRMAR, color: '#ef4444' }
+      { name: 'SOPRANO', value: composition.voices.SOPRANO, percentage: composition.percentages.SOPRANO, color: '#8B5CF6' },
+      { name: 'MESOSOPRANO', value: composition.voices.MESOSOPRANO, percentage: composition.percentages.MESOSOPRANO, color: '#EC4899' },
+      { name: 'CONTRALTO', value: composition.voices.CONTRALTO, percentage: composition.percentages.CONTRALTO, color: '#F59E0B' },
+      { name: 'TENOR', value: composition.voices.TENOR, percentage: composition.percentages.TENOR, color: '#3B82F6' },
+      { name: 'BARÍTONO', value: composition.voices.BARITONO, percentage: composition.percentages.BARITONO, color: '#10B981' },
+      { name: 'BAJO', value: composition.voices.BAJO, percentage: composition.percentages.BAJO, color: '#059669' },
+      { name: 'NO ASISTEN', value: composition.statuses.REFUSED, percentage: composition.percentages.REFUSED, color: '#EF4444' },
+      { name: 'POR CONFIRMAR', value: composition.statuses.PENDING, percentage: composition.percentages.PENDING, color: '#6B7280' }
     ].filter(item => item.value > 0);
-  }, [event.attendees]);
+  }, [calculateChoirComposition]);
 
   // Paginación de asistentes
   const paginatedAttendees = useMemo(() => {
@@ -428,7 +644,7 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
                           className={`flex items-center justify-between p-3 rounded-lg border ${statusColors.bg} ${statusColors.border} transition-all hover:shadow-sm`}
                         >
                           <div className="flex items-center space-x-3">
-                            <div className={`w-3 h-3 rounded-full ${statusColors.icon === 'text-emerald-600' ? 'bg-emerald-500' : statusColors.icon === 'text-red-600' ? 'bg-red-500' : statusColors.icon === 'text-amber-600' ? 'bg-amber-500' : 'bg-gray-500'}`}></div>
+                            <div className={`w-3 h-3 rounded-full ${statusColors.icon === 'text-green-600' ? 'bg-green-500' : statusColors.icon === 'text-red-600' ? 'bg-red-500' : statusColors.icon === 'text-gray-600' ? 'bg-gray-500' : 'bg-gray-500'}`}></div>
                             <div className="flex-1">
                               <p className={`font-medium ${statusColors.text}`}>
                                 {attendee.user.firstName} {attendee.user.lastName}
@@ -444,7 +660,7 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
                             <span className={`text-xs font-medium px-2 py-1 rounded-full ${statusColors.bg} ${statusColors.text}`}>
                               {attendee.status === 'CONFIRMED' ? 'Confirmado' : 
                                attendee.status === 'PENDING' ? 'Pendiente' : 
-                               attendee.status === 'REJECTED' ? 'Rechazado' : attendee.status}
+                               attendee.status === 'REJECTED' || attendee.status === 'REFUSED' ? 'No Asiste' : attendee.status}
                             </span>
                           </div>
                         </div>
@@ -495,63 +711,90 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
                   </div>
                 )}
 
-                {/* Gráfico de composición del coro */}
-                {chartData.length > 0 && (
-                  <div className="mt-8 p-6 bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl border border-slate-200">
-                    <h5 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-                      <div className="w-1 h-5 bg-gradient-to-b from-indigo-500 to-purple-600 rounded-full mr-3"></div>
-                      Composición del Coro
-                    </h5>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
-                      {/* Gráfico de torta simple con barras */}
-                      <div className="space-y-3">
-                        {chartData.map((item, index) => {
-                          const total = chartData.reduce((sum, d) => sum + d.value, 0);
-                          const percentage = total > 0 ? Math.round((item.value / total) * 100) : 0;
-                          return (
-                            <div key={index} className="flex items-center space-x-3">
-                              <div 
-                                className="w-4 h-4 rounded-full"
-                                style={{ backgroundColor: item.color }}
-                              ></div>
-                              <div className="flex-1">
-                                <div className="flex items-center justify-between text-sm">
-                                  <span className="font-medium text-gray-700">{item.name}</span>
-                                  <span className="text-gray-500">{item.value} ({percentage}%)</span>
-                                </div>
-                                <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
-                                  <div
-                                    className="h-2 rounded-full transition-all duration-300"
-                                    style={{ 
-                                      backgroundColor: item.color,
-                                      width: `${percentage}%`
-                                    }}
-                                  ></div>
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-
-                      {/* Resumen general */}
-                      <div className="text-center p-6 bg-white rounded-lg border border-gray-200">
-                        <div className="text-3xl font-bold text-gray-900 mb-2">
-                          {event.attendees?.length || 0}
+                {/* Composición del Coro */}
+                <div className="mt-8 pt-6 border-t border-gray-200">
+                  <h4 className="text-lg font-medium text-gray-900 mb-4">Composición del Coro</h4>
+                  
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Lista de datos del lado izquierdo */}
+                    <div className="space-y-3">
+                      {chartData.map((item, index) => (
+                        <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                          <div className="flex items-center space-x-3">
+                            <div 
+                              className="w-4 h-4 rounded" 
+                              style={{ backgroundColor: item.color }}
+                            ></div>
+                            <span className="font-medium text-gray-900">{item.name}</span>
+                          </div>
+                          <div className="text-right">
+                            <span className="font-semibold text-gray-900">{item.value}</span>
+                            <span className="text-sm text-gray-600 ml-2">({item.percentage}%)</span>
+                          </div>
                         </div>
-                        <div className="text-sm text-gray-600 mb-4">Total de Asistentes</div>
-                        <div className="space-y-2 text-sm">
-                          {chartData.map((item, index) => (
-                            <div key={index} className="flex items-center justify-between">
-                              <span className="text-gray-600">{item.name.split(' - ')[0]}:</span>
-                              <span className="font-medium text-gray-900">{item.value}</span>
+                      ))}
+                    </div>
+
+                    {/* Gráfico de torta del lado derecho */}
+                    <div className="flex items-center justify-center">
+                      <div className="relative">
+                        <svg width="200" height="200" className="drop-shadow-sm">
+                          <g transform="translate(100, 100)">
+                            {(() => {
+                              const total = chartData.reduce((sum, item) => sum + item.value, 0);
+                              if (total === 0) return null;
+                              
+                              let currentAngle = 0;
+                              return chartData.map((item, index) => {
+                                const percentage = (item.value / total) * 100;
+                                const angle = (percentage / 100) * 360;
+                                const startAngle = currentAngle;
+                                const endAngle = currentAngle + angle;
+                                
+                                const x1 = Math.cos(startAngle * Math.PI / 180) * 80;
+                                const y1 = Math.sin(startAngle * Math.PI / 180) * 80;
+                                const x2 = Math.cos(endAngle * Math.PI / 180) * 80;
+                                const y2 = Math.sin(endAngle * Math.PI / 180) * 80;
+                                
+                                const largeArcFlag = angle > 180 ? 1 : 0;
+                                
+                                const pathData = [
+                                  `M 0 0`,
+                                  `L ${x1} ${y1}`,
+                                  `A 80 80 0 ${largeArcFlag} 1 ${x2} ${y2}`,
+                                  `Z`
+                                ].join(' ');
+                                
+                                currentAngle += angle;
+                                
+                                return (
+                                  <path
+                                    key={index}
+                                    d={pathData}
+                                    fill={item.color}
+                                    stroke="white"
+                                    strokeWidth="2"
+                                    className="hover:opacity-80 transition-opacity"
+                                  />
+                                );
+                              });
+                            })()}
+                          </g>
+                        </svg>
+                        
+                        {/* Centro del gráfico */}
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <div className="text-center">
+                            <div className="text-2xl font-bold text-gray-900">
+                              {event.attendees?.length || 0}
                             </div>
-                          ))}
+                            <div className="text-xs text-gray-600">Total</div>
+                          </div>
                         </div>
                       </div>
                     </div>
                   </div>
-                )}
+                </div>
               </div>
             )}
 

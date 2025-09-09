@@ -1551,8 +1551,64 @@ router.delete('/:id/attendees/:userId', authenticateToken, requireRole(['ADMIN',
   }
 });
 
+// GET /api/events/:id/voices - Endpoint específico para obtener voces de un evento
+router.get('/:id/voices', authenticateToken, async (req, res) => {
+  console.log('🎤 ===== ENDPOINT VOICES LLAMADO! =====');
+  try {
+    const { id } = req.params;
+    
+    const event = await prisma.event.findUnique({
+      where: { id },
+      include: {
+        attendees: {
+          include: {
+            user: {
+              include: {
+                voiceProfiles: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!event) {
+      return res.status(404).json({
+        success: false,
+        message: 'Evento no encontrado'
+      });
+    }
+
+    // Procesar datos de voces
+    const voicesData = event.attendees.map(attendee => ({
+      userId: attendee.user.id,
+      name: `${attendee.user.firstName} ${attendee.user.lastName}`,
+      status: attendee.status,
+      voiceProfiles: attendee.user.voiceProfiles,
+      primaryVoice: attendee.user.voiceProfiles?.find(vp => vp.isPrimary)
+    }));
+
+    console.log('🎯 Datos de voces procesados:', voicesData.slice(0, 3));
+
+    res.json({
+      success: true,
+      data: {
+        eventId: id,
+        voicesData
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching event voices:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al obtener voces del evento'
+    });
+  }
+});
+
 // GET /api/events/:id - Obtener un evento específico
 router.get('/:id', authenticateToken, async (req, res) => {
+  console.log('🔥 ===== EVENTO GET /:id CALLED! =====');
   try {
     const { id } = req.params;
     
@@ -1566,13 +1622,10 @@ router.get('/:id', authenticateToken, async (req, res) => {
         attendees: {
           include: {
             user: {
-              select: { 
-                id: true,
-                firstName: true, 
-                lastName: true, 
-                locationId: true,
-                location: { select: { name: true } },
-                assignedRoles: { select: { role: true } }
+              include: {
+                location: true,
+                assignedRoles: true,
+                voiceProfiles: true
               }
             }
           }
@@ -1624,6 +1677,36 @@ router.get('/:id', authenticateToken, async (req, res) => {
         success: false,
         message: 'Evento no encontrado'
       });
+    }
+
+    // Debug: Verificar si voiceProfiles está llegando
+    console.log('🎭 [BACKEND DEBUG] Event ID:', event.id);
+    console.log('👥 [BACKEND DEBUG] Total attendees:', event.attendees?.length || 0);
+    console.log('🚀 [BACKEND DEBUG] SERVER UPDATED WITH LOGS!');
+    
+    if (event.attendees && event.attendees.length > 0) {
+      const firstAttendee = event.attendees[0];
+      console.log('👤 [BACKEND DEBUG] Primer attendee:', {
+        userId: firstAttendee.user.id,
+        name: `${firstAttendee.user.firstName} ${firstAttendee.user.lastName}`,
+        hasVoiceProfiles: !!firstAttendee.user.voiceProfiles,
+        voiceProfilesLength: firstAttendee.user.voiceProfiles?.length || 0,
+        voiceProfiles: firstAttendee.user.voiceProfiles
+      });
+      
+      // Verificar algunos confirmados específicamente
+      const confirmedAttendees = event.attendees.filter(a => a.status.toUpperCase() === 'CONFIRMED');
+      console.log('✅ [BACKEND DEBUG] Confirmados:', confirmedAttendees.length);
+      
+      const firstConfirmed = confirmedAttendees[0];
+      if (firstConfirmed) {
+        console.log('🎯 [BACKEND DEBUG] Primer confirmado:', {
+          name: `${firstConfirmed.user.firstName} ${firstConfirmed.user.lastName}`,
+          status: firstConfirmed.status,
+          voiceProfiles: firstConfirmed.user.voiceProfiles,
+          primaryVoice: firstConfirmed.user.voiceProfiles?.find(vp => vp.isPrimary)
+        });
+      }
     }
 
     res.json({

@@ -26,7 +26,8 @@ const VoiceTypeColors = {
   BARITONO: 'text-yellow-600 bg-yellow-50',
   MESOSOPRANO: 'text-rose-600 bg-rose-50',
   CORO: 'text-indigo-600 bg-indigo-50',
-  ORIGINAL: 'text-gray-600 bg-gray-50'
+  ORIGINAL: 'text-gray-600 bg-gray-50',
+  INSTRUMENTAL: 'text-red-600 bg-red-50'
 };
 
 const LyricsViewer: React.FC<LyricsViewerProps> = ({ 
