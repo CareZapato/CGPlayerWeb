@@ -2,6 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { usePlayerStore } from '../../store/playerStore';
 import { usePlaylistStore } from '../../store/playlistStore';
 import { useMediaSession } from '../../hooks/useMediaSession';
+import { useServerInfo } from '../../hooks/useServerInfo';
+import { getSongFileUrl } from '../../config/api';
 import { updateFavicon, resetFavicon } from '../../utils/favicon';
 import { useLyrics } from '../../hooks/useLyrics';
 import MinimizedPlayer from '../BottomPlayer/MinimizedPlayer';
@@ -663,14 +665,13 @@ const StickyPlayer: React.FC = () => {
     setVolume,
     seekTo,
     currentPlaylist,
-    setCurrentSong
+    setCurrentSong,
+    playSong
   } = usePlayerStore();
 
   const {
     queue,
     currentIndex,
-    nextSong,
-    previousSong,
     isShuffled,
     repeatMode,
     toggleShuffle,
@@ -679,6 +680,17 @@ const StickyPlayer: React.FC = () => {
     setCurrentIndex,
     removeFromQueue: removeFromQueueByID
   } = usePlaylistStore();
+
+  const { serverInfo } = useServerInfo();
+
+  // Función para construir URL de canción
+  const buildSongUrl = (song: Song): string => {
+    if ((song as any).folderName) {
+      return getSongFileUrl((song as any).folderName, song.fileName);
+    } else {
+      return `${serverInfo.audioBaseUrl}-root/${song.fileName}`;
+    }
+  };
 
   // Configurar sensores para drag & drop - debe estar antes de los useState
   const sensors = useSensors(
@@ -911,14 +923,115 @@ const StickyPlayer: React.FC = () => {
   };
 
   const handleNext = () => {
-    if (currentIndex < queue.length - 1) {
-      nextSong();
+    console.log('🎵 [STICKY] Intentando siguiente canción...', { 
+      currentIndex, 
+      queueLength: queue.length, 
+      repeatMode,
+      currentSong: currentSong?.title 
+    });
+    
+    // Verificar que el índice actual sea válido
+    if (currentIndex >= queue.length || currentIndex < 0) {
+      console.log('⚠️ [STICKY] Índice actual inválido, corrigiendo...', { currentIndex, queueLength: queue.length });
+      setCurrentIndex(Math.max(0, Math.min(currentIndex, queue.length - 1)));
+      return;
+    }
+    
+    // Calcular el siguiente índice manualmente
+    let nextIndex;
+    if (repeatMode === 'one') {
+      // En repeat one, mantener la misma canción
+      nextIndex = currentIndex;
+    } else if (repeatMode === 'all' && currentIndex === queue.length - 1) {
+      // En repeat all, volver al inicio
+      nextIndex = 0;
+    } else {
+      // Índice normal siguiente
+      nextIndex = currentIndex + 1;
+    }
+    
+    // Verificar que el índice siguiente sea válido
+    if (nextIndex >= queue.length && repeatMode === 'off') {
+      console.log('❌ [STICKY] No hay siguiente canción disponible (sin repeat)');
+      return;
+    }
+    
+    // Obtener la canción del índice calculado
+    const nextTrack = queue[nextIndex];
+    console.log('🎵 [STICKY] Next track obtenido manualmente:', nextTrack, 'en índice:', nextIndex);
+    
+    if (nextTrack) {
+      // Primero actualizar el índice en el store
+      setCurrentIndex(nextIndex);
+      
+      // Luego reproducir usando playSong
+      const songUrl = buildSongUrl(nextTrack);
+      console.log('🎵 [STICKY] Reproduciendo siguiente canción:', nextTrack.title, 'índice:', nextIndex);
+      
+      playSong({
+        id: nextTrack.id,
+        title: nextTrack.title,
+        artist: nextTrack.artist || 'Desconocido',
+        url: songUrl,
+        duration: nextTrack.duration || 0
+      });
+    } else {
+      console.log('❌ [STICKY] No hay siguiente canción disponible');
     }
   };
 
   const handlePrevious = () => {
-    if (currentIndex > 0) {
-      previousSong();
+    console.log('🎵 [STICKY] Intentando canción anterior...', { 
+      currentIndex, 
+      queueLength: queue.length, 
+      repeatMode,
+      currentSong: currentSong?.title 
+    });
+    
+    // Verificar que el índice actual sea válido
+    if (currentIndex >= queue.length || currentIndex < 0) {
+      console.log('⚠️ [STICKY] Índice actual inválido, corrigiendo...', { currentIndex, queueLength: queue.length });
+      setCurrentIndex(Math.max(0, Math.min(currentIndex, queue.length - 1)));
+      return;
+    }
+    
+    // Calcular el índice anterior manualmente
+    const prevIndex = currentIndex - 1;
+    let targetIndex;
+    
+    if (prevIndex < 0) {
+      if (repeatMode === 'all') {
+        // En repeat all, ir a la última canción
+        targetIndex = queue.length - 1;
+      } else {
+        console.log('❌ [STICKY] No hay canción anterior disponible (sin repeat)');
+        return;
+      }
+    } else {
+      targetIndex = prevIndex;
+    }
+    
+    // Obtener la canción del índice calculado
+    const prevTrack = queue[targetIndex];
+    console.log('🎵 [STICKY] Previous track obtenido manualmente:', prevTrack, 'en índice:', targetIndex);
+    
+    if (prevTrack) {
+      // Primero actualizar el índice en el store
+      setCurrentIndex(targetIndex);
+      
+      // Luego reproducir usando playSong
+      const songUrl = buildSongUrl(prevTrack);
+      console.log('🎵 [STICKY] Reproduciendo canción anterior:', prevTrack.title, 'índice:', targetIndex);
+      
+      playSong({
+        id: prevTrack.id,
+        title: prevTrack.title,
+        artist: prevTrack.artist || 'Desconocido',
+        url: songUrl,
+        duration: prevTrack.duration || 0
+      });
+    } else {
+      console.log('❌ [STICKY] No hay canción anterior disponible');
     }
   };
 
@@ -1028,8 +1141,12 @@ const StickyPlayer: React.FC = () => {
         <div className="player-controls">
           <button
             onClick={handlePrevious}
-            disabled={currentIndex <= 0 || queue.length <= 1}
-            className="control-button"
+            disabled={queue.length <= 1 || (currentIndex <= 0 && repeatMode !== 'all')}
+            className={`control-button ${
+              queue.length <= 1 || (currentIndex <= 0 && repeatMode !== 'all') 
+                ? 'opacity-50 cursor-not-allowed' 
+                : ''
+            }`}
           >
             <BackwardIcon className="control-button__icon" />
           </button>
@@ -1047,8 +1164,12 @@ const StickyPlayer: React.FC = () => {
           
           <button
             onClick={handleNext}
-            disabled={currentIndex >= queue.length - 1 || queue.length <= 1}
-            className="control-button"
+            disabled={queue.length <= 1 || (currentIndex >= queue.length - 1 && repeatMode === 'off')}
+            className={`control-button ${
+              queue.length <= 1 || (currentIndex >= queue.length - 1 && repeatMode === 'off') 
+                ? 'opacity-50 cursor-not-allowed' 
+                : ''
+            }`}
           >
             <ForwardIcon className="control-button__icon" />
           </button>
@@ -1471,7 +1592,7 @@ const StickyPlayer: React.FC = () => {
               <button
                 onClick={handlePrevious}
                 className="mobile-fullscreen-control mobile-fullscreen-control--secondary"
-                disabled={currentIndex === 0}
+                disabled={queue.length <= 1 || (currentIndex <= 0 && repeatMode !== 'all')}
               >
                 <svg className="mobile-control-icon mobile-control-icon--large" viewBox="0 0 24 24">
                   <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/>
@@ -1496,7 +1617,7 @@ const StickyPlayer: React.FC = () => {
               <button
                 onClick={handleNext}
                 className="mobile-fullscreen-control mobile-fullscreen-control--secondary"
-                disabled={currentIndex === queue.length - 1}
+                disabled={queue.length <= 1 || (currentIndex >= queue.length - 1 && repeatMode === 'off')}
               >
                 <svg className="mobile-control-icon mobile-control-icon--large" viewBox="0 0 24 24">
                   <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/>
