@@ -74,21 +74,24 @@ interface EventDetailsModalProps {
   event: Event;
   onClose: () => void;
   onEventUpdated: () => void;
+  initialTab?: 'info' | 'attendees' | 'requests' | 'songs'; // Nueva prop opcional
 }
 
 const EventDetailsModal: React.FC<EventDetailsModalProps> = ({ 
   event, 
   onClose, 
-  onEventUpdated 
+  onEventUpdated,
+  initialTab = 'info' // Por defecto 'info' si no se especifica
 }) => {
   
   // 🐛 DEBUG: Log completo del objeto event que llega como prop
-  console.log('🎭 [FRONTEND DEBUG] Event prop recibido:', {
+  console.log('🎭 [SOLICITUDES DEBUG] Event prop recibido:', {
     id: event.id,
     title: event.title,
-    hasAttendees: !!event.attendees,
-    attendeesLength: event.attendees?.length || 0,
-    attendeesRaw: event.attendees
+    hasJoinRequests: !!event.joinRequests,
+    joinRequestsLength: event.joinRequests?.length || 0,
+    joinRequestsStatus: event.joinRequests?.map(r => ({id: r.id, status: r.status, user: r.user.firstName + ' ' + r.user.lastName})) || [],
+    timestamp: new Date().toLocaleTimeString()
   });
   
   // 🐛 DEBUG: Verificar estructura específica del primer attendee si existe
@@ -136,7 +139,7 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
   React.useEffect(() => {
     fetchEventVoices();
   }, [event.id]);
-  const [activeTab, setActiveTab] = useState<'info' | 'attendees' | 'requests' | 'singers'>('info');
+  const [activeTab, setActiveTab] = useState<'info' | 'attendees' | 'requests' | 'singers'>(initialTab as any || 'info');
   const [loading, setLoading] = useState(false);
   
   // Paginación para asistentes
@@ -400,7 +403,9 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
       setLoading(true);
       const token = localStorage.getItem('token');
       
-      console.log(`📝 Procesando solicitud: ${status} para request ${requestId}`);
+      console.log(`📝 [SOLICITUDES DEBUG] Procesando solicitud: ${status} para request ${requestId}`);
+      console.log(`📊 [SOLICITUDES DEBUG] Total joinRequests antes:`, event.joinRequests?.length || 0);
+      console.log(`📊 [SOLICITUDES DEBUG] Solicitudes pendientes antes:`, event.joinRequests?.filter(r => r.status === 'PENDING').length || 0);
       
       const response_data = await fetch(getApiUrl(`/events/${event.id}/join-requests/${requestId}`), {
         method: 'PUT',
@@ -413,8 +418,19 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
 
       if (response_data.ok) {
         const result = await response_data.json();
-        console.log(`✅ Solicitud ${status.toLowerCase()} exitosamente:`, result);
-        onEventUpdated();
+        console.log(`✅ [SOLICITUDES DEBUG] Solicitud ${status.toLowerCase()} exitosamente:`, result);
+        console.log(`🔄 [SOLICITUDES DEBUG] Llamando onEventUpdated() para refrescar datos...`);
+        
+        // Log del estado antes del refresh
+        console.log(`📊 [SOLICITUDES DEBUG] Estado ANTES del refresh:`, {
+          totalRequests: event.joinRequests?.length || 0,
+          pendingRequests: event.joinRequests?.filter(r => r.status === 'PENDING').length || 0,
+          processedRequests: event.joinRequests?.filter(r => r.status !== 'PENDING').length || 0
+        });
+        
+        await onEventUpdated();
+        
+        console.log(`✅ [SOLICITUDES DEBUG] onEventUpdated() completado`);
       } else {
         const errorData = await response_data.json();
         console.error(`❌ Error al ${status.toLowerCase()} solicitud:`, errorData);

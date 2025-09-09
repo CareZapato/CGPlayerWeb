@@ -148,7 +148,6 @@ router.get('/management/all', authenticateToken, requireRole(['ADMIN', 'DIRECTOR
           }
         },
         joinRequests: {
-          where: { status: 'PENDING' },
           include: {
             user: {
               select: { 
@@ -159,7 +158,8 @@ router.get('/management/all', authenticateToken, requireRole(['ADMIN', 'DIRECTOR
                 assignedRoles: { select: { role: true } }
               }
             }
-          }
+          },
+          orderBy: { createdAt: 'desc' }
         },
         _count: {
           select: {
@@ -1656,11 +1656,12 @@ router.get('/:id', authenticateToken, async (req, res) => {
                 firstName: true, 
                 lastName: true, 
                 email: true,
-                locationId: true
+                locationId: true,
+                assignedRoles: { select: { role: true } }
               }
             }
           },
-          where: { status: 'PENDING' }
+          orderBy: { createdAt: 'desc' }
         },
         _count: {
           select: {
@@ -1682,7 +1683,13 @@ router.get('/:id', authenticateToken, async (req, res) => {
     // Debug: Verificar si voiceProfiles está llegando
     console.log('🎭 [BACKEND DEBUG] Event ID:', event.id);
     console.log('👥 [BACKEND DEBUG] Total attendees:', event.attendees?.length || 0);
-    console.log('🚀 [BACKEND DEBUG] SERVER UPDATED WITH LOGS!');
+    console.log('� [BACKEND DEBUG] Total joinRequests:', event.joinRequests?.length || 0);
+    console.log('📝 [BACKEND DEBUG] JoinRequests status breakdown:', {
+      pending: event.joinRequests?.filter(r => r.status === 'PENDING').length || 0,
+      approved: event.joinRequests?.filter(r => r.status === 'APPROVED').length || 0,
+      rejected: event.joinRequests?.filter(r => r.status === 'REJECTED').length || 0
+    });
+    console.log('�🚀 [BACKEND DEBUG] SERVER UPDATED WITH LOGS!');
     
     if (event.attendees && event.attendees.length > 0) {
       const firstAttendee = event.attendees[0];
