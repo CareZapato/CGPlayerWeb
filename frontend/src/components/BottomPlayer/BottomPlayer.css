@@ -1255,6 +1255,13 @@
   flex: 1;
   overflow-y: auto;
   padding: 16px;
+  /* Containment para prevenir que el scroll afecte otros elementos */
+  contain: layout style;
+  will-change: scroll-position;
+  transform: translateZ(0); /* Hardware acceleration */
+  /* Scroll aislado */
+  position: relative;
+  z-index: 1;
 }
 
 .lyrics-line {
@@ -1344,6 +1351,13 @@
   flex: 1;
   overflow-y: auto;
   padding: 16px;
+  /* Containment para prevenir que el scroll afecte otros elementos */
+  contain: layout style;
+  will-change: scroll-position;
+  transform: translateZ(0); /* Hardware acceleration */
+  /* Scroll aislado */
+  position: relative;
+  z-index: 1;
 }
 
 /* Animaciones para transiciones suaves */

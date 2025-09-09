@@ -760,6 +760,13 @@
   max-height: 100vh !important;
   min-height: 100vh !important;
   width: 100% !important;
+  /* Containment para prevenir que el scroll afecte otros elementos */
+  contain: layout style;
+  will-change: scroll-position;
+  transform: translateZ(0); /* Hardware acceleration */
+  /* Scroll aislado */
+  position: relative;
+  z-index: 1;
 }
 
 /* Scrollbar personalizado para el contenido de letras */
@@ -1033,6 +1040,12 @@
   /* Asegurar que el contenido no se corte */
   scrollbar-width: none; /* Firefox */
   -ms-overflow-style: none; /* IE y Edge */
+  /* Containment para prevenir que el scroll afecte otros elementos */
+  contain: layout style;
+  will-change: scroll-position;
+  transform: translateZ(0); /* Hardware acceleration */
+  /* Scroll aislado */
+  z-index: 1;
 }
 
 /* Ocultar scrollbar en WebKit */

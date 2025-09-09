@@ -394,13 +394,48 @@ const LyricsViewerInline: React.FC<LyricsViewerInlineProps> = ({
     }
   }, [currentTime, syncedLyrics_withTime, syncStatus.hasRealSyncData, isPlaying, activeLineIndex, autoSyncEnabled]);
 
-  // Auto-scroll
+  // Auto-scroll - SOLO HACIA ABAJO para no tapar los controles del reproductor
   useEffect(() => {
     if (activeLineRef.current && activeLineIndex !== -1) {
-      activeLineRef.current.scrollIntoView({
-        behavior: 'smooth',
-        block: 'center'
-      });
+      const lyricsContainer = activeLineRef.current.closest('[style*="overflow"]') || 
+                             activeLineRef.current.closest('.lyrics-content-container') ||
+                             activeLineRef.current.closest('.sticky-player-lyrics');
+      
+      if (lyricsContainer && activeLineRef.current) {
+        // Obtener posiciones actuales
+        const containerRect = lyricsContainer.getBoundingClientRect();
+        const elementRect = activeLineRef.current.getBoundingClientRect();
+        const currentScrollTop = lyricsContainer.scrollTop;
+        
+        // Solo considerar scroll si el elemento está por debajo del área visible
+        const isElementBelow = elementRect.top > containerRect.bottom - 80;
+        
+        if (isElementBelow) {
+          // Calcular nuevo scroll position
+          const elementTop = activeLineRef.current.offsetTop;
+          const containerHeight = lyricsContainer.clientHeight;
+          
+          // Posicionar el elemento en el tercio superior de la vista
+          const newScrollTop = Math.max(0, elementTop - containerHeight / 3);
+          
+          // CRÍTICO: Solo scroll si la nueva posición es MAYOR (hacia abajo)
+          if (newScrollTop > currentScrollTop) {
+            lyricsContainer.scrollTo({
+              top: newScrollTop,
+              behavior: 'smooth'
+            });
+          }
+        }
+        
+        // Si el elemento ya está visible o arriba, NO hacer scroll
+        console.log('StickyPlayer Lyrics Sync Debug:', {
+          activeLineIndex,
+          elementBelow: isElementBelow,
+          currentScroll: currentScrollTop,
+          elementTop: elementRect.top,
+          containerBottom: containerRect.bottom
+        });
+      }
     }
   }, [activeLineIndex]);
 
