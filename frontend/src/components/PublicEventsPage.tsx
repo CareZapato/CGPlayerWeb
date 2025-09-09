@@ -53,6 +53,7 @@ interface Event {
     attendees: number;
     joinRequests: number;
     eventSongs?: number;
+    uniqueEventSongs?: number;
   };
   attendees?: any[];
   joinRequests?: any[];
@@ -71,16 +72,14 @@ interface Event {
 
 interface EventSong {
   id: string;
-  song: {
-    id: string;
-    title: string;
-    artist: string;
-    duration?: number;
-    voiceType?: string;
-    filePath?: string;
-    folderName?: string;
-    fileName?: string;
-  };
+  title: string;
+  artist: string;
+  duration?: number;
+  voiceType?: string;
+  filePath?: string;
+  folderName?: string;
+  fileName?: string;
+  parentSongId?: string;
 }
 
 interface EventsResponse {
@@ -313,14 +312,18 @@ const PublicEventsPage: React.FC = () => {
       const data = await response.json();
       
       if (data.success) {
-        // Filtrar solo canciones padre (sin voiceType)
-        const parentSongs = data.data.filter((eventSong: any) => 
-          !eventSong.song.voiceType
-        );
-        setEventSongs(parentSongs);
+        // Los datos ya vienen agrupados por parentSongId desde el backend
+        console.log('🎵 [FRONTEND DEBUG] Canciones recibidas:', {
+          total: data.data?.length || 0,
+          totalDuration: data.totalDuration,
+          songs: data.data?.slice(0, 3).map((s: any) => ({ title: s.title, artist: s.artist })) || []
+        });
+        
+        setEventSongs(data.data || []);
       }
     } catch (error) {
       console.error('Error fetching event songs:', error);
+      setEventSongs([]); // Establecer array vacío en caso de error
     } finally {
       setSongsLoading(false);
     }
@@ -526,8 +529,7 @@ const PublicEventsPage: React.FC = () => {
   };
 
   // Función para reproducir una canción individual
-  const handlePlaySong = (eventSong: EventSong) => {
-    const song = eventSong.song;
+  const handlePlaySong = (song: EventSong) => {
     let songUrl = '';
     
     if (song.folderName && song.fileName) {
@@ -846,7 +848,7 @@ const PublicEventsPage: React.FC = () => {
                     
                     <div className="flex items-center space-x-2">
                       {/* Contador de canciones */}
-                      {(event._count?.eventSongs ?? 0) > 0 && (
+                      {(event._count?.uniqueEventSongs ?? event._count?.eventSongs ?? 0) > 0 && (
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -857,7 +859,7 @@ const PublicEventsPage: React.FC = () => {
                           title="Reproducir como playlist"
                         >
                           <span className="text-sm font-medium mr-1">
-                            {event._count?.eventSongs ?? 0}
+                            {event._count?.uniqueEventSongs ?? event._count?.eventSongs ?? 0}
                           </span>
                           <Play className="h-4 w-4" />
                         </button>
@@ -887,10 +889,10 @@ const PublicEventsPage: React.FC = () => {
             className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
             onMouseEnter={() => fetchEventSongs(selectedEvent.id)}
           >
-            <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
-              <div className="p-6">
-                {/* Header */}
-                <div className="flex justify-between items-start mb-6">
+            <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] shadow-2xl flex flex-col">
+              {/* Header fijo */}
+              <div className="p-6 border-b border-gray-200 flex-shrink-0">
+                <div className="flex justify-between items-start">
                   <div className="flex-1">
                     <h2 className="text-3xl font-bold text-gray-900 mb-2">
                       {selectedEvent.title}
@@ -926,7 +928,10 @@ const PublicEventsPage: React.FC = () => {
                     <X className="w-6 h-6" />
                   </button>
                 </div>
+              </div>
 
+              {/* Contenido scrolleable */}
+              <div className="flex-1 overflow-y-auto px-6">
                 {/* Imagen del evento - Solo si existe */}
                 {selectedEvent.imageUrl && (
                   <img
@@ -1013,63 +1018,31 @@ const PublicEventsPage: React.FC = () => {
 
                   {/* Canciones y postulaciones */}
                   <div>
-                    {/* Botones de postulación */}
-                    {selectedEvent.allowExternalJoin && !selectedEvent.isUserAttendee && (
+                    {/* Estado de postulación */}
+                    {selectedEvent.allowExternalJoin && !selectedEvent.isUserAttendee && selectedEvent.userJoinRequest && (
                       <div className="mb-6 p-4 bg-blue-50 rounded-xl border border-blue-200">
-                        <h3 className="text-lg font-semibold text-gray-900 mb-3">Postulación</h3>
+                        <h3 className="text-lg font-semibold text-gray-900 mb-3">Estado de Postulación</h3>
                         
-                        {selectedEvent.userJoinRequest ? (
-                          <div className="space-y-3">
-                            <div className="flex items-center">
-                              {selectedEvent.userJoinRequest.status === 'PENDING' && (
-                                <>
-                                  <AlertCircle className="h-5 w-5 text-yellow-500 mr-2" />
-                                  <span className="text-yellow-700 font-medium">Solicitud pendiente</span>
-                                </>
-                              )}
-                              {selectedEvent.userJoinRequest.status === 'APPROVED' && (
-                                <>
-                                  <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
-                                  <span className="text-green-700 font-medium">Solicitud aprobada</span>
-                                </>
-                              )}
-                              {selectedEvent.userJoinRequest.status === 'REJECTED' && (
-                                <>
-                                  <X className="h-5 w-5 text-red-500 mr-2" />
-                                  <span className="text-red-700 font-medium">Solicitud rechazada</span>
-                                </>
-                              )}
-                            </div>
-                            
-                            {selectedEvent.userJoinRequest.status === 'PENDING' && (
-                              <button
-                                onClick={() => handleJoinRequest(selectedEvent.id, 'cancel')}
-                                disabled={joinRequestLoading}
-                                className="w-full bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
-                              >
-                                {joinRequestLoading ? 'Cancelando...' : 'Cancelar solicitud'}
-                              </button>
-                            )}
-                            
-                            {selectedEvent.userJoinRequest.status === 'REJECTED' && (
-                              <button
-                                onClick={() => handleResubmitRequest(selectedEvent.id)}
-                                disabled={joinRequestLoading}
-                                className="w-full bg-amber-600 text-white py-2 px-4 rounded-lg hover:bg-amber-700 transition-colors disabled:opacity-50"
-                              >
-                                {joinRequestLoading ? 'Reenviando...' : 'Reenviar solicitud'}
-                              </button>
-                            )}
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => handleJoinRequest(selectedEvent.id, 'join')}
-                            disabled={joinRequestLoading}
-                            className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 font-medium"
-                          >
-                            {joinRequestLoading ? 'Enviando...' : 'Solicitar participación'}
-                          </button>
-                        )}
+                        <div className="flex items-center">
+                          {selectedEvent.userJoinRequest.status === 'PENDING' && (
+                            <>
+                              <AlertCircle className="h-5 w-5 text-yellow-500 mr-2" />
+                              <span className="text-yellow-700 font-medium">Solicitud pendiente de revisión</span>
+                            </>
+                          )}
+                          {selectedEvent.userJoinRequest.status === 'APPROVED' && (
+                            <>
+                              <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
+                              <span className="text-green-700 font-medium">Solicitud aprobada ✓</span>
+                            </>
+                          )}
+                          {selectedEvent.userJoinRequest.status === 'REJECTED' && (
+                            <>
+                              <X className="h-5 w-5 text-red-500 mr-2" />
+                              <span className="text-red-700 font-medium">Solicitud rechazada</span>
+                            </>
+                          )}
+                        </div>
                       </div>
                     )}
 
@@ -1082,7 +1055,7 @@ const PublicEventsPage: React.FC = () => {
                           </div>
                         </div>
                         
-                        {/* Confirmación de asistencia */}
+                        {/* Estado de confirmación de asistencia */}
                         <div className="p-4 bg-gray-50 rounded-xl border border-gray-200">
                           <h3 className="text-lg font-semibold text-gray-900 mb-3">Confirmación de Asistencia</h3>
                           
@@ -1122,31 +1095,10 @@ const PublicEventsPage: React.FC = () => {
                                 : "Por favor, confirma si podrás asistir al evento:"
                               }
                             </p>
-                            <div className="flex space-x-3">
-                              <button
-                                onClick={() => handleAttendanceConfirmation(selectedEvent.id, true)}
-                                disabled={joinRequestLoading}
-                                className={`flex-1 py-2 px-4 rounded-lg font-medium transition-all duration-200 disabled:opacity-50 ${
-                                  selectedEvent.userAttendanceStatus?.status === 'CONFIRMED' ||
-                                  selectedEvent.userAttendanceStatus?.attendanceConfirmed === true
-                                    ? 'bg-green-700 text-white shadow-lg scale-105 border-2 border-green-600' 
-                                    : 'bg-green-600 text-white hover:bg-green-700 hover:scale-105 opacity-70 hover:opacity-100'
-                                }`}
-                              >
-                                {joinRequestLoading ? 'Confirmando...' : 'Confirmar Asistencia'}
-                              </button>
-                              <button
-                                onClick={() => setShowNonAttendanceModal(true)}
-                                disabled={joinRequestLoading}
-                                className={`flex-1 py-2 px-4 rounded-lg font-medium transition-all duration-200 disabled:opacity-50 ${
-                                  selectedEvent.userAttendanceStatus?.status === 'REFUSED' ||
-                                  selectedEvent.userAttendanceStatus?.attendanceConfirmed === false
-                                    ? 'bg-red-700 text-white shadow-lg scale-105 border-2 border-red-600' 
-                                    : 'bg-red-600 text-white hover:bg-red-700 hover:scale-105 opacity-70 hover:opacity-100'
-                                }`}
-                              >
-                                {joinRequestLoading ? 'Actualizando...' : 'No Podré Asistir'}
-                              </button>
+                            
+                            {/* Nota: Los botones de confirmación están en el footer del modal */}
+                            <div className="text-sm text-gray-500 italic">
+                              Los botones de confirmación están disponibles en la parte inferior del modal.
                             </div>
                           </div>
                         </div>
@@ -1154,7 +1106,7 @@ const PublicEventsPage: React.FC = () => {
                     )}
 
                     {/* Lista de canciones */}
-                    {(selectedEvent._count?.eventSongs || 0) > 0 && (
+                    {(selectedEvent._count?.uniqueEventSongs ?? selectedEvent._count?.eventSongs ?? 0) > 0 && (
                       <div>
                         <h3 className="text-lg font-semibold text-gray-900 mb-4">Repertorio Musical</h3>
                         
@@ -1162,26 +1114,26 @@ const PublicEventsPage: React.FC = () => {
                           <div className="flex items-center justify-center py-8">
                             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
                           </div>
-                        ) : (
+                        ) : eventSongs.length > 0 ? (
                           <div className="space-y-2 max-h-80 overflow-y-auto">
-                            {eventSongs.map((eventSong) => (
+                            {eventSongs.map((song) => (
                               <div
-                                key={eventSong.id}
+                                key={song.id}
                                 className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
                               >
                                 <div className="flex-1">
-                                  <p className="font-medium text-gray-900">{eventSong.song.title}</p>
-                                  {eventSong.song.artist && (
-                                    <p className="text-sm text-gray-600">{eventSong.song.artist}</p>
+                                  <p className="font-medium text-gray-900">{song.title}</p>
+                                  {song.artist && (
+                                    <p className="text-sm text-gray-600">{song.artist}</p>
                                   )}
-                                  {eventSong.song.duration && (
+                                  {song.duration && (
                                     <p className="text-xs text-gray-500">
-                                      {Math.floor(eventSong.song.duration / 60)}:{(eventSong.song.duration % 60).toString().padStart(2, '0')}
+                                      {Math.floor(song.duration / 60)}:{(song.duration % 60).toString().padStart(2, '0')}
                                     </p>
                                   )}
                                 </div>
                                 <button
-                                  onClick={() => handlePlaySong(eventSong)}
+                                  onClick={() => handlePlaySong(song)}
                                   className="ml-3 p-2 text-green-600 hover:bg-green-100 rounded-lg transition-colors"
                                   title="Reproducir canción"
                                 >
@@ -1190,23 +1142,114 @@ const PublicEventsPage: React.FC = () => {
                               </div>
                             ))}
                           </div>
+                        ) : (
+                          <div className="flex items-center justify-center py-8 text-gray-500">
+                            <div className="text-center">
+                              <Music className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                              <p>No hay canciones configuradas para este evento</p>
+                            </div>
+                          </div>
                         )}
                         
                         {/* Botón para reproducir todo el evento */}
-                        <div className="mt-4">
-                          <button
-                            onClick={() => handlePlayEvent(selectedEvent)}
-                            disabled={playLoading}
-                            className="w-full bg-green-600 text-white py-3 px-4 rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 font-medium"
-                          >
-                            {playLoading ? 'Cargando...' : `▶ Reproducir todo el repertorio (${selectedEvent._count?.eventSongs || 0} canciones)`}
-                          </button>
-                        </div>
+                        {eventSongs.length > 0 && (
+                          <div className="mt-4">
+                            <button
+                              onClick={() => handlePlayEvent(selectedEvent)}
+                              disabled={playLoading}
+                              className="w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 font-medium text-sm"
+                            >
+                              {playLoading ? 'Cargando...' : `▶ Reproducir repertorio (${eventSongs.length} canciones)`}
+                            </button>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
                 </div>
+                
+                {/* Espaciado adicional para evitar que el contenido se corte */}
+                <div className="h-6"></div>
               </div>
+
+              {/* Footer fijo con botones principales */}
+              {(selectedEvent.isUserAttendee || selectedEvent.userJoinRequest) && (
+                <div className="border-t border-gray-200 p-6 bg-gray-50 flex-shrink-0 rounded-b-xl">
+                  {selectedEvent.isUserAttendee && (
+                    <div className="space-y-3">
+                      <div className="text-center">
+                        <h4 className="font-medium text-gray-900 mb-2">Confirmación de Asistencia</h4>
+                        <p className="text-sm text-gray-600 mb-4">
+                          {(selectedEvent.userAttendanceStatus?.attendanceConfirmed !== null || selectedEvent.userAttendanceStatus?.status)
+                            ? "Puedes cambiar tu respuesta cuando quieras"
+                            : "Por favor, confirma si podrás asistir al evento"}
+                        </p>
+                      </div>
+                      
+                      <div className="flex space-x-3">
+                        <button
+                          onClick={() => handleAttendanceConfirmation(selectedEvent.id, true)}
+                          disabled={joinRequestLoading}
+                          className={`flex-1 py-3 px-4 rounded-lg font-medium transition-all duration-200 disabled:opacity-50 ${
+                            selectedEvent.userAttendanceStatus?.status === 'CONFIRMED' ||
+                            selectedEvent.userAttendanceStatus?.attendanceConfirmed === true
+                              ? 'bg-green-700 text-white shadow-lg scale-105 border-2 border-green-600' 
+                              : 'bg-green-600 text-white hover:bg-green-700 hover:scale-105'
+                          }`}
+                        >
+                          {joinRequestLoading ? 'Confirmando...' : 'Confirmar Asistencia'}
+                        </button>
+                        <button
+                          onClick={() => setShowNonAttendanceModal(true)}
+                          disabled={joinRequestLoading}
+                          className={`flex-1 py-3 px-4 rounded-lg font-medium transition-all duration-200 disabled:opacity-50 ${
+                            selectedEvent.userAttendanceStatus?.status === 'REFUSED' ||
+                            selectedEvent.userAttendanceStatus?.attendanceConfirmed === false
+                              ? 'bg-red-700 text-white shadow-lg scale-105 border-2 border-red-600' 
+                              : 'bg-red-600 text-white hover:bg-red-700 hover:scale-105'
+                          }`}
+                        >
+                          {joinRequestLoading ? 'Actualizando...' : 'No Podré Asistir'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedEvent.userJoinRequest && !selectedEvent.isUserAttendee && (
+                    <div className="w-full">
+                      {selectedEvent.userJoinRequest.status === 'PENDING' && (
+                        <button
+                          onClick={() => handleJoinRequest(selectedEvent.id, 'cancel')}
+                          disabled={joinRequestLoading}
+                          className="w-full bg-red-600 text-white py-3 px-4 rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 font-medium"
+                        >
+                          {joinRequestLoading ? 'Cancelando...' : 'Cancelar solicitud'}
+                        </button>
+                      )}
+                      
+                      {selectedEvent.userJoinRequest.status === 'REJECTED' && (
+                        <button
+                          onClick={() => handleResubmitRequest(selectedEvent.id)}
+                          disabled={joinRequestLoading}
+                          className="w-full bg-amber-600 text-white py-3 px-4 rounded-lg hover:bg-amber-700 transition-colors disabled:opacity-50 font-medium"
+                        >
+                          {joinRequestLoading ? 'Reenviando...' : 'Reenviar solicitud'}
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  {!selectedEvent.userJoinRequest && !selectedEvent.isUserAttendee && selectedEvent.allowExternalJoin && (
+                    <button
+                      onClick={() => handleJoinRequest(selectedEvent.id, 'join')}
+                      disabled={joinRequestLoading}
+                      className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 font-medium"
+                    >
+                      {joinRequestLoading ? 'Enviando...' : 'Solicitar participación'}
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         )}

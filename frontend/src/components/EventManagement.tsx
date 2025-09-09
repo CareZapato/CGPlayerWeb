@@ -54,6 +54,7 @@ interface Event {
     attendees: number;
     joinRequests: number;
     eventSongs?: number;
+    uniqueEventSongs?: number;
   };
   attendees?: any[];
   joinRequests?: any[];
@@ -642,7 +643,7 @@ const EventManagement: React.FC = () => {
                     
                     <div className="flex items-center space-x-2">
                       {/* Contador de canciones */}
-                      {(event._count?.eventSongs ?? 0) > 0 && (
+                      {(event._count?.uniqueEventSongs ?? event._count?.eventSongs ?? 0) > 0 && (
                         <button
                           onClick={() => handlePlayEvent(event)}
                           disabled={playLoading}
@@ -650,7 +651,7 @@ const EventManagement: React.FC = () => {
                           title="Reproducir como playlist"
                         >
                           <span className="text-sm font-medium mr-1">
-                            {event._count?.eventSongs ?? 0}
+                            {event._count?.uniqueEventSongs ?? event._count?.eventSongs ?? 0}
                           </span>
                           <Play className="h-4 w-4" />
                         </button>

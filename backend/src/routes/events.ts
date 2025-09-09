@@ -9,6 +9,41 @@ import fs from 'fs';
 const router = express.Router();
 const prisma = new PrismaClient();
 
+// Función auxiliar para calcular el número de canciones padre únicas
+async function calculateUniqueEventSongs(eventId: string): Promise<number> {
+  try {
+    const eventSongs = await prisma.eventSong.findMany({
+      where: { eventId },
+      select: {
+        song: {
+          select: {
+            id: true,
+            parentSongId: true
+          }
+        }
+      }
+    });
+
+    const uniqueParentIds = new Set<string>();
+    
+    for (const eventSong of eventSongs) {
+      const song = eventSong.song;
+      // Si la canción tiene parentSongId, usar ese como identificador único
+      if (song.parentSongId) {
+        uniqueParentIds.add(song.parentSongId);
+      } else {
+        // Si no tiene parent, es una canción principal
+        uniqueParentIds.add(song.id);
+      }
+    }
+    
+    return uniqueParentIds.size;
+  } catch (error) {
+    console.error('Error calculating unique event songs:', error);
+    return 0;
+  }
+}
+
 // Crear directorio de uploads si no existe
 const uploadsDir = path.join(__dirname, '../../uploads/events');
 if (!fs.existsSync(uploadsDir)) {
@@ -172,9 +207,23 @@ router.get('/management/all', authenticateToken, requireRole(['ADMIN', 'DIRECTOR
       orderBy: { date: 'asc' }
     });
 
+    // Enriquecer eventos con el contador de canciones padre únicas
+    const eventsWithUniqueCount = await Promise.all(
+      events.map(async (event) => {
+        const uniqueEventSongs = await calculateUniqueEventSongs(event.id);
+        return {
+          ...event,
+          _count: {
+            ...event._count,
+            uniqueEventSongs
+          }
+        };
+      })
+    );
+
     res.json({
       success: true,
-      data: events
+      data: eventsWithUniqueCount
     });
   } catch (error) {
     console.error('Error fetching events for management:', error);
@@ -297,35 +346,44 @@ router.get('/visible', authenticateToken, async (req, res) => {
     });
 
     // Enriquecer cada evento con información específica del usuario
-    const eventsWithUserInfo = events.map(event => {
-      // Verificar si el usuario es asistente
-      const userAttendee = event.attendees.find(attendee => attendee.userId === userId);
-      const isUserAttendee = !!userAttendee;
-      
-      // Buscar solicitud del usuario para este evento
-      const userJoinRequest = event.joinRequests.find(request => request.userId === userId);
-      
-      // Información de confirmación de asistencia
-      const userAttendanceStatus = userAttendee ? {
-        attendanceConfirmed: (userAttendee as any).attendanceConfirmed,
-        nonAttendanceComment: (userAttendee as any).nonAttendanceComment,
-        status: (userAttendee as any).status
-      } : null;
-      
-      return {
-        ...event,
-        isUserAttendee,
-        userJoinRequest: userJoinRequest ? {
-          id: userJoinRequest.id,
-          status: userJoinRequest.status,
-          message: userJoinRequest.message,
-          response: userJoinRequest.response,
-          createdAt: userJoinRequest.createdAt,
-          updatedAt: userJoinRequest.updatedAt
-        } : null,
-        userAttendanceStatus
-      };
-    });
+    const eventsWithUserInfo = await Promise.all(
+      events.map(async (event) => {
+        // Verificar si el usuario es asistente
+        const userAttendee = event.attendees.find(attendee => attendee.userId === userId);
+        const isUserAttendee = !!userAttendee;
+        
+        // Buscar solicitud del usuario para este evento
+        const userJoinRequest = event.joinRequests.find(request => request.userId === userId);
+        
+        // Información de confirmación de asistencia
+        const userAttendanceStatus = userAttendee ? {
+          attendanceConfirmed: (userAttendee as any).attendanceConfirmed,
+          nonAttendanceComment: (userAttendee as any).nonAttendanceComment,
+          status: (userAttendee as any).status
+        } : null;
+        
+        // Calcular contador de canciones padre únicas
+        const uniqueEventSongs = await calculateUniqueEventSongs(event.id);
+        
+        return {
+          ...event,
+          _count: {
+            ...event._count,
+            uniqueEventSongs
+          },
+          isUserAttendee,
+          userJoinRequest: userJoinRequest ? {
+            id: userJoinRequest.id,
+            status: userJoinRequest.status,
+            message: userJoinRequest.message,
+            response: userJoinRequest.response,
+            createdAt: userJoinRequest.createdAt,
+            updatedAt: userJoinRequest.updatedAt
+          } : null,
+          userAttendanceStatus
+        };
+      })
+    );
 
     console.log(`📋 Found ${eventsWithUserInfo.length} visible events for user ${userId}`);
 
@@ -1754,18 +1812,60 @@ router.get('/:id/songs', authenticateToken, async (req, res) => {
       orderBy: { order: 'asc' }
     });
 
-    // Calcular duración total
-    const totalDuration = eventSongs.reduce((total, item) => {
-      return total + (item.song.duration || 0);
+    // Agrupar canciones por parentSongId o por sí mismas si no tienen parent
+    const songsMap = new Map();
+    
+    for (const eventSong of eventSongs) {
+      const song = eventSong.song;
+      
+      // Si la canción tiene parentSongId, usar ese como clave de agrupación
+      if (song.parentSongId) {
+        if (!songsMap.has(song.parentSongId)) {
+          // Obtener información de la canción padre
+          const parentSong = await prisma.song.findUnique({
+            where: { id: song.parentSongId },
+            select: {
+              id: true,
+              title: true,
+              artist: true,
+              duration: true,
+              voiceType: true,
+              filePath: true,
+              folderName: true,
+              fileName: true,
+              parentSongId: true
+            }
+          });
+          
+          if (parentSong) {
+            songsMap.set(song.parentSongId, parentSong);
+          }
+        }
+      } else {
+        // Si no tiene parent, es una canción principal
+        if (!songsMap.has(song.id)) {
+          songsMap.set(song.id, song);
+        }
+      }
+    }
+
+    // Convertir el Map a array y mantener el orden original
+    const uniqueSongs = Array.from(songsMap.values());
+
+    // Calcular duración total basada en canciones únicas
+    const totalDuration = uniqueSongs.reduce((total, song) => {
+      return total + (song.duration || 0);
     }, 0);
+
+    console.log(`🎵 [SONGS DEBUG] Evento ${id}:`);
+    console.log(`📊 Total eventSongs en BD: ${eventSongs.length}`);
+    console.log(`🎯 Canciones únicas agrupadas: ${uniqueSongs.length}`);
 
     res.json({
       success: true,
-      data: {
-        songs: eventSongs.map(item => item.song),
-        totalSongs: eventSongs.length,
-        totalDuration
-      }
+      data: uniqueSongs, // Devolver directamente el array de canciones únicas
+      totalSongs: uniqueSongs.length,
+      totalDuration
     });
   } catch (error) {
     console.error('Error fetching event songs:', error);
