@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { usePlayerStore } from '../../store/playerStore';
 import { usePlaylistStore } from '../../store/playlistStore';
 import { useServerInfo } from '../../hooks/useServerInfo';
@@ -174,6 +174,12 @@ const LyricsViewerInline: React.FC<LyricsViewerInlineProps> = ({
   const [activeLineIndex, setActiveLineIndex] = useState<number>(-1);
   const activeLineRef = useRef<HTMLDivElement>(null);
   
+  // Estado para manejar scroll manual vs automático
+  const [userScrolled, setUserScrolled] = useState(false);
+  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isAutoScrollingRef = useRef(false);
+  const lastActiveIndexRef = useRef(-1);
+  
   // Función para alternar entre sync y files en móvil
   const toggleMobileDisplayMode = () => {
     setDisplayMode(displayMode === 'sync' ? 'files' : 'sync');
@@ -292,56 +298,169 @@ const LyricsViewerInline: React.FC<LyricsViewerInlineProps> = ({
     }
   }, [currentTime, syncedLyrics_withTime, syncStatus.hasRealSyncData, isPlaying, activeLineIndex, autoSyncEnabled]);
 
-  // Auto-scroll - SOLO HACIA ABAJO para no tapar los controles del reproductor
+  // Función para manejar scroll manual del usuario
+  const handleUserScroll = useCallback(() => {
+    if (isAutoScrollingRef.current) {
+      // Si estamos en medio de un auto-scroll, ignorar
+      return;
+    }
+    
+    // Marcar que el usuario hizo scroll manual
+    setUserScrolled(true);
+    
+    // Limpiar timeout anterior si existe
+    if (scrollTimeoutRef.current) {
+      clearTimeout(scrollTimeoutRef.current);
+    }
+    
+    // Reactivar auto-scroll después de 3 segundos de inactividad
+    scrollTimeoutRef.current = setTimeout(() => {
+      setUserScrolled(false);
+    }, 3000);
+  }, []);
+
+  // Auto-scroll inteligente - centra la letra activa manteniendo zona segura
   useEffect(() => {
-    if (activeLineRef.current && activeLineIndex !== -1 && displayMode === 'sync' && isDesktop) {
-      const lyricsContainer = activeLineRef.current.closest('[style*="overflow"]') || 
-                             activeLineRef.current.closest('.lyrics-content-container') ||
-                             activeLineRef.current.closest('.desktop-expanded-view');
-      
-      if (lyricsContainer && activeLineRef.current) {
-        // Obtener posiciones actuales
-        const containerRect = lyricsContainer.getBoundingClientRect();
-        const elementRect = activeLineRef.current.getBoundingClientRect();
-        const currentScrollTop = lyricsContainer.scrollTop;
-        
-        // Solo considerar scroll si el elemento está por debajo del área visible
-        const isElementBelow = elementRect.top > containerRect.bottom - 80;
-        
-        if (isElementBelow) {
-          // Calcular nuevo scroll position
-          const elementTop = activeLineRef.current.offsetTop;
-          const containerHeight = lyricsContainer.clientHeight;
-          
-          // Posicionar el elemento en el tercio superior de la vista
-          const newScrollTop = Math.max(0, elementTop - containerHeight / 3);
-          
-          // CRÍTICO: Solo scroll si la nueva posición es MAYOR (hacia abajo)
-          if (newScrollTop > currentScrollTop) {
-            lyricsContainer.scrollTo({
-              top: newScrollTop,
-              behavior: 'smooth'
-            });
-          }
+    // Si no hay letra activa, salir
+    if (!activeLineRef.current || activeLineIndex === -1 || displayMode !== 'sync' || !isDesktop) {
+      return;
+    }
+    
+    const lyricsContainer = activeLineRef.current.closest('[style*="overflow"]') || 
+                           activeLineRef.current.closest('.lyrics-content-container') ||
+                           activeLineRef.current.closest('.desktop-expanded-view');
+    
+    if (!lyricsContainer || !activeLineRef.current) {
+      return;
+    }
+
+    // Obtener posiciones actuales
+    const containerRect = lyricsContainer.getBoundingClientRect();
+    const elementRect = activeLineRef.current.getBoundingClientRect();
+    const currentScrollTop = lyricsContainer.scrollTop;
+    const containerHeight = lyricsContainer.clientHeight;
+    const elementTop = activeLineRef.current.offsetTop;
+    
+    // Definir zona segura (80px desde arriba para evitar cubrir controles)
+    const safeZoneTop = 80;
+    const safeZoneBottom = containerHeight - 80;
+    
+    // Calcular posición ideal (centrada en el área visible)
+    const idealScrollTop = Math.max(0, elementTop - containerHeight / 2);
+    
+    // Verificar si el elemento está en la zona visible y centrada
+    const elementRelativeTop = elementRect.top - containerRect.top;
+    const isInCenterZone = elementRelativeTop >= safeZoneTop && elementRelativeTop <= safeZoneBottom;
+    const isNearCenter = Math.abs(elementRelativeTop - containerHeight / 2) < 50;
+    
+    // Verificar si la letra activa está completamente fuera de la vista
+    const isCompletelyOutOfView = elementRelativeTop < -20 || elementRelativeTop > containerHeight + 20;
+    
+    // Verificar si el índice activo ha cambiado desde la última vez
+    const activeIndexChanged = activeLineIndex !== lastActiveIndexRef.current;
+    lastActiveIndexRef.current = activeLineIndex;
+    
+    // Lógica de scroll más agresiva:
+    // 1. Si el índice activo cambió Y la letra está fuera de vista -> FORZAR scroll
+    // 2. Si el usuario hizo scroll manual Y la letra activa aún está visible -> NO hacer scroll
+    // 3. Si el usuario hizo scroll manual PERO la letra activa está fuera de vista -> FORZAR scroll INMEDIATAMENTE
+    // 4. Si no hay scroll manual -> comportamiento normal
+    
+    const shouldForceScrollOnChange = activeIndexChanged && isCompletelyOutOfView;
+    const shouldForceScrollOnOutOfView = userScrolled && isCompletelyOutOfView;
+    const shouldNormalScroll = !userScrolled && (!isNearCenter || elementRelativeTop < safeZoneTop || elementRelativeTop > safeZoneBottom);
+    
+    if (shouldForceScrollOnChange || shouldForceScrollOnOutOfView || shouldNormalScroll) {
+      // Si vamos a forzar scroll por estar fuera de vista, resetear el estado de scroll manual
+      if (shouldForceScrollOnChange || shouldForceScrollOnOutOfView) {
+        setUserScrolled(false);
+        if (scrollTimeoutRef.current) {
+          clearTimeout(scrollTimeoutRef.current);
         }
-        
-        // Si el elemento ya está visible o arriba, NO hacer scroll
-        console.log('Lyrics Sync Debug:', {
+        console.log('🚨 FORZANDO AUTO-SCROLL:', {
+          reason: shouldForceScrollOnChange ? 'Índice cambió' : 'Letra fuera de vista',
           activeLineIndex,
-          elementBelow: isElementBelow,
-          currentScroll: currentScrollTop,
-          elementTop: elementRect.top,
-          containerBottom: containerRect.bottom
+          elementRelativeTop,
+          isCompletelyOutOfView
         });
       }
+      
+      // Si el scroll ideal es hacia arriba pero muy poco, usar posición actual
+      const finalScrollTop = idealScrollTop < currentScrollTop - 50 ? currentScrollTop : idealScrollTop;
+      
+      // Marcar que estamos haciendo auto-scroll
+      isAutoScrollingRef.current = true;
+      
+      // Aplicar scroll suave hacia la posición calculada
+      lyricsContainer.scrollTo({
+        top: finalScrollTop,
+        behavior: 'smooth'
+      });
+      
+      // Marcar que terminó el auto-scroll después de la animación
+      setTimeout(() => {
+        isAutoScrollingRef.current = false;
+      }, 300);
     }
-  }, [activeLineIndex, displayMode, isDesktop]);
+    
+    console.log('Lyrics Sync Debug:', {
+      activeLineIndex,
+      userScrolled,
+      activeIndexChanged,
+      isCompletelyOutOfView,
+      shouldForceScrollOnChange,
+      shouldForceScrollOnOutOfView,
+      shouldNormalScroll,
+      isInCenterZone,
+      isNearCenter,
+      elementRelativeTop,
+      currentScroll: currentScrollTop,
+      idealScroll: idealScrollTop,
+      containerHeight,
+      safeZoneTop,
+      safeZoneBottom
+    });
+  }, [activeLineIndex, displayMode, isDesktop, userScrolled]);
+
+  // Detectar scroll manual del usuario
+  useEffect(() => {
+    if (!isDesktop || displayMode !== 'sync') return;
+    
+    const lyricsContainer = document.querySelector('.lyrics-content-container') || 
+                          document.querySelector('.desktop-expanded-view [style*="overflow"]');
+    
+    if (lyricsContainer) {
+      lyricsContainer.addEventListener('scroll', handleUserScroll);
+      
+      return () => {
+        lyricsContainer.removeEventListener('scroll', handleUserScroll);
+      };
+    }
+  }, [displayMode, isDesktop, handleUserScroll]);
 
   const handleLineClick = (lyric: any) => {
+    // Al hacer click, marcar como scroll manual y buscar línea
+    setUserScrolled(true);
+    if (scrollTimeoutRef.current) {
+      clearTimeout(scrollTimeoutRef.current);
+    }
+    scrollTimeoutRef.current = setTimeout(() => {
+      setUserScrolled(false);
+    }, 3000);
+    
     if (lyric.startTime !== undefined && lyric.startTime !== null && lyric.startTime > 0) {
       seekTo(lyric.startTime);
     }
   };
+
+  // Cleanup de timeouts al desmontar componente
+  useEffect(() => {
+    return () => {
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+    };
+  }, []);
 
   if (isLoading) {
     return (
