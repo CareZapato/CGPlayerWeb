@@ -56,6 +56,29 @@ jspm_packages/
 uploads/*
 !uploads/.gitkeep
 
+# Backend uploads - mantener estructura de carpetas pero ignorar contenido
+backend/uploads/*
+!backend/uploads/.gitkeep
+!backend/uploads/README.md
+!backend/uploads/songs/
+backend/uploads/songs/*
+!backend/uploads/songs/.gitkeep
+!backend/uploads/lyrics/
+backend/uploads/lyrics/*
+!backend/uploads/lyrics/.gitkeep
+!backend/uploads/images/
+backend/uploads/images/*
+!backend/uploads/images/.gitkeep
+!backend/uploads/images/playlists/
+backend/uploads/images/playlists/*
+!backend/uploads/images/playlists/.gitkeep
+!backend/uploads/images/profiles/
+backend/uploads/images/profiles/*
+!backend/uploads/images/profiles/.gitkeep
+!backend/uploads/events/
+backend/uploads/events/*
+!backend/uploads/events/.gitkeep
+
 # Database
 *.sqlite
 *.db
