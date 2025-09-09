@@ -1,4 +1,5 @@
 // Ejemplo de uso del servicio desde el frontend
+import { API_CONFIG } from '../config/api';
 
 interface UploadedVariant {
   voiceType: 'SOPRANO' | 'CONTRALTO' | 'TENOR' | 'BARITONO' | 'MESOSOPRANO' | 'BAJO' | 'CORO' | 'ORIGINAL' | 'INSTRUMENTAL';
@@ -62,7 +63,7 @@ export class SongLyricsAPI {
 
 // Ejemplo de uso:
 export async function exampleUsage() {
-  const api = new SongLyricsAPI('http://localhost:3001', 'your-jwt-token');
+  const api = new SongLyricsAPI(API_CONFIG.BASE_URL, 'your-jwt-token');
 
   // Ejemplo 1: Crear canción con letras
   try {

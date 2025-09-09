@@ -3,9 +3,29 @@
  * Aquí se definen todas las constantes y parámetros globales
  */
 
+// Función para detectar la URL base automáticamente
+const getApiBaseUrl = (): string => {
+  // Check if running in development with Vite
+  if (import.meta.env.VITE_API_BASE_URL) {
+    return import.meta.env.VITE_API_BASE_URL;
+  }
+
+  // Auto-detect based on current window location
+  const protocol = window.location.protocol;
+  const hostname = window.location.hostname;
+  
+  // If accessing via IP, use the same IP for API
+  if (hostname !== 'localhost' && hostname !== '127.0.0.1') {
+    return `${protocol}//${hostname}:3001`;
+  }
+  
+  // Default fallback
+  return import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
+};
+
 // Obtener versión desde package.json en tiempo de build
 const packageInfo = {
-  version: process.env.REACT_APP_VERSION || '0.10.9'
+  version: import.meta.env.VITE_APP_VERSION || '0.10.9'
 };
 
 export const APP_CONFIG = {
@@ -16,7 +36,7 @@ export const APP_CONFIG = {
   
   // URLs y endpoints
   api: {
-    baseUrl: process.env.REACT_APP_API_URL || 'http://localhost:3001',
+    baseUrl: getApiBaseUrl(),
     version: 'v1'
   },
   

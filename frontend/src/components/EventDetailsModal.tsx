@@ -111,7 +111,7 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
   const fetchEventVoices = async () => {
     try {
       console.log('🎤 Obteniendo voces del evento...');
-      const response = await fetch(`http://localhost:3001/api/events/${event.id}/voices`, {
+      const response = await fetch(getApiUrl(`/events/${event.id}/voices`), {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
