@@ -34,7 +34,7 @@
 - **Sincronización de estado**: Coordinación perfecta entre `selectedSongs`, `variationsInfo` y datos del evento
 - **Persistencia de cambios**: Los cambios realizados se mantienen durante toda la sesión de edición
 
-[![Version](https://img.shields.io/badge/version-0.10.9-blue.svg)](https://github.com/CareZapato/CGPlayerWeb/releases/tag/v0.10.9)
+[![Version](https://img.shields.io/badge/version-0.10.19-blue.svg)](https://github.com/CareZapato/CGPlayerWeb/releases/tag/v0.10.19)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
 [![React](https://img.shields.io/badge/React-19+-blue.svg)](https://reactjs.org/)
@@ -44,6 +44,14 @@
 **CGPlayerWeb** es una aplicación web moderna para la gestión y reproducción de música coral, diseñada específicamente para coros y grupos musicales chilenos. Permite la subida, organización y reproducción de pistas de audio con un sistema avanzado de roles, autenticación, gestión de sedes y **sistema completo de playlists** ubicadas a lo largo de Chile.
 
 ## 🚀 Características Principales
+
+### 🔧 **Corrección Sistema de Postulaciones a Eventos** *(NUEVO en v0.10.19)*
+- **Fix crítico de postulaciones** - Botón "Solicitar participación" ahora aparece correctamente en eventos públicos
+- **Modal de eventos mejorado** - Footer se muestra apropiadamente cuando eventos permiten postulaciones externas
+- **Sistema completo funcional** - Confirmación de asistencia, cancelación y reenvío de solicitudes operativo
+- **Configuración IP centralizada** - Backend utiliza configuración centralizada de IP sin valores hardcoded
+- **URLs dinámicas** - Generación automática de URLs de imágenes de perfil con IP configurada
+- **Red flexible** - Sistema robusto de detección de IP con múltiples fallbacks inteligentes
 
 ### 🎤 **Sistema de Distribución de Voces Completo** *(NUEVO en v0.10.9)*
 - **Distribución específica de voces** - 100% de usuarios con voz primaria (SOPRANO/CONTRALTO/TENOR) + 30% adicional con voz secundaria (BAJO/BARITONO/MESOSOPRANO)

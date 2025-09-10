@@ -15,6 +15,51 @@ interface ChangelogEntry {
 
 const changelogData: ChangelogEntry[] = [
   {
+    version: '0.10.19',
+    date: '2025-01-15',
+    type: 'patch',
+    title: 'Corrección Sistema de Postulaciones a Eventos - Event Participation Fix',
+    highlights: [
+      'Corrección crítica del botón "Solicitar participación" en eventos',
+      'Footer de modal de eventos ahora aparece correctamente',
+      'Sistema de postulaciones completamente funcional',
+      'Configuración de IP centralizada para backend',
+      'Actualización de referencias hardcoded en rutas de perfil'
+    ],
+    changes: [
+      {
+        category: 'fixed',
+        items: [
+          'Botón "Solicitar participación" ahora aparece correctamente en eventos públicos',
+          'Footer del modal de eventos se muestra cuando allowExternalJoin es true',
+          'Condición de renderizado corregida para incluir eventos abiertos a postulaciones',
+          'Sistema completo de confirmación de asistencia funcional',
+          'Reenvío de solicitudes rechazadas operativo'
+        ]
+      },
+      {
+        category: 'improved',
+        items: [
+          'Configuración centralizada de IP en backend/src/routes/profile.ts',
+          'Función getServerIP() implementada con fallbacks inteligentes',
+          'Carga automática del archivo ip-config.env en el backend',
+          'URLs de imágenes de perfil generadas dinámicamente',
+          'Eliminación completa de IPs hardcoded (192.168.1.10)',
+          'Mayor flexibilidad en configuración de red del sistema'
+        ]
+      },
+      {
+        category: 'added',
+        items: [
+          'Sistema robusto de detección automática de IP con múltiples fallbacks',
+          'Soporte para variables SERVER_IP, IP_ADDRESS y API_HOST',
+          'Integración mejorada con archivo ip-config.env del proyecto',
+          'Logging mejorado para URLs de imágenes generadas dinámicamente'
+        ]
+      }
+    ]
+  },
+  {
     version: '0.10.9',
     date: '2024-12-22',
     type: 'major',

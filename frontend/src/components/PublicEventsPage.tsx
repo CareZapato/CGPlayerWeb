@@ -1173,7 +1173,7 @@ const PublicEventsPage: React.FC = () => {
               </div>
 
               {/* Footer fijo con botones principales */}
-              {(selectedEvent.isUserAttendee || selectedEvent.userJoinRequest) && (
+              {(selectedEvent.isUserAttendee || selectedEvent.userJoinRequest || selectedEvent.allowExternalJoin) && (
                 <div className="border-t border-gray-200 p-6 bg-gray-50 flex-shrink-0 rounded-b-xl">
                   {selectedEvent.isUserAttendee && (
                     <div className="space-y-3">
