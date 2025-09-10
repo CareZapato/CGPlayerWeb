@@ -4,7 +4,7 @@
   "description": "Backend API para CGPlayerWeb con sistema de roles, ubicaciones y playlists",
   "main": "dist/index.js",
   "scripts": {
-    "dev": "nodemon src/index.ts",
+    "dev": "nodemon",
     "build": "tsc",
     "start": "node dist/index.js",
     "prisma:generate": "prisma generate",
