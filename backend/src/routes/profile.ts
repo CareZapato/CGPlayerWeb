@@ -3,11 +3,42 @@ import { PrismaClient } from '@prisma/client';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import os from 'os';
 import bcrypt from 'bcrypt';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 
 const router = express.Router();
 const prisma = new PrismaClient();
+
+// Función para obtener la IP del servidor de forma consistente
+const getServerIP = (): string => {
+  // Usar IP desde variables de entorno si está disponible (ip-config.env)
+  if (process.env.SERVER_IP) {
+    return process.env.SERVER_IP;
+  }
+  
+  // Fallback a variables de entorno del sistema
+  if (process.env.IP_ADDRESS) {
+    return process.env.IP_ADDRESS;
+  }
+  
+  if (process.env.API_HOST) {
+    return process.env.API_HOST;
+  }
+
+  // Fallback a detección automática
+  const interfaces = os.networkInterfaces();
+  for (const name of Object.keys(interfaces)) {
+    for (const iface of interfaces[name]!) {
+      if (iface.family === 'IPv4' && !iface.internal) {
+        return iface.address;
+      }
+    }
+  }
+  
+  // Último fallback
+  return 'localhost';
+};
 
 // Configuración de multer para la carga de imágenes de perfil
 const storage = multer.diskStorage({
@@ -77,7 +108,7 @@ router.get('/me', authenticateToken, async (req: AuthRequest, res: Response) => 
     if (user.profileImage) {
       // Usar la IP desde las variables de entorno si está disponible
       const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http';
-      const host = process.env.IP_ADDRESS || process.env.API_HOST || '192.168.1.10';
+      const host = getServerIP();
       const port = process.env.PORT || '3001';
       profileImageUrl = `${protocol}://${host}:${port}/api/uploads/images/profiles/${user.profileImage}`;
       
@@ -275,7 +306,7 @@ router.post('/me/image', authenticateToken, upload.single('profileImage'), async
     }) as any;
 
     const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http';
-    const host = process.env.IP_ADDRESS || process.env.API_HOST || '192.168.1.10';
+    const host = getServerIP();
     const port = process.env.PORT || '3001';
     const profileImageUrl = `${protocol}://${host}:${port}/api/uploads/images/profiles/${updatedUser.profileImage}`;
     

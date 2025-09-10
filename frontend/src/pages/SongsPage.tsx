@@ -25,7 +25,8 @@ const VOICE_TYPE_LABELS: { [key: string]: string } = {
   MESOSOPRANO: 'Mesosoprano',
   BAJO: 'Bajo',
   CORO: 'Coro',
-  ORIGINAL: 'Original'
+  ORIGINAL: 'Original',
+  INSTRUMENTAL: 'Instrumental'
 };
 
 const VOICE_TYPE_COLORS: { [key: string]: string } = {
@@ -36,7 +37,8 @@ const VOICE_TYPE_COLORS: { [key: string]: string } = {
   MESOSOPRANO: 'bg-indigo-100 text-indigo-800 border-indigo-200',
   BAJO: 'bg-yellow-100 text-yellow-800 border-yellow-200',
   CORO: 'bg-orange-100 text-orange-800 border-orange-200',
-  ORIGINAL: 'bg-gray-100 text-gray-800 border-gray-200'
+  ORIGINAL: 'bg-gray-100 text-gray-800 border-gray-200',
+  INSTRUMENTAL: 'bg-red-100 text-red-800 border-red-200'
 };
 
 const SongsPage: React.FC = () => {

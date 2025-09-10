@@ -4,7 +4,7 @@ export type UserRole = 'ADMIN' | 'CANTANTE' | 'DIRECTOR';
 export type UserVoiceType = 'SOPRANO' | 'MESOSOPRANO' | 'CONTRALTO' | 'TENOR' | 'BARITONO' | 'BAJO';
 
 // Tipos de voz para canciones (incluye CORO y ORIGINAL como tags)
-export type VoiceType = 'SOPRANO' | 'CONTRALTO' | 'TENOR' | 'BARITONO' | 'MESOSOPRANO' | 'BAJO' | 'CORO' | 'ORIGINAL';
+export type VoiceType = 'SOPRANO' | 'CONTRALTO' | 'TENOR' | 'BARITONO' | 'MESOSOPRANO' | 'BAJO' | 'CORO' | 'ORIGINAL' | 'INSTRUMENTAL';
 
 export interface UserRole_DB {
   id: string;

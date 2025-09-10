@@ -5,7 +5,35 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto se adhiere al [Versionado Semántico](https://semver.org/lang/es/).
 
-## [1.10.9] - 2024-12-22
+## [0.10.19] - 2025-01-15
+
+### 🔧 **CORRECCIÓN SISTEMA DE POSTULACIONES A EVENTOS**
+
+#### 🎯 **Event Participation Fix**
+- **Corrección crítica**: Botón "Solicitar participación" ahora aparece correctamente en eventos públicos abiertos a postulaciones
+- **Footer del modal**: Footer de eventos se muestra correctamente cuando `allowExternalJoin` es true
+- **Condición de renderizado**: Corregida la lógica que impedía mostrar opciones de postulación
+- **Sistema completo**: Confirmación de asistencia y reenvío de solicitudes rechazadas completamente funcional
+
+#### 🌐 **Configuración de IP Centralizada Backend**  
+- **IPs hardcoded eliminadas**: Removidas todas las referencias a IP fija (192.168.1.10) en rutas de perfil
+- **Función getServerIP()**: Implementación robusta con múltiples fallbacks para detección de IP
+- **Carga automática**: Backend ahora carga automáticamente el archivo `ip-config.env` del proyecto
+- **URLs dinámicas**: Generación dinámica de URLs de imágenes de perfil con IP configurada
+
+#### ✨ **Mejoras en Configuración de Red**
+- **Fallbacks inteligentes**: SERVER_IP → IP_ADDRESS → API_HOST → detección automática → localhost
+- **Flexibilidad mejorada**: Mayor adaptabilidad a diferentes configuraciones de red
+- **Logging mejorado**: Mejor trazabilidad en generación de URLs y configuración de IP
+- **Integración completa**: Sincronización perfecta con sistema centralizado de configuración de IP
+
+### 🐛 **Correcciones Específicas**
+- **Modal de eventos**: Footer ahora se renderiza para eventos con postulaciones habilitadas
+- **Botón de postulación**: Visible y funcional para usuarios sin solicitudes previas
+- **Backend profile routes**: URLs de imágenes generadas dinámicamente sin IPs hardcoded
+- **IP configuration**: Carga correcta del archivo de configuración centralizada
+
+## [0.10.9] - 2024-12-22
 
 ### 🎯 **SISTEMA DE DISTRIBUCIÓN DE VOCES MEJORADO**
 

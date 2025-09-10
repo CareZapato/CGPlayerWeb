@@ -1,5 +1,6 @@
 import type { LyricsUploadResponse, SongWithLyrics, Lyric, LyricsSyncData, VoiceType } from '../types/lyrics';
 import configService from './configService';
+import { API_CONFIG } from '../config/api';
 
 class LyricsService {
   private getAuthHeaders() {
@@ -227,8 +228,7 @@ class LyricsService {
 
   // Obtener URL del archivo de letras
   getFileUrl(filePath: string): string {
-    const baseUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:3001';
-    return `${baseUrl}${filePath}`;
+    return `${API_CONFIG.BASE_URL}${filePath}`;
   }
 }
 

@@ -74,7 +74,8 @@ const SongDetailModal: React.FC<SongDetailModalProps> = ({ song, color, onClose 
       'BARITONE': 'Barítono',
       'BASS': 'Bajo',
       'CORO': 'Coro',
-      'ORIGINAL': 'Original'
+      'ORIGINAL': 'Original',
+      'INSTRUMENTAL': 'Instrumental'
     };
     return labels[voiceType || 'ORIGINAL'] || voiceType || 'Sin categoría';
   };

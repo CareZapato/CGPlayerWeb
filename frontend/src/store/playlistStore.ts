@@ -94,20 +94,37 @@ export const usePlaylistStore = create<PlaylistState>()(
 
       nextSong: () => {
         const state = get();
-        if (state.queue.length === 0) return null;
+        console.log('🎵 [STORE] nextSong llamado:', { 
+          queueLength: state.queue.length, 
+          currentIndex: state.currentIndex, 
+          repeatMode: state.repeatMode 
+        });
+        
+        if (state.queue.length === 0) {
+          console.log('❌ [STORE] No hay canciones en la cola');
+          return null;
+        }
         
         let nextIndex;
         if (state.repeatMode === 'one') {
+          console.log('🔁 [STORE] Repeat One - manteniendo canción actual');
           return state.queue[state.currentIndex]; // Stay on the same song
         } else if (state.repeatMode === 'all' && state.currentIndex === state.queue.length - 1) {
+          console.log('🔁 [STORE] Repeat All - volviendo al inicio');
           nextIndex = 0; // Volver al inicio si está en repeat all
         } else {
           nextIndex = state.currentIndex + 1;
         }
         
         if (nextIndex >= state.queue.length) {
+          console.log('❌ [STORE] No hay más canciones (sin repeat)');
           return null; // No hay más canciones
         }
+        
+        console.log('✅ [STORE] Siguiente canción encontrada:', { 
+          nextIndex, 
+          song: state.queue[nextIndex]?.title 
+        });
         
         set({ currentIndex: nextIndex });
         return state.queue[nextIndex];
@@ -115,17 +132,33 @@ export const usePlaylistStore = create<PlaylistState>()(
 
       previousSong: () => {
         const state = get();
-        if (state.queue.length === 0) return null;
+        console.log('🎵 [STORE] previousSong llamado:', { 
+          queueLength: state.queue.length, 
+          currentIndex: state.currentIndex, 
+          repeatMode: state.repeatMode 
+        });
+        
+        if (state.queue.length === 0) {
+          console.log('❌ [STORE] No hay canciones en la cola');
+          return null;
+        }
         
         const prevIndex = state.currentIndex - 1;
         if (prevIndex < 0) {
           if (state.repeatMode === 'all') {
             const lastIndex = state.queue.length - 1;
+            console.log('🔁 [STORE] Repeat All - yendo a la última canción');
             set({ currentIndex: lastIndex });
             return state.queue[lastIndex];
           }
+          console.log('❌ [STORE] No hay canción anterior (sin repeat)');
           return null;
         }
+        
+        console.log('✅ [STORE] Canción anterior encontrada:', { 
+          prevIndex, 
+          song: state.queue[prevIndex]?.title 
+        });
         
         set({ currentIndex: prevIndex });
         return state.queue[prevIndex];

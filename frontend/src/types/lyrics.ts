@@ -21,7 +21,7 @@ export const LyricsFileType = {
 export type LyricsFileType = typeof LyricsFileType[keyof typeof LyricsFileType];
 
 // Tipos de voz (debe coincidir con el backend y types/index.ts)
-export type VoiceType = 'SOPRANO' | 'CONTRALTO' | 'TENOR' | 'BARITONO' | 'MESOSOPRANO' | 'BAJO' | 'CORO' | 'ORIGINAL';
+export type VoiceType = 'SOPRANO' | 'CONTRALTO' | 'TENOR' | 'BARITONO' | 'MESOSOPRANO' | 'BAJO' | 'CORO' | 'ORIGINAL' | 'INSTRUMENTAL';
 
 // Archivo de letras individual
 export interface LyricsFile {

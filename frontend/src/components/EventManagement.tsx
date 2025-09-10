@@ -54,6 +54,7 @@ interface Event {
     attendees: number;
     joinRequests: number;
     eventSongs?: number;
+    uniqueEventSongs?: number;
   };
   attendees?: any[];
   joinRequests?: any[];
@@ -67,6 +68,7 @@ const EventManagement: React.FC = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [initialModalTab, setInitialModalTab] = useState<'info' | 'attendees' | 'requests' | 'songs'>('info'); // Nueva estado
   const [showEditModal, setShowEditModal] = useState(false);
   const [eventToEdit, setEventToEdit] = useState<Event | null>(null);
 
@@ -175,6 +177,15 @@ const EventManagement: React.FC = () => {
       
       if (data.success) {
         setEvents(data.data);
+        
+        // 🔄 CRUCIAL: Actualizar selectedEvent si hay un modal abierto
+        if (selectedEvent && showDetailsModal) {
+          const updatedSelectedEvent = data.data.find((event: Event) => event.id === selectedEvent.id);
+          if (updatedSelectedEvent) {
+            console.log('🔄 [SOLICITUDES DEBUG] Actualizando selectedEvent con datos frescos');
+            setSelectedEvent(updatedSelectedEvent);
+          }
+        }
       } else {
         setError('Error al cargar eventos');
       }
@@ -202,6 +213,13 @@ const EventManagement: React.FC = () => {
 
   const handleViewDetails = (event: Event) => {
     setSelectedEvent(event);
+    setInitialModalTab('info'); // Por defecto a info
+    setShowDetailsModal(true);
+  };
+
+  const handleViewRequests = (event: Event) => {
+    setSelectedEvent(event);
+    setInitialModalTab('requests'); // Directamente a solicitudes
     setShowDetailsModal(true);
   };
 
@@ -606,19 +624,26 @@ const EventManagement: React.FC = () => {
                       {/* Mostrar solicitudes como badge solo si hay más de 0 y permite solicitudes externas */}
                       {event.allowExternalJoin && (event._count?.joinRequests ?? 0) > 0 && (
                         <div className="flex items-center">
-                          <div className="relative">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation(); // Evitar que abra el modal normal
+                              handleViewRequests(event);
+                            }}
+                            className="relative hover:bg-orange-50 rounded-full p-1 transition-all duration-200"
+                            title={`${event._count?.joinRequests ?? 0} solicitudes pendientes - Clic para ver`}
+                          >
                             <UserPlus className="h-4 w-4 text-orange-500" />
                             <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
                               {event._count?.joinRequests ?? 0}
                             </span>
-                          </div>
+                          </button>
                         </div>
                       )}
                     </div>
                     
                     <div className="flex items-center space-x-2">
                       {/* Contador de canciones */}
-                      {(event._count?.eventSongs ?? 0) > 0 && (
+                      {(event._count?.uniqueEventSongs ?? event._count?.eventSongs ?? 0) > 0 && (
                         <button
                           onClick={() => handlePlayEvent(event)}
                           disabled={playLoading}
@@ -626,7 +651,7 @@ const EventManagement: React.FC = () => {
                           title="Reproducir como playlist"
                         >
                           <span className="text-sm font-medium mr-1">
-                            {event._count?.eventSongs ?? 0}
+                            {event._count?.uniqueEventSongs ?? event._count?.eventSongs ?? 0}
                           </span>
                           <Play className="h-4 w-4" />
                         </button>
@@ -682,8 +707,12 @@ const EventManagement: React.FC = () => {
         {showDetailsModal && selectedEvent && (
           <EventDetailsModal
             event={selectedEvent}
-            onClose={() => setShowDetailsModal(false)}
+            onClose={() => {
+              setShowDetailsModal(false);
+              setInitialModalTab('info'); // Reset a info por defecto
+            }}
             onEventUpdated={fetchEvents}
+            initialTab={initialModalTab}
           />
         )}
       </div>

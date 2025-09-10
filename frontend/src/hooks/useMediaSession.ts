@@ -3,6 +3,7 @@ import { usePlayerStore } from '../store/playerStore';
 import { usePlaylistStore } from '../store/playlistStore';
 import { useServerInfo } from './useServerInfo';
 import { getSongFileUrl } from '../config/api';
+import type { Song } from '../types';
 
 export const useMediaSession = () => {
   const { 
@@ -18,11 +19,19 @@ export const useMediaSession = () => {
   const { 
     queue, 
     currentIndex, 
-    nextSong, 
-    previousSong 
+    repeatMode 
   } = usePlaylistStore();
 
   const { serverInfo } = useServerInfo();
+
+  // Función para construir URL de canción
+  const buildSongUrl = (song: any): string => {
+    if (song.folderName) {
+      return getSongFileUrl(song.folderName, song.fileName);
+    } else {
+      return `${serverInfo.audioBaseUrl}-root/${song.fileName}`;
+    }
+  };
 
   useEffect(() => {
     if (!('mediaSession' in navigator) || !currentSong) {
@@ -63,37 +72,79 @@ export const useMediaSession = () => {
 
     navigator.mediaSession.setActionHandler('previoustrack', () => {
       console.log('📱 Media Session: Previous track requested');
-      if (queue.length > 1 && currentIndex > 0) {
-        const prevSongData = previousSong();
-        if (prevSongData) {
-          const { playSong } = usePlayerStore.getState();
-          const songUrl = buildSongUrl(prevSongData);
-          playSong({
-            id: prevSongData.id,
-            title: prevSongData.title,
-            artist: prevSongData.artist || 'Desconocido',
-            url: songUrl,
-            duration: prevSongData.duration || 0
-          });
+      
+      // Usar la misma lógica manual del BottomPlayer
+      const prevIndex = currentIndex - 1;
+      let targetIndex;
+      
+      if (prevIndex < 0) {
+        if (repeatMode === 'all') {
+          targetIndex = queue.length - 1;
+        } else {
+          console.log('📱 Media Session: No hay canción anterior disponible');
+          return;
         }
+      } else {
+        targetIndex = prevIndex;
+      }
+      
+      const prevTrack = queue[targetIndex];
+      if (prevTrack) {
+        console.log('📱 Media Session: Reproduciendo anterior:', prevTrack.title);
+        const { playSong } = usePlayerStore.getState();
+        const { setCurrentIndex } = usePlaylistStore.getState();
+        
+        // Actualizar índice primero
+        setCurrentIndex(targetIndex);
+        
+        // Luego reproducir
+        const songUrl = buildSongUrl(prevTrack);
+        playSong({
+          id: prevTrack.id,
+          title: prevTrack.title,
+          artist: prevTrack.artist || 'Desconocido',
+          url: songUrl,
+          duration: prevTrack.duration || 0
+        });
       }
     });
 
     navigator.mediaSession.setActionHandler('nexttrack', () => {
       console.log('📱 Media Session: Next track requested');
-      if (queue.length > 1 && currentIndex < queue.length - 1) {
-        const nextSongData = nextSong();
-        if (nextSongData) {
-          const { playSong } = usePlayerStore.getState();
-          const songUrl = buildSongUrl(nextSongData);
-          playSong({
-            id: nextSongData.id,
-            title: nextSongData.title,
-            artist: nextSongData.artist || 'Desconocido',
-            url: songUrl,
-            duration: nextSongData.duration || 0
-          });
-        }
+      
+      // Usar la misma lógica manual del BottomPlayer
+      let nextIndex;
+      if (repeatMode === 'one') {
+        nextIndex = currentIndex;
+      } else if (repeatMode === 'all' && currentIndex === queue.length - 1) {
+        nextIndex = 0;
+      } else {
+        nextIndex = currentIndex + 1;
+      }
+      
+      if (nextIndex >= queue.length && repeatMode === 'off') {
+        console.log('📱 Media Session: No hay siguiente canción disponible');
+        return;
+      }
+      
+      const nextTrack = queue[nextIndex];
+      if (nextTrack) {
+        console.log('📱 Media Session: Reproduciendo siguiente:', nextTrack.title);
+        const { playSong } = usePlayerStore.getState();
+        const { setCurrentIndex } = usePlaylistStore.getState();
+        
+        // Actualizar índice primero
+        setCurrentIndex(nextIndex);
+        
+        // Luego reproducir
+        const songUrl = buildSongUrl(nextTrack);
+        playSong({
+          id: nextTrack.id,
+          title: nextTrack.title,
+          artist: nextTrack.artist || 'Desconocido',
+          url: songUrl,
+          duration: nextTrack.duration || 0
+        });
       }
     });
 
@@ -208,15 +259,6 @@ export const useMediaSession = () => {
       }
     };
   }, [currentTime, duration, currentSong, isPlaying]);
-
-  // Función auxiliar para construir URL de canción con autenticación
-  const buildSongUrl = (song: any) => {
-    if (song.folderName) {
-      return getSongFileUrl(song.folderName, song.fileName);
-    } else {
-      return `${serverInfo.audioBaseUrl}-root/${song.fileName}`;
-    }
-  };
 
   // Función para generar cover de canción (placeholder colorido)
   const generateSongCover = (title: string): string => {

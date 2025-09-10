@@ -42,6 +42,8 @@ const router = express.Router();
 // Obtener todas las ubicaciones
 router.get('/', async (req: Request, res: Response) => {
   try {
+    console.log('📍 Locations endpoint called');
+    
     const locations = await prisma.location.findMany({
       where: { isActive: true },
       include: {
@@ -55,10 +57,9 @@ router.get('/', async (req: Request, res: Response) => {
       orderBy: { name: 'asc' }
     });
 
-    res.json({
-      success: true,
-      data: locations
-    });
+    console.log(`📍 Returning ${locations.length} locations`);
+
+    res.json(locations); // Devolver directamente el array
   } catch (error) {
     console.error('Error fetching locations:', error);
     res.status(500).json({ message: 'Failed to fetch locations' });

@@ -369,6 +369,40 @@
   color: #ef4444;
 }
 
+/* Drag and drop styles for simple queue */
+.queue-item__drag-handle {
+  color: #9ca3af;
+  cursor: grab;
+  padding: 0.25rem;
+  margin-right: 0.5rem;
+  border-radius: 0.25rem;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  touch-action: none;
+  user-select: none;
+}
+
+.queue-item__drag-handle:hover {
+  color: #6b7280;
+  background: rgba(156, 163, 175, 0.1);
+}
+
+.queue-item__drag-handle:active {
+  cursor: grabbing;
+}
+
+.queue-item--dragging {
+  opacity: 0.7;
+  transform: scale(0.98);
+  background: rgba(156, 163, 175, 0.1);
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+}
+
 /* Panel header con botón de cerrar */
 .queue-panel__header {
   display: flex;
@@ -760,6 +794,13 @@
   max-height: 100vh !important;
   min-height: 100vh !important;
   width: 100% !important;
+  /* Containment para prevenir que el scroll afecte otros elementos */
+  contain: layout style;
+  will-change: scroll-position;
+  transform: translateZ(0); /* Hardware acceleration */
+  /* Scroll aislado */
+  position: relative;
+  z-index: 1;
 }
 
 /* Scrollbar personalizado para el contenido de letras */
@@ -1033,6 +1074,12 @@
   /* Asegurar que el contenido no se corte */
   scrollbar-width: none; /* Firefox */
   -ms-overflow-style: none; /* IE y Edge */
+  /* Containment para prevenir que el scroll afecte otros elementos */
+  contain: layout style;
+  will-change: scroll-position;
+  transform: translateZ(0); /* Hardware acceleration */
+  /* Scroll aislado */
+  z-index: 1;
 }
 
 /* Ocultar scrollbar en WebKit */
@@ -1466,6 +1513,79 @@
 .mobile-fullscreen-queue__remove:hover {
   color: #ef4444;
   background: rgba(239, 68, 68, 0.1);
+}
+
+/* Drag and drop styles for mobile queue */
+.mobile-fullscreen-queue__drag-handle {
+  color: rgba(255, 255, 255, 0.4);
+  cursor: grab;
+  padding: 0.5rem;
+  margin-right: 0.5rem;
+  border-radius: 0.25rem;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  touch-action: none;
+}
+
+.mobile-fullscreen-queue__drag-handle:hover {
+  color: rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.mobile-fullscreen-queue__drag-handle:active {
+  cursor: grabbing;
+}
+
+.mobile-fullscreen-queue__item--dragging {
+  opacity: 0.7;
+  transform: scale(0.98);
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  z-index: 1000;
+}
+
+.mobile-fullscreen-queue__item-content {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex: 1;
+  min-width: 0;
+}
+
+/* Desktop queue drag and drop styles */
+.desktop-queue-item__drag-handle {
+  color: rgba(255, 255, 255, 0.4);
+  cursor: grab;
+  padding: 0.5rem;
+  margin-right: 0.5rem;
+  border-radius: 0.25rem;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.desktop-queue-item__drag-handle:hover {
+  color: rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.desktop-queue-item__drag-handle:active {
+  cursor: grabbing;
+}
+
+.desktop-queue-item--dragging {
+  opacity: 0.7;
+  transform: scale(0.98);
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  z-index: 1000;
 }
 
 /* Estilos para sincronización de letras */

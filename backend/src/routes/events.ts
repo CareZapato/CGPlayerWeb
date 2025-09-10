@@ -9,6 +9,41 @@ import fs from 'fs';
 const router = express.Router();
 const prisma = new PrismaClient();
 
+// Función auxiliar para calcular el número de canciones padre únicas
+async function calculateUniqueEventSongs(eventId: string): Promise<number> {
+  try {
+    const eventSongs = await prisma.eventSong.findMany({
+      where: { eventId },
+      select: {
+        song: {
+          select: {
+            id: true,
+            parentSongId: true
+          }
+        }
+      }
+    });
+
+    const uniqueParentIds = new Set<string>();
+    
+    for (const eventSong of eventSongs) {
+      const song = eventSong.song;
+      // Si la canción tiene parentSongId, usar ese como identificador único
+      if (song.parentSongId) {
+        uniqueParentIds.add(song.parentSongId);
+      } else {
+        // Si no tiene parent, es una canción principal
+        uniqueParentIds.add(song.id);
+      }
+    }
+    
+    return uniqueParentIds.size;
+  } catch (error) {
+    console.error('Error calculating unique event songs:', error);
+    return 0;
+  }
+}
+
 // Crear directorio de uploads si no existe
 const uploadsDir = path.join(__dirname, '../../uploads/events');
 if (!fs.existsSync(uploadsDir)) {
@@ -148,7 +183,6 @@ router.get('/management/all', authenticateToken, requireRole(['ADMIN', 'DIRECTOR
           }
         },
         joinRequests: {
-          where: { status: 'PENDING' },
           include: {
             user: {
               select: { 
@@ -159,7 +193,8 @@ router.get('/management/all', authenticateToken, requireRole(['ADMIN', 'DIRECTOR
                 assignedRoles: { select: { role: true } }
               }
             }
-          }
+          },
+          orderBy: { createdAt: 'desc' }
         },
         _count: {
           select: {
@@ -172,9 +207,23 @@ router.get('/management/all', authenticateToken, requireRole(['ADMIN', 'DIRECTOR
       orderBy: { date: 'asc' }
     });
 
+    // Enriquecer eventos con el contador de canciones padre únicas
+    const eventsWithUniqueCount = await Promise.all(
+      events.map(async (event) => {
+        const uniqueEventSongs = await calculateUniqueEventSongs(event.id);
+        return {
+          ...event,
+          _count: {
+            ...event._count,
+            uniqueEventSongs
+          }
+        };
+      })
+    );
+
     res.json({
       success: true,
-      data: events
+      data: eventsWithUniqueCount
     });
   } catch (error) {
     console.error('Error fetching events for management:', error);
@@ -297,34 +346,44 @@ router.get('/visible', authenticateToken, async (req, res) => {
     });
 
     // Enriquecer cada evento con información específica del usuario
-    const eventsWithUserInfo = events.map(event => {
-      // Verificar si el usuario es asistente
-      const userAttendee = event.attendees.find(attendee => attendee.userId === userId);
-      const isUserAttendee = !!userAttendee;
-      
-      // Buscar solicitud del usuario para este evento
-      const userJoinRequest = event.joinRequests.find(request => request.userId === userId);
-      
-      // Información de confirmación de asistencia
-      const userAttendanceStatus = userAttendee ? {
-        attendanceConfirmed: (userAttendee as any).attendanceConfirmed,
-        nonAttendanceComment: (userAttendee as any).nonAttendanceComment
-      } : null;
-      
-      return {
-        ...event,
-        isUserAttendee,
-        userJoinRequest: userJoinRequest ? {
-          id: userJoinRequest.id,
-          status: userJoinRequest.status,
-          message: userJoinRequest.message,
-          response: userJoinRequest.response,
-          createdAt: userJoinRequest.createdAt,
-          updatedAt: userJoinRequest.updatedAt
-        } : null,
-        userAttendanceStatus
-      };
-    });
+    const eventsWithUserInfo = await Promise.all(
+      events.map(async (event) => {
+        // Verificar si el usuario es asistente
+        const userAttendee = event.attendees.find(attendee => attendee.userId === userId);
+        const isUserAttendee = !!userAttendee;
+        
+        // Buscar solicitud del usuario para este evento
+        const userJoinRequest = event.joinRequests.find(request => request.userId === userId);
+        
+        // Información de confirmación de asistencia
+        const userAttendanceStatus = userAttendee ? {
+          attendanceConfirmed: (userAttendee as any).attendanceConfirmed,
+          nonAttendanceComment: (userAttendee as any).nonAttendanceComment,
+          status: (userAttendee as any).status
+        } : null;
+        
+        // Calcular contador de canciones padre únicas
+        const uniqueEventSongs = await calculateUniqueEventSongs(event.id);
+        
+        return {
+          ...event,
+          _count: {
+            ...event._count,
+            uniqueEventSongs
+          },
+          isUserAttendee,
+          userJoinRequest: userJoinRequest ? {
+            id: userJoinRequest.id,
+            status: userJoinRequest.status,
+            message: userJoinRequest.message,
+            response: userJoinRequest.response,
+            createdAt: userJoinRequest.createdAt,
+            updatedAt: userJoinRequest.updatedAt
+          } : null,
+          userAttendanceStatus
+        };
+      })
+    );
 
     console.log(`📋 Found ${eventsWithUserInfo.length} visible events for user ${userId}`);
 
@@ -1550,8 +1609,64 @@ router.delete('/:id/attendees/:userId', authenticateToken, requireRole(['ADMIN',
   }
 });
 
+// GET /api/events/:id/voices - Endpoint específico para obtener voces de un evento
+router.get('/:id/voices', authenticateToken, async (req, res) => {
+  console.log('🎤 ===== ENDPOINT VOICES LLAMADO! =====');
+  try {
+    const { id } = req.params;
+    
+    const event = await prisma.event.findUnique({
+      where: { id },
+      include: {
+        attendees: {
+          include: {
+            user: {
+              include: {
+                voiceProfiles: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!event) {
+      return res.status(404).json({
+        success: false,
+        message: 'Evento no encontrado'
+      });
+    }
+
+    // Procesar datos de voces
+    const voicesData = event.attendees.map(attendee => ({
+      userId: attendee.user.id,
+      name: `${attendee.user.firstName} ${attendee.user.lastName}`,
+      status: attendee.status,
+      voiceProfiles: attendee.user.voiceProfiles,
+      primaryVoice: attendee.user.voiceProfiles?.find(vp => vp.isPrimary)
+    }));
+
+    console.log('🎯 Datos de voces procesados:', voicesData.slice(0, 3));
+
+    res.json({
+      success: true,
+      data: {
+        eventId: id,
+        voicesData
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching event voices:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al obtener voces del evento'
+    });
+  }
+});
+
 // GET /api/events/:id - Obtener un evento específico
 router.get('/:id', authenticateToken, async (req, res) => {
+  console.log('🔥 ===== EVENTO GET /:id CALLED! =====');
   try {
     const { id } = req.params;
     
@@ -1565,13 +1680,10 @@ router.get('/:id', authenticateToken, async (req, res) => {
         attendees: {
           include: {
             user: {
-              select: { 
-                id: true,
-                firstName: true, 
-                lastName: true, 
-                locationId: true,
-                location: { select: { name: true } },
-                assignedRoles: { select: { role: true } }
+              include: {
+                location: true,
+                assignedRoles: true,
+                voiceProfiles: true
               }
             }
           }
@@ -1602,11 +1714,12 @@ router.get('/:id', authenticateToken, async (req, res) => {
                 firstName: true, 
                 lastName: true, 
                 email: true,
-                locationId: true
+                locationId: true,
+                assignedRoles: { select: { role: true } }
               }
             }
           },
-          where: { status: 'PENDING' }
+          orderBy: { createdAt: 'desc' }
         },
         _count: {
           select: {
@@ -1623,6 +1736,42 @@ router.get('/:id', authenticateToken, async (req, res) => {
         success: false,
         message: 'Evento no encontrado'
       });
+    }
+
+    // Debug: Verificar si voiceProfiles está llegando
+    console.log('🎭 [BACKEND DEBUG] Event ID:', event.id);
+    console.log('👥 [BACKEND DEBUG] Total attendees:', event.attendees?.length || 0);
+    console.log('� [BACKEND DEBUG] Total joinRequests:', event.joinRequests?.length || 0);
+    console.log('📝 [BACKEND DEBUG] JoinRequests status breakdown:', {
+      pending: event.joinRequests?.filter(r => r.status === 'PENDING').length || 0,
+      approved: event.joinRequests?.filter(r => r.status === 'APPROVED').length || 0,
+      rejected: event.joinRequests?.filter(r => r.status === 'REJECTED').length || 0
+    });
+    console.log('�🚀 [BACKEND DEBUG] SERVER UPDATED WITH LOGS!');
+    
+    if (event.attendees && event.attendees.length > 0) {
+      const firstAttendee = event.attendees[0];
+      console.log('👤 [BACKEND DEBUG] Primer attendee:', {
+        userId: firstAttendee.user.id,
+        name: `${firstAttendee.user.firstName} ${firstAttendee.user.lastName}`,
+        hasVoiceProfiles: !!firstAttendee.user.voiceProfiles,
+        voiceProfilesLength: firstAttendee.user.voiceProfiles?.length || 0,
+        voiceProfiles: firstAttendee.user.voiceProfiles
+      });
+      
+      // Verificar algunos confirmados específicamente
+      const confirmedAttendees = event.attendees.filter(a => a.status.toUpperCase() === 'CONFIRMED');
+      console.log('✅ [BACKEND DEBUG] Confirmados:', confirmedAttendees.length);
+      
+      const firstConfirmed = confirmedAttendees[0];
+      if (firstConfirmed) {
+        console.log('🎯 [BACKEND DEBUG] Primer confirmado:', {
+          name: `${firstConfirmed.user.firstName} ${firstConfirmed.user.lastName}`,
+          status: firstConfirmed.status,
+          voiceProfiles: firstConfirmed.user.voiceProfiles,
+          primaryVoice: firstConfirmed.user.voiceProfiles?.find(vp => vp.isPrimary)
+        });
+      }
     }
 
     res.json({
@@ -1663,18 +1812,60 @@ router.get('/:id/songs', authenticateToken, async (req, res) => {
       orderBy: { order: 'asc' }
     });
 
-    // Calcular duración total
-    const totalDuration = eventSongs.reduce((total, item) => {
-      return total + (item.song.duration || 0);
+    // Agrupar canciones por parentSongId o por sí mismas si no tienen parent
+    const songsMap = new Map();
+    
+    for (const eventSong of eventSongs) {
+      const song = eventSong.song;
+      
+      // Si la canción tiene parentSongId, usar ese como clave de agrupación
+      if (song.parentSongId) {
+        if (!songsMap.has(song.parentSongId)) {
+          // Obtener información de la canción padre
+          const parentSong = await prisma.song.findUnique({
+            where: { id: song.parentSongId },
+            select: {
+              id: true,
+              title: true,
+              artist: true,
+              duration: true,
+              voiceType: true,
+              filePath: true,
+              folderName: true,
+              fileName: true,
+              parentSongId: true
+            }
+          });
+          
+          if (parentSong) {
+            songsMap.set(song.parentSongId, parentSong);
+          }
+        }
+      } else {
+        // Si no tiene parent, es una canción principal
+        if (!songsMap.has(song.id)) {
+          songsMap.set(song.id, song);
+        }
+      }
+    }
+
+    // Convertir el Map a array y mantener el orden original
+    const uniqueSongs = Array.from(songsMap.values());
+
+    // Calcular duración total basada en canciones únicas
+    const totalDuration = uniqueSongs.reduce((total, song) => {
+      return total + (song.duration || 0);
     }, 0);
+
+    console.log(`🎵 [SONGS DEBUG] Evento ${id}:`);
+    console.log(`📊 Total eventSongs en BD: ${eventSongs.length}`);
+    console.log(`🎯 Canciones únicas agrupadas: ${uniqueSongs.length}`);
 
     res.json({
       success: true,
-      data: {
-        songs: eventSongs.map(item => item.song),
-        totalSongs: eventSongs.length,
-        totalDuration
-      }
+      data: uniqueSongs, // Devolver directamente el array de canciones únicas
+      totalSongs: uniqueSongs.length,
+      totalDuration
     });
   } catch (error) {
     console.error('Error fetching event songs:', error);
@@ -1734,7 +1925,7 @@ router.post('/:id/play', authenticateToken, async (req, res) => {
       });
       
       const userVoiceTypes = userVoiceProfiles.map(profile => profile.voiceType);
-      const allowedVoiceTypes = [...userVoiceTypes, 'CORO', 'ORIGINAL'];
+      const allowedVoiceTypes = [...userVoiceTypes, 'CORO', 'ORIGINAL', 'INSTRUMENTAL'];
       
       filteredSongs = filteredSongs.filter(song => {
         // Si no tiene voiceType, considerarlo como ORIGINAL (permitido)
@@ -2154,7 +2345,7 @@ router.post('/:id/play', authenticateToken, async (req, res) => {
       });
       
       const userVoiceTypes = userVoiceProfiles.map(profile => profile.voiceType);
-      const allowedVoiceTypes = [...userVoiceTypes, 'CORO', 'ORIGINAL'];
+      const allowedVoiceTypes = [...userVoiceTypes, 'CORO', 'ORIGINAL', 'INSTRUMENTAL'];
       
       songs = songs.filter(song => {
         // Si no tiene voiceType, considerarlo como ORIGINAL (permitido)
@@ -2192,6 +2383,16 @@ router.put('/:id/attendance-confirmation', authenticateToken, async (req, res) =
 
     console.log(`📝 Attendance confirmation for EventID=${id}, UserID=${userId}, Confirmed=${attendanceConfirmed}`);
 
+    // Determinar el status basado en la confirmación
+    let status;
+    if (attendanceConfirmed === true) {
+      status = 'CONFIRMED';
+    } else if (attendanceConfirmed === false) {
+      status = 'REFUSED';
+    } else {
+      status = 'PENDING';
+    }
+
     // Verificar que el usuario es asistente del evento
     const attendee = await prisma.eventAttendee.findUnique({
       where: {
@@ -2222,7 +2423,7 @@ router.put('/:id/attendance-confirmation', authenticateToken, async (req, res) =
       });
     }
 
-    // Actualizar confirmación de asistencia
+    // Actualizar confirmación de asistencia usando el campo status
     const updatedAttendee = await prisma.eventAttendee.update({
       where: {
         eventId_userId: {
@@ -2231,7 +2432,8 @@ router.put('/:id/attendance-confirmation', authenticateToken, async (req, res) =
         }
       },
       data: {
-        attendanceConfirmed: attendanceConfirmed,
+        status: status as any,
+        attendanceConfirmed: attendanceConfirmed, // Mantener compatibilidad
         nonAttendanceComment: attendanceConfirmed === false ? nonAttendanceComment : null
       } as any
     });

@@ -24,7 +24,8 @@ import { prisma } from './utils/prisma';
 import DatabaseInitializationService from './services/databaseInitialization';
 
 // Cargar variables de entorno
-dotenv.config();
+dotenv.config(); // .env del backend
+dotenv.config({ path: path.join(__dirname, '../../../ip-config.env') }); // ip-config.env del proyecto
 
 // Crear instancia del servicio de inicialización
 const dbInitService = new DatabaseInitializationService();

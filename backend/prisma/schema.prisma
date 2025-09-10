@@ -251,7 +251,7 @@ model EventAttendee {
   id                   String              @id @default(cuid())
   eventId              String
   userId               String
-  status               EventAttendeeStatus @default(CONFIRMED)
+  status               EventAttendeeStatus @default(PENDING)
   addedBy              String
   notes                String?
   createdAt            DateTime            @default(now())
@@ -344,6 +344,8 @@ model News {
 
 enum EventAttendeeStatus {
   CONFIRMED
+  REFUSED
+  PENDING
   CANCELLED
   NO_SHOW
 }
@@ -369,6 +371,7 @@ enum VoiceType {
   BAJO
   CORO
   ORIGINAL
+  INSTRUMENTAL
 }
 
 enum SoloistType {

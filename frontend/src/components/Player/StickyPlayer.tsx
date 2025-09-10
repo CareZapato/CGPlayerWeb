@@ -1,7 +1,9 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { usePlayerStore } from '../../store/playerStore';
 import { usePlaylistStore } from '../../store/playlistStore';
 import { useMediaSession } from '../../hooks/useMediaSession';
+import { useServerInfo } from '../../hooks/useServerInfo';
+import { getSongFileUrl } from '../../config/api';
 import { updateFavicon, resetFavicon } from '../../utils/favicon';
 import { useLyrics } from '../../hooks/useLyrics';
 import MinimizedPlayer from '../BottomPlayer/MinimizedPlayer';
@@ -127,6 +129,201 @@ const SortableQueueItem: React.FC<SortableQueueItemProps> = ({
   );
 };
 
+// Componente para elemento sorteable de la cola móvil
+interface MobileSortableQueueItemProps {
+  song: Song;
+  index: number;
+  isCurrentSong: boolean;
+  onRemove: () => void;
+  onPlay: (song: Song, index: number) => void;
+}
+
+const MobileSortableQueueItem: React.FC<MobileSortableQueueItemProps> = ({
+  song,
+  index,
+  isCurrentSong,
+  onRemove,
+  onPlay
+}) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging
+  } = useSortable({ 
+    id: `mobile-${song.id}-${index}`,
+    disabled: isCurrentSong // No permitir arrastrar la canción actual
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.7 : 1,
+    zIndex: isDragging ? 1000 : 1
+  };
+
+  return (
+    <div 
+      ref={setNodeRef}
+      style={style}
+      className={`mobile-fullscreen-queue__item ${
+        isCurrentSong ? 'mobile-fullscreen-queue__item--current' : ''
+      } ${isDragging ? 'mobile-fullscreen-queue__item--dragging' : ''}`}
+    >
+      {/* Handle de arrastre para móvil */}
+      {!isCurrentSong && (
+        <div 
+          {...attributes} 
+          {...listeners}
+          className="mobile-fullscreen-queue__drag-handle"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <svg width="12" height="20" viewBox="0 0 12 20" fill="currentColor">
+            <circle cx="3" cy="4" r="1.5"/>
+            <circle cx="9" cy="4" r="1.5"/>
+            <circle cx="3" cy="10" r="1.5"/>
+            <circle cx="9" cy="10" r="1.5"/>
+            <circle cx="3" cy="16" r="1.5"/>
+            <circle cx="9" cy="16" r="1.5"/>
+          </svg>
+        </div>
+      )}
+
+      <div className="mobile-fullscreen-queue__item-content">
+        <div 
+          className="mobile-fullscreen-queue__avatar"
+          onClick={() => {
+            if (!isCurrentSong) {
+              onPlay(song, index);
+            }
+          }}
+          style={{ cursor: isCurrentSong ? 'default' : 'pointer' }}
+        >
+          <span>{song.title.charAt(0).toUpperCase()}</span>
+        </div>
+        
+        <div 
+          className="mobile-fullscreen-queue__info"
+          onClick={() => {
+            if (!isCurrentSong) {
+              onPlay(song, index);
+            }
+          }}
+          style={{ cursor: isCurrentSong ? 'default' : 'pointer' }}
+        >
+          <h3 className="mobile-fullscreen-queue__title-song">{song.title}</h3>
+          {song.artist && (
+            <p className="mobile-fullscreen-queue__artist">{song.artist}</p>
+          )}
+        </div>
+
+        {!isCurrentSong && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onRemove();
+            }}
+            className="mobile-fullscreen-queue__remove"
+          >
+            <TrashIcon className="h-5 w-5" />
+          </button>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// Componente para elemento sorteable de la cola simple (fondo blanco)
+interface SimpleSortableQueueItemProps {
+  song: Song;
+  index: number;
+  isCurrentSong: boolean;
+  onRemove: () => void;
+  onPlay: (song: Song, index: number) => void;
+}
+
+const SimpleSortableQueueItem: React.FC<SimpleSortableQueueItemProps> = ({
+  song,
+  index,
+  isCurrentSong,
+  onRemove,
+  onPlay
+}) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging
+  } = useSortable({ 
+    id: `simple-${song.id}-${index}`,
+    disabled: isCurrentSong // No permitir arrastrar la canción actual
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.7 : 1
+  };
+
+  return (
+    <div 
+      ref={setNodeRef}
+      style={style}
+      className={`queue-item ${isCurrentSong ? 'queue-item--current' : ''} ${isDragging ? 'queue-item--dragging' : ''}`}
+      onClick={() => {
+        if (!isCurrentSong) {
+          onPlay(song, index);
+        }
+      }}
+    >
+      <div className="queue-item__info">
+        {/* Handle de arrastre para cola simple */}
+        {!isCurrentSong && (
+          <div 
+            {...attributes} 
+            {...listeners}
+            className="queue-item__drag-handle"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <ArrowsUpDownIcon className="h-4 w-4 text-gray-400" />
+          </div>
+        )}
+
+        <div className="song-info__avatar">
+          <div className="song-info__avatar-circle" style={{ width: '2rem', height: '2rem' }}>
+            <span className="song-info__avatar-text" style={{ fontSize: '0.75rem' }}>
+              {song.title.charAt(0).toUpperCase()}
+            </span>
+          </div>
+        </div>
+        
+        <div>
+          <p className="queue-item__title">{song.title}</p>
+          {song.artist && (
+            <p className="queue-item__subtitle">{song.artist}</p>
+          )}
+        </div>
+      </div>
+
+      {!isCurrentSong && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onRemove();
+          }}
+          className="queue-item__remove"
+        >
+          <TrashIcon className="h-4 w-4" />
+        </button>
+      )}
+    </div>
+  );
+};
+
 // Componente inline para evitar problemas de importación
 interface LyricsViewerInlineProps {
   song: Song;
@@ -146,6 +343,12 @@ const LyricsViewerInline: React.FC<LyricsViewerInlineProps> = ({
 }) => {
   const [displayMode, setDisplayMode] = useState<'sync' | 'files'>('sync');
   const [activeLineIndex, setActiveLineIndex] = useState<number>(-1);
+  
+  // Estado para manejar scroll manual vs automático
+  const [userScrolled, setUserScrolled] = useState(false);
+  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isAutoScrollingRef = useRef(false);
+  const lastActiveIndexRef = useRef(-1);
   
   // Función para alternar entre sync y files en móvil
   const toggleMobileDisplayMode = () => {
@@ -392,21 +595,180 @@ const LyricsViewerInline: React.FC<LyricsViewerInlineProps> = ({
     }
   }, [currentTime, syncedLyrics_withTime, syncStatus.hasRealSyncData, isPlaying, activeLineIndex, autoSyncEnabled]);
 
-  // Auto-scroll
-  useEffect(() => {
-    if (activeLineRef.current && activeLineIndex !== -1) {
-      activeLineRef.current.scrollIntoView({
-        behavior: 'smooth',
-        block: 'center'
-      });
+  // Función para manejar scroll manual del usuario
+  const handleUserScroll = useCallback(() => {
+    if (isAutoScrollingRef.current) {
+      // Si estamos en medio de un auto-scroll, ignorar
+      return;
     }
-  }, [activeLineIndex]);
+    
+    // Marcar que el usuario hizo scroll manual
+    setUserScrolled(true);
+    
+    // Limpiar timeout anterior si existe
+    if (scrollTimeoutRef.current) {
+      clearTimeout(scrollTimeoutRef.current);
+    }
+    
+    // Reactivar auto-scroll después de 3 segundos de inactividad
+    scrollTimeoutRef.current = setTimeout(() => {
+      setUserScrolled(false);
+    }, 3000);
+  }, []);
+
+  // Auto-scroll inteligente - centra la letra activa manteniendo zona segura
+  useEffect(() => {
+    // Si no hay letra activa, salir
+    if (!activeLineRef.current || activeLineIndex === -1) {
+      return;
+    }
+    
+    const lyricsContainer = activeLineRef.current.closest('[style*="overflow"]') || 
+                           activeLineRef.current.closest('.lyrics-content-container') ||
+                           activeLineRef.current.closest('.sticky-player-lyrics');
+    
+    if (!lyricsContainer || !activeLineRef.current) {
+      return;
+    }
+
+    // Obtener posiciones actuales
+    const containerRect = lyricsContainer.getBoundingClientRect();
+    const elementRect = activeLineRef.current.getBoundingClientRect();
+    const currentScrollTop = lyricsContainer.scrollTop;
+    const containerHeight = lyricsContainer.clientHeight;
+    const elementTop = activeLineRef.current.offsetTop;
+    
+    // Definir zona segura (80px desde arriba para evitar cubrir controles)
+    const safeZoneTop = 80;
+    const safeZoneBottom = containerHeight - 80;
+    
+    // Calcular posición ideal (centrada en el área visible)
+    const idealScrollTop = Math.max(0, elementTop - containerHeight / 2);
+    
+    // Verificar si el elemento está en la zona visible y centrada
+    const elementRelativeTop = elementRect.top - containerRect.top;
+    const isInCenterZone = elementRelativeTop >= safeZoneTop && elementRelativeTop <= safeZoneBottom;
+    const isNearCenter = Math.abs(elementRelativeTop - containerHeight / 2) < 50;
+    
+    // Verificar si la letra activa está completamente fuera de la vista
+    const isCompletelyOutOfView = elementRelativeTop < -20 || elementRelativeTop > containerHeight + 20;
+    
+    // Verificar si el índice activo ha cambiado desde la última vez
+    const activeIndexChanged = activeLineIndex !== lastActiveIndexRef.current;
+    lastActiveIndexRef.current = activeLineIndex;
+    
+    // Lógica de scroll más agresiva:
+    // 1. Si el índice activo cambió Y la letra está fuera de vista -> FORZAR scroll
+    // 2. Si el usuario hizo scroll manual Y la letra activa aún está visible -> NO hacer scroll
+    // 3. Si el usuario hizo scroll manual PERO la letra activa está fuera de vista -> FORZAR scroll INMEDIATAMENTE
+    // 4. Si no hay scroll manual -> comportamiento normal
+    
+    const shouldForceScrollOnChange = activeIndexChanged && isCompletelyOutOfView;
+    const shouldForceScrollOnOutOfView = userScrolled && isCompletelyOutOfView;
+    const shouldNormalScroll = !userScrolled && (!isNearCenter || elementRelativeTop < safeZoneTop || elementRelativeTop > safeZoneBottom);
+    
+    if (shouldForceScrollOnChange || shouldForceScrollOnOutOfView || shouldNormalScroll) {
+      // Si vamos a forzar scroll por estar fuera de vista, resetear el estado de scroll manual
+      if (shouldForceScrollOnChange || shouldForceScrollOnOutOfView) {
+        setUserScrolled(false);
+        if (scrollTimeoutRef.current) {
+          clearTimeout(scrollTimeoutRef.current);
+        }
+        console.log('🚨 FORZANDO AUTO-SCROLL:', {
+          reason: shouldForceScrollOnChange ? 'Índice cambió' : 'Letra fuera de vista',
+          activeLineIndex,
+          elementRelativeTop,
+          isCompletelyOutOfView
+        });
+      }
+      
+      // Si el scroll ideal es hacia arriba pero muy poco, usar posición actual
+      const finalScrollTop = idealScrollTop < currentScrollTop - 50 ? currentScrollTop : idealScrollTop;
+      
+      // Marcar que estamos haciendo auto-scroll
+      isAutoScrollingRef.current = true;
+      
+      // Aplicar scroll suave hacia la posición calculada
+      lyricsContainer.scrollTo({
+        top: finalScrollTop,
+        behavior: 'smooth'
+      });
+      
+      // Marcar que terminó el auto-scroll después de la animación
+      setTimeout(() => {
+        isAutoScrollingRef.current = false;
+      }, 300);
+    }
+    
+    console.log('StickyPlayer Lyrics Sync Debug:', {
+      activeLineIndex,
+      userScrolled,
+      activeIndexChanged,
+      isCompletelyOutOfView,
+      shouldForceScrollOnChange,
+      shouldForceScrollOnOutOfView,
+      shouldNormalScroll,
+      isInCenterZone,
+      isNearCenter,
+      elementRelativeTop,
+      currentScroll: currentScrollTop,
+      idealScroll: idealScrollTop,
+      containerHeight,
+      safeZoneTop,
+      safeZoneBottom
+    });
+  }, [activeLineIndex, userScrolled]);
+
+  // Detectar scroll manual del usuario
+  useEffect(() => {
+    const lyricsContainerSelectors = [
+      '.desktop-lyrics-content',
+      '.mobile-fullscreen-lyrics',
+      '.sticky-player-lyrics [style*="overflow"]'
+    ];
+    
+    const lyricsContainers = lyricsContainerSelectors
+      .map(selector => document.querySelector(selector))
+      .filter(Boolean);
+    
+    lyricsContainers.forEach(container => {
+      if (container) {
+        container.addEventListener('scroll', handleUserScroll);
+      }
+    });
+    
+    return () => {
+      lyricsContainers.forEach(container => {
+        if (container) {
+          container.removeEventListener('scroll', handleUserScroll);
+        }
+      });
+    };
+  }, [handleUserScroll]);
 
   const handleLineClick = (lyric: any) => {
+    // Al hacer click, marcar como scroll manual y buscar línea
+    setUserScrolled(true);
+    if (scrollTimeoutRef.current) {
+      clearTimeout(scrollTimeoutRef.current);
+    }
+    scrollTimeoutRef.current = setTimeout(() => {
+      setUserScrolled(false);
+    }, 3000);
+    
     if (lyric.startTime !== undefined && lyric.startTime !== null && lyric.startTime > 0) {
       seekTo(lyric.startTime);
     }
   };
+
+  // Cleanup de timeouts al desmontar componente
+  useEffect(() => {
+    return () => {
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+    };
+  }, []);
 
   if (isLoading) {
     return (
@@ -663,14 +1025,13 @@ const StickyPlayer: React.FC = () => {
     setVolume,
     seekTo,
     currentPlaylist,
-    setCurrentSong
+    setCurrentSong,
+    playSong
   } = usePlayerStore();
 
   const {
     queue,
     currentIndex,
-    nextSong,
-    previousSong,
     isShuffled,
     repeatMode,
     toggleShuffle,
@@ -680,13 +1041,29 @@ const StickyPlayer: React.FC = () => {
     removeFromQueue: removeFromQueueByID
   } = usePlaylistStore();
 
-  // Configurar sensores para drag & drop - debe estar antes de los useState
-  const sensors = useSensors(
-    useSensor(PointerSensor),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
-  );
+  const { serverInfo } = useServerInfo();
+
+  // Función para construir URL de canción
+  const buildSongUrl = (song: Song): string => {
+    if ((song as any).folderName) {
+      return getSongFileUrl((song as any).folderName, song.fileName);
+    } else {
+      return `${serverInfo.audioBaseUrl}-root/${song.fileName}`;
+    }
+  };
+
+  // Configurar sensores para drag & drop
+  const pointerSensor = useSensor(PointerSensor, {
+    activationConstraint: {
+      distance: 5, // Distancia mínima para iniciar drag
+    },
+  });
+  
+  const keyboardSensor = useSensor(KeyboardSensor, {
+    coordinateGetter: sortableKeyboardCoordinates,
+  });
+
+  const sensors = useSensors(pointerSensor, keyboardSensor);
 
   const [isMuted, setIsMuted] = useState(false);
   const [previousVolume, setPreviousVolume] = useState(volume);
@@ -911,14 +1288,115 @@ const StickyPlayer: React.FC = () => {
   };
 
   const handleNext = () => {
-    if (currentIndex < queue.length - 1) {
-      nextSong();
+    console.log('🎵 [STICKY] Intentando siguiente canción...', { 
+      currentIndex, 
+      queueLength: queue.length, 
+      repeatMode,
+      currentSong: currentSong?.title 
+    });
+    
+    // Verificar que el índice actual sea válido
+    if (currentIndex >= queue.length || currentIndex < 0) {
+      console.log('⚠️ [STICKY] Índice actual inválido, corrigiendo...', { currentIndex, queueLength: queue.length });
+      setCurrentIndex(Math.max(0, Math.min(currentIndex, queue.length - 1)));
+      return;
+    }
+    
+    // Calcular el siguiente índice manualmente
+    let nextIndex;
+    if (repeatMode === 'one') {
+      // En repeat one, mantener la misma canción
+      nextIndex = currentIndex;
+    } else if (repeatMode === 'all' && currentIndex === queue.length - 1) {
+      // En repeat all, volver al inicio
+      nextIndex = 0;
+    } else {
+      // Índice normal siguiente
+      nextIndex = currentIndex + 1;
+    }
+    
+    // Verificar que el índice siguiente sea válido
+    if (nextIndex >= queue.length && repeatMode === 'off') {
+      console.log('❌ [STICKY] No hay siguiente canción disponible (sin repeat)');
+      return;
+    }
+    
+    // Obtener la canción del índice calculado
+    const nextTrack = queue[nextIndex];
+    console.log('🎵 [STICKY] Next track obtenido manualmente:', nextTrack, 'en índice:', nextIndex);
+    
+    if (nextTrack) {
+      // Primero actualizar el índice en el store
+      setCurrentIndex(nextIndex);
+      
+      // Luego reproducir usando playSong
+      const songUrl = buildSongUrl(nextTrack);
+      console.log('🎵 [STICKY] Reproduciendo siguiente canción:', nextTrack.title, 'índice:', nextIndex);
+      
+      playSong({
+        id: nextTrack.id,
+        title: nextTrack.title,
+        artist: nextTrack.artist || 'Desconocido',
+        url: songUrl,
+        duration: nextTrack.duration || 0
+      });
+    } else {
+      console.log('❌ [STICKY] No hay siguiente canción disponible');
     }
   };
 
   const handlePrevious = () => {
-    if (currentIndex > 0) {
-      previousSong();
+    console.log('🎵 [STICKY] Intentando canción anterior...', { 
+      currentIndex, 
+      queueLength: queue.length, 
+      repeatMode,
+      currentSong: currentSong?.title 
+    });
+    
+    // Verificar que el índice actual sea válido
+    if (currentIndex >= queue.length || currentIndex < 0) {
+      console.log('⚠️ [STICKY] Índice actual inválido, corrigiendo...', { currentIndex, queueLength: queue.length });
+      setCurrentIndex(Math.max(0, Math.min(currentIndex, queue.length - 1)));
+      return;
+    }
+    
+    // Calcular el índice anterior manualmente
+    const prevIndex = currentIndex - 1;
+    let targetIndex;
+    
+    if (prevIndex < 0) {
+      if (repeatMode === 'all') {
+        // En repeat all, ir a la última canción
+        targetIndex = queue.length - 1;
+      } else {
+        console.log('❌ [STICKY] No hay canción anterior disponible (sin repeat)');
+        return;
+      }
+    } else {
+      targetIndex = prevIndex;
+    }
+    
+    // Obtener la canción del índice calculado
+    const prevTrack = queue[targetIndex];
+    console.log('🎵 [STICKY] Previous track obtenido manualmente:', prevTrack, 'en índice:', targetIndex);
+    
+    if (prevTrack) {
+      // Primero actualizar el índice en el store
+      setCurrentIndex(targetIndex);
+      
+      // Luego reproducir usando playSong
+      const songUrl = buildSongUrl(prevTrack);
+      console.log('🎵 [STICKY] Reproduciendo canción anterior:', prevTrack.title, 'índice:', targetIndex);
+      
+      playSong({
+        id: prevTrack.id,
+        title: prevTrack.title,
+        artist: prevTrack.artist || 'Desconocido',
+        url: songUrl,
+        duration: prevTrack.duration || 0
+      });
+    } else {
+      console.log('❌ [STICKY] No hay canción anterior disponible');
     }
   };
 
@@ -927,8 +1405,23 @@ const StickyPlayer: React.FC = () => {
     const { active, over } = event;
 
     if (active.id !== over?.id && over) {
-      const oldIndex = queue.findIndex((song, index) => `${song.id}-${index}` === active.id);
-      const newIndex = queue.findIndex((song, index) => `${song.id}-${index}` === over.id);
+      // Extract the actual ID by removing prefixes (mobile- for mobile, simple- for simple, no prefix for desktop)
+      const extractID = (id: string) => {
+        if (typeof id === 'string') {
+          if (id.startsWith('mobile-')) {
+            return id.replace('mobile-', '');
+          } else if (id.startsWith('simple-')) {
+            return id.replace('simple-', '');
+          }
+        }
+        return id;
+      };
+
+      const activeId = extractID(active.id as string);
+      const overId = extractID(over.id as string);
+
+      const oldIndex = queue.findIndex((song, index) => `${song.id}-${index}` === activeId);
+      const newIndex = queue.findIndex((song, index) => `${song.id}-${index}` === overId);
 
       if (oldIndex !== -1 && newIndex !== -1) {
         moveInQueue(oldIndex, newIndex);
@@ -1028,8 +1521,12 @@ const StickyPlayer: React.FC = () => {
         <div className="player-controls">
           <button
             onClick={handlePrevious}
-            disabled={currentIndex <= 0 || queue.length <= 1}
-            className="control-button"
+            disabled={queue.length <= 1 || (currentIndex <= 0 && repeatMode !== 'all')}
+            className={`control-button ${
+              queue.length <= 1 || (currentIndex <= 0 && repeatMode !== 'all') 
+                ? 'opacity-50 cursor-not-allowed' 
+                : ''
+            }`}
           >
             <BackwardIcon className="control-button__icon" />
           </button>
@@ -1047,8 +1544,12 @@ const StickyPlayer: React.FC = () => {
           
           <button
             onClick={handleNext}
-            disabled={currentIndex >= queue.length - 1 || queue.length <= 1}
-            className="control-button"
+            disabled={queue.length <= 1 || (currentIndex >= queue.length - 1 && repeatMode === 'off')}
+            className={`control-button ${
+              queue.length <= 1 || (currentIndex >= queue.length - 1 && repeatMode === 'off') 
+                ? 'opacity-50 cursor-not-allowed' 
+                : ''
+            }`}
           >
             <ForwardIcon className="control-button__icon" />
           </button>
@@ -1307,46 +1808,28 @@ const StickyPlayer: React.FC = () => {
           </div>
           
           <div className="space-y-2">
-            {queue.map((song, index) => (
-              <div
-                key={`${song.id}-${index}`}
-                className={`queue-item ${index === currentIndex ? 'queue-item--current' : ''}`}
-                onClick={() => {
-                  if (index !== currentIndex) {
-                    console.log(`🎵 [QUEUE] Playing song at index ${index}:`, song.title);
-                    setCurrentIndex(index);
-                    setCurrentSong(song, currentPlaylist || undefined, index);
-                  }
-                }}
-                style={{ cursor: index !== currentIndex ? 'pointer' : 'default' }}
-              >
-                <div className="queue-item__info">
-                  <div className="song-info__avatar">
-                    <div className="song-info__avatar-circle" style={{ width: '2rem', height: '2rem' }}>
-                      <span className="song-info__avatar-text" style={{ fontSize: '0.75rem' }}>
-                        {song.title.charAt(0).toUpperCase()}
-                      </span>
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <p className="queue-item__title">{song.title}</p>
-                    {song.artist && (
-                      <p className="queue-item__subtitle">{song.artist}</p>
-                    )}
-                  </div>
-                </div>
-
-                {index !== currentIndex && (
-                  <button
-                    onClick={() => removeFromQueue(index)}
-                    className="queue-item__remove"
-                  >
-                    <TrashIcon className="h-4 w-4" />
-                  </button>
-                )}
-              </div>
-            ))}
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext items={queue.map((song, index) => `simple-${song.id}-${index}`)} strategy={verticalListSortingStrategy}>
+                {queue.map((song, index) => (
+                  <SimpleSortableQueueItem
+                    key={`${song.id}-${index}`}
+                    song={song}
+                    index={index}
+                    isCurrentSong={index === currentIndex}
+                    onRemove={() => removeFromQueue(index)}
+                    onPlay={(song, idx) => {
+                      console.log(`🎵 [QUEUE] Playing song at index ${idx}:`, song.title);
+                      setCurrentIndex(idx);
+                      setCurrentSong(song, currentPlaylist || undefined, idx);
+                    }}
+                  />
+                ))}
+              </SortableContext>
+            </DndContext>
           </div>
         </div>
       )}
@@ -1471,7 +1954,7 @@ const StickyPlayer: React.FC = () => {
               <button
                 onClick={handlePrevious}
                 className="mobile-fullscreen-control mobile-fullscreen-control--secondary"
-                disabled={currentIndex === 0}
+                disabled={queue.length <= 1 || (currentIndex <= 0 && repeatMode !== 'all')}
               >
                 <svg className="mobile-control-icon mobile-control-icon--large" viewBox="0 0 24 24">
                   <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/>
@@ -1496,7 +1979,7 @@ const StickyPlayer: React.FC = () => {
               <button
                 onClick={handleNext}
                 className="mobile-fullscreen-control mobile-fullscreen-control--secondary"
-                disabled={currentIndex === queue.length - 1}
+                disabled={queue.length <= 1 || (currentIndex >= queue.length - 1 && repeatMode === 'off')}
               >
                 <svg className="mobile-control-icon mobile-control-icon--large" viewBox="0 0 24 24">
                   <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/>
@@ -1536,45 +2019,28 @@ const StickyPlayer: React.FC = () => {
           </div>
           
           <div className="mobile-fullscreen-queue__content">
-            {queue.map((song, index) => (
-              <div
-                key={`${song.id}-${index}`}
-                className={`mobile-fullscreen-queue__item ${
-                  index === currentIndex ? 'mobile-fullscreen-queue__item--current' : ''
-                }`}
-                onClick={() => {
-                  if (index !== currentIndex) {
-                    console.log(`🎵 [QUEUE] Playing song at index ${index}:`, song.title);
-                    setCurrentIndex(index);
-                    setCurrentSong(song, currentPlaylist || undefined, index);
-                  }
-                }}
-                style={{ cursor: index !== currentIndex ? 'pointer' : 'default' }}
-              >
-                <div className="mobile-fullscreen-queue__avatar">
-                  <span>{song.title.charAt(0).toUpperCase()}</span>
-                </div>
-                
-                <div className="mobile-fullscreen-queue__info">
-                  <h3 className="mobile-fullscreen-queue__title-song">{song.title}</h3>
-                  {song.artist && (
-                    <p className="mobile-fullscreen-queue__artist">{song.artist}</p>
-                  )}
-                </div>
-
-                {index !== currentIndex && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      removeFromQueue(index);
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext items={queue.map((song, index) => `mobile-${song.id}-${index}`)} strategy={verticalListSortingStrategy}>
+                {queue.map((song, index) => (
+                  <MobileSortableQueueItem
+                    key={`${song.id}-${index}`}
+                    song={song}
+                    index={index}
+                    isCurrentSong={index === currentIndex}
+                    onRemove={() => removeFromQueue(index)}
+                    onPlay={(song, idx) => {
+                      console.log(`🎵 [QUEUE] Playing song at index ${idx}:`, song.title);
+                      setCurrentIndex(idx);
+                      setCurrentSong(song, currentPlaylist || undefined, idx);
                     }}
-                    className="mobile-fullscreen-queue__remove"
-                  >
-                    <TrashIcon className="h-5 w-5" />
-                  </button>
-                )}
-              </div>
-            ))}
+                  />
+                ))}
+              </SortableContext>
+            </DndContext>
           </div>
         </div>
       )}

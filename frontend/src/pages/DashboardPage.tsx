@@ -163,7 +163,10 @@ const DashboardPage: React.FC = () => {
       'CONTRALTO': '#7C3AED',
       'TENOR': '#3B82F6',
       'BARITONO': '#10B981',
-      'BAJO': '#F59E0B'
+      'BAJO': '#F59E0B',
+      'CORO': '#6366F1',
+      'ORIGINAL': '#059669',
+      'INSTRUMENTAL': '#DC2626'
     };
     return colors[voiceType as keyof typeof colors] || '#6B7280';
   };
@@ -175,7 +178,10 @@ const DashboardPage: React.FC = () => {
       'CONTRALTO': 'Contralto',
       'TENOR': 'Tenor',
       'BARITONO': 'Barítono',
-      'BAJO': 'Bajo'
+      'BAJO': 'Bajo',
+      'CORO': 'Coro',
+      'ORIGINAL': 'Original',
+      'INSTRUMENTAL': 'Instrumental'
     };
     return labels[voiceType as keyof typeof labels] || voiceType;
   };

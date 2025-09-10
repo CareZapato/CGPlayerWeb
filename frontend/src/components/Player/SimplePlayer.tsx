@@ -180,10 +180,18 @@ const SimplePlayer: React.FC = () => {
 
   // Construir URL del audio
   const getAudioUrl = (song: any) => {
-    if (!song || !serverInfo) return '';
+    if (!song) return '';
     
-    const { localIP, port } = serverInfo;
-    return `http://${localIP}:${port}/api/songs/file/${song.folderName}/${song.fileName}`;
+    if (song.folderName && song.fileName) {
+      return getSongFileUrl(song.folderName, song.fileName);
+    } else if (song.fileName) {
+      // Para archivos en root, necesitamos el serverInfo
+      return serverInfo ? `${serverInfo.audioBaseUrl}-root/${song.fileName}` : '';
+    } else if (song.url) {
+      return song.url;
+    }
+    
+    return '';
   };
 
   return (

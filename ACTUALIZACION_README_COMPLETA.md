@@ -1,4 +1,4 @@
-# ✅ ACTUALIZACIÓN README COMPLETADA - CGPlayerWeb v1.10.9
+# ✅ ACTUALIZACIÓN README COMPLETADA - CGPlayerWeb v0.10.9
 
 ## 📋 **Resumen de Cambios en README**
 
@@ -11,9 +11,9 @@
 - ✅ **Gestión de estado refinada** con useEffect especializados
 - ✅ **Sección completa dedicada** con subsecciones detalladas
 
-#### 🆕 **NUEVAS CARACTERÍSTICAS AGREGADAS (v0.10.0 - v1.10.9)**
+#### 🆕 **NUEVAS CARACTERÍSTICAS AGREGADAS (v0.10.0 - v0.10.9)**
 
-##### 🎤 **v1.10.9 - Sistema de Distribución de Voces**
+##### 🎤 **v0.10.9 - Sistema de Distribución de Voces**
 - **Distribución específica**: 100% voz primaria + 30% voz secundaria
 - **Campo isPrimary**: Identificación automática de voz principal
 - **Estadísticas de monitoreo**: Validación de cumplimiento
@@ -59,7 +59,7 @@
 ### 📊 **ESTRUCTURA FINAL DEL README**
 
 #### 🔧 **Secciones Principales Actualizadas**
-1. **🎤 Sistema de Distribución de Voces** *(v1.10.9)*
+1. **🎤 Sistema de Distribución de Voces** *(v0.10.9)*
 2. **📊 Gestión de Eventos Aprobados/Rechazados** *(v1.10.8)*
 3. **🏠 Mejoras Visuales Homepage** *(v0.10.7)*
 4. **🎭 Gestión de Perfiles y Edición** *(v0.10.6)*
@@ -99,7 +99,7 @@
    - Descripción: Sistema completo de respaldo con scripts de limpieza
    - Tipo: VERSION_RELEASED
 
-2. **🚀 Nueva Versión v1.10.9 Disponible** 
+2. **🚀 Nueva Versión v0.10.9 Disponible** 
    - Descripción: Sistema de distribución de voces mejorado
    - Acción: /changelog
 
@@ -125,9 +125,9 @@
 ### ✅ **ESTADO FINAL**
 
 #### 🎯 **README Completamente Actualizado**
-- ✅ **Versión 1.10.9**: Badge y referencias actualizadas
+- ✅ **Versión 0.10.9**: Badge y referencias actualizadas
 - ✅ **Información de v0.9.0**: Restaurada completamente 
-- ✅ **Nuevas versiones**: 0.10.0 - 1.10.9 documentadas
+- ✅ **Nuevas versiones**: 0.10.0 - 0.10.9 documentadas
 - ✅ **Sistema de backup**: Documentación expandida
 - ✅ **Estructura coherente**: Organización lógica mantenida
 - ✅ **Cronología correcta**: Versiones en orden correcto
@@ -140,14 +140,14 @@
 #### 📚 **Documentación Consistente**
 - ✅ **CHANGELOG.md**: Todas las versiones documentadas
 - ✅ **README.md**: Características completas y organizadas
-- ✅ **ChangelogPage.tsx**: Versión 1.10.9 expandida por defecto
+- ✅ **ChangelogPage.tsx**: Versión 0.10.9 expandida por defecto
 - ✅ **Package.json**: Versiones actualizadas en todos los archivos
 
 ## 🚀 **RESULTADO FINAL**
 
-**El README de CGPlayerWeb v1.10.9 está completamente actualizado** con:
+**El README de CGPlayerWeb v0.10.9 está completamente actualizado** con:
 
-- 📖 **Información completa** de todas las versiones desde 0.9.0 hasta 1.10.9
+- 📖 **Información completa** de todas las versiones desde 0.9.0 hasta 0.10.9
 - 🎉 **Sistema de eventos restaurado** con toda la funcionalidad detallada
 - 💾 **Sistema de backup documentado** con secciones específicas
 - 📰 **Noticias activas** mostrándose en homepage

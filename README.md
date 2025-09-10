@@ -1,615 +1,437 @@
 # CGPlayerWeb 🎵
 
-[![Versio### 🔧 **Sistema de Edición Avanzada de Eventos** *(v0.9.0)*
-- **Editor de eventos completo** - Modificación integral de eventos existentes con preservación de relaciones
-- **Carga automática de datos** - Los eventos cargan automáticamente con asistentes y música completa
-- **Sincronización de variaciones musicales** - Detección y carga inteligente de variaciones de canciones
-- **Panel de variaciones inteligente** - Visualización clara de todas las variaciones en modo edición
-- **Gestión de estado refinada** - Coordinación perfecta entre datos del evento y componentes de UI
-- **Sistema robusto de debugging** - Logs comprehensivos para troubleshooting y monitoreo
-
-## 🎉 Sistema de Eventos Detallado *(v0.9.0)*
-
-### 🔧 **Editor de Eventos Completo**
-- **Edición de eventos existentes**: Modificación completa de eventos ya creados con todas sus propiedades
-- **Carga automática de datos**: Los eventos se cargan con toda su información incluyendo asistentes y música
-- **Sincronización de variaciones musicales**: Sistema inteligente que detecta y carga automáticamente las variaciones de canciones
-- **Preservación de relaciones**: Mantiene intactas las relaciones entre eventos, asistentes y música durante la edición
-
-### 🎵 **Sistema de Variaciones Musicales Mejorado**
-- **Detección automática en modo edición**: Identifica automáticamente las variaciones musicales cuando se edita un evento
-- **Panel de variaciones inteligente**: Muestra las variaciones de cada canción en el panel derecho durante la edición
-- **Carga de canciones padre**: Sistema que carga automáticamente las canciones padre necesarias para mostrar variaciones
-- **Función especializada para edición**: `updateVariationsInfoForEditMode()` optimizada específicamente para el modo de edición
-
-### 🔄 **Arquitectura de Carga Mejorada**
-- **Carga completa de eventos**: Al editar, se carga el evento completo con `eventSongs` desde el backend
-- **API optimizada**: Endpoint GET `/events/:id` incluye toda la información necesaria para edición
-- **Fallback robusto**: Sistema de respaldo que maneja errores de carga gracefully
-- **Logs de debugging**: Sistema completo de logs para troubleshooting y monitoreo
-
-### 📝 **Gestión de Estado Refinada**
-- **useEffect especializado**: Efectos dedicados para manejar la carga de datos en modo edición
-- **Condiciones inteligentes**: Lógica mejorada para detectar cuándo usar funciones de edición vs. creación
-- **Sincronización de estado**: Coordinación perfecta entre `selectedSongs`, `variationsInfo` y datos del evento
-- **Persistencia de cambios**: Los cambios realizados se mantienen durante toda la sesión de edicións://img.shields.io/badge/version-1.10.9-blue.svg)](https://github.com/CareZapato/CGPlayerWeb/releases/tag/v1.10.9)
+[![Version](https://img.shields.io/badge/version-0.10.19-blue.svg)](https://github.com/CareZapato/CGPlayerWeb/releases/tag/v0.10.19)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
 [![React](https://img.shields.io/badge/React-19+-blue.svg)](https://reactjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5+-blue.svg)](https://www.typescriptlang.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15+-blue.svg)](https://www.postgresql.org/)
 
-**CGPlayerWeb** es una aplicación web moderna para la gestión y reproducción de música coral, diseñada específicamente para coros y grupos musicales chilenos. Permite la subida, organización y reproducción de pistas de audio con un sistema avanzado de roles, autenticación, gestión de sedes y **sistema completo de playlists** ubicadas a lo largo de Chile.
+> **Sistema moderno de gestión musical para coros**  
+> Reproducción, organización y gestión completa de música coral con sistema de roles, eventos y colaboración en tiempo real.
 
-## 🚀 Características Principales
+---
 
-### 🎤 **Sistema de Distribución de Voces Completo** *(NUEVO en v1.10.9)*
-- **Distribución específica de voces** - 100% de usuarios con voz primaria (SOPRANO/CONTRALTO/TENOR) + 30% adicional con voz secundaria (BAJO/BARITONO/MESOSOPRANO)
-- **Campo isPrimary** - Sistema robusto de identificación de voz principal con ordenamiento automático
-- **Estadísticas de voces** - Endpoint de monitoreo para validar cumplimiento de distribución
-- **Gestión de perfiles avanzada** - Sistema completo para manejo de voces primarias y secundarias
-- **Visualización mejorada** - Corrección completa de visualización de voz primaria en homepage y perfil
-- **Base de datos robusta** - Inicialización mejorada con estrategia db push y manejo de errores
+## 📖 **¿Qué es CGPlayerWeb?**
 
-### 📊 **Gestión de Eventos Aprobados/Rechazados** *(v1.10.8)*
-- **Sistema de estados avanzado** - Estados de pendiente, aprobado y rechazado para eventos
-- **Confirmación de asistencia** - Sistema completo para confirmar participación en eventos
-- **Reenvío de solicitudes** - Funcionalidad para reenviar solicitudes de eventos
-- **Iconos diferenciados** - Visualización clara del estado de cada evento
-- **Events management** - Gestión integral de eventos con workflow completo
+CGPlayerWeb es una aplicación web integral diseñada para coros y grupos musicales que permite:
 
-### 🏠 **Mejoras Visuales Homepage** *(v0.10.7)*
-- **Interfaz renovada** - Diseño más limpio y moderno para la página principal
-- **Navegación mejorada** - Mejor organización de elementos y accesos rápidos
-- **Responsive design** - Optimización completa para dispositivos móviles
-- **Performance** - Carga más rápida y experiencia de usuario optimizada
+- 🎵 **Subir y reproducir** pistas de audio con calidad profesional
+- 👥 **Gestionar cantantes** con sistema de roles y tipos de voz
+- �️ **Organizar sedes** distribuidas geográficamente
+- 🎭 **Planificar eventos** con sistema de postulaciones
+- 📱 **Acceso multiplataforma** desde cualquier dispositivo
 
-### 🎭 **Gestión de Perfiles y Edición** *(v0.10.6)*
-- **Editor de perfiles avanzado** - Interfaz completa para edición de información personal
-- **Gestión de roles** - Sistema mejorado para asignación y modificación de roles
-- **Configuración personalizada** - Opciones avanzadas de personalización por usuario
-- **Validación robusta** - Sistema de validación mejorado para datos de perfil
+---
 
-### 🎯 **Sistema de Filtros y Pestañas** *(v0.10.5)*
-- **Filtros avanzados** - Sistema completo de filtrado por múltiples criterios
-- **Navegación por pestañas** - Interfaz organizada con sistema de tabs responsive
-- **Filtrado por canciones** - Aplicación correcta de filtros en canciones y eventos
-- **Filtrado por tipo de usuario** - Vistas personalizadas según rol y permisos
+## ✨ **Características Principales**
 
-### 🎵 **Mejoras en Playlists** *(v0.10.4)*
-- **Editor avanzado** - Herramientas mejoradas para creación y edición de playlists
-- **Reproductor sticky** - Player persistente que se mantiene visible durante navegación
-- **Globalización** - Sistema de minimización del reproductor para mejor UX
-- **Lista de reproducción** - Funcionalidad completa con iconos de conteo
+### 🎼 **Gestión Musical**
+- **Reproductor avanzado** - Player sticky con controles completos
+- **Pistas por tipo de voz** - Soprano, Contralto, Tenor, Bajo, etc.
+- **Playlists inteligentes** - Creación y gestión de listas de reproducción
+- **Letras sincronizadas** - Visualización de letras durante la reproducción
 
-### 📰 **Sistema de Noticias** *(v0.10.3-0.10.0)*
-- **Implementación completa** - Sistema integral de noticias y comunicación
-- **Parametrización de versión** - Gestión automática de versiones en el home
-- **Fix visual** - Correcciones visuales en homepage y componentes
-- **Cambio de información** - Actualización dinámica de contenido informativo
+### 👤 **Sistema de Usuarios**
+- **Autenticación segura** - Login con JWT y roles diferenciados
+- **Perfiles completos** - Gestión de información personal y musical
+- **Tipos de voz** - Sistema de voces primarias y secundarias
+- **Ubicaciones** - Organización por sedes geográficas
 
-### � **Sistema de Backup y Recuperación** *(NUEVO en v0.10.7)*
-- **Backup automático de base de datos** - Respaldo completo y programado de todos los datos
-- **Scripts de limpieza automatizados** - Herramientas para limpiar logs y archivos temporales
-- **Sistema de recuperación** - Procesos documentados para restauración de respaldos
-- **Gestión de archivos mejorada** - Organización optimizada de archivos de audio y metadatos
-- **Validación de integridad** - Verificación automática de consistencia de datos
-- **Monitoreo de espacio** - Control de uso de disco y limpieza preventiva
+### 🎭 **Eventos y Participación**
+- **Calendario de eventos** - Visualización y gestión de presentaciones
+- **Sistema de postulaciones** - Solicitar participación en eventos externos
+- **Confirmación de asistencia** - Gestión completa de participantes
+- **Estados de eventos** - Pendiente, aprobado, rechazado
 
-### �🔧 **Sistema de Edición Avanzada de Eventos** *(v0.9.0)*
-- **Editor de eventos completo** - Modificación integral de eventos existentes con preservación de relaciones
-- **Carga automática de datos** - Los eventos cargan automáticamente con asistentes y música completa
-- **Sincronización de variaciones musicales** - Detección y carga inteligente de variaciones de canciones
-- **Panel de variaciones inteligente** - Visualización clara de todas las variaciones en modo edición
-- **Gestión de estado refinada** - Coordinación perfecta entre datos del evento y componentes de UI
-- **Sistema robusto de debugging** - Logs comprehensivos para troubleshooting y monitoreo
+### 📊 **Administración**
+- **Dashboard administrativo** - Panel de control completo
+- **Gestión de roles** - Admin, Director, Cantante
+- **Sistema de backup** - Respaldo automático de datos
+- **Estadísticas** - Métricas de uso y participación
 
-### 🎼 **Sistema de Letras Sincronizadas Avanzado** *(v0.8.0)*
-- **Visualizador de letras inteligente** con sincronización automática en tiempo real
-- **Sistema dual de colores** - Letras highlighted (púrpura) para participación del coro
-- **Efectos visuales elegantes** - Resaltado temporal con zoom sutil y efecto 3D
-- **Interface minimalista** - Solo texto, sin decoraciones que distraigan
-- **Synchronización precisa** - Duración extendida entre segmentos para mejor experiencia
-- **Compatibilidad total** - Funciona en desktop y móvil con diseño responsive
-- **Autosync inteligente** - Seguimiento automático de letras con scroll suave
-- **Campo isHighlighted** - Sistema backend completo para marcado de líneas importantes
+---
 
-### 🎼 **Sistema de Playlists Completo** *(v0.7.0)*
-- **Creación y gestión completa** de playlists con metadatos personalizados
-- **Editor avanzado** con búsqueda en tiempo real y gestión individual de canciones
-- **Imágenes personalizadas** con soporte para subida de imágenes (.png, .jpg, .jpeg)
-- **Reproducción automática** - Al dar play reproduce inmediatamente la primera canción
-- **Playlists públicas y privadas** con sistema de permisos por usuario
-- **Interfaz cuadrada moderna** con grid responsivo optimizado
-- **Integración total** con el sistema de cola y reproductor existente
-- **Gestión completa** - Editar, eliminar, cambiar configuraciones desde la interfaz
+## 🚀 **Instalación y Configuración**
 
-### 🎵 Gestión de Música
-- **Subida de archivos de audio** (MP3, M4A, WAV, FLAC) con validación robusta
-- **Organización automática** en carpetas individuales por canción
-- **Sistema de variaciones de voz** - todas las voces son tratadas como iguales
-- **Metadatos automáticos** extraídos de archivos de audio
-- **Reproductor de audio integrado** con controles avanzados y streaming optimizado
-- **Cola de reproducción mejorada** con validación de tipos de voz
-- **Sistema de subida robusto** con validación, limpieza automática y manejo de errores
+### **Requisitos Previos**
+- Node.js 18+
+- PostgreSQL 15+
+- npm o yarn
 
-### 👥 Sistema de Usuarios y Roles Jerárquico
-- **Autenticación JWT** segura con información extendida (rol, ubicación)
-- **Roles jerárquicos**: Admin, Director, Cantante con permisos específicos
-- **Filtrado inteligente por sede**: Directores ven solo su sede asignada
-- **Gestión de permisos** granular por funcionalidad y ubicación
-- **Perfiles de usuario** con asignación automática de roles y voces
-- **Dashboard específico por rol** con vistas personalizadas y métricas relevantes
-- **Sistema dual para directores**: Pueden ser cantantes simultáneamente
-
-### 📊 Dashboard Analytics Avanzado e Interactivo
-- **Métricas en tiempo real** con estadísticas completas del sistema
-- **Visualizaciones interactivas**: Gráficos de torta expandidos con porcentajes al hover
-- **Cuadros estadísticos coloridos**: UI mejorada con paleta de colores y iconos
-- **Filtrado inteligente por rol**: 
-  - **Admins**: Ven todas las métricas del sistema completo
-  - **Directores**: Solo métricas de su sede con información de cantantes
-  - **Cantantes**: Vista apropiada con información relevante
-- **API optimizada** con consultas paralelas para mejor rendimiento
-- **UI responsive** adaptativa con diseño moderno y profesional
-
-### 🎼 Reproductor Avanzado y Persistente
-- **Reproductor flotante** en la parte inferior con diseño moderno
-- **Controles completos** (play, pause, seek, volumen) con feedback visual
-- **Barra de progreso interactiva** con click-to-seek y visualización de tiempo
-- **Navegación automática** entre canciones con transiciones suaves
-- **Soporte para streaming** con requests HTTP Range para archivos grandes
-- **Audio de alta calidad** sin pérdida de fidelidad
-- **Sistema de cola inteligente** que añade correctamente las versiones reproducibles
-- **Autenticación de archivos de audio** via query parameters para compatibilidad con HTML5 audio
-- **Streaming seguro** con tokens JWT para proteger contenido multimedia
-- **Título dinámico** en pestaña del navegador con canción actual
-- **Favicon dinámico** que cambia según el estado de reproducción
-
-### 🏛️ Gestión de Sedes Chilenas
-- **6 Sedes principales**: Santiago, Valparaíso, Viña del Mar, Valdivia, Antofagasta, Concepción
-- **Distribución específica**: 288 cantantes distribuidos según necesidades regionales
-- **Datos localizados**: Nombres, direcciones y teléfonos chilenos auténticos
-- **Formato telefónico chileno**: +56 9 XXXX XXXX para todos los usuarios
-- **Directores por sede**: Cada sede tiene su director asignado con acceso local
-
-### 🎨 Interfaz de Usuario Moderna
-- **Navegación reorganizada**: Logo y título a la izquierda, opciones centradas, perfil a la derecha
-- **Paleta de colores**: Diseño colorido y profesional para mejor experiencia visual
-- **Iconografía mejorada**: Iconos apropiados y consistentes en toda la aplicación
-- **Responsive design**: Optimizado para desktop, tablet y móvil
-- **Feedback visual**: Hover effects, transiciones suaves y estados interactivos
-
-### 📱 Experiencia Móvil Optimizada
-- **Contraste mejorado** para títulos en dispositivos móviles
-- **Soporte touch completo** con TouchSensor para drag & drop
-- **Dark mode optimizado** con colores específicos para móvil
-- **Interacciones táctiles** con delay y tolerancia configurables
-- **Text shadows** para mejor legibilidad en diferentes fondos
-- **Responsive design** adaptado para diferentes tamaños de pantalla
-
-### 🏗️ Organización Inteligente
-- **Estructura container-children** para variaciones de voz
-- **7 tipos de voz completos**: Soprano, Contralto, Tenor, Barítono, Bajo, Coro, Original
-- **Todas las voces son iguales** - ninguna se trata como "principal"
-- **Carpetas automáticas** con nomenclatura: `nombreCancion_timestamp`
-- **Base de datos PostgreSQL** para metadatos y relaciones
-- **Validación automática** de integridad entre archivos y BD
-- **Sistema de ubicaciones** para organización geográfica
-
-## 🎼 Sistema de Playlists Detallado *(v0.7.0)*
-
-### 📝 **Creación y Gestión**
-- **Editor completo**: Interfaz intuitiva para crear playlists con todos los metadatos
-- **Metadatos personalizables**: Nombre, descripción, visibilidad (pública/privada)
-- **Imágenes personalizadas**: Subida de imágenes con preview y validación automática
-- **Gestión de contenido**: Agregar/quitar canciones con búsqueda en tiempo real
-- **Permisos granulares**: Control de visibilidad y acceso por usuario
-
-### 🎯 **Reproducción Avanzada**
-- **Play inmediato**: Al presionar play, reproduce automáticamente la primera canción
-- **Integración con cola**: Funciona perfectamente con el sistema de cola existente
-- **Navegación automática**: Transición fluida entre canciones de la playlist
-- **Autenticación transparente**: URLs seguras con tokens JWT para audio protegido
-- **Compatibilidad total**: Misma experiencia que reproducción individual
-
-### 🎨 **Interfaz Moderna**
-- **Diseño cuadrado**: Formato square optimizado para mejor aprovechamiento visual
-- **Grid responsivo**: Adaptación automática según tamaño de pantalla
-  - `sm: 2 columnas | lg: 3 columnas | xl: 4 columnas | 2xl: 5 columnas`
-- **Imágenes centradas**: Visualización óptima con `object-cover object-center`
-- **UI compacta**: Elementos más densos para mostrar más información
-- **Gradientes elegantes**: Fallback visual cuando no hay imagen personalizada
-
-### 🔍 **Editor Avanzado**
-- **Búsqueda en tiempo real**: Filtro instantáneo con debounce optimizado (200ms)
-- **Vista dual**: Lista de canciones disponibles vs canciones en playlist
-- **Gestión individual**: Remover canciones específicas con confirmación
-- **Controles completos**: Editar nombre, descripción, imagen, eliminar playlist
-- **Validación robusta**: Verificación de permisos y existencia de archivos
-
-## 💾 Sistema de Backup y Recuperación Detallado *(v0.10.7)*
-
-### 🔄 **Backup Automático**
-- **Respaldo programado**: Sistema de backup automático de base de datos PostgreSQL
-- **Scripts PowerShell**: Herramientas automatizadas para Windows (`clean-backend-logs.ps1`, `clean-console-logs.ps1`)
-- **Backup completo**: Incluye datos de usuarios, canciones, eventos, playlists y configuraciones
-- **Compresión inteligente**: Archivos de backup comprimidos para optimizar espacio
-
-### 🧹 **Limpieza Automatizada**
-- **clean-backend-logs.ps1**: Limpieza automática de logs del backend
-- **clean-console-logs-simple.ps1**: Limpieza básica de logs de consola
-- **cleanup-project.ps1**: Script maestro para limpieza completa del proyecto
-- **Archivos temporales**: Eliminación automática de archivos temp y caché
-
-### 🛡️ **Seguridad y Recuperación**
-- **Verificación de integridad**: Validación automática de consistencia de datos
-- **Restauración documentada**: Procesos paso a paso en `INSTRUCCIONES_RESTAURACION.md`
-- **Respaldo de configuración**: Backup de variables de entorno y configuraciones
-- **Monitoreo de espacio**: Control automático de uso de disco y alertas
-
-### 📊 **Gestión Avanzada**
-- **Logs detallados**: Registro completo de operaciones de backup y limpieza
-- **Programación flexible**: Scripts configurables para diferentes frecuencias
-- **Notificaciones**: Sistema de alertas para operaciones exitosas/fallidas
-- **Historial de backups**: Mantenimiento de múltiples versiones de respaldo
-
-## 🛠️ Tecnologías Utilizadas
-
-### Frontend
-- **React 19** con TypeScript
-- **Vite** como bundler y dev server
-- **Tailwind CSS** para estilos responsivos
-- **Zustand** para gestión de estado global
-- **React Query (TanStack Query)** para manejo de datos del servidor
-- **React Router** para navegación SPA
-- **React Hook Form** para formularios
-- **React Hot Toast** para notificaciones
-- **@dnd-kit** para funcionalidad drag & drop
-
-### Backend
-- **Node.js** con TypeScript
-- **Express.js** como framework web
-- **Prisma ORM** para base de datos
-- **PostgreSQL** como base de datos principal
-- **JWT** para autenticación con roles y ubicaciones
-- **Multer** para subida de archivos
-- **Music-metadata** para extracción de metadatos
-- **CORS** configurado para desarrollo
-
-### DevOps y Herramientas
-- **Concurrently** para ejecutar frontend y backend simultáneamente
-- **Nodemon** para desarrollo con hot reload
-- **ESLint y Prettier** para calidad de código
-- **TypeScript** en todo el stack para type safety
-
-## 📋 Requisitos del Sistema
-
-- **Node.js** 18.0.0 o superior
-- **npm** 9.0.0 o superior
-- **PostgreSQL** 13.0 o superior
-- **Git** para control de versiones
-
-## 🚀 Instalación
-
-### 1. Clonar el repositorio
+### **Instalación Rápida**
 ```bash
+# Clonar el repositorio
 git clone https://github.com/CareZapato/CGPlayerWeb.git
 cd CGPlayerWeb
-```
 
-### 2. Instalar dependencias
-```bash
-# Instalar dependencias de todos los módulos
+# Instalar dependencias
 npm run install:all
-```
 
-### 3. Configurar la base de datos
-
-#### Opción A: PostgreSQL local
-1. Instalar PostgreSQL en tu sistema
-2. Crear una base de datos:
-```sql
-CREATE DATABASE cgplayerweb;
-```
-
-#### Opción B: Docker (recomendado)
-```bash
-# Ejecutar PostgreSQL en Docker
-docker run --name cgplayerweb-postgres \
-  -e POSTGRES_PASSWORD=tu_password \
-  -e POSTGRES_DB=cgplayerweb \
-  -p 5432:5432 \
-  -d postgres:13
-```
-
-### 4. Configurar variables de entorno
-
-Crear archivo `.env` en la carpeta `backend/`:
-```env
-# Base de datos
-DATABASE_URL="postgresql://usuario:password@localhost:5432/cgplayerweb"
-
-# JWT
-JWT_SECRET="tu_jwt_secret_muy_seguro_aqui"
-
-# Configuración del servidor
-PORT=3001
-NODE_ENV=development
-
-# CORS
-FRONTEND_URL="http://localhost:5173"
-```
-
-### 5. Configurar la base de datos
-```bash
+# Configurar base de datos
 cd backend
-# Generar el cliente Prisma
-npx prisma generate
+cp .env.example .env
+# Editar .env con tus credenciales de PostgreSQL
 
 # Ejecutar migraciones
 npx prisma migrate dev
+npx prisma generate
 
-# Poblar con datos de ejemplo
-npx prisma db seed
-```
-
-## 🔐 Sistema de Roles y Autenticación
-
-### Tipos de Roles
-
-#### 👑 ADMIN
-- **Acceso completo** al sistema
-- **Gestión de usuarios**: Crear, editar, eliminar cualquier usuario
-- **Dashboard global**: Ve métricas de todo el sistema
-- **Gestión de ubicaciones**: Administra todas las ubicaciones
-- **Configuración del sistema**: Acceso a configuraciones avanzadas
-
-#### 🎯 DIRECTOR
-- **Gestión de ubicación específica**: Solo ve datos de su ubicación asignada
-- **Dashboard filtrado**: Métricas limitadas a su ubicación
-- **Gestión de cantantes**: Administra cantantes de su ubicación
-- **Eventos y actividades**: Gestiona eventos de su ubicación
-- **Playlists locales**: Crea y gestiona playlists para su ubicación
-
-#### 🎤 CANTANTE
-- **Vista personalizada**: Dashboard específico para cantantes
-- **Reproducción de música**: Acceso completo al reproductor
-- **Perfil personal**: Gestión de su perfil y preferencias
-- **Eventos asignados**: Ve eventos relevantes para su rol
-
-### Filtrado por Ubicación
-
-El sistema implementa un filtrado inteligente basado en ubicaciones:
-
-- **Admins**: Ven todos los datos sin filtros
-- **Directores**: Automáticamente filtrados por su `locationId` asignado
-- **Cantantes**: Ven contenido apropiado para su ubicación
-
-### JWT y Autenticación
-
-Los tokens JWT incluyen información extendida:
-```json
-{
-  "userId": "uuid",
-  "email": "user@example.com", 
-  "role": "DIRECTOR",
-  "locationId": "location-uuid", // Solo para directores
-  "iat": timestamp,
-  "exp": timestamp
-}
-```
-
-## 📊 Dashboard Analytics
-
-### Métricas por Rol
-
-#### Dashboard Admin
-- **Usuarios totales** por tipo y ubicación
-- **Canciones subidas** con estadísticas de uso
-- **Eventos programados** en todas las ubicaciones  
-- **Actividad del sistema** en tiempo real
-- **Distribución geográfica** de usuarios
-
-#### Dashboard Director
-- **Usuarios de su ubicación** con detalles específicos
-- **Canciones relevantes** para su ubicación
-- **Eventos locales** que gestiona
-- **Estadísticas filtradas** por su área de responsabilidad
-
-#### Dashboard Cantante
-- **Progreso personal** en reproducción
-- **Eventos asignados** próximos
-- **Estadísticas de práctica** personales
-
-### 6. Ejecutar la aplicación
-```bash
-# Desde el directorio raíz, ejecutar ambos servidores
+# Iniciar en modo desarrollo
+cd ..
 npm run dev
 ```
 
-La aplicación estará disponible en:
-- **Frontend**: http://localhost:5173
-- **Backend API**: http://localhost:3001/api
+### **Configuración de Red** *(Opcional)*
+```bash
+# Para acceso desde red local, editar:
+echo "SERVER_IP=tu.ip.local" > ip-config.env
 
-## � Manual de Uso
+# O configurar automáticamente:
+node scripts/setup-network.js
+```
 
-### Primer Uso
-1. **Registro**: Crear una cuenta de usuario
-2. **Login**: Iniciar sesión con las credenciales
-3. **Subir música**: Ir a la sección "Canciones" y subir archivos de audio
-4. **Reproducir**: Hacer clic en cualquier canción para reproducirla
+---
 
-### Roles de Usuario
-- **Admin**: Acceso completo, gestión de usuarios y configuración
-- **Director**: Gestión de canciones, playlists y eventos
-- **Cantante**: Reproducción de música y acceso a su perfil
+## 📱 **Uso Básico**
 
-### 👥 Credenciales de Prueba
+### **Para Cantantes**
+1. **Registro y Login** - Crear cuenta y completar perfil
+2. **Explorar música** - Navegar catálogo de canciones disponibles
+3. **Reproducir pistas** - Usar el player para ensayar tu voz
+4. **Unirse a eventos** - Postular a presentaciones y conciertos
+5. **Confirmar asistencia** - Gestionar tu participación en eventos
 
-Después de ejecutar el script de población chileno (`npm run reset:chilean-db` o el seed), puedes usar estas credenciales:
+### **Para Directores**
+1. **Gestionar cantantes** - Administrar miembros del coro
+2. **Crear eventos** - Planificar presentaciones y ensayos
+3. **Subir música** - Agregar nuevas canciones al repertorio
+4. **Aprobar solicitudes** - Gestionar postulaciones a eventos
+5. **Ver estadísticas** - Monitorear actividad del coro
 
-#### 👑 Administrador
-- **Email**: admin@cgplayer.com
-- **Password**: admin123
-- **Nombre**: Administrador Sistema
+### **Para Administradores**
+1. **Configurar sistema** - Gestión completa de configuraciones
+2. **Gestionar sedes** - Organizar ubicaciones geográficas
+3. **Backup de datos** - Mantener respaldos del sistema
+4. **Métricas globales** - Supervisar uso de toda la plataforma
 
-#### � Directores (Sistema Dual: Director + Cantante)
-- **director1@cgplayer.com** / admin123 - Carlos González (Tenor) - Santiago
-- **director2@cgplayer.com** / admin123 - María Rodríguez (Barítono) - Valparaíso  
-- **director3@cgplayer.com** / admin123 - Pedro Martínez (Soprano) - Viña del Mar
-- **director4@cgplayer.com** / admin123 - Ana Silva (Mezzo-soprano) - Valdivia
-- **director5@cgplayer.com** / admin123 - José Muñoz (Bajo) - Antofagasta
-- **director6@cgplayer.com** / admin123 - Carmen Torres (Contralto) - Concepción
+---
 
-#### 🎤 Cantantes Ejemplo
-- **cantante1@cgplayer.com** / admin123 - Cantante de Santiago
-- **cantante50@cgplayer.com** / admin123 - Cantante de Valparaíso
-- **cantante100@cgplayer.com** / admin123 - Cantante de Viña del Mar
-- **cantante200@cgplayer.com** / admin123 - Cantante de Antofagasta
+## 🔧 **Características Técnicas**
 
-> **Nota**: El sistema cuenta con 345 usuarios totales: 1 admin + 6 directores + 288 cantantes activos + 50 usuarios inactivos distribuidos en 6 sedes chilenas.
+### **Frontend**
+- **React 19** con TypeScript
+- **Tailwind CSS** para estilos
+- **Vite** como bundler
+- **Estado global** con Context API
 
-### 🎵 Uso del Reproductor
-- **Reproducción**: Haz clic en cualquier canción para reproducirla
-- **Cola de reproducción**: Arrastra y suelta canciones para reordenar
+### **Backend** 
+- **Node.js** con Express
+- **PostgreSQL** con Prisma ORM
+- **Autenticación JWT**
+- **Upload de archivos** con Multer
+- **API RESTful** documentada
 
-## 📚 Documentación API
+### **Infraestructura**
+- **Docker ready** (contenedores disponibles)
+- **Configuración flexible** de red
+- **Sistema de logs** comprehensivo
+- **Backup automático** de base de datos
 
-### 🔧 Swagger/OpenAPI
-CGPlayerWeb incluye documentación completa de la API usando Swagger UI.
+---
 
-**Acceso Local**: http://localhost:3001/api-docs
+## 📋 **Estructura del Proyecto**
 
-#### Características de la API:
-- **Autenticación JWT** - La mayoría de endpoints requieren token
-- **Documentación interactiva** - Probar endpoints directamente
-- **Schemas completos** - Estructura de datos detallada
-- **Ejemplos de uso** - Respuestas de ejemplo para cada endpoint
+```
+CGPlayerWeb/
+├── frontend/          # Aplicación React
+│   ├── src/
+│   │   ├── components/   # Componentes reutilizables
+│   │   ├── pages/       # Páginas principales
+│   │   ├── services/    # Servicios y API calls
+│   │   └── config/      # Configuraciones
+│   └── public/          # Archivos estáticos
+├── backend/           # API Node.js
+│   ├── src/
+│   │   ├── routes/      # Endpoints API
+│   │   ├── services/    # Lógica de negocio
+│   │   ├── middleware/  # Middlewares
+│   │   └── config/      # Configuraciones
+│   ├── prisma/         # Schema y migraciones DB
+│   └── uploads/        # Archivos subidos
+└── scripts/           # Scripts de utilidad
+```
 
-#### Endpoints Principales:
-- 🔐 **Authentication** (`/api/auth`) - Registro y login
-- 👥 **Users** (`/api/users`) - Gestión de usuarios
-- 🎵 **Songs** (`/api/songs`) - Gestión de canciones
-- 📊 **Dashboard** (`/api/dashboard`) - Estadísticas del sistema
-- 📍 **Locations** (`/api/locations`) - Gestión de ubicaciones
-- 🎉 **Events** (`/api/events`) - Gestión de eventos
-- ⚙️ **Admin** (`/api/admin`) - Herramientas de administrador
+---
 
-#### Uso de la Documentación:
-1. **Explorar**: Navegar por categorías y endpoints
-2. **Autenticar**: Usar botón "Authorize" con token JWT
-3. **Probar**: Ejecutar requests directamente desde la interfaz
-4. **Integrar**: Usar ejemplos para desarrollo
+## 🤝 **Contribuir**
 
-**📖 Guía completa**: Ver [SWAGGER_DOCS.md](SWAGGER_DOCS.md)
-- **Controles**: Play/Pause, anterior/siguiente, control de volumen
-- **Barra de progreso**: Haz clic para saltar a una posición específica
-- **Título dinámico**: El título de la pestaña cambia con la canción actual
+1. **Fork** el proyecto
+2. Crear **feature branch** (`git checkout -b feature/AmazingFeature`)
+3. **Commit** cambios (`git commit -m 'Add: Amazing Feature'`)
+4. **Push** a la branch (`git push origin feature/AmazingFeature`)
+5. Abrir **Pull Request**
 
-## 🔄 API Endpoints
+---
 
-### Autenticación
-- `POST /api/auth/register` - Registro de usuario
-- `POST /api/auth/login` - Inicio de sesión
-- `GET /api/auth/me` - Perfil del usuario actual
+## 📄 **Documentación**
 
-### Canciones
-- `GET /api/songs` - Listar canciones
-- `POST /api/songs` - Subir nueva canción
-- `GET /api/songs/:id` - Obtener canción específica
-- `PUT /api/songs/:id` - Actualizar canción
-- `DELETE /api/songs/:id` - Eliminar canción
-- `GET /api/songs/file/:folder/:filename` - Streaming de archivo de audio
+- **[Changelog](CHANGELOG.md)** - Historial de versiones
+- **[API Documentation](backend/docs/API.md)** - Documentación de endpoints
+- **[User Guide](docs/USER_GUIDE.md)** - Guía de usuario
+- **[Admin Guide](docs/ADMIN_GUIDE.md)** - Guía de administración
 
-### Usuarios (Solo Admin)
-- `GET /api/users` - Listar usuarios
-- `PUT /api/users/:id` - Actualizar usuario
-- `DELETE /api/users/:id` - Eliminar usuario
+---
 
-### Dashboard (Solo Admin)
-- `GET /api/dashboard/stats` - Estadísticas generales
-- `GET /api/dashboard/voice-distribution` - Distribución de tipos de voz
-- `GET /api/dashboard/recent-activity` - Actividad reciente
+## 🐛 **Reportar Problemas**
 
-## 📝 Historial de Cambios
+¿Encontraste un bug? [Crear un issue](https://github.com/CareZapato/CGPlayerWeb/issues/new)
 
-### [0.5.0] - 2025-08-18
+Para reportes, incluye:
+- **Versión** de CGPlayerWeb
+- **Navegador** y versión
+- **Pasos** para reproducir
+- **Comportamiento esperado** vs **real**
 
-#### 🏗️ Arquitectura y Refactorización Major
+---
 
-##### 🔐 Sistema de Roles y Autenticación Robusto
-- **Roles jerárquicos**: Implementación completa de ADMIN, DIRECTOR, CANTANTE con permisos específicos
-- **Filtrado por sede**: Los directores solo ven datos de su sede asignada
-- **Dashboard específico por rol**: Cada tipo de usuario tiene vistas personalizadas
-- **Middleware de autorización**: Protección de rutas basada en roles y ubicación
-- **JWT con información extendida**: Tokens incluyen rol y locationId para directores
-- **Sistema dual para directores**: Pueden ser cantantes simultáneamente
+## � **Estado del Proyecto**
 
-##### 📊 Dashboard Analytics Avanzado e Interactivo
-- **Métricas en tiempo real**: Estadísticas de usuarios, canciones, eventos y sedes
-- **Gráfico de torta expandido**: Doble de tamaño con porcentajes al hacer hover
-- **Cuadros estadísticos coloridos**: Paleta de colores profesional y iconos apropiados
-- **Icono de persona**: Para usuarios activos con diseño moderno
-- **Cambio de "Ubicaciones" a "Sedes"**: Terminología más apropiada para el contexto chileno
-- **Filtrado inteligente**: Admins ven todo, directores filtrado por sede
-- **API optimizada**: Consultas paralelas para mejor rendimiento
-- **UI responsive**: Interfaz adaptativa para diferentes tipos de datos
+# CGPlayerWeb 🎵
 
-##### 🎨 Interfaz de Usuario Moderna y Reorganizada
-- **Navegación desktop reorganizada**: 
-  - Logo y título alineados a la izquierda
-  - Opciones de menú centradas
-  - Changelog, usuario y logout alineados a la derecha
-- **Icono de changelog mejorado**: Reemplazado QuestionMarkCircle por DocumentText
-- **Paleta de colores aplicada**: Fondos coloridos para cuadros estadísticos
-- **Diseño más vibrante**: Eliminación del aspecto pálido anterior
+[![Version](https://img.shields.io/badge/version-0.10.19-blue.svg)](https://github.com/CareZapato/CGPlayerWeb/releases/tag/v0.10.19)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
+[![React](https://img.shields.io/badge/React-19+-blue.svg)](https://reactjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5+-blue.svg)](https://www.typescriptlang.org/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15+-blue.svg)](https://www.postgresql.org/)
 
-##### 🗂️ Gestión de Archivos Mejorada
-- **Sistema de subida robusto**: Manejo mejorado de archivos múltiples
-- **Validación de archivos**: Verificación de tipos y tamaños antes de la subida
-- **Limpieza automática**: Eliminación de archivos temporales en caso de error
-- **Organización**: Estructura de carpetas por canción con nombres únicos
+> **Sistema moderno de gestión musical para coros**  
+> Reproducción, organización y gestión completa de música coral con sistema de roles, eventos y colaboración en tiempo real.
 
-#### 🇨🇱 Localización Completa a Chile
+---
 
-##### 🏛️ Datos Chilenos Auténticos
-- **6 Sedes principales**: Santiago, Valparaíso, Viña del Mar, Valdivia, Antofagasta, Concepción
-- **Distribución específica de 288 cantantes**:
-  - Santiago: 110 cantantes
-  - Valparaíso: 45 cantantes
-  - Viña del Mar: 38 cantantes
-  - Valdivia: 35 cantantes
-  - Antofagasta: 50 cantantes
-  - Concepción: 60 cantantes
-- **Total de usuarios**: 345 (1 admin + 6 directores + 288 cantantes + 50 inactivos)
-- **Nombres chilenos**: Base de datos con nombres y apellidos locales
-- **Direcciones reales**: Ubicaciones auténticas de cada ciudad
-- **Teléfonos chilenos**: Formato +56 9 XXXX XXXX para todos los usuarios
+## 📖 **¿Qué es CGPlayerWeb?**
 
-##### 🔧 Script de Migración Chilena
-- **reset-chilean-db.ts**: Script completo para poblar la base de datos
-- **Roles duales**: Directores que también son cantantes con tipos de voz asignados
-- **Distribución automática**: Asignación inteligente de voces (Soprano, Alto, Tenor, Bajo)
-- **Datos de prueba**: Usuarios inactivos para testing completo
+CGPlayerWeb es una aplicación web integral diseñada para coros y grupos musicales que permite:
 
-#### 🧹 Limpieza Masiva de Código
+- 🎵 **Subir y reproducir** pistas de audio con calidad profesional
+- 👥 **Gestionar cantantes** con sistema de roles y tipos de voz
+- 🗺️ **Organizar sedes** distribuidas geográficamente
+- 🎭 **Planificar eventos** con sistema de postulaciones
+- 📱 **Acceso multiplataforma** desde cualquier dispositivo
 
-##### 📁 Eliminación de Archivos Obsoletos
-- **Scripts de test**: Eliminados todos los archivos test-*.html y test-*.ts
-- **Versiones antiguas**: Removidos archivos *_old.ts, *Fixed.ts no utilizados
-- **Seeders duplicados**: Limpieza de basicSeed, enhancedSeed, newSystemSeed, simpleSeed
-- **Archivos de migración**: Eliminados migrate-system.bat/sh ya obsoletos
-- **Backups obsoletos**: Removido database_backup.sql y scripts de diagnóstico
-- **Dist compilado**: Limpieza de carpetas de compilación no versionadas
+---
 
-##### 🔧 Optimización de Estructura
-- **Rutas consolidadas**: Unificación en authNew.ts, songsImproved.ts, uploadImproved.ts
-- **Middleware optimizado**: Consolidación de middleware de autenticación
-- **Scripts útiles**: Mantenidos solo los scripts necesarios para el sistema
-- **Organización**: Estructura más limpia y mantenible
+## ✨ **Características Principales**
 
-#### 🛠️ Correcciones Técnicas Importantes
+### 🎼 **Gestión Musical**
+- **Reproductor avanzado** - Player sticky con controles completos
+- **Pistas por tipo de voz** - Soprano, Contralto, Tenor, Bajo, etc.
+- **Playlists inteligentes** - Creación y gestión de listas de reproducción
+- **Letras sincronizadas** - Visualización de letras durante la reproducción
+
+### 👤 **Sistema de Usuarios**
+- **Autenticación segura** - Login con JWT y roles diferenciados
+- **Perfiles completos** - Gestión de información personal y musical
+- **Tipos de voz** - Sistema de voces primarias y secundarias
+- **Ubicaciones** - Organización por sedes geográficas
+
+### 🎭 **Eventos y Participación**
+- **Calendario de eventos** - Visualización y gestión de presentaciones
+- **Sistema de postulaciones** - Solicitar participación en eventos externos
+- **Confirmación de asistencia** - Gestión completa de participantes
+- **Estados de eventos** - Pendiente, aprobado, rechazado
+
+### 📊 **Administración**
+- **Dashboard administrativo** - Panel de control completo
+- **Gestión de roles** - Admin, Director, Cantante
+- **Sistema de backup** - Respaldo automático de datos
+- **Estadísticas** - Métricas de uso y participación
+
+---
+
+## 🚀 **Instalación y Configuración**
+
+### **Requisitos Previos**
+- Node.js 18+
+- PostgreSQL 15+
+- npm o yarn
+
+### **Instalación Rápida**
+```bash
+# Clonar el repositorio
+git clone https://github.com/CareZapato/CGPlayerWeb.git
+cd CGPlayerWeb
+
+# Instalar dependencias
+npm run install:all
+
+# Configurar base de datos
+cd backend
+cp .env.example .env
+# Editar .env con tus credenciales de PostgreSQL
+
+# Ejecutar migraciones
+npx prisma migrate dev
+npx prisma generate
+
+# Iniciar en modo desarrollo
+cd ..
+npm run dev
+```
+
+### **Configuración de Red** *(Opcional)*
+```bash
+# Para acceso desde red local, editar:
+echo "SERVER_IP=tu.ip.local" > ip-config.env
+
+# O configurar automáticamente:
+node scripts/setup-network.js
+```
+
+---
+
+## 📱 **Uso Básico**
+
+### **Para Cantantes**
+1. **Registro y Login** - Crear cuenta y completar perfil
+2. **Explorar música** - Navegar catálogo de canciones disponibles
+3. **Reproducir pistas** - Usar el player para ensayar tu voz
+4. **Unirse a eventos** - Postular a presentaciones y conciertos
+5. **Confirmar asistencia** - Gestionar tu participación en eventos
+
+### **Para Directores**
+1. **Gestionar cantantes** - Administrar miembros del coro
+2. **Crear eventos** - Planificar presentaciones y ensayos
+3. **Subir música** - Agregar nuevas canciones al repertorio
+4. **Aprobar solicitudes** - Gestionar postulaciones a eventos
+5. **Ver estadísticas** - Monitorear actividad del coro
+
+### **Para Administradores**
+1. **Configurar sistema** - Gestión completa de configuraciones
+2. **Gestionar sedes** - Organizar ubicaciones geográficas
+3. **Backup de datos** - Mantener respaldos del sistema
+4. **Métricas globales** - Supervisar uso de toda la plataforma
+
+---
+
+## 🔧 **Características Técnicas**
+
+### **Frontend**
+- **React 19** con TypeScript
+- **Tailwind CSS** para estilos
+- **Vite** como bundler
+- **Estado global** con Context API
+
+### **Backend** 
+- **Node.js** con Express
+- **PostgreSQL** con Prisma ORM
+- **Autenticación JWT**
+- **Upload de archivos** con Multer
+- **API RESTful** documentada
+
+### **Infraestructura**
+- **Docker ready** (contenedores disponibles)
+- **Configuración flexible** de red
+- **Sistema de logs** comprehensivo
+- **Backup automático** de base de datos
+
+---
+
+## 📋 **Estructura del Proyecto**
+
+```
+CGPlayerWeb/
+├── frontend/          # Aplicación React
+│   ├── src/
+│   │   ├── components/   # Componentes reutilizables
+│   │   ├── pages/       # Páginas principales
+│   │   ├── services/    # Servicios y API calls
+│   │   └── config/      # Configuraciones
+│   └── public/          # Archivos estáticos
+├── backend/           # API Node.js
+│   ├── src/
+│   │   ├── routes/      # Endpoints API
+│   │   ├── services/    # Lógica de negocio
+│   │   ├── middleware/  # Middlewares
+│   │   └── config/      # Configuraciones
+│   ├── prisma/         # Schema y migraciones DB
+│   └── uploads/        # Archivos subidos
+└── scripts/           # Scripts de utilidad
+```
+
+---
+
+## 🆕 **Novedades v0.10.19**
+
+### **🔧 Correcciones Críticas**
+- ✅ **Fix sistema de postulaciones** - Botón "Solicitar participación" funciona correctamente
+- ✅ **Modal de eventos mejorado** - Footer aparece cuando permite postulaciones externas
+- ✅ **Confirmación de asistencia** - Sistema completo operativo
+
+### **🌐 Configuración IP Centralizada**
+- ✅ **Backend flexible** - Elimina IPs hardcoded, usa configuración centralizada
+- ✅ **URLs dinámicas** - Generación automática de URLs de imágenes
+- ✅ **Detección automática** - Sistema inteligente de fallbacks de IP
+
+---
+
+## 🤝 **Contribuir**
+
+1. **Fork** el proyecto
+2. Crear **feature branch** (`git checkout -b feature/AmazingFeature`)
+3. **Commit** cambios (`git commit -m 'Add: Amazing Feature'`)
+4. **Push** a la branch (`git push origin feature/AmazingFeature`)
+5. Abrir **Pull Request**
+
+---
+
+## 📄 **Documentación**
+
+- **[Changelog](CHANGELOG.md)** - Historial de versiones
+- **[Release Notes](RELEASE_NOTES_v0.10.19.md)** - Notas de la versión actual
+- **API Documentation** - Disponible en `/api-docs` cuando el servidor esté ejecutándose
+
+---
+
+## 🐛 **Reportar Problemas**
+
+¿Encontraste un bug? [Crear un issue](https://github.com/CareZapato/CGPlayerWeb/issues/new)
+
+Para reportes, incluye:
+- **Versión** de CGPlayerWeb (v0.10.19)
+- **Navegador** y versión
+- **Pasos** para reproducir
+- **Comportamiento esperado** vs **real**
+
+---
+
+## 📊 **Estado del Proyecto**
+
+- ✅ **Producción Ready** - Sistema estable y funcional
+- 🔄 **Desarrollo Activo** - Actualizaciones regulares
+- 🧪 **Testing** - Cobertura de pruebas en progreso
+- 📱 **Mobile Responsive** - Optimizado para móviles
+
+---
+
+## 📞 **Contacto y Soporte**
+
+- **GitHub Issues:** [Reportar problemas](https://github.com/CareZapato/CGPlayerWeb/issues)
+- **Desarrollador:** CareZapato
+- **Versión Actual:** v0.10.19
+- **Última Actualización:** Enero 2025
+
+---
+
+<div align="center">
+
+**🎵 Hecho con ❤️ para la comunidad coral**
+
+*CGPlayerWeb - Donde la música coral cobra vida digital*
+
+</div>
 
 ##### 🔍 Resolución de Errores de Compilación
 - **Error TypeScript resuelto**: Eliminadas referencias a módulo inexistente './scripts/auto-init'

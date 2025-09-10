@@ -455,7 +455,7 @@ router.get('/:id', authenticateToken, async (req: AuthRequest, res: Response) =>
       });
       
       const userVoiceTypes = userVoiceProfiles.map(profile => profile.voiceType);
-      const allowedVoiceTypes = [...userVoiceTypes, 'CORO', 'ORIGINAL'];
+      const allowedVoiceTypes = [...userVoiceTypes, 'CORO', 'ORIGINAL', 'INSTRUMENTAL'];
       
       filteredItems = playlist.items.filter(item => {
         // Si no tiene voiceType, considerarlo como ORIGINAL (permitido)

@@ -16,7 +16,8 @@ const voiceTypeMapping: Record<VoiceType, { label: string; color: string }> = {
   MESOSOPRANO: { label: 'Mezzosoprano', color: 'bg-indigo-100 text-indigo-800' },
   BAJO: { label: 'Bajo', color: 'bg-yellow-100 text-yellow-800' },
   CORO: { label: 'Coro', color: 'bg-orange-100 text-orange-800' },
-  ORIGINAL: { label: 'Original', color: 'bg-gray-100 text-gray-800' }
+  ORIGINAL: { label: 'Original', color: 'bg-gray-100 text-gray-800' },
+  INSTRUMENTAL: { label: 'Instrumental', color: 'bg-red-100 text-red-800' }
 };
 
 export const useVoiceTypes = () => {
