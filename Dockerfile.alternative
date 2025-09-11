@@ -1,0 +1,74 @@
+# Dockerfile alternativo para resolver el problema de start.sh
+# Renombrar a Dockerfile cuando quieras usarlo
+
+FROM node:18-alpine AS base
+
+# Instalar dependencias del sistema incluyendo supervisord
+RUN apk add --no-cache \
+    python3 \
+    make \
+    g++ \
+    postgresql-client \
+    supervisor \
+    nginx \
+    bash
+
+# Crear directorio de trabajo
+WORKDIR /app
+
+# Copiar archivos de configuración raíz
+COPY package*.json ./
+
+# === STAGE 1: Build Frontend ===
+FROM base AS frontend-builder
+WORKDIR /app/frontend
+COPY frontend/package*.json ./
+RUN npm ci --legacy-peer-deps
+COPY frontend/ ./
+RUN npm run build
+
+# === STAGE 2: Build Backend ===
+FROM base AS backend-builder
+WORKDIR /app/backend
+COPY backend/package*.json ./
+RUN npm ci --legacy-peer-deps
+COPY backend/ ./
+COPY prisma/ /app/prisma/
+RUN npx prisma generate
+
+# === STAGE 3: Production ===
+FROM base AS production
+
+# Crear usuario y grupo
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S cgplayer -u 1001 -G nodejs
+
+# Copiar código del backend
+COPY --from=backend-builder --chown=cgplayer:nodejs /app/backend /app/backend
+COPY --from=backend-builder --chown=cgplayer:nodejs /app/node_modules /app/backend/node_modules
+
+# Copiar código del frontend
+COPY --from=frontend-builder --chown=cgplayer:nodejs /app/frontend/dist /app/frontend/dist
+
+# Copiar esquema de Prisma
+COPY --chown=cgplayer:nodejs prisma/ /app/prisma/
+
+# Copiar package.json raíz para scripts
+COPY --chown=cgplayer:nodejs package*.json /app/
+
+# Copiar scripts de Docker con permisos correctos
+COPY docker/start.sh /app/start.sh
+COPY docker/nginx.conf /etc/nginx/nginx.conf
+COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+
+# Configurar permisos finales
+RUN chmod +x /app/start.sh && \
+    chown -R cgplayer:nodejs /app && \
+    mkdir -p /app/logs /var/log/supervisor && \
+    chown -R cgplayer:nodejs /app/logs /var/log/supervisor
+
+# Exponer puertos
+EXPOSE 80 3001
+
+# Usar start.sh directamente como entrypoint
+ENTRYPOINT ["/app/start.sh"]
