@@ -50,19 +50,20 @@ RUN npm run build
 # === STAGE 3: Production ===
 FROM node:18-alpine AS production
 
-# Instalar dependencias del sistema para producción
+# Instalar dependencias del sistema para producción incluyendo OpenSSL para Prisma
 RUN apk add --no-cache \
     postgresql-client \
     nginx \
-    supervisor
+    supervisor \
+    openssl1.1-compat
 
 # Crear usuario no-root
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S cgplayer -u 1001
 
-# Crear directorios necesarios
+# Crear directorios necesarios con estructura completa de uploads
 WORKDIR /app
-RUN mkdir -p /app/backend/uploads /app/logs /var/log/supervisor
+RUN mkdir -p /app/backend/uploads/events /app/backend/uploads/images /app/backend/uploads/audio /app/logs /var/log/supervisor /etc/supervisor/conf.d
 
 # Copiar configuración raíz primero para instalar dependencias
 COPY --chown=cgplayer:nodejs package*.json ./
@@ -82,25 +83,20 @@ COPY --from=frontend-builder --chown=cgplayer:nodejs /app/frontend/dist ./fronte
 # Copiar archivos de configuración
 COPY docker/nginx.conf /etc/nginx/nginx.conf
 
-# Crear directorio de supervisord y configuración con inicialización integrada
-RUN mkdir -p /etc/supervisor/conf.d && \
-    echo '[supervisord]' > /etc/supervisor/conf.d/supervisord.conf && \
+# Crear configuración de supervisord con echo (compatible con linters)
+RUN echo '[supervisord]' > /etc/supervisor/conf.d/supervisord.conf && \
     echo 'nodaemon=true' >> /etc/supervisor/conf.d/supervisord.conf && \
     echo 'logfile=/dev/stdout' >> /etc/supervisor/conf.d/supervisord.conf && \
     echo 'logfile_maxbytes=0' >> /etc/supervisor/conf.d/supervisord.conf && \
-    echo 'pidfile=/var/run/supervisord.pid' >> /etc/supervisor/conf.d/supervisord.conf && \
-    echo 'loglevel=info' >> /etc/supervisor/conf.d/supervisord.conf && \
     echo '' >> /etc/supervisor/conf.d/supervisord.conf && \
     echo '[program:init]' >> /etc/supervisor/conf.d/supervisord.conf && \
-    echo 'command=/bin/sh -c "echo \"🚀 Iniciando CGPlayerWeb...\"; until pg_isready -h database -p 5432 -U cgplayer; do echo \"⏳ Esperando PostgreSQL...\"; sleep 2; done; echo \"✅ PostgreSQL listo!\"; cd /app/backend; npx prisma generate; npx prisma db push --accept-data-loss || true; node prisma/seed-definitivo.js || true; echo \"✅ Base de datos inicializada\"; echo \"🌐 Servicios iniciando...\""' >> /etc/supervisor/conf.d/supervisord.conf && \
+    echo 'command=/bin/sh -c "until pg_isready -h database -p 5432 -U cgplayer; do sleep 2; done; cd /app/backend; npx prisma generate; npx prisma db push --accept-data-loss || true; node prisma/seed-definitivo.js || true; echo CGPlayerWeb inicializado correctamente"' >> /etc/supervisor/conf.d/supervisord.conf && \
     echo 'autostart=true' >> /etc/supervisor/conf.d/supervisord.conf && \
     echo 'autorestart=false' >> /etc/supervisor/conf.d/supervisord.conf && \
     echo 'startsecs=0' >> /etc/supervisor/conf.d/supervisord.conf && \
     echo 'priority=100' >> /etc/supervisor/conf.d/supervisord.conf && \
     echo 'stdout_logfile=/dev/stdout' >> /etc/supervisor/conf.d/supervisord.conf && \
     echo 'stdout_logfile_maxbytes=0' >> /etc/supervisor/conf.d/supervisord.conf && \
-    echo 'stderr_logfile=/dev/stderr' >> /etc/supervisor/conf.d/supervisord.conf && \
-    echo 'stderr_logfile_maxbytes=0' >> /etc/supervisor/conf.d/supervisord.conf && \
     echo '' >> /etc/supervisor/conf.d/supervisord.conf && \
     echo '[program:backend]' >> /etc/supervisor/conf.d/supervisord.conf && \
     echo 'command=node dist/index.js' >> /etc/supervisor/conf.d/supervisord.conf && \
@@ -108,28 +104,22 @@ RUN mkdir -p /etc/supervisor/conf.d && \
     echo 'user=cgplayer' >> /etc/supervisor/conf.d/supervisord.conf && \
     echo 'autostart=true' >> /etc/supervisor/conf.d/supervisord.conf && \
     echo 'autorestart=true' >> /etc/supervisor/conf.d/supervisord.conf && \
-    echo 'stderr_logfile=/dev/stderr' >> /etc/supervisor/conf.d/supervisord.conf && \
-    echo 'stderr_logfile_maxbytes=0' >> /etc/supervisor/conf.d/supervisord.conf && \
+    echo 'priority=200' >> /etc/supervisor/conf.d/supervisord.conf && \
     echo 'stdout_logfile=/dev/stdout' >> /etc/supervisor/conf.d/supervisord.conf && \
     echo 'stdout_logfile_maxbytes=0' >> /etc/supervisor/conf.d/supervisord.conf && \
-    echo 'priority=200' >> /etc/supervisor/conf.d/supervisord.conf && \
     echo '' >> /etc/supervisor/conf.d/supervisord.conf && \
     echo '[program:nginx]' >> /etc/supervisor/conf.d/supervisord.conf && \
     echo 'command=/usr/sbin/nginx -g "daemon off;"' >> /etc/supervisor/conf.d/supervisord.conf && \
     echo 'autostart=true' >> /etc/supervisor/conf.d/supervisord.conf && \
     echo 'autorestart=true' >> /etc/supervisor/conf.d/supervisord.conf && \
-    echo 'stderr_logfile=/dev/stderr' >> /etc/supervisor/conf.d/supervisord.conf && \
-    echo 'stderr_logfile_maxbytes=0' >> /etc/supervisor/conf.d/supervisord.conf && \
-    echo 'stdout_logfile=/dev/stdout' >> /etc/supervisor/conf.d/supervisord.conf && \
-    echo 'stdout_logfile_maxbytes=0' >> /etc/supervisor/conf.d/supervisord.conf && \
     echo 'user=root' >> /etc/supervisor/conf.d/supervisord.conf && \
-    echo 'priority=300' >> /etc/supervisor/conf.d/supervisord.conf
+    echo 'priority=300' >> /etc/supervisor/conf.d/supervisord.conf && \
+    echo 'stdout_logfile=/dev/stdout' >> /etc/supervisor/conf.d/supervisord.conf && \
+    echo 'stdout_logfile_maxbytes=0' >> /etc/supervisor/conf.d/supervisord.conf
 
-# Cambiar propietario de directorios
-RUN chown -R cgplayer:nodejs /app /var/log/supervisor
-
-# Crear directorio de logs
-RUN mkdir -p /app/logs && chown -R cgplayer:nodejs /app/logs
+# Configurar permisos finales
+RUN chown -R cgplayer:nodejs /app /var/log/supervisor && \
+    chmod -R 755 /app/backend/uploads
 
 # Exponer puertos
 EXPOSE 80 3001
