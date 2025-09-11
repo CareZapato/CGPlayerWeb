@@ -6,16 +6,19 @@
 
 set -e
 
-# Configurar logging
+# Configurar logging con flush inmediato
 exec > >(tee -a /app/logs/startup.log)
 exec 2>&1
 
 echo "===================================================================================="
-echo "��� INICIANDO CGPLAYERWEB v1.10.9"
+echo "🚀 INICIANDO CGPLAYERWEB v1.10.9"
 echo "===================================================================================="
-echo "⏰ Timestamp: $(date)"
-echo "��� Container ID: ${HOSTNAME}"
-echo "��� Working Directory: $(pwd)"
+echo "📅 Timestamp: $(date)"
+echo "🐳 Container ID: ${HOSTNAME}"
+echo "📂 Working Directory: $(pwd)"
+echo "👤 Usuario actual: $(whoami)"
+echo "🔍 Verificando permisos del script..."
+ls -la /app/start.sh
 
 # Variables de entorno por defecto
 export NODE_ENV=${NODE_ENV:-production}
@@ -197,8 +200,8 @@ main() {
 
 # Función de limpieza al recibir señales
 cleanup() {
-    echo "��� Señal de parada recibida..."
-    echo "��� Guardando logs finales..."
+    echo "🛑 Señal de parada recibida..."
+    echo "📝 Guardando logs finales..."
     echo "⏰ Shutdown timestamp: $(date)" >> /app/logs/startup.log
     
     if [ -f "/etc/supervisor/conf.d/supervisord.conf" ]; then
@@ -213,5 +216,8 @@ cleanup() {
 trap cleanup SIGTERM SIGINT SIGQUIT
 
 # Ejecutar función principal
-echo "��� Ejecutando función principal..."
+echo "🎬 Ejecutando función principal..."
+echo "📊 Información del sistema:"
+echo "   - Memoria: $(free -h | grep Mem | awk '{print $2}')"
+echo "   - Espacio: $(df -h /app | tail -1 | awk '{print $4}')"
 main "$@"
