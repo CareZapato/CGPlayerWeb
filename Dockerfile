@@ -15,7 +15,6 @@ WORKDIR /app
 
 # Copiar archivos de configuración raíz
 COPY package*.json ./
-COPY tsconfig.json ./
 
 # === STAGE 1: Build Frontend ===
 FROM base AS frontend-builder
@@ -65,11 +64,18 @@ RUN addgroup -g 1001 -S nodejs && \
 WORKDIR /app
 RUN mkdir -p /app/backend/uploads /app/logs /var/log/supervisor
 
+# Copiar configuración raíz primero para instalar dependencias
+COPY --chown=cgplayer:nodejs package*.json ./
+RUN npm ci --only=production
+
 # Copiar backend compilado
 COPY --from=backend-builder --chown=cgplayer:nodejs /app/backend/dist ./backend/dist
 COPY --from=backend-builder --chown=cgplayer:nodejs /app/backend/node_modules ./backend/node_modules
 COPY --from=backend-builder --chown=cgplayer:nodejs /app/backend/package*.json ./backend/
 COPY --from=backend-builder --chown=cgplayer:nodejs /app/backend/prisma ./backend/prisma
+
+# Copiar archivo seed
+COPY --chown=cgplayer:nodejs seed-definitivo.js ./
 
 # Copiar frontend construido
 COPY --from=frontend-builder --chown=cgplayer:nodejs /app/frontend/dist ./frontend/dist

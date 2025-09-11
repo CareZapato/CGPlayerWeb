@@ -7,9 +7,9 @@ services:
     container_name: cgplayer-db
     restart: always
     environment:
-      POSTGRES_DB: cgplayerweb
+      POSTGRES_DB: cgplayerbd
       POSTGRES_USER: cgplayer
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-cgplayer123}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-cgplayerpassword}
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./docker/init-db.sql:/docker-entrypoint-initdb.d/init.sql:ro
@@ -18,7 +18,7 @@ services:
     networks:
       - cgplayer-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U cgplayer -d cgplayerweb"]
+      test: ["CMD-SHELL", "pg_isready -U cgplayer -d cgplayerbd"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -44,7 +44,7 @@ services:
     restart: always
     environment:
       # Base de datos
-      DATABASE_URL: postgresql://cgplayer:${DB_PASSWORD:-cgplayer123}@database:5432/cgplayerweb
+      DATABASE_URL: postgresql://cgplayer:${DB_PASSWORD:-cgplayerpassword}@database:5432/cgplayerbd
       
       # JWT y seguridad
       JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
