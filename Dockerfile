@@ -25,7 +25,7 @@ COPY frontend/ ./frontend/
 
 # Instalar dependencias del frontend (incluye devDependencies para build)
 WORKDIR /app/frontend
-RUN npm ci
+RUN npm ci --legacy-peer-deps
 
 # Construir frontend para producción
 RUN npm run build
@@ -39,7 +39,7 @@ COPY backend/ ./backend/
 
 # Instalar dependencias del backend (incluye devDependencies para build)
 WORKDIR /app/backend
-RUN npm ci
+RUN npm ci --legacy-peer-deps
 
 # Generar cliente Prisma
 RUN npx prisma generate
