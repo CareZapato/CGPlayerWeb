@@ -82,11 +82,31 @@ COPY --from=frontend-builder --chown=cgplayer:nodejs /app/frontend/dist ./fronte
 # Copiar archivos de configuración
 COPY docker/nginx.conf /etc/nginx/nginx.conf
 COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
-COPY docker/start.sh /app/start.sh
 
-# Cambiar propietario de directorios y hacer ejecutable el script
+# Crear script de inicio integrado
+RUN cat > /app/start.sh << 'EOF' && \
+    echo '#!/bin/bash' > /app/start.sh && \
+    echo 'set -e' >> /app/start.sh && \
+    echo 'echo "🚀 Iniciando CGPlayerWeb v1.10.9..."' >> /app/start.sh && \
+    echo 'until pg_isready -h database -p 5432 -U cgplayer; do' >> /app/start.sh && \
+    echo '  echo "⏳ Esperando PostgreSQL..."' >> /app/start.sh && \
+    echo '  sleep 2' >> /app/start.sh && \
+    echo 'done' >> /app/start.sh && \
+    echo 'echo "✅ PostgreSQL listo!"' >> /app/start.sh && \
+    echo 'cd /app/backend' >> /app/start.sh && \
+    echo 'npx prisma generate' >> /app/start.sh && \
+    echo 'npx prisma db push --accept-data-loss || true' >> /app/start.sh && \
+    echo 'node prisma/seed-definitivo.js || true' >> /app/start.sh && \
+    echo 'echo "✅ Base de datos inicializada"' >> /app/start.sh && \
+    echo 'echo "🌐 Iniciando servicios..."' >> /app/start.sh && \
+    echo 'echo "Frontend: http://192.99.122.62"' >> /app/start.sh && \
+    echo 'echo "Backend: http://192.99.122.62/api"' >> /app/start.sh && \
+    echo 'echo "Usuario: admin@cgplayer.local / cgplayer2025"' >> /app/start.sh && \
+    echo 'exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf' >> /app/start.sh && \
+    chmod +x /app/start.sh
+
+# Cambiar propietario de directorios
 RUN chown -R cgplayer:nodejs /app /var/log/supervisor
-RUN chmod +x /app/start.sh
 
 # Crear directorio de logs
 RUN mkdir -p /app/logs && chown -R cgplayer:nodejs /app/logs
@@ -94,5 +114,5 @@ RUN mkdir -p /app/logs && chown -R cgplayer:nodejs /app/logs
 # Exponer puertos
 EXPOSE 80 3001
 
-# Usar ENTRYPOINT en lugar de CMD para evitar interferencia del entrypoint de Node.js
+# Ejecutar script de inicio
 ENTRYPOINT ["/app/start.sh"]
