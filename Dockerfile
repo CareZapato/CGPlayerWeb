@@ -112,7 +112,6 @@ RUN mkdir -p /etc/supervisor/conf.d && \
     echo 'stderr_logfile_maxbytes=0' >> /etc/supervisor/conf.d/supervisord.conf && \
     echo 'stdout_logfile=/dev/stdout' >> /etc/supervisor/conf.d/supervisord.conf && \
     echo 'stdout_logfile_maxbytes=0' >> /etc/supervisor/conf.d/supervisord.conf && \
-    echo 'environment=NODE_ENV=production,DATABASE_URL=%(ENV_DATABASE_URL)s,PORT=%(ENV_PORT)s' >> /etc/supervisor/conf.d/supervisord.conf && \
     echo 'priority=200' >> /etc/supervisor/conf.d/supervisord.conf && \
     echo '' >> /etc/supervisor/conf.d/supervisord.conf && \
     echo '[program:nginx]' >> /etc/supervisor/conf.d/supervisord.conf && \
