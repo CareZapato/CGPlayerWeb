@@ -74,8 +74,7 @@ COPY --from=backend-builder --chown=cgplayer:nodejs /app/backend/node_modules ./
 COPY --from=backend-builder --chown=cgplayer:nodejs /app/backend/package*.json ./backend/
 COPY --from=backend-builder --chown=cgplayer:nodejs /app/backend/prisma ./backend/prisma
 
-# Copiar archivo seed
-COPY --chown=cgplayer:nodejs seed-definitivo.js ./
+# El seed ya está incluido en backend/prisma copiado desde backend-builder
 
 # Copiar frontend construido
 COPY --from=frontend-builder --chown=cgplayer:nodejs /app/frontend/dist ./frontend/dist

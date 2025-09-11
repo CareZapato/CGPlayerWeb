@@ -11,11 +11,11 @@ exec > >(tee -a /app/logs/startup.log)
 exec 2>&1
 
 echo "===================================================================================="
-echo "íº€ INICIANDO CGPLAYERWEB v1.10.9"
+echo "ï¿½ï¿½ï¿½ INICIANDO CGPLAYERWEB v1.10.9"
 echo "===================================================================================="
 echo "â° Timestamp: $(date)"
-echo "í°³ Container ID: ${HOSTNAME}"
-echo "í³‚ Working Directory: $(pwd)"
+echo "ï¿½ï¿½ï¿½ Container ID: ${HOSTNAME}"
+echo "ï¿½ï¿½ï¿½ Working Directory: $(pwd)"
 
 # Variables de entorno por defecto
 export NODE_ENV=${NODE_ENV:-production}
@@ -37,7 +37,7 @@ wait_for_postgres() {
 
 # FunciÃ³n para inicializar la base de datos
 init_database() {
-    echo "í·„ï¸ Inicializando base de datos..."
+    echo "ï¿½ï¿½ï¿½ï¸ Inicializando base de datos..."
     
     cd /app/backend
     
@@ -46,7 +46,7 @@ init_database() {
     npx prisma generate
     
     # Crear tablas usando db push (mÃ¡s robusto que migrate)
-    echo "í³¦ Creando/sincronizando tablas con Prisma..."
+    echo "ï¿½ï¿½ï¿½ Creando/sincronizando tablas con Prisma..."
     if ! npx prisma db push --accept-data-loss; then
         echo "âš ï¸ db push fallÃ³, intentando con migrate deploy..."
         if ! npx prisma migrate deploy; then
@@ -58,7 +58,7 @@ init_database() {
     echo "âœ… Estructura de base de datos creada"
     
     # Verificar y poblar base de datos
-    echo "í´ Verificando estado de la base de datos..."
+    echo "ï¿½ï¿½ï¿½ Verificando estado de la base de datos..."
     
     node -e "
         const { PrismaClient } = require('@prisma/client');
@@ -66,13 +66,13 @@ init_database() {
         
         async function checkAndSeed() {
             try {
-                console.log('í´ Verificando estado de la base de datos...');
+                console.log('ï¿½ï¿½ï¿½ Verificando estado de la base de datos...');
                 
                 // Verificar conexiÃ³n y estructura de la base de datos
                 let userCount = 0;
                 try {
                     userCount = await prisma.user.count();
-                    console.log(\`í³Š Usuarios encontrados: \${userCount}\`);
+                    console.log(\`ï¿½ï¿½ï¿½ Usuarios encontrados: \${userCount}\`);
                 } catch (tableError) {
                     if (tableError.code === 'P2021' || tableError.message.includes('does not exist')) {
                         console.log('âš ï¸  Tabla User no existe, ejecutando inicializaciÃ³n completa...');
@@ -83,7 +83,7 @@ init_database() {
                 }
                 
                 if (userCount === 0) {
-                    console.log('í¼± Base de datos vacÃ­a o sin estructura, ejecutando seed...');
+                    console.log('ï¿½ï¿½ï¿½ Base de datos vacÃ­a o sin estructura, ejecutando seed...');
                     const { execSync } = require('child_process');
                     
                     // Intentar seed con diferentes estrategias
@@ -93,7 +93,7 @@ init_database() {
                     } catch (seedError) {
                         console.warn('âš ï¸  Seed con npm fallÃ³, intentando ejecutar directamente...');
                         try {
-                            execSync('node seed-definitivo.js', { stdio: 'inherit', cwd: '/app' });
+                            execSync('node prisma/seed-definitivo.js', { stdio: 'inherit', cwd: '/app/backend' });
                             console.log('âœ… Seed directo completado');
                         } catch (directSeedError) {
                             console.error('âŒ Error en seed directo:', directSeedError.message);
@@ -103,7 +103,7 @@ init_database() {
                     
                     // Verificar que el seed fue exitoso
                     const finalUserCount = await prisma.user.count();
-                    console.log(\`í¾‰ VerificaciÃ³n final: \${finalUserCount} usuarios creados\`);
+                    console.log(\`ï¿½ï¿½ï¿½ VerificaciÃ³n final: \${finalUserCount} usuarios creados\`);
                     
                     if (finalUserCount === 0) {
                         throw new Error('El seed no creÃ³ usuarios, algo saliÃ³ mal');
@@ -118,7 +118,7 @@ init_database() {
                 });
                 
                 if (adminUser) {
-                    console.log('í±‘ Usuario administrador verificado: admin@cgplayer.local');
+                    console.log('ï¿½ï¿½ï¿½ Usuario administrador verificado: admin@cgplayer.local');
                 } else {
                     console.warn('âš ï¸  Usuario administrador no encontrado');
                 }
@@ -140,22 +140,22 @@ init_database() {
 
 # FunciÃ³n principal
 main() {
-    echo "íº€ Iniciando CGPlayerWeb v1.10.9..."
-    echo "í³… Fecha: $(date)"
-    echo "í¼ Variables de entorno:"
+    echo "ï¿½ï¿½ï¿½ Iniciando CGPlayerWeb v1.10.9..."
+    echo "ï¿½ï¿½ï¿½ Fecha: $(date)"
+    echo "ï¿½ï¿½ï¿½ Variables de entorno:"
     echo "   - DATABASE_URL: ${DATABASE_URL:-'No configurada'}"
     echo "   - NODE_ENV: ${NODE_ENV:-'No configurada'}"
     echo "   - PORT: ${PORT:-'No configurada'}"
     
     # Verificar archivos crÃ­ticos
-    echo "í´ Verificando archivos crÃ­ticos..."
+    echo "ï¿½ï¿½ï¿½ Verificando archivos crÃ­ticos..."
     if [ ! -f "/app/package.json" ]; then
         echo "âŒ Error: package.json no encontrado en /app"
         exit 1
     fi
     
-    if [ ! -f "/app/seed-definitivo.js" ]; then
-        echo "âŒ Error: seed-definitivo.js no encontrado en /app"
+    if [ ! -f "/app/backend/prisma/seed-definitivo.js" ]; then
+        echo "âŒ Error: seed-definitivo.js no encontrado en /app/backend/prisma"
         exit 1
     fi
     
@@ -172,7 +172,7 @@ main() {
     # Inicializar base de datos
     init_database
     
-    echo "í¼Ÿ Iniciando servicios de aplicaciÃ³n..."
+    echo "ï¿½ï¿½ï¿½ Iniciando servicios de aplicaciÃ³n..."
     echo "   - Nginx (proxy reverso)"
     echo "   - Backend API (Node.js/Express)"
     
@@ -183,13 +183,13 @@ main() {
     fi
     
     # Iniciar supervisord que maneja nginx y el backend
-    echo "í¾¯ Ejecutando supervisord..."
+    echo "ï¿½ï¿½ï¿½ Ejecutando supervisord..."
     echo "===================================================================================="
     echo "âœ… CGPLAYERWEB v1.10.9 INICIADO CORRECTAMENTE"
-    echo "í¼ Backend API disponible en puerto: ${API_PORT}"
-    echo "í¾µ Sistema de gestiÃ³n musical para coros listo"
-    echo "í±‘ Usuario admin: admin@cgplayer.local / cgplayer2025"
-    echo "í³ Logs disponibles en: /app/logs/"
+    echo "ï¿½ï¿½ï¿½ Backend API disponible en puerto: ${API_PORT}"
+    echo "ï¿½ï¿½ï¿½ Sistema de gestiÃ³n musical para coros listo"
+    echo "ï¿½ï¿½ï¿½ Usuario admin: admin@cgplayer.local / cgplayer2025"
+    echo "ï¿½ï¿½ï¿½ Logs disponibles en: /app/logs/"
     echo "===================================================================================="
     
     exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf
@@ -197,8 +197,8 @@ main() {
 
 # FunciÃ³n de limpieza al recibir seÃ±ales
 cleanup() {
-    echo "í»‘ SeÃ±al de parada recibida..."
-    echo "í³ Guardando logs finales..."
+    echo "ï¿½ï¿½ï¿½ SeÃ±al de parada recibida..."
+    echo "ï¿½ï¿½ï¿½ Guardando logs finales..."
     echo "â° Shutdown timestamp: $(date)" >> /app/logs/startup.log
     
     if [ -f "/etc/supervisor/conf.d/supervisord.conf" ]; then
@@ -213,5 +213,5 @@ cleanup() {
 trap cleanup SIGTERM SIGINT SIGQUIT
 
 # Ejecutar funciÃ³n principal
-echo "í¾¬ Ejecutando funciÃ³n principal..."
+echo "ï¿½ï¿½ï¿½ Ejecutando funciÃ³n principal..."
 main "$@"
