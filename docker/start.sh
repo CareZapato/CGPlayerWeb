@@ -6,7 +6,17 @@
 
 set -e
 
-# Configurar logging con flush inmediato
+# Configurar logging con flus    # Iniciar supervisord que maneja nginx y el backend
+    echo "🎬 Ejecutando supervisord..."
+    echo "===================================================================================="
+    echo "✅ CGPLAYERWEB v1.10.9 INICIADO CORRECTAMENTE"
+    echo "🌐 Frontend disponible en: http://192.99.122.62:80"
+    echo "🚀 Backend API disponible en puerto: ${API_PORT:-3001}"
+    echo "🎵 Sistema de gestión musical para coros listo"
+    echo "👤 Usuario admin: admin@cgplayer.local / cgplayer2025"
+    echo "📋 Logs disponibles en: /app/logs/"
+    echo "🔧 Para conectar a BD: PostgreSQL en 192.99.122.62:5432"
+    echo "===================================================================================="to
 exec > >(tee -a /app/logs/startup.log)
 exec 2>&1
 
@@ -167,7 +177,25 @@ main() {
         exit 1
     fi
     
+    # Verificar backend compilado
+    if [ ! -f "/app/backend/dist/index.js" ]; then
+        echo "❌ Error: Backend compilado no encontrado en /app/backend/dist/index.js"
+        exit 1
+    fi
+    
+    # Verificar frontend construido
+    if [ ! -f "/app/frontend/dist/index.html" ]; then
+        echo "❌ Error: Frontend construido no encontrado en /app/frontend/dist/index.html"
+        exit 1
+    fi
+    
     echo "✅ Archivos críticos verificados"
+    
+    # Mostrar información de archivos
+    echo "📁 Estructura de archivos verificada:"
+    echo "   - Backend compilado: $(ls -la /app/backend/dist/index.js 2>/dev/null || echo 'NO ENCONTRADO')"
+    echo "   - Frontend: $(ls -la /app/frontend/dist/index.html 2>/dev/null || echo 'NO ENCONTRADO')"
+    echo "   - Nginx config: $(ls -la /etc/nginx/nginx.conf 2>/dev/null || echo 'NO ENCONTRADO')"
     
     # Esperar a PostgreSQL
     wait_for_postgres
