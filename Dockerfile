@@ -82,17 +82,17 @@ COPY --from=frontend-builder --chown=cgplayer:nodejs /app/frontend/dist ./fronte
 # Copiar archivos de configuración
 COPY docker/nginx.conf /etc/nginx/nginx.conf
 COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
-COPY --chown=cgplayer:nodejs docker/start.sh /app/start.sh
+COPY docker/start.sh /app/start.sh
 
 # Cambiar propietario de directorios y hacer ejecutable el script
 RUN chown -R cgplayer:nodejs /app /var/log/supervisor
 RUN chmod +x /app/start.sh
 
+# Crear directorio de logs
+RUN mkdir -p /app/logs && chown -R cgplayer:nodejs /app/logs
+
 # Exponer puertos
 EXPOSE 80 3001
 
-# Cambiar a usuario no-root
-USER cgplayer
-
-# Comando de inicio
+# Comando de inicio (ejecutar como root para tener permisos completos)
 CMD ["/app/start.sh"]
