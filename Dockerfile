@@ -84,8 +84,7 @@ COPY docker/nginx.conf /etc/nginx/nginx.conf
 COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 # Crear script de inicio integrado
-RUN cat > /app/start.sh << 'EOF' && \
-    echo '#!/bin/bash' > /app/start.sh && \
+RUN echo '#!/bin/bash' > /app/start.sh && \
     echo 'set -e' >> /app/start.sh && \
     echo 'echo "🚀 Iniciando CGPlayerWeb v1.10.9..."' >> /app/start.sh && \
     echo 'until pg_isready -h database -p 5432 -U cgplayer; do' >> /app/start.sh && \
