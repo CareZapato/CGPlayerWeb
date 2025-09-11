@@ -94,5 +94,5 @@ RUN mkdir -p /app/logs && chown -R cgplayer:nodejs /app/logs
 # Exponer puertos
 EXPOSE 80 3001
 
-# Comando de inicio (ejecutar como root para tener permisos completos)
-CMD ["/app/start.sh"]
+# Usar ENTRYPOINT en lugar de CMD para evitar interferencia del entrypoint de Node.js
+ENTRYPOINT ["/app/start.sh"]
