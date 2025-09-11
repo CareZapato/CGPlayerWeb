@@ -82,8 +82,9 @@ COPY --from=frontend-builder --chown=cgplayer:nodejs /app/frontend/dist ./fronte
 # Copiar archivos de configuración
 COPY docker/nginx.conf /etc/nginx/nginx.conf
 
-# Crear configuración de supervisord con inicialización integrada
-RUN echo '[supervisord]' > /etc/supervisor/conf.d/supervisord.conf && \
+# Crear directorio de supervisord y configuración con inicialización integrada
+RUN mkdir -p /etc/supervisor/conf.d && \
+    echo '[supervisord]' > /etc/supervisor/conf.d/supervisord.conf && \
     echo 'nodaemon=true' >> /etc/supervisor/conf.d/supervisord.conf && \
     echo 'logfile=/dev/stdout' >> /etc/supervisor/conf.d/supervisord.conf && \
     echo 'logfile_maxbytes=0' >> /etc/supervisor/conf.d/supervisord.conf && \
