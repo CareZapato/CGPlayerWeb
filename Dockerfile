@@ -23,9 +23,9 @@ FROM base AS frontend-builder
 COPY frontend/package*.json ./frontend/
 COPY frontend/ ./frontend/
 
-# Instalar dependencias del frontend
+# Instalar dependencias del frontend (incluye devDependencies para build)
 WORKDIR /app/frontend
-RUN npm ci --only=production
+RUN npm ci
 
 # Construir frontend para producción
 RUN npm run build
@@ -37,9 +37,9 @@ FROM base AS backend-builder
 COPY backend/package*.json ./backend/
 COPY backend/ ./backend/
 
-# Instalar dependencias del backend
+# Instalar dependencias del backend (incluye devDependencies para build)
 WORKDIR /app/backend
-RUN npm ci --only=production
+RUN npm ci
 
 # Generar cliente Prisma
 RUN npx prisma generate
