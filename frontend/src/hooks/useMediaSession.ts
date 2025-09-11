@@ -3,7 +3,6 @@ import { usePlayerStore } from '../store/playerStore';
 import { usePlaylistStore } from '../store/playlistStore';
 import { useServerInfo } from './useServerInfo';
 import { getSongFileUrl } from '../config/api';
-import type { Song } from '../types';
 
 export const useMediaSession = () => {
   const { 
