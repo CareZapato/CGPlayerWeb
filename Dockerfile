@@ -25,6 +25,9 @@ FROM base AS frontend-builder
 COPY frontend/package*.json ./frontend/
 COPY frontend/ ./frontend/
 
+# Copiar variables de entorno de producción para el frontend
+COPY frontend/.env.production ./frontend/.env
+
 # Instalar dependencias del frontend (incluye devDependencies para build)
 WORKDIR /app/frontend
 RUN npm ci --legacy-peer-deps
@@ -77,6 +80,9 @@ COPY --from=backend-builder --chown=cgplayer:nodejs /app/backend/dist ./backend/
 COPY --from=backend-builder --chown=cgplayer:nodejs /app/backend/node_modules ./backend/node_modules
 COPY --from=backend-builder --chown=cgplayer:nodejs /app/backend/package*.json ./backend/
 COPY --from=backend-builder --chown=cgplayer:nodejs /app/backend/prisma ./backend/prisma
+
+# Copiar variables de entorno de producción para el backend
+COPY --chown=cgplayer:nodejs backend/.env.production ./backend/.env
 
 # El seed ya está incluido en backend/prisma copiado desde backend-builder
 

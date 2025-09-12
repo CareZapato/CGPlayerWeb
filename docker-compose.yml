@@ -5,11 +5,12 @@ services:
   database:
     image: postgres:15-alpine
     container_name: cgplayer-db
-    restart: always
+    restart: unless-stopped
     environment:
-      POSTGRES_DB: cgplayerbd
+      POSTGRES_DB: cgplayerweb
       POSTGRES_USER: cgplayer
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-cgplayerpassword}
+      POSTGRES_PASSWORD: cgplayer_secure_password_2025
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./docker/init-db.sql:/docker-entrypoint-initdb.d/init.sql:ro
@@ -18,7 +19,7 @@ services:
     networks:
       - cgplayer-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U cgplayer -d cgplayerbd"]
+      test: ["CMD-SHELL", "pg_isready -U cgplayer -d cgplayerweb"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -27,13 +28,18 @@ services:
   redis:
     image: redis:7-alpine
     container_name: cgplayer-redis
-    restart: always
+    restart: unless-stopped
     ports:
       - "6379:6379"
     networks:
       - cgplayer-network
     volumes:
       - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
 
   # Aplicación principal (Frontend + Backend)
   app:
@@ -41,46 +47,52 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: cgplayer-app
-    restart: always
+    restart: unless-stopped
     environment:
       # Base de datos
-      DATABASE_URL: postgresql://cgplayer:${DB_PASSWORD:-cgplayerpassword}@database:5432/cgplayerbd
+      DATABASE_URL: postgresql://cgplayer:cgplayer_secure_password_2025@database:5432/cgplayerweb
       
       # JWT y seguridad
-      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
+      JWT_SECRET: cgplayer_vps_jwt_ultra_secure_key_2025_!@#$$%^&*()
       
       # Configuración del servidor
       NODE_ENV: production
       PORT: 3001
+      HOST: 0.0.0.0
       
-      # URLs y CORS - Auto-detecta IP local o usa fallback
-      FRONTEND_URL: http://${SERVER_IP:-localhost}
-      BACKEND_URL: http://${SERVER_IP:-localhost}:3001
+      # IP del servidor VPS
+      SERVER_IP: 192.99.122.62
       
-      # IP del servidor (auto-detectada)
-      SERVER_IP: ${SERVER_IP:-localhost}
+      # URLs y CORS para VPS
+      FRONTEND_URL: http://192.99.122.62
+      BACKEND_URL: http://192.99.122.62:3001
+      CORS_ORIGINS: http://localhost,http://192.99.122.62,http://127.0.0.1:5173,http://localhost:5173
       
       # Redis (opcional)
       REDIS_URL: redis://redis:6379
       
       # Configuración específica de producción
       LOG_LEVEL: info
-      MAX_FILE_SIZE: 50MB
+      MAX_FILE_SIZE: 52428800
+      UPLOAD_DIR: uploads
+      TZ: America/Santiago
       
     ports:
       - "80:80"      # Frontend (Nginx)
       - "3001:3001"  # Backend API
     volumes:
-      - ./backend/uploads:/app/backend/uploads
-      - ./logs:/app/logs
+      - app_uploads:/app/backend/uploads
+      - app_logs:/app/logs
       - ./docker/wait-for-it.sh:/app/wait-for-it.sh:ro
     networks:
       - cgplayer-network
     depends_on:
       database:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/api/health"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -106,6 +118,10 @@ volumes:
   postgres_data:
     driver: local
   redis_data:
+    driver: local
+  app_uploads:
+    driver: local
+  app_logs:
     driver: local
 
 networks:
