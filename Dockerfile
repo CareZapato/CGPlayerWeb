@@ -69,7 +69,7 @@ RUN addgroup -g 1001 -S nodejs && \
 
 # Crear directorios necesarios con estructura completa de uploads
 WORKDIR /app
-RUN mkdir -p /app/backend/uploads/events /app/backend/uploads/images /app/backend/uploads/audio /app/logs /var/log/supervisor /etc/supervisor/conf.d
+RUN mkdir -p /app/backend/uploads/songs /app/backend/uploads/events /app/backend/uploads/images/playlists /app/backend/uploads/images/profiles /app/logs /var/log/supervisor /etc/supervisor/conf.d
 
 # Copiar configuración raíz primero para instalar dependencias
 COPY --chown=cgplayer:nodejs package*.json ./
