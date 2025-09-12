@@ -90,57 +90,84 @@ const BackupManagement: React.FC = () => {
     try {
       setIsCreatingBackup(true);
       setBackupProgress(0);
+      setRestoreLogs([]);
+      setShowLogs(true);
+
+      setRestoreLogs(prev => [...prev, '🔄 Iniciando creación de backup...']);
+      setBackupProgress(5);
 
       const token = localStorage.getItem('token');
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/admin/backup/create`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
+      
+      // Usar XMLHttpRequest para monitorear progreso de descarga
+      const downloadBlob = await new Promise<Blob>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        
+        xhr.responseType = 'blob';
+        
+        // Monitorear progreso de descarga
+        xhr.addEventListener('progress', (event) => {
+          if (event.lengthComputable) {
+            const downloadPercentage = Math.round((event.loaded / event.total) * 100);
+            const adjustedProgress = 20 + (downloadPercentage * 0.7); // 20% a 90% para descarga
+            setBackupProgress(adjustedProgress);
+            
+            if (downloadPercentage % 10 === 0 || downloadPercentage === 100) {
+              setRestoreLogs(prev => [...prev, `📥 Descargando backup: ${downloadPercentage}% (${formatFileSize(event.loaded)} / ${formatFileSize(event.total)})`]);
+            }
+          }
+        });
+
+        xhr.addEventListener('load', () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            setRestoreLogs(prev => [...prev, '✅ Backup descargado completamente']);
+            setBackupProgress(95);
+            resolve(xhr.response);
+          } else {
+            reject(new Error(`HTTP Error: ${xhr.status}`));
+          }
+        });
+
+        xhr.addEventListener('error', () => {
+          reject(new Error('Error de conexión durante la descarga'));
+        });
+
+        xhr.open('POST', `${import.meta.env.VITE_API_BASE_URL}/api/admin/backup/create`);
+        xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+        xhr.setRequestHeader('Content-Type', 'application/json');
+        
+        setRestoreLogs(prev => [...prev, '🏗️ Generando backup en el servidor...']);
+        setBackupProgress(10);
+        
+        xhr.send(JSON.stringify({
           description: `Backup completo - ${new Date().toLocaleString()}`
-        })
+        }));
       });
 
-      if (response.ok) {
-        // Simular progreso de backup
-        const interval = setInterval(() => {
-          setBackupProgress(prev => {
-            if (prev >= 95) {
-              clearInterval(interval);
-              return 95;
-            }
-            return prev + Math.random() * 10;
-          });
-        }, 1000);
+      // Crear enlace de descarga
+      const url = window.URL.createObjectURL(downloadBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `backup-${new Date().toISOString().split('T')[0]}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
 
-        // Descargar el archivo
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.style.display = 'none';
-        a.href = url;
-        a.download = `cgplayer-backup-${Date.now()}.zip`;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
+      setRestoreLogs(prev => [...prev, '🎉 Backup creado y descargado exitosamente']);
+      setBackupProgress(100);
 
-        setBackupProgress(100);
-        setTimeout(() => {
-          setIsCreatingBackup(false);
-          setBackupProgress(0);
-          loadBackupHistory();
-          alert('Backup creado y descargado exitosamente.');
-        }, 1500);
+      setTimeout(() => {
+        setIsCreatingBackup(false);
+        setBackupProgress(0);
+        setShowLogs(false);
+        alert('Backup creado y descargado exitosamente');
+        loadSystemInfo();
+        loadBackupHistory();
+      }, 2000);
 
-      } else {
-        const error = await response.json();
-        throw new Error(error.message || 'Error al crear backup');
-      }
     } catch (error) {
       console.error('Error creating backup:', error);
+      setRestoreLogs(prev => [...prev, `❌ Error: ${error instanceof Error ? error.message : 'Error desconocido'}`]);
       alert(`Error al crear backup: ${error instanceof Error ? error.message : 'Error desconocido'}`);
       setIsCreatingBackup(false);
       setBackupProgress(0);
@@ -167,22 +194,62 @@ const BackupManagement: React.FC = () => {
       // Log inicial
       setRestoreLogs(prev => [...prev, `🔄 Iniciando restauración de backup: ${selectedFile.name}`]);
       setRestoreLogs(prev => [...prev, `📦 Tamaño del archivo: ${(selectedFile.size / (1024 * 1024)).toFixed(2)} MB`]);
-      setRestoreProgress(5);
+      setRestoreProgress(2);
 
       const formData = new FormData();
       formData.append('backup', selectedFile);
 
       const token = localStorage.getItem('token');
       
-      setRestoreLogs(prev => [...prev, '🔐 Enviando archivo al servidor...']);
-      setRestoreProgress(15);
+      setRestoreLogs(prev => [...prev, '� Iniciando subida del archivo...']);
+      setRestoreProgress(3);
 
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/admin/backup/restore`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
-        body: formData
+      // Crear XMLHttpRequest para monitorear el progreso de subida
+      const response = await new Promise<Response>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        
+        // Monitorear progreso de subida
+        xhr.upload.addEventListener('progress', (event) => {
+          if (event.lengthComputable) {
+            const uploadPercentage = Math.round((event.loaded / event.total) * 100);
+            const adjustedProgress = 3 + (uploadPercentage * 0.25); // 3% a 28% para subida
+            setRestoreProgress(adjustedProgress);
+            
+            if (uploadPercentage % 10 === 0 || uploadPercentage === 100) {
+              setRestoreLogs(prev => [...prev, `📤 Subiendo archivo: ${uploadPercentage}% (${formatFileSize(event.loaded)} / ${formatFileSize(event.total)})`]);
+            }
+          }
+        });
+
+        // Manejar respuesta
+        xhr.addEventListener('load', () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            setRestoreLogs(prev => [...prev, '✅ Archivo subido completamente al servidor']);
+            setRestoreProgress(30);
+            resolve(new Response(xhr.responseText, {
+              status: xhr.status,
+              statusText: xhr.statusText
+            }));
+          } else {
+            reject(new Error(`HTTP Error: ${xhr.status}`));
+          }
+        });
+
+        xhr.addEventListener('error', () => {
+          reject(new Error('Error de conexión durante la subida'));
+        });
+
+        xhr.addEventListener('timeout', () => {
+          reject(new Error('Timeout durante la subida del archivo'));
+        });
+
+        // Configurar request
+        xhr.open('POST', `${import.meta.env.VITE_API_BASE_URL}/api/admin/backup/restore`);
+        xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+        xhr.timeout = 300000; // 5 minutos timeout
+        
+        // Enviar
+        xhr.send(formData);
       });
 
       const result = await response.json();
@@ -355,15 +422,40 @@ const BackupManagement: React.FC = () => {
         <div className="space-y-4">
           {isCreatingBackup ? (
             <div className="space-y-4">
-              <div className="flex items-center text-blue-600">
-                <RefreshCw className="h-5 w-5 animate-spin mr-2" />
-                <span>Creando backup... {Math.round(backupProgress)}%</span>
+              <div className="flex items-center justify-between text-blue-600">
+                <div className="flex items-center">
+                  <RefreshCw className="h-5 w-5 animate-spin mr-2" />
+                  <span>
+                    {Math.round(backupProgress) <= 15 ? 'Generando backup...' : 
+                     Math.round(backupProgress) <= 90 ? 'Descargando archivo...' : 
+                     'Finalizando...'}
+                  </span>
+                </div>
+                <span className="text-sm font-medium">{Math.round(backupProgress)}%</span>
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
+              
+              <div className="w-full bg-gray-200 rounded-full h-3">
                 <div 
-                  className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
+                  className={`h-3 rounded-full transition-all duration-500 ${
+                    Math.round(backupProgress) <= 15 ? 'bg-blue-500' :
+                    Math.round(backupProgress) <= 90 ? 'bg-green-500' :
+                    'bg-emerald-500'
+                  }`}
                   style={{ width: `${backupProgress}%` }}
                 ></div>
+              </div>
+              
+              {/* Indicador de fase actual */}
+              <div className="flex justify-between text-xs text-gray-500">
+                <span className={`${Math.round(backupProgress) <= 15 ? 'text-blue-600 font-medium' : ''}`}>
+                  🏗️ Generación
+                </span>
+                <span className={`${Math.round(backupProgress) > 15 && Math.round(backupProgress) <= 90 ? 'text-green-600 font-medium' : ''}`}>
+                  📥 Descarga
+                </span>
+                <span className={`${Math.round(backupProgress) > 90 ? 'text-emerald-600 font-medium' : ''}`}>
+                  ✅ Completado
+                </span>
               </div>
             </div>
           ) : (
@@ -407,15 +499,45 @@ const BackupManagement: React.FC = () => {
 
           {isRestoringBackup ? (
             <div className="space-y-4">
-              <div className="flex items-center text-orange-600">
-                <RefreshCw className="h-5 w-5 animate-spin mr-2" />
-                <span>Restaurando backup... {Math.round(restoreProgress)}%</span>
+              <div className="flex items-center justify-between text-orange-600">
+                <div className="flex items-center">
+                  <RefreshCw className="h-5 w-5 animate-spin mr-2" />
+                  <span>
+                    {Math.round(restoreProgress) <= 30 ? 'Subiendo archivo...' : 
+                     Math.round(restoreProgress) <= 60 ? 'Procesando backup...' : 
+                     Math.round(restoreProgress) <= 90 ? 'Restaurando datos...' : 
+                     'Finalizando...'}
+                  </span>
+                </div>
+                <span className="text-sm font-medium">{Math.round(restoreProgress)}%</span>
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
+              
+              <div className="w-full bg-gray-200 rounded-full h-3">
                 <div 
-                  className="bg-orange-600 h-2 rounded-full transition-all duration-300" 
+                  className={`h-3 rounded-full transition-all duration-500 ${
+                    Math.round(restoreProgress) <= 30 ? 'bg-blue-500' :
+                    Math.round(restoreProgress) <= 60 ? 'bg-yellow-500' :
+                    Math.round(restoreProgress) <= 90 ? 'bg-orange-500' :
+                    'bg-green-500'
+                  }`}
                   style={{ width: `${restoreProgress}%` }}
                 ></div>
+              </div>
+              
+              {/* Indicador de fase actual */}
+              <div className="flex justify-between text-xs text-gray-500">
+                <span className={`${Math.round(restoreProgress) <= 30 ? 'text-blue-600 font-medium' : ''}`}>
+                  📤 Subida
+                </span>
+                <span className={`${Math.round(restoreProgress) > 30 && Math.round(restoreProgress) <= 60 ? 'text-yellow-600 font-medium' : ''}`}>
+                  📦 Procesamiento
+                </span>
+                <span className={`${Math.round(restoreProgress) > 60 && Math.round(restoreProgress) <= 90 ? 'text-orange-600 font-medium' : ''}`}>
+                  🔄 Restauración
+                </span>
+                <span className={`${Math.round(restoreProgress) > 90 ? 'text-green-600 font-medium' : ''}`}>
+                  ✅ Finalización
+                </span>
               </div>
             </div>
           ) : (
