@@ -8,7 +8,9 @@ RUN apk add --no-cache \
     python3 \
     make \
     g++ \
-    postgresql-client
+    postgresql-client \
+    openssl \
+    openssl-dev
 
 # Crear directorio de trabajo
 WORKDIR /app
@@ -55,7 +57,8 @@ RUN apk add --no-cache \
     postgresql-client \
     nginx \
     supervisor \
-    openssl1.1-compat
+    openssl \
+    openssl-dev
 
 # Crear usuario no-root
 RUN addgroup -g 1001 -S nodejs && \
