@@ -595,110 +595,283 @@ router.post('/backup/restore', authenticateToken, requireAdmin, upload.single('b
     }
 
     // 5. Restaurar archivos (incluyendo imágenes de perfil)
-    console.log('📁 Iniciando restauración de archivos...');
+    console.log('📁 INICIANDO RESTAURACIÓN DE ARCHIVOS...');
     let filesRestored = 0;
-    if (fs.existsSync(uploadsPath)) {
+    
+    try {
+      if (!fs.existsSync(uploadsPath)) {
+        console.log('ℹ️ No hay archivos para restaurar en el backup');
+        return;
+      }
+
       const targetUploadsDir = path.join(projectRoot, 'backend', 'uploads');
       
-      // Eliminar archivos uploads actuales de forma más segura para VPS
+      // 🔍 DIAGNÓSTICO DETALLADO DEL SISTEMA
+      console.log('🔍 === DIAGNÓSTICO COMPLETO DEL SISTEMA ===');
+      console.log(`📍 Directorio objetivo: ${targetUploadsDir}`);
+      console.log(`📍 Directorio origen: ${uploadsPath}`);
+      console.log(`📍 Platform: ${process.platform}`);
+      console.log(`📍 Node version: ${process.version}`);
+      console.log(`📍 Process UID: ${process.getuid ? process.getuid() : 'N/A'}`);
+      console.log(`📍 Process GID: ${process.getgid ? process.getgid() : 'N/A'}`);
+      
       if (fs.existsSync(targetUploadsDir)) {
-        console.log('🗑️ Eliminando archivos uploads actuales...');
+        const stats = fs.statSync(targetUploadsDir);
+        console.log(`📍 Directorio objetivo existe - Permisos: ${stats.mode.toString(8)}`);
+        console.log(`📍 Owner UID: ${stats.uid}, GID: ${stats.gid}`);
+        
+        // Listar contenido actual con detalles
         try {
-          // Método más seguro: eliminar contenido en lugar del directorio completo
-          const removeContents = (dirPath: string) => {
-            if (!fs.existsSync(dirPath)) return;
-            const files = fs.readdirSync(dirPath);
+          const currentFiles = fs.readdirSync(targetUploadsDir);
+          console.log(`📍 Archivos/directorios actuales: ${currentFiles.length}`);
+          currentFiles.forEach((file, index) => {
+            if (index < 10) { // Limitar a primeros 10 para no saturar logs
+              const filePath = path.join(targetUploadsDir, file);
+              const fileStats = fs.statSync(filePath);
+              console.log(`     ${index + 1}. ${file} (${fileStats.isDirectory() ? 'DIR' : 'FILE'}, ${fileStats.size} bytes, permisos: ${fileStats.mode.toString(8)})`);
+            }
+          });
+          if (currentFiles.length > 10) {
+            console.log(`     ... y ${currentFiles.length - 10} elementos más`);
+          }
+        } catch (listError) {
+          console.error(`📍 ERROR listando contenido actual:`, listError);
+        }
+      } else {
+        console.log(`📍 Directorio objetivo NO existe`);
+      }
+      
+      // Verificar contenido del backup
+      try {
+        const backupFiles = fs.readdirSync(uploadsPath);
+        console.log(`📍 Archivos en backup: ${backupFiles.length}`);
+        backupFiles.forEach((file, index) => {
+          if (index < 5) {
+            const filePath = path.join(uploadsPath, file);
+            const fileStats = fs.statSync(filePath);
+            console.log(`     ${index + 1}. ${file} (${fileStats.isDirectory() ? 'DIR' : 'FILE'}, ${fileStats.size} bytes)`);
+          }
+        });
+      } catch (backupListError) {
+        console.error(`📍 ERROR listando backup:`, backupListError);
+      }
+      
+      console.log('🔍 === FIN DIAGNÓSTICO ===');
+      
+      // 🗑️ ELIMINACIÓN CONTROLADA DE ARCHIVOS EXISTENTES
+      if (fs.existsSync(targetUploadsDir)) {
+        console.log('🗑️ Eliminando archivos uploads actuales completamente...');
+        
+        try {
+          // Método super detallado para debugging
+          const removeContentsDetailed = (dirPath: string, depth = 0) => {
+            const indent = '  '.repeat(depth);
+            console.log(`${indent}🔍 Procesando: ${dirPath}`);
+            
+            if (!fs.existsSync(dirPath)) {
+              console.log(`${indent}⚠️ Directorio no existe`);
+              return;
+            }
+            
+            let files;
+            try {
+              files = fs.readdirSync(dirPath);
+              console.log(`${indent}📋 Encontrados ${files.length} elementos`);
+            } catch (readError) {
+              console.error(`${indent}❌ Error leyendo directorio: ${readError}`);
+              throw readError;
+            }
+            
             for (const file of files) {
               const filePath = path.join(dirPath, file);
-              const stats = fs.statSync(filePath);
-              if (stats.isDirectory()) {
-                removeContents(filePath);
-                try {
-                  fs.rmdirSync(filePath);
-                } catch (err) {
-                  console.warn(`⚠️ No se pudo eliminar directorio ${filePath}:`, err);
+              console.log(`${indent}📄 Procesando: ${file}`);
+              
+              try {
+                const stats = fs.statSync(filePath);
+                
+                if (stats.isDirectory()) {
+                  console.log(`${indent}📁 Es directorio, recursando...`);
+                  removeContentsDetailed(filePath, depth + 1);
+                  
+                  try {
+                    fs.rmdirSync(filePath);
+                    console.log(`${indent}✅ Directorio eliminado: ${file}`);
+                  } catch (rmDirError) {
+                    console.error(`${indent}❌ Error eliminando directorio ${file}:`, rmDirError);
+                    throw rmDirError;
+                  }
+                } else {
+                  try {
+                    fs.unlinkSync(filePath);
+                    console.log(`${indent}✅ Archivo eliminado: ${file} (${stats.size} bytes)`);
+                  } catch (unlinkError) {
+                    console.error(`${indent}❌ Error eliminando archivo ${file}:`, unlinkError);
+                    throw unlinkError;
+                  }
                 }
-              } else {
-                try {
-                  fs.unlinkSync(filePath);
-                } catch (err) {
-                  console.warn(`⚠️ No se pudo eliminar archivo ${filePath}:`, err);
-                }
+              } catch (statError) {
+                console.error(`${indent}❌ Error obteniendo stats de ${file}:`, statError);
+                throw statError;
               }
             }
           };
           
-          removeContents(targetUploadsDir);
-          console.log('✅ Contenido de uploads eliminado');
-        } catch (error) {
-          console.warn('⚠️ Error eliminando archivos uploads (continuando):', error);
-          // No lanzar error, continuar con la restauración
+          removeContentsDetailed(targetUploadsDir);
+          console.log('✅ Eliminación completada exitosamente');
+          
+        } catch (removeError) {
+          console.error('❌ ERROR CRÍTICO EN ELIMINACIÓN:');
+          console.error(`   Tipo: ${removeError instanceof Error ? removeError.constructor.name : typeof removeError}`);
+          console.error(`   Mensaje: ${removeError instanceof Error ? removeError.message : String(removeError)}`);
+          console.error(`   Código: ${(removeError as any)?.code || 'N/A'}`);
+          console.error(`   Stack:`, removeError instanceof Error ? removeError.stack : 'N/A');
+          
+          // Intentar diagnóstico adicional
+          try {
+            console.log('🔍 Diagnóstico adicional después del error:');
+            const postErrorStats = fs.statSync(targetUploadsDir);
+            console.log(`   Directorio aún existe - Permisos: ${postErrorStats.mode.toString(8)}`);
+            
+            if (process.platform !== 'win32') {
+              const { stdout: lsOutput } = await execAsync(`ls -la "${targetUploadsDir}"`);
+              console.log(`   Contenido (ls -la):\n${lsOutput}`);
+            }
+          } catch (diagError) {
+            console.error(`   Error en diagnóstico adicional:`, diagError);
+          }
+          
+          throw new Error(`Error eliminando archivos uploads: ${removeError instanceof Error ? removeError.message : String(removeError)} (${removeError instanceof Error ? removeError.constructor.name : typeof removeError})`);
         }
       }
       
-      // Asegurar que el directorio base existe
-      if (!fs.existsSync(targetUploadsDir)) {
-        fs.mkdirSync(targetUploadsDir, { recursive: true });
-        console.log('📁 Directorio uploads recreado');
+      // 📁 RECREACIÓN DE ESTRUCTURA
+      console.log('📂 Recreando estructura de directorios...');
+      const requiredDirs = [
+        targetUploadsDir,
+        path.join(targetUploadsDir, 'songs'),
+        path.join(targetUploadsDir, 'events'),  
+        path.join(targetUploadsDir, 'audio'),
+        path.join(targetUploadsDir, 'images'),
+        path.join(targetUploadsDir, 'images', 'profiles'),
+        path.join(targetUploadsDir, 'images', 'playlists')
+      ];
+      
+      for (const dir of requiredDirs) {
+        try {
+          if (!fs.existsSync(dir)) {
+            fs.mkdirSync(dir, { recursive: true });
+            console.log(`   ✅ Creado: ${path.relative(targetUploadsDir, dir) || 'raíz'}`);
+          } else {
+            console.log(`   ℹ️ Ya existe: ${path.relative(targetUploadsDir, dir) || 'raíz'}`);
+          }
+        } catch (mkdirError) {
+          console.error(`   ❌ Error creando ${dir}:`, mkdirError);
+          throw mkdirError;
+        }
       }
       
-      // Copiar nuevos archivos con manejo de errores mejorado
-      const copyDir = (src: string, dest: string): number => {
+      // 📋 COPIA DE ARCHIVOS CON MONITOREO DETALLADO
+      console.log('📋 Iniciando copia de archivos con monitoreo detallado...');
+      const copyDirDetailed = (src: string, dest: string, depth = 0): number => {
+        const indent = '  '.repeat(depth);
         let count = 0;
+        
+        console.log(`${indent}📂 Copiando: ${src} → ${dest}`);
+        
         try {
           if (!fs.existsSync(dest)) {
             fs.mkdirSync(dest, { recursive: true });
+            console.log(`${indent}📁 Destino creado`);
           }
           
           const files = fs.readdirSync(src);
+          console.log(`${indent}📋 Elementos a copiar: ${files.length}`);
+          
           for (const file of files) {
             const srcFile = path.join(src, file);
             const destFile = path.join(dest, file);
             
             try {
-              if (fs.statSync(srcFile).isDirectory()) {
-                count += copyDir(srcFile, destFile);
+              const srcStats = fs.statSync(srcFile);
+              
+              if (srcStats.isDirectory()) {
+                console.log(`${indent}📁 Copiando directorio: ${file}`);
+                count += copyDirDetailed(srcFile, destFile, depth + 1);
               } else {
+                console.log(`${indent}📄 Copiando archivo: ${file} (${srcStats.size} bytes)`);
                 fs.copyFileSync(srcFile, destFile);
+                
+                // Verificar que se copió correctamente
+                if (fs.existsSync(destFile)) {
+                  const destStats = fs.statSync(destFile);
+                  if (destStats.size === srcStats.size) {
+                    console.log(`${indent}   ✅ Verificado (${destStats.size} bytes)`);
+                  } else {
+                    console.log(`${indent}   ⚠️ Tamaño difiere: origen=${srcStats.size}, destino=${destStats.size}`);
+                  }
+                } else {
+                  console.log(`${indent}   ❌ Archivo no se creó en destino`);
+                }
                 count++;
               }
             } catch (fileError) {
-              console.warn(`⚠️ Error copiando ${srcFile}:`, fileError);
+              console.error(`${indent}❌ Error copiando ${file}:`, fileError);
+              throw fileError;
             }
           }
         } catch (dirError) {
-          console.warn(`⚠️ Error procesando directorio ${src}:`, dirError);
+          console.error(`${indent}❌ Error procesando directorio:`, dirError);
+          throw dirError;
         }
+        
+        console.log(`${indent}✅ Completado: ${count} archivos`);
         return count;
       };
       
-      try {
-        filesRestored = copyDir(uploadsPath, targetUploadsDir);
-        
-        // Verificar restauración específica de imágenes de perfil
-        const restoredProfileImagesDir = path.join(targetUploadsDir, 'images', 'profiles');
-        if (fs.existsSync(restoredProfileImagesDir)) {
-          const profileImages = fs.readdirSync(restoredProfileImagesDir);
-          console.log(`✅ ${filesRestored} archivos restaurados (incluyendo ${profileImages.length} imágenes de perfil)`);
-        } else {
-          console.log(`✅ ${filesRestored} archivos restaurados`);
-        }
-        
-        // Verificar permisos después de la copia
+      filesRestored = copyDirDetailed(uploadsPath, targetUploadsDir);
+      
+      // 🔍 VERIFICACIÓN FINAL
+      console.log('🔍 Verificación final de archivos restaurados...');
+      const restoredProfileImagesDir = path.join(targetUploadsDir, 'images', 'profiles');
+      if (fs.existsSync(restoredProfileImagesDir)) {
+        const profileImages = fs.readdirSync(restoredProfileImagesDir);
+        console.log(`✅ ${filesRestored} archivos restaurados (incluyendo ${profileImages.length} imágenes de perfil)`);
+      } else {
+        console.log(`✅ ${filesRestored} archivos restaurados (sin imágenes de perfil)`);
+      }
+      
+      // 🔧 AJUSTE DE PERMISOS
+      if (process.platform !== 'win32') {
         try {
-          if (process.platform !== 'win32') {
-            await execAsync(`chmod -R 755 "${targetUploadsDir}"`);
-            console.log('✅ Permisos de archivos ajustados');
-          }
+          console.log('🔧 Ajustando permisos...');
+          await execAsync(`chmod -R 755 "${targetUploadsDir}"`);
+          console.log('✅ Permisos ajustados a 755');
         } catch (permError) {
           console.warn('⚠️ No se pudieron ajustar permisos:', permError);
         }
-      } catch (copyError) {
-        console.error('❌ Error durante la copia de archivos:', copyError);
-        throw new Error('Error copiando archivos: ' + (copyError instanceof Error ? copyError.message : 'Error desconocido'));
       }
-    } else {
-      console.log('ℹ️ No hay archivos para restaurar');
+      
+    } catch (filesError) {
+      console.error('❌ === ERROR CRÍTICO EN RESTAURACIÓN DE ARCHIVOS ===');
+      console.error(`🔍 Tipo de error: ${filesError instanceof Error ? filesError.constructor.name : typeof filesError}`);
+      console.error(`🔍 Mensaje: ${filesError instanceof Error ? filesError.message : String(filesError)}`);
+      console.error(`🔍 Código: ${(filesError as any)?.code || 'N/A'}`);
+      console.error(`🔍 Stack completo:`);
+      console.error(filesError instanceof Error ? filesError.stack : 'N/A');
+      
+      // Información adicional del sistema en caso de error
+      try {
+        console.error(`🔍 Working directory: ${process.cwd()}`);
+        console.error(`🔍 Available space check...`);
+        if (process.platform !== 'win32') {
+          const { stdout: dfOutput } = await execAsync(`df -h "${projectRoot}"`);
+          console.error(`🔍 Disk usage:\n${dfOutput}`);
+        }
+      } catch (sysError) {
+        console.error(`🔍 Error obteniendo info del sistema:`, sysError);
+      }
+      
+      throw new Error(`Error crítico en restauración de archivos: ${filesError instanceof Error ? filesError.message : String(filesError)} (${filesError instanceof Error ? filesError.constructor.name : typeof filesError}). Ver logs detallados arriba.`);
     }
 
     // 6. Limpiar archivos temporales
