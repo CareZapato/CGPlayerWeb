@@ -21,6 +21,10 @@ export async function getDynamicConfig(): Promise<DynamicConfig> {
   const networkConfig = await networkDetector.getNetworkConfig();
   const urls = await networkDetector.getAccessURLs(parseInt(process.env.PORT || '3001'));
 
+  // Usar SERVER_IP del entorno si está definido (para VPS)
+  const serverIP = process.env.SERVER_IP || networkConfig.localIP;
+  const frontendURL = process.env.FRONTEND_URL || urls.frontend;
+
   // Configurar CORS origins dinámicamente
   const corsOrigins = [
     'http://localhost:5173',  // Vite dev server
@@ -29,20 +33,26 @@ export async function getDynamicConfig(): Promise<DynamicConfig> {
     'http://127.0.0.1:3000',
   ];
 
-  // Agregar IP local si es diferente de localhost
-  if (networkConfig.localIP !== 'localhost') {
+  // Agregar CORS_ORIGINS desde variables de entorno
+  if (process.env.CORS_ORIGINS) {
+    const envCorsOrigins = process.env.CORS_ORIGINS.split(',').map(origin => origin.trim());
+    corsOrigins.push(...envCorsOrigins);
+  }
+
+  // Agregar IP del servidor (local o VPS)
+  if (serverIP && serverIP !== 'localhost') {
     corsOrigins.push(
-      `http://${networkConfig.localIP}:5173`,
-      `http://${networkConfig.localIP}:3000`,
-      `http://${networkConfig.localIP}`,
-      urls.frontend
+      `http://${serverIP}:5173`,
+      `http://${serverIP}:3000`,
+      `http://${serverIP}`,
+      frontendURL
     );
   }
 
   cachedConfig = {
-    serverIP: networkConfig.localIP,
-    frontendURL: urls.frontend,
-    backendURL: urls.api,
+    serverIP: serverIP,
+    frontendURL: frontendURL,
+    backendURL: process.env.API_BASE_URL || urls.api,
     corsOrigins: [...new Set(corsOrigins)] // Eliminar duplicados
   };
 

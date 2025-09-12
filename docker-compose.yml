@@ -19,7 +19,7 @@ services:
     networks:
       - cgplayer-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U cgplayer -d cgplayerweb"]
+      test: ["CMD-SHELL", "pg_isready -U cgplayer -d cgplayerbd"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -50,10 +50,10 @@ services:
     restart: unless-stopped
     environment:
       # Base de datos
-      DATABASE_URL: postgresql://cgplayer:cgplayer_secure_password_2025@database:5432/cgplayerweb
+      DATABASE_URL: postgresql://cgplayer:cgplayerpassword@database:5432/cgplayerbd
       
       # JWT y seguridad
-      JWT_SECRET: cgplayer_vps_jwt_ultra_secure_key_2025_!@#$$%^&*()
+      JWT_SECRET: cgplayer_vps_jwt_ultra_secure_key_2025_!@#$%^&*()
       
       # Configuración del servidor
       NODE_ENV: production
@@ -66,7 +66,7 @@ services:
       # URLs y CORS para VPS
       FRONTEND_URL: http://192.99.122.62
       BACKEND_URL: http://192.99.122.62:3001
-      CORS_ORIGINS: http://localhost,http://192.99.122.62,http://127.0.0.1:5173,http://localhost:5173
+      CORS_ORIGINS: http://192.99.122.62,http://localhost,http://127.0.0.1,http://localhost:3000,http://localhost:5173
       
       # Redis (opcional)
       REDIS_URL: redis://redis:6379
