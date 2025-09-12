@@ -91,6 +91,8 @@ COPY --from=frontend-builder --chown=cgplayer:nodejs /app/frontend/dist ./fronte
 
 # Copiar archivos de configuración
 COPY docker/nginx.conf /etc/nginx/nginx.conf
+COPY docker/init-backend.sh /app/init-backend.sh
+RUN chmod +x /app/init-backend.sh
 
 # Crear configuración de supervisord con echo (compatible con linters)
 RUN echo '[supervisord]' > /etc/supervisor/conf.d/supervisord.conf && \
@@ -99,7 +101,7 @@ RUN echo '[supervisord]' > /etc/supervisor/conf.d/supervisord.conf && \
     echo 'logfile_maxbytes=0' >> /etc/supervisor/conf.d/supervisord.conf && \
     echo '' >> /etc/supervisor/conf.d/supervisord.conf && \
     echo '[program:init]' >> /etc/supervisor/conf.d/supervisord.conf && \
-    echo 'command=/bin/sh -c "until pg_isready -h database -p 5432 -U cgplayer; do sleep 2; done; cd /app/backend; npx prisma generate; npx prisma db push --accept-data-loss || true; node prisma/seed-definitivo.js || true; echo CGPlayerWeb inicializado correctamente"' >> /etc/supervisor/conf.d/supervisord.conf && \
+    echo 'command=/app/init-backend.sh' >> /etc/supervisor/conf.d/supervisord.conf && \
     echo 'autostart=true' >> /etc/supervisor/conf.d/supervisord.conf && \
     echo 'autorestart=false' >> /etc/supervisor/conf.d/supervisord.conf && \
     echo 'startsecs=0' >> /etc/supervisor/conf.d/supervisord.conf && \
