@@ -191,12 +191,17 @@ router.post('/backup/create', authenticateToken, requireAdmin, async (req: Reque
 
 // Restaurar backup
 router.post('/backup/restore', authenticateToken, requireAdmin, upload.single('backup'), async (req: Request, res: Response) => {
+  // Aumentar timeout para operaciones largas en VPS
+  const originalTimeout = req.socket.timeout || 0;
+  req.socket.setTimeout(300000); // 5 minutos
+  
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No se proporcionó archivo de backup' });
     }
 
     console.log('🔄 Iniciando restauración de backup...');
+    console.log('⚙️ Configuración VPS: timeout extendido a 5 minutos');
     
     const tempDir = path.join(projectRoot, 'temp-restore');
     const zipPath = req.file.path;
@@ -595,44 +600,102 @@ router.post('/backup/restore', authenticateToken, requireAdmin, upload.single('b
     if (fs.existsSync(uploadsPath)) {
       const targetUploadsDir = path.join(projectRoot, 'backend', 'uploads');
       
-      // Eliminar completamente archivos uploads actuales (no hacer backup)
+      // Eliminar archivos uploads actuales de forma más segura para VPS
       if (fs.existsSync(targetUploadsDir)) {
-        console.log('🗑️ Eliminando archivos uploads actuales completamente...');
-        fs.rmSync(targetUploadsDir, { recursive: true, force: true });
-        console.log('✅ Archivos uploads actuales eliminados');
+        console.log('🗑️ Eliminando archivos uploads actuales...');
+        try {
+          // Método más seguro: eliminar contenido en lugar del directorio completo
+          const removeContents = (dirPath: string) => {
+            if (!fs.existsSync(dirPath)) return;
+            const files = fs.readdirSync(dirPath);
+            for (const file of files) {
+              const filePath = path.join(dirPath, file);
+              const stats = fs.statSync(filePath);
+              if (stats.isDirectory()) {
+                removeContents(filePath);
+                try {
+                  fs.rmdirSync(filePath);
+                } catch (err) {
+                  console.warn(`⚠️ No se pudo eliminar directorio ${filePath}:`, err);
+                }
+              } else {
+                try {
+                  fs.unlinkSync(filePath);
+                } catch (err) {
+                  console.warn(`⚠️ No se pudo eliminar archivo ${filePath}:`, err);
+                }
+              }
+            }
+          };
+          
+          removeContents(targetUploadsDir);
+          console.log('✅ Contenido de uploads eliminado');
+        } catch (error) {
+          console.warn('⚠️ Error eliminando archivos uploads (continuando):', error);
+          // No lanzar error, continuar con la restauración
+        }
       }
       
-      // Copiar nuevos archivos
+      // Asegurar que el directorio base existe
+      if (!fs.existsSync(targetUploadsDir)) {
+        fs.mkdirSync(targetUploadsDir, { recursive: true });
+        console.log('📁 Directorio uploads recreado');
+      }
+      
+      // Copiar nuevos archivos con manejo de errores mejorado
       const copyDir = (src: string, dest: string): number => {
         let count = 0;
-        if (!fs.existsSync(dest)) {
-          fs.mkdirSync(dest, { recursive: true });
-        }
-        
-        const files = fs.readdirSync(src);
-        for (const file of files) {
-          const srcFile = path.join(src, file);
-          const destFile = path.join(dest, file);
-          
-          if (fs.statSync(srcFile).isDirectory()) {
-            count += copyDir(srcFile, destFile);
-          } else {
-            fs.copyFileSync(srcFile, destFile);
-            count++;
+        try {
+          if (!fs.existsSync(dest)) {
+            fs.mkdirSync(dest, { recursive: true });
           }
+          
+          const files = fs.readdirSync(src);
+          for (const file of files) {
+            const srcFile = path.join(src, file);
+            const destFile = path.join(dest, file);
+            
+            try {
+              if (fs.statSync(srcFile).isDirectory()) {
+                count += copyDir(srcFile, destFile);
+              } else {
+                fs.copyFileSync(srcFile, destFile);
+                count++;
+              }
+            } catch (fileError) {
+              console.warn(`⚠️ Error copiando ${srcFile}:`, fileError);
+            }
+          }
+        } catch (dirError) {
+          console.warn(`⚠️ Error procesando directorio ${src}:`, dirError);
         }
         return count;
       };
       
-      filesRestored = copyDir(uploadsPath, targetUploadsDir);
-      
-      // Verificar restauración específica de imágenes de perfil
-      const restoredProfileImagesDir = path.join(targetUploadsDir, 'images', 'profiles');
-      if (fs.existsSync(restoredProfileImagesDir)) {
-        const profileImages = fs.readdirSync(restoredProfileImagesDir);
-        console.log(`✅ ${filesRestored} archivos restaurados (incluyendo ${profileImages.length} imágenes de perfil)`);
-      } else {
-        console.log(`✅ ${filesRestored} archivos restaurados`);
+      try {
+        filesRestored = copyDir(uploadsPath, targetUploadsDir);
+        
+        // Verificar restauración específica de imágenes de perfil
+        const restoredProfileImagesDir = path.join(targetUploadsDir, 'images', 'profiles');
+        if (fs.existsSync(restoredProfileImagesDir)) {
+          const profileImages = fs.readdirSync(restoredProfileImagesDir);
+          console.log(`✅ ${filesRestored} archivos restaurados (incluyendo ${profileImages.length} imágenes de perfil)`);
+        } else {
+          console.log(`✅ ${filesRestored} archivos restaurados`);
+        }
+        
+        // Verificar permisos después de la copia
+        try {
+          if (process.platform !== 'win32') {
+            await execAsync(`chmod -R 755 "${targetUploadsDir}"`);
+            console.log('✅ Permisos de archivos ajustados');
+          }
+        } catch (permError) {
+          console.warn('⚠️ No se pudieron ajustar permisos:', permError);
+        }
+      } catch (copyError) {
+        console.error('❌ Error durante la copia de archivos:', copyError);
+        throw new Error('Error copiando archivos: ' + (copyError instanceof Error ? copyError.message : 'Error desconocido'));
       }
     } else {
       console.log('ℹ️ No hay archivos para restaurar');
@@ -655,6 +718,9 @@ router.post('/backup/restore', authenticateToken, requireAdmin, upload.single('b
     console.log('🎉 Backup restaurado exitosamente');
     console.log('📊 Estadísticas finales:', finalStats);
 
+    // Restaurar timeout original
+    req.socket.setTimeout(originalTimeout);
+
     res.json({
       success: true,
       message: 'Backup restaurado exitosamente',
@@ -667,6 +733,10 @@ router.post('/backup/restore', authenticateToken, requireAdmin, upload.single('b
 
   } catch (error) {
     console.error('Error restoring backup:', error);
+    
+    // Restaurar timeout original en caso de error
+    req.socket.setTimeout(originalTimeout);
+    
     res.status(500).json({ 
       error: 'Error restaurando backup',
       details: error instanceof Error ? error.message : 'Error desconocido'
