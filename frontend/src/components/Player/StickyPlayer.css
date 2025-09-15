@@ -2,15 +2,20 @@
 
 /* Contenedor principal del reproductor */
 .sticky-player {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
+  position: fixed !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
   background-color: white;
   border-top: 1px solid #e5e7eb;
   box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.1);
-  z-index: 50; /* Mayor z-index para estar siempre visible encima de todo */
+  z-index: 9999 !important; /* MAXIMUM z-index to ensure entire player is always on top */
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Ensure ALL children inherit proper stacking context */
+.sticky-player * {
+  position: relative;
 }
 
 .sticky-player--collapsed {
@@ -35,7 +40,7 @@
   padding: 0 !important; /* Remove any padding */
   transition: height 0.2s ease-in-out;
   border-radius: 0 !important; /* Remove border radius so it fits perfectly at top */
-  z-index: 51; /* Above sticky player but below thumb */
+  z-index: 10001 !important; /* Above sticky player but below thumb */
   /* Prevent accidental page/section navigation while dragging timeline */
   touch-action: pan-x; /* Only allow horizontal drag for timeline */
   user-select: none; /* Prevent text selection */
@@ -59,18 +64,22 @@
 .progress-bar__thumb {
   position: absolute;
   top: 50%;
-  right: -6px;
-  width: 12px;
-  height: 12px;
+  right: -8px; /* Adjusted for larger size */
+  width: 14px; /* Slightly larger for better visibility */
+  height: 14px;
   background-color: #3b82f6;
-  border: 2px solid #ffffff;
+  border: 3px solid #ffffff; /* Thicker white border for contrast */
   border-radius: 50%;
-  transform: translateY(-50%);
+  transform: translateY(-50%); /* Perfect center alignment with the bar */
   transition: all 0.2s ease;
   cursor: pointer;
-  z-index: 9999 !important; /* Maximum z-index to ensure it's above everything */
-  box-shadow: 0 4px 8px rgba(59, 130, 246, 0.6), 0 2px 4px rgba(0, 0, 0, 0.2);
-  opacity: 0;
+  z-index: 10002 !important; /* Above progress bar - brings to front */
+  box-shadow: 
+    0 0 0 1px rgba(59, 130, 246, 0.3), /* Subtle outer ring */
+    0 1px 3px rgba(0, 0, 0, 0.12), /* Base shadow */
+    0 2px 6px rgba(59, 130, 246, 0.4), /* Blue glow shadow */
+    0 4px 12px rgba(0, 0, 0, 0.15); /* Elevation shadow */
+  opacity: 0.8; /* Make it visible by default */
   /* Prevent accidental page/section navigation while dragging */
   touch-action: none; /* Disable all touch gestures on thumb */
   user-select: none;
@@ -84,8 +93,12 @@
 }
 
 .progress-bar__thumb:hover {
-  transform: translateY(-50%) scale(1.2);
-  box-shadow: 0 6px 12px rgba(59, 130, 246, 0.8), 0 4px 8px rgba(0, 0, 0, 0.3);
+  transform: translateY(-50%) scale(1.15); /* Centered but larger on hover */
+  box-shadow: 
+    0 0 0 2px rgba(59, 130, 246, 0.4), /* Enhanced outer ring */
+    0 2px 4px rgba(0, 0, 0, 0.15), /* Enhanced base shadow */
+    0 4px 8px rgba(59, 130, 246, 0.5), /* Enhanced blue glow */
+    0 8px 16px rgba(0, 0, 0, 0.2); /* Enhanced elevation shadow */
 }
 
 /* Responsive para móvil */
@@ -109,15 +122,26 @@
   
   .progress-bar__thumb {
     opacity: 1; /* Siempre visible en móvil */
-    width: 16px;
-    height: 16px;
-    right: -8px;
-    z-index: 9999 !important; /* Maximum z-index to ensure it's above everything */
-    box-shadow: 0 4px 8px rgba(59, 130, 246, 0.7), 0 2px 6px rgba(0, 0, 0, 0.3);
+    width: 18px; /* Larger for mobile touch */
+    height: 18px;
+    right: -9px;
+    z-index: 10002 !important; /* Above progress bar */
+    border: 3px solid #ffffff; /* Thick border for mobile */
+    transform: translateY(-50%); /* Perfect center alignment with the bar */
+    box-shadow: 
+      0 0 0 1px rgba(59, 130, 246, 0.4), /* Outer ring for mobile */
+      0 1px 4px rgba(0, 0, 0, 0.15), /* Base shadow */
+      0 3px 8px rgba(59, 130, 246, 0.5), /* Blue glow */
+      0 6px 16px rgba(0, 0, 0, 0.2); /* Elevation shadow */
   }
   
   .progress-bar__thumb:active {
-    transform: translateY(-50%) scale(1.3);
+    transform: translateY(-50%) scale(1.2); /* Centered but larger on touch */
+    box-shadow: 
+      0 0 0 2px rgba(59, 130, 246, 0.5), /* Enhanced ring on active */
+      0 1px 3px rgba(0, 0, 0, 0.2), /* Base shadow */
+      0 2px 6px rgba(59, 130, 246, 0.6), /* Enhanced glow */
+      0 4px 12px rgba(0, 0, 0, 0.25); /* Enhanced elevation */
   }
 }
 
@@ -345,7 +369,7 @@
   overflow-y: auto;
   animation: slideUp 0.3s ease-out;
   position: relative;
-  z-index: 42; /* Por debajo del reproductor principal */
+  z-index: 1 !important; /* Much lower z-index to ensure it's always below sticky player */
 }
 
 /* Responsive para móvil - MEJORADO para evitar que tape el sticky player */
@@ -358,7 +382,7 @@
     bottom: 76px; /* IMPORTANTE: Dejar más espacio para el sticky player (76px en lugar de 70px) */
     max-height: calc(100vh - 76px);
     height: calc(100vh - 76px);
-    z-index: 40 !important; /* REDUCIDO: Asegurar que esté por debajo del reproductor */
+    z-index: 1 !important; /* Much lower: Ensure it's always below sticky player */
     padding: 1rem 0.5rem;
     border-top: none;
     /* NUEVO: Evitar que la cola interfiera con el scroll del sticky player */
@@ -373,7 +397,7 @@
   
   /* MEJORADO: Asegurar que el reproductor principal esté siempre visible en móvil */
   .sticky-player {
-    z-index: 50 !important; /* Mayor que la cola para estar siempre visible */
+    z-index: 1000 !important; /* Much higher than queue to be always visible */
     position: fixed !important;
     bottom: 0 !important;
     /* NUEVO: Evitar que otros elementos interfieran */
@@ -384,7 +408,7 @@
   .sticky-player--expanded {
     position: fixed !important;
     bottom: 0 !important;
-    z-index: 50 !important;
+    z-index: 1000 !important; /* Much higher than queue */
   }
 }
 
@@ -644,6 +668,10 @@
 
 /* Responsive Design - Tablet y Desktop */
 @media (min-width: 768px) {
+  .sticky-player {
+    z-index: 9999 !important; /* Ensure high z-index on desktop */
+  }
+  
   .progress-bar {
     height: 4px !important; /* Ensure consistent height */
     position: absolute !important; /* Force absolute positioning on desktop */
@@ -652,6 +680,7 @@
     right: 0 !important;
     margin: 0 !important; /* No margins on desktop */
     padding: 0 !important; /* No padding on desktop */
+    z-index: 10001 !important; /* Above sticky player but below thumb */
   }
   .sticky-player--collapsed {
     height: 88px; /* Increased to provide more space with progress bar at top */
@@ -703,6 +732,29 @@
   
   .volume-controls {
     display: flex;
+  }
+  
+  /* Progress bar thumb styling for desktop */
+  .progress-bar__thumb {
+    width: 14px !important;
+    height: 14px !important;
+    border: 3px solid #ffffff !important;
+    z-index: 10002 !important; /* Highest z-index for thumb on desktop */
+    transform: translateY(-50%) !important; /* Perfect center alignment with the bar */
+    box-shadow: 
+      0 0 0 1px rgba(59, 130, 246, 0.3), /* Subtle outer ring */
+      0 1px 3px rgba(0, 0, 0, 0.15), /* Base shadow */
+      0 2px 6px rgba(59, 130, 246, 0.4), /* Blue glow */
+      0 4px 12px rgba(0, 0, 0, 0.15) !important; /* Elevation shadow */
+  }
+  
+  .progress-bar__thumb:hover {
+    transform: translateY(-50%) scale(1.1) !important; /* Centered but larger on hover */
+    box-shadow: 
+      0 0 0 2px rgba(59, 130, 246, 0.4), /* Enhanced ring on hover */
+      0 1px 4px rgba(0, 0, 0, 0.2), /* Enhanced base shadow */
+      0 3px 8px rgba(59, 130, 246, 0.5), /* Enhanced glow */
+      0 6px 16px rgba(0, 0, 0, 0.2) !important; /* Enhanced elevation */
   }
 }
 
@@ -815,7 +867,7 @@
   right: 0;
   bottom: 0;
   background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
-  z-index: 50;
+  z-index: 9997; /* Below sticky player */
   display: flex;
   flex-direction: column;
 }
@@ -1081,6 +1133,11 @@
   margin-top: 0.5rem;
 }
 
+/* CRITICAL: Hide main progress bar when mobile fullscreen is active */
+body:has(.mobile-fullscreen-player) .sticky-player .progress-bar {
+  display: none !important;
+}
+
 /* Pantalla completa móvil estilo Spotify mejorada */
 .mobile-fullscreen-player {
   position: fixed;
@@ -1091,7 +1148,7 @@
   width: 100vw;
   height: 100vh;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  z-index: 60; /* Mayor que el reproductor principal para pantalla completa */
+  z-index: 9998; /* Just below sticky player but above everything else */
   display: flex;
   flex-direction: column;
   color: white;
@@ -1261,41 +1318,72 @@
 
 .mobile-fullscreen-progress__bar {
   width: 100%;
-  height: 6px;
-  background: rgba(255, 255, 255, 0.2);
+  height: 6px; /* Good thickness for visibility */
+  background: rgba(255, 255, 255, 0.2); /* Lighter background to show contrast */
   border-radius: 3px;
   cursor: pointer;
   position: relative;
-  padding: 10px 0; /* Área de toque más grande */
+  padding: 12px 0; /* Larger touch area */
+  /* Prevent accidental page navigation while dragging timeline */
+  touch-action: pan-x; /* Only allow horizontal drag for timeline */
+  user-select: none; /* Prevent text selection */
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+
+.mobile-fullscreen-progress__bar:hover {
+  height: 8px; /* Grow slightly on hover */
 }
 
 .mobile-fullscreen-progress__fill {
   height: 100%;
-  background: white;
+  background: rgba(255, 255, 255, 0.9); /* Solid white for clear contrast with background */
   border-radius: 3px;
   transition: width 0.1s ease-out;
   position: relative;
+  box-shadow: 
+    0 0 0 1px rgba(255, 255, 255, 0.3), /* Subtle border */
+    0 1px 3px rgba(0, 0, 0, 0.2); /* Subtle shadow for depth */
 }
 
 .mobile-fullscreen-progress__thumb {
   position: absolute;
   top: 50%;
-  right: -8px;
-  width: 16px;
-  height: 16px;
-  background: white;
-  border: 2px solid rgba(255, 255, 255, 0.8);
+  right: -10px; /* Adjusted for larger size */
+  width: 20px; /* Larger for better touch interaction */
+  height: 20px;
+  background: #ffffff; /* Pure white for contrast */
+  border: 3px solid rgba(255, 255, 255, 0.95); /* Thicker border */
   border-radius: 50%;
-  transform: translateY(-50%);
-  transition: all 0.2s ease;
+  transform: translateY(-50%); /* Perfect center alignment with the bar */
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); /* Smooth easing */
   cursor: pointer;
-  z-index: 2;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  z-index: 10002; /* High z-index to ensure visibility */
+  box-shadow: 
+    0 0 0 2px rgba(255, 255, 255, 0.3), /* Outer ring */
+    0 2px 8px rgba(0, 0, 0, 0.25), /* Base shadow */
+    0 4px 16px rgba(0, 0, 0, 0.15); /* Elevation shadow */
+  /* Prevent accidental page navigation */
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.mobile-fullscreen-progress__thumb:hover {
+  transform: translateY(-50%) scale(1.1); /* Centered but larger on hover */
+  box-shadow: 
+    0 0 0 3px rgba(255, 255, 255, 0.4), /* Enhanced ring */
+    0 3px 12px rgba(0, 0, 0, 0.3), /* Enhanced shadow */
+    0 6px 20px rgba(0, 0, 0, 0.2); /* Enhanced elevation */
 }
 
 .mobile-fullscreen-progress__thumb:active {
-  transform: translateY(-50%) scale(1.2);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+  transform: translateY(-50%) scale(1.2); /* Centered but larger on touch */
+  box-shadow: 
+    0 0 0 4px rgba(255, 255, 255, 0.5), /* Maximum ring */
+    0 4px 16px rgba(0, 0, 0, 0.35), /* Maximum shadow */
+    0 8px 24px rgba(0, 0, 0, 0.25); /* Maximum elevation */
 }
 
 .mobile-fullscreen-controls {

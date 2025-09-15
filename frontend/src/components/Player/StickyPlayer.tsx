@@ -1089,6 +1089,7 @@ const StickyPlayer: React.FC = () => {
 
   // Estados para el drag de la barra de progreso
   const [isDragging, setIsDragging] = useState(false);
+  const [draggingElement, setDraggingElement] = useState<HTMLElement | null>(null);
 
   // Función para toggle del sincronizador automático
   const toggleAutoSync = () => {
@@ -1172,11 +1173,15 @@ const StickyPlayer: React.FC = () => {
   // Configurar Media Session API para controles nativos en móvil
   useMediaSession();
 
-  // Función para actualizar el progreso
-  const handleProgressUpdate = useCallback((clientX: number) => {
-    if (!progressRef.current || !duration) return;
+  // Función para actualizar el progreso (funciona con cualquier barra de progreso)
+  const handleProgressUpdate = useCallback((clientX: number, targetElement?: HTMLElement) => {
+    if (!duration) return;
     
-    const rect = progressRef.current.getBoundingClientRect();
+    // Use the target element if provided, otherwise fall back to progressRef
+    const element = targetElement || progressRef.current;
+    if (!element) return;
+    
+    const rect = element.getBoundingClientRect();
     const x = clientX - rect.left;
     const percentage = Math.max(0, Math.min(1, x / rect.width));
     const newTime = percentage * duration;
@@ -1189,7 +1194,8 @@ const StickyPlayer: React.FC = () => {
     e.preventDefault();
     e.stopPropagation(); // Prevent event from bubbling up to parent elements
     setIsDragging(true);
-    handleProgressUpdate(e.clientX);
+    setDraggingElement(e.currentTarget);
+    handleProgressUpdate(e.clientX, e.currentTarget);
   }, [handleProgressUpdate]);
 
   // Manejar inicio del drag en touch
@@ -1197,29 +1203,31 @@ const StickyPlayer: React.FC = () => {
     e.preventDefault();
     e.stopPropagation(); // Prevent event from bubbling up to parent elements
     setIsDragging(true);
-    handleProgressUpdate(e.touches[0].clientX);
+    setDraggingElement(e.currentTarget);
+    handleProgressUpdate(e.touches[0].clientX, e.currentTarget);
   }, [handleProgressUpdate]);
 
   // Manejar eventos globales de mouse y touch
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
-      if (isDragging) {
+      if (isDragging && draggingElement) {
         e.preventDefault();
         e.stopPropagation();
-        handleProgressUpdate(e.clientX);
+        handleProgressUpdate(e.clientX, draggingElement);
       }
     };
 
     const handleTouchMove = (e: TouchEvent) => {
-      if (isDragging && e.touches.length > 0) {
+      if (isDragging && draggingElement && e.touches.length > 0) {
         e.preventDefault();
         e.stopPropagation();
-        handleProgressUpdate(e.touches[0].clientX);
+        handleProgressUpdate(e.touches[0].clientX, draggingElement);
       }
     };
 
     const handleEnd = () => {
       setIsDragging(false);
+      setDraggingElement(null);
     };
 
     if (isDragging) {
@@ -1235,7 +1243,7 @@ const StickyPlayer: React.FC = () => {
       document.removeEventListener('touchmove', handleTouchMove);
       document.removeEventListener('touchend', handleEnd);
     };
-  }, [isDragging, handleProgressUpdate]);
+  }, [isDragging, draggingElement, handleProgressUpdate]);
 
   // Manejar scroll del body cuando se abre pantalla completa de letras
   useEffect(() => {
@@ -1364,9 +1372,9 @@ const StickyPlayer: React.FC = () => {
   const progressPercentage = duration > 0 ? (currentTime / duration) * 100 : 0;
 
   const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!progressRef.current || !duration || isDragging) return;
+    if (!duration || isDragging) return;
     
-    const rect = progressRef.current.getBoundingClientRect();
+    const rect = e.currentTarget.getBoundingClientRect();
     const clickX = e.clientX - rect.left;
     const percentage = Math.max(0, Math.min(1, clickX / rect.width));
     const newTime = percentage * duration;
