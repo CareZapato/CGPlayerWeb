@@ -1090,8 +1090,6 @@ const StickyPlayer: React.FC = () => {
   // Estados para el drag de la barra de progreso
   const [isDragging, setIsDragging] = useState(false);
   const [draggingElement, setDraggingElement] = useState<HTMLElement | null>(null);
-  const [shouldMarquee, setShouldMarquee] = useState(false);
-  const titleRef = useRef<HTMLParagraphElement>(null);
 
   // Función para toggle del sincronizador automático
   const toggleAutoSync = () => {
@@ -1272,22 +1270,7 @@ const StickyPlayer: React.FC = () => {
     };
   }, [isFullscreenLyrics]);
 
-  // Detectar si el título necesita marquee
-  useEffect(() => {
-    const checkTitleOverflow = () => {
-      if (titleRef.current && currentSong) {
-        const element = titleRef.current;
-        const isOverflowing = element.scrollWidth > element.clientWidth;
-        setShouldMarquee(isOverflowing);
-      }
-    };
 
-    // Comprobar inmediatamente y después de un retraso para asegurar el render
-    checkTitleOverflow();
-    const timeoutId = setTimeout(checkTitleOverflow, 100);
-
-    return () => clearTimeout(timeoutId);
-  }, [currentSong]);
 
   // Actualizar título de la página con el nombre de la canción
   useEffect(() => {
@@ -1604,15 +1587,12 @@ const StickyPlayer: React.FC = () => {
           <div className="song-info__details">
             <div className="song-info__title-container">
               <p 
-                ref={titleRef}
-                className={`song-info__title song-info__title--with-tooltip ${shouldMarquee ? 'song-info__title--marquee' : ''}`}
+                className="song-info__title song-info__title--with-tooltip song-info__title--marquee"
                 title={`${currentSong.title} - ${currentSong.artist || 'Artista desconocido'}`}
               >
-                {shouldMarquee ? (
-                  <span className="song-title-text">{currentSong.title}</span>
-                ) : (
-                  currentSong.title
-                )}
+                <span className="song-title-text">
+                  {currentSong.title} • {currentSong.title}
+                </span>
               </p>
               
               {/* Tooltip/Globo de información */}

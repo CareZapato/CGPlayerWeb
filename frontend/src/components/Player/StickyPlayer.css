@@ -19,7 +19,7 @@
 }
 
 .sticky-player--collapsed {
-  height: 72px; /* Increased to provide more space with progress bar at top */
+  height: 76px; /* Increased 5% more for better song title readability */
 }
 
 .sticky-player--expanded {
@@ -241,36 +241,73 @@
   position: relative;
 }
 
-/* Marquee animation for long titles */
+/* Enhanced Marquee animation for long titles - Works on ALL versions (PC web, mobile light/dark) */
 .song-info__title--marquee {
   display: block;
   width: 100%;
   overflow: hidden;
+  position: relative;
+  /* Enhanced fade effect on edges for better visual in all themes */
   mask-image: linear-gradient(
     to right,
-    transparent 0%,
-    black 5%,
-    black 95%,
-    transparent 100%
+    rgba(0,0,0,0) 0%,
+    rgba(0,0,0,1) 8%,
+    rgba(0,0,0,1) 92%,
+    rgba(0,0,0,0) 100%
   );
   -webkit-mask-image: linear-gradient(
     to right,
-    transparent 0%,
-    black 5%,
-    black 95%,
-    transparent 100%
+    rgba(0,0,0,0) 0%,
+    rgba(0,0,0,1) 8%,
+    rgba(0,0,0,1) 92%,
+    rgba(0,0,0,0) 100%
+  );
+  /* Ensure proper rendering in all browsers */
+  -moz-mask-image: linear-gradient(
+    to right,
+    rgba(0,0,0,0) 0%,
+    rgba(0,0,0,1) 8%,
+    rgba(0,0,0,1) 92%,
+    rgba(0,0,0,0) 100%
   );
 }
 
 .song-info__title--marquee .song-title-text {
   display: inline-block;
-  animation: marquee 12s linear infinite;
-  padding-right: 60px; /* Space between repetitions */
+  animation: enhancedMarquee 10s linear infinite;
   white-space: nowrap;
+  will-change: transform; /* Optimize for animation */
+  /* Ensure text is always visible */
+  opacity: 1;
+  backface-visibility: hidden; /* Smooth animation on all devices */
 }
 
+/* Pause animation on hover for better UX */
 .song-info__title--marquee:hover .song-title-text {
   animation-play-state: paused;
+}
+
+/* Enhanced animation: continuous scrolling with pause for readability */
+@keyframes enhancedMarquee {
+  0% {
+    transform: translateX(0%);
+  }
+  25% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+/* Fallback for older browsers or when masks aren't supported */
+@supports not (mask-image: linear-gradient(to right, black, black)) {
+  .song-info__title--marquee {
+    /* Remove mask and use simple overflow hidden */
+    mask-image: none;
+    -webkit-mask-image: none;
+    -moz-mask-image: none;
+  }
 }
 
 @keyframes marquee {
@@ -421,9 +458,9 @@
     top: 0;
     left: 0;
     right: 0;
-    bottom: 85px; /* INCREASED: More space for sticky player with progress bar */
-    max-height: calc(100vh - 85px);
-    height: calc(100vh - 85px);
+    bottom: 90px; /* INCREASED: More space for sticky player with progress bar */
+    max-height: calc(100vh - 90px);
+    height: calc(100vh - 90px);
     z-index: -1 !important; /* Negative z-index to force below sticky player */
     padding: 1rem 0.5rem;
     border-top: none;
@@ -739,12 +776,13 @@
     z-index: 10001 !important; /* Above sticky player but below thumb */
   }
   .sticky-player--collapsed {
-    height: 88px; /* Increased to provide more space with progress bar at top */
+    height: 92px; /* Increased 5% more for better song title readability in mobile */
   }
   
   .player-layout {
     padding: calc(4px + 0.75rem) 1.5rem 0.75rem; /* Top padding includes progress bar height */
     gap: 1rem;
+    grid-template-columns: 1.2fr 1fr 1.2fr; /* More balanced distribution for mobile, centers content more to the right */
   }
   
   .song-info__avatar-circle {
@@ -762,6 +800,11 @@
   
   .song-info__subtitle {
     font-size: 0.875rem;
+  }
+  
+  /* Enhanced marquee for mobile devices */
+  .song-info__title--marquee .song-title-text {
+    animation-duration: 8s; /* Faster animation on mobile for better UX */
   }
   
   .player-controls {
