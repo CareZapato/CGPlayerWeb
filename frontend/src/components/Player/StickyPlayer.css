@@ -31,7 +31,7 @@
   width: 100% !important;
   background-color: #e5e7eb;
   cursor: pointer;
-  height: 4px !important;
+  height: 6px !important; /* Increased from 4px to 6px */
   position: absolute !important; /* Force absolute positioning */
   top: 0 !important; /* Always stick to the very top */
   left: 0 !important;
@@ -50,7 +50,7 @@
 }
 
 .progress-bar:hover {
-  height: 6px;
+  height: 8px; /* Increased from 6px to 8px */
 }
 
 .progress-bar__fill {
@@ -193,7 +193,7 @@
 .player-layout {
   padding: calc(4px + 0.5rem) 0.75rem 0.5rem; /* Top padding includes progress bar height */
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: 1.5fr 1fr 1fr; /* Give more space to song info column */
   align-items: center;
   gap: 0.5rem;
 }
@@ -238,6 +238,48 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  position: relative;
+}
+
+/* Marquee animation for long titles */
+.song-info__title--marquee {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  mask-image: linear-gradient(
+    to right,
+    transparent 0%,
+    black 5%,
+    black 95%,
+    transparent 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent 0%,
+    black 5%,
+    black 95%,
+    transparent 100%
+  );
+}
+
+.song-info__title--marquee .song-title-text {
+  display: inline-block;
+  animation: marquee 12s linear infinite;
+  padding-right: 60px; /* Space between repetitions */
+  white-space: nowrap;
+}
+
+.song-info__title--marquee:hover .song-title-text {
+  animation-play-state: paused;
+}
+
+@keyframes marquee {
+  0% {
+    transform: translateX(100%);
+  }
+  100% {
+    transform: translateX(-100%);
+  }
 }
 
 .song-info__subtitle {
@@ -727,21 +769,21 @@
   }
   
   .control-button {
-    padding: 0.5rem;
+    padding: 0.75rem; /* Increased from 0.5rem for better mobile touch */
   }
   
   .control-button--primary {
-    padding: 0.75rem;
+    padding: 1rem; /* Increased from 0.75rem for better visibility */
   }
   
   .control-button__icon {
-    width: 1.25rem;
-    height: 1.25rem;
+    width: 1.5rem; /* Increased from 1.25rem */
+    height: 1.5rem;
   }
   
   .control-button--primary .control-button__icon {
-    width: 1.25rem;
-    height: 1.25rem;
+    width: 1.75rem; /* Increased from 1.25rem for main play button */
+    height: 1.75rem;
   }
   
   .volume-controls {
