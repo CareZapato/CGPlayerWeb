@@ -64,9 +64,9 @@
 .progress-bar__thumb {
   position: absolute;
   top: 50%;
-  right: -8px; /* Adjusted for larger size */
-  width: 14px; /* Slightly larger for better visibility */
-  height: 14px;
+  right: -9px; /* Adjusted for larger size */
+  width: 16px; /* Increased diameter for better visibility */
+  height: 16px;
   background-color: #3b82f6;
   border: 3px solid #ffffff; /* Thicker white border for contrast */
   border-radius: 50%;
@@ -369,7 +369,7 @@
   overflow-y: auto;
   animation: slideUp 0.3s ease-out;
   position: relative;
-  z-index: 1 !important; /* Much lower z-index to ensure it's always below sticky player */
+  z-index: -1 !important; /* Negative z-index to force below sticky player */
 }
 
 /* Responsive para móvil - MEJORADO para evitar que tape el sticky player */
@@ -379,10 +379,10 @@
     top: 0;
     left: 0;
     right: 0;
-    bottom: 76px; /* IMPORTANTE: Dejar más espacio para el sticky player (76px en lugar de 70px) */
-    max-height: calc(100vh - 76px);
-    height: calc(100vh - 76px);
-    z-index: 1 !important; /* Much lower: Ensure it's always below sticky player */
+    bottom: 85px; /* INCREASED: More space for sticky player with progress bar */
+    max-height: calc(100vh - 85px);
+    height: calc(100vh - 85px);
+    z-index: -1 !important; /* Negative z-index to force below sticky player */
     padding: 1rem 0.5rem;
     border-top: none;
     /* NUEVO: Evitar que la cola interfiera con el scroll del sticky player */
@@ -393,6 +393,20 @@
     overscroll-behavior: contain;
     /* NUEVO: Evitar que la cola se mueva fuera de su contenedor */
     transform: translateZ(0); /* Hardware acceleration */
+  }
+  
+  /* CRITICAL: Ensure ALL queue panel elements respect z-index */
+  .queue-panel *, 
+  .queue-panel *::before, 
+  .queue-panel *::after {
+    z-index: inherit !important; /* Force all children to inherit low z-index */
+  }
+  
+  /* CRITICAL: Ensure sticky player is ALWAYS on top in mobile */
+  .sticky-player {
+    z-index: 9999 !important; /* Maximum z-index for mobile */
+    position: fixed !important;
+    isolation: isolate; /* Create new stacking context */
   }
   
   /* MEJORADO: Asegurar que el reproductor principal esté siempre visible en móvil */
@@ -1667,7 +1681,7 @@ body:has(.mobile-fullscreen-player) .sticky-player .progress-bar {
   right: 0;
   bottom: 0;
   background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
-  z-index: 70; /* Por encima de la pantalla completa normal */
+  z-index: 10000; /* Above sticky player for fullscreen queue */
   display: flex;
   flex-direction: column;
   color: white;
