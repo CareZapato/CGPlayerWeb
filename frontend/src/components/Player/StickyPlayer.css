@@ -14,30 +14,111 @@
 }
 
 .sticky-player--collapsed {
-  height: 4rem; /* 64px */
+  height: 72px; /* Increased to provide more space with progress bar at top */
 }
 
 .sticky-player--expanded {
   height: auto;
 }
 
-/* Barra de progreso principal */
+/* Barra de progreso principal - POSITIONED AT TOP */
 .progress-bar {
-  width: 100%;
+  width: 100% !important;
   background-color: #e5e7eb;
   cursor: pointer;
-  height: 4px;
+  height: 4px !important;
+  position: absolute !important; /* Force absolute positioning */
+  top: 0 !important; /* Always stick to the very top */
+  left: 0 !important;
+  right: 0 !important;
+  margin: 0 !important; /* Remove any margins */
+  padding: 0 !important; /* Remove any padding */
   transition: height 0.2s ease-in-out;
+  border-radius: 0 !important; /* Remove border radius so it fits perfectly at top */
+  z-index: 51; /* Above sticky player but below thumb */
+  /* Prevent accidental page/section navigation while dragging timeline */
+  touch-action: pan-x; /* Only allow horizontal drag for timeline */
+  user-select: none; /* Prevent text selection */
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
 }
 
 .progress-bar:hover {
-  height: 8px;
+  height: 6px;
 }
 
 .progress-bar__fill {
   height: 100%;
   background-color: #3b82f6;
-  transition: all 0.1s ease-out;
+  border-radius: 2px;
+  transition: width 0.1s ease-out;
+  position: relative;
+}
+
+.progress-bar__thumb {
+  position: absolute;
+  top: 50%;
+  right: -6px;
+  width: 12px;
+  height: 12px;
+  background-color: #3b82f6;
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  transform: translateY(-50%);
+  transition: all 0.2s ease;
+  cursor: pointer;
+  z-index: 9999 !important; /* Maximum z-index to ensure it's above everything */
+  box-shadow: 0 4px 8px rgba(59, 130, 246, 0.6), 0 2px 4px rgba(0, 0, 0, 0.2);
+  opacity: 0;
+  /* Prevent accidental page/section navigation while dragging */
+  touch-action: none; /* Disable all touch gestures on thumb */
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+
+.progress-bar:hover .progress-bar__thumb {
+  opacity: 1;
+}
+
+.progress-bar__thumb:hover {
+  transform: translateY(-50%) scale(1.2);
+  box-shadow: 0 6px 12px rgba(59, 130, 246, 0.8), 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* Responsive para móvil */
+@media (max-width: 768px) {
+  .progress-bar {
+    height: 4px !important; /* Keep same height as desktop */
+    background-color: #e5e7eb; /* Ensure background is visible */
+    position: absolute !important; /* Force absolute positioning on mobile */
+    top: 0 !important; /* Force to top on mobile */
+    left: 0 !important;
+    right: 0 !important;
+    margin: 0 !important; /* No margins on mobile */
+    padding: 0 !important; /* No padding on mobile */
+  }
+  
+  .progress-bar__fill {
+    height: 100%; /* Full height of the container */
+    background-color: #3b82f6; /* Ensure blue color is visible */
+    border-radius: 2px;
+  }
+  
+  .progress-bar__thumb {
+    opacity: 1; /* Siempre visible en móvil */
+    width: 16px;
+    height: 16px;
+    right: -8px;
+    z-index: 9999 !important; /* Maximum z-index to ensure it's above everything */
+    box-shadow: 0 4px 8px rgba(59, 130, 246, 0.7), 0 2px 6px rgba(0, 0, 0, 0.3);
+  }
+  
+  .progress-bar__thumb:active {
+    transform: translateY(-50%) scale(1.3);
+  }
 }
 
 /* Control de volumen personalizado */
@@ -86,7 +167,7 @@
 
 /* Layout principal del reproductor */
 .player-layout {
-  padding: 0.5rem 0.75rem;
+  padding: calc(4px + 0.5rem) 0.75rem 0.5rem; /* Top padding includes progress bar height */
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
   align-items: center;
@@ -267,28 +348,47 @@
   z-index: 42; /* Por debajo del reproductor principal */
 }
 
-/* Responsive para móvil */
+/* Responsive para móvil - MEJORADO para evitar que tape el sticky player */
 @media (max-width: 768px) {
   .queue-panel {
     position: fixed;
     top: 0;
     left: 0;
     right: 0;
-    bottom: 70px; /* Dejar espacio para el reproductor principal colapsado */
-    max-height: calc(100vh - 70px);
-    height: calc(100vh - 70px);
-    z-index: 45; /* Por debajo del reproductor principal */
+    bottom: 76px; /* IMPORTANTE: Dejar más espacio para el sticky player (76px en lugar de 70px) */
+    max-height: calc(100vh - 76px);
+    height: calc(100vh - 76px);
+    z-index: 40 !important; /* REDUCIDO: Asegurar que esté por debajo del reproductor */
     padding: 1rem 0.5rem;
     border-top: none;
+    /* NUEVO: Evitar que la cola interfiera con el scroll del sticky player */
+    contain: layout style; /* Aislar el contenido */
+    will-change: auto;
+    /* NUEVO: Asegurar scroll suave y estable */
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    /* NUEVO: Evitar que la cola se mueva fuera de su contenedor */
+    transform: translateZ(0); /* Hardware acceleration */
   }
   
-  /* Asegurar que el reproductor principal esté siempre visible en móvil */
+  /* MEJORADO: Asegurar que el reproductor principal esté siempre visible en móvil */
   .sticky-player {
     z-index: 50 !important; /* Mayor que la cola para estar siempre visible */
+    position: fixed !important;
+    bottom: 0 !important;
+    /* NUEVO: Evitar que otros elementos interfieran */
+    isolation: isolate;
+  }
+  
+  /* NUEVO: Asegurar que cuando hay cola visible, el sticky player no se mueva */
+  .sticky-player--expanded {
+    position: fixed !important;
+    bottom: 0 !important;
+    z-index: 50 !important;
   }
 }
 
-/* Mejorar el scroll de la cola */
+/* Mejorar el scroll de la cola - OPTIMIZADO para estabilidad */
 .queue-panel::-webkit-scrollbar {
   width: 6px;
 }
@@ -307,6 +407,27 @@
   background: #94a3b8;
 }
 
+/* NUEVO: Mejorar el comportamiento de scroll en móvil */
+@media (max-width: 768px) {
+  .queue-panel {
+    /* Scroll más suave en móvil */
+    scroll-behavior: smooth;
+    /* Evitar bounce scroll */
+    overscroll-behavior-y: contain;
+    /* Mejorar rendimiento */
+    -webkit-overflow-scrolling: touch;
+    /* Evitar scroll horizontal accidental */
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+  
+  /* NUEVO: Asegurar que el contenido de la cola no se mueva inadecuadamente */
+  .queue-panel > div {
+    position: relative;
+    will-change: auto;
+  }
+}
+
 .queue-item {
   display: flex;
   align-items: center;
@@ -314,13 +435,27 @@
   padding: 0.5rem;
   border-radius: 0.5rem;
   transition: background-color 0.2s ease-in-out;
+  /* NUEVO: Mejorar estabilidad durante drag */
+  position: relative;
+  will-change: auto;
+  backface-visibility: hidden;
+  /* NUEVO: Evitar movimientos no deseados */
+  touch-action: pan-y; /* Solo scroll vertical, no horizontal */
+  user-select: none;
+  -webkit-user-drag: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
-/* Responsive para móvil */
+/* Responsive para móvil - MEJORADO */
 @media (max-width: 768px) {
   .queue-item {
     padding: 0.75rem 0.5rem;
     margin: 0.25rem 0;
+    /* NUEVO: Mejor control en móvil */
+    min-height: 60px; /* Altura mínima para evitar saltos */
+    /* NUEVO: Asegurar que el elemento sea estable durante scroll y drag */
+    contain: layout;
+    transform: translateZ(0); /* Forzar hardware acceleration */
   }
 }
 
@@ -369,7 +504,7 @@
   color: #ef4444;
 }
 
-/* Drag and drop styles for simple queue */
+/* Drag and drop styles for simple queue - MEJORADO para estabilidad */
 .queue-item__drag-handle {
   color: #9ca3af;
   cursor: grab;
@@ -381,8 +516,14 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  /* MEJORADO: Mejor control de touch y drag */
   touch-action: none;
   user-select: none;
+  -webkit-user-drag: none;
+  -webkit-tap-highlight-color: transparent;
+  /* NUEVO: Estabilizar el elemento durante drag */
+  position: relative;
+  z-index: 1;
 }
 
 .queue-item__drag-handle:hover {
@@ -401,6 +542,12 @@
   border-radius: 0.5rem;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   z-index: 1000;
+  /* NUEVO: Estabilizar durante el drag */
+  position: relative;
+  will-change: transform;
+  backface-visibility: hidden;
+  /* NUEVO: Asegurar que no interfiera con el sticky player */
+  contain: layout style;
 }
 
 /* Panel header con botón de cerrar */
@@ -497,12 +644,21 @@
 
 /* Responsive Design - Tablet y Desktop */
 @media (min-width: 768px) {
+  .progress-bar {
+    height: 4px !important; /* Ensure consistent height */
+    position: absolute !important; /* Force absolute positioning on desktop */
+    top: 0 !important; /* Force to top on desktop */
+    left: 0 !important;
+    right: 0 !important;
+    margin: 0 !important; /* No margins on desktop */
+    padding: 0 !important; /* No padding on desktop */
+  }
   .sticky-player--collapsed {
-    height: 5rem; /* 80px */
+    height: 88px; /* Increased to provide more space with progress bar at top */
   }
   
   .player-layout {
-    padding: 0.75rem 1.5rem;
+    padding: calc(4px + 0.75rem) 1.5rem 0.75rem; /* Top padding includes progress bar height */
     gap: 1rem;
   }
   
@@ -1105,18 +1261,41 @@
 
 .mobile-fullscreen-progress__bar {
   width: 100%;
-  height: 4px;
+  height: 6px;
   background: rgba(255, 255, 255, 0.2);
-  border-radius: 2px;
+  border-radius: 3px;
   cursor: pointer;
   position: relative;
+  padding: 10px 0; /* Área de toque más grande */
 }
 
 .mobile-fullscreen-progress__fill {
   height: 100%;
   background: white;
-  border-radius: 2px;
+  border-radius: 3px;
   transition: width 0.1s ease-out;
+  position: relative;
+}
+
+.mobile-fullscreen-progress__thumb {
+  position: absolute;
+  top: 50%;
+  right: -8px;
+  width: 16px;
+  height: 16px;
+  background: white;
+  border: 2px solid rgba(255, 255, 255, 0.8);
+  border-radius: 50%;
+  transform: translateY(-50%);
+  transition: all 0.2s ease;
+  cursor: pointer;
+  z-index: 2;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.mobile-fullscreen-progress__thumb:active {
+  transform: translateY(-50%) scale(1.2);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
 }
 
 .mobile-fullscreen-controls {
