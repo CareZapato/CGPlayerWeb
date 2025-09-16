@@ -15,6 +15,53 @@ interface ChangelogEntry {
 
 const changelogData: ChangelogEntry[] = [
   {
+    version: '0.10.24',
+    date: '2025-01-16',
+    type: 'minor',
+    title: 'Mejoras Visuales del Reproductor - Enhanced Player Experience',
+    highlights: [
+      'StickyPlayer móvil 10% más grande para mejor usabilidad',
+      'Marquee universal en TODOS los títulos de canciones',
+      'Reproductor minimizado completamente arrastrable',
+      'Corrección de interacción táctil en dispositivos móviles',
+      'Botones de control redimensionados y reorganizados'
+    ],
+    changes: [
+      {
+        category: 'improved',
+        items: [
+          'StickyPlayer en versión móvil clara ampliado un 10% para mejor usabilidad',
+          'Botones de reproducción (play, pause, siguiente, anterior) más grandes',
+          'Mejor organización y distribución de elementos en el espacio disponible',
+          'Posicionamiento responsive que mantiene proporciones en diferentes pantallas',
+          'Marquee universal aplicado a TODOS los títulos de canciones (largos y cortos)',
+          'Sistema inteligente de detección automática para efecto de desplazamiento'
+        ]
+      },
+      {
+        category: 'added',
+        items: [
+          'Función de arrastre completa para reproductor minimizado (esfera)',
+          'Sistema de límites inteligentes que mantiene el reproductor en área visible',
+          'Cálculos de boundary precisos para diferentes tamaños de viewport',
+          'Estados de arrastre con gestión completa (isDragging, hasMoved, position)',
+          'Animaciones de texto con efecto marquee consistente en todas las versiones'
+        ]
+      },
+      {
+        category: 'fixed',
+        items: [
+          'CRÍTICO: Toque para expandir ahora funciona correctamente en dispositivos móviles',
+          'Touch events optimizados con preventDefault() controlado inteligentemente',
+          'Distinción precisa entre toque simple (expandir) y arrastre (mover)',
+          'Event propagation mejorado para evitar conflictos entre gestos',
+          'Sincronización perfecta entre eventos mouse y touch para compatibilidad universal',
+          'Posicionamiento adaptativo (4rem desktop, 3.5rem móvil) sin errores de cálculo'
+        ]
+      }
+    ]
+  },
+  {
     version: '0.10.19',
     date: '2025-01-15',
     type: 'patch',
@@ -504,7 +551,7 @@ const changelogData: ChangelogEntry[] = [
 ];
 
 const ChangelogPage: React.FC = () => {
-  const [expandedVersions, setExpandedVersions] = useState<string[]>(['0.10.9']);
+  const [expandedVersions, setExpandedVersions] = useState<string[]>(['0.10.24']);
 
   const toggleVersion = (version: string) => {
     setExpandedVersions(prev => 
@@ -567,7 +614,7 @@ const ChangelogPage: React.FC = () => {
               <p><strong>Versión actual:</strong> {changelogData[0].version}</p>
               <p><strong>Última actualización:</strong> {new Date(changelogData[0].date).toLocaleDateString('es-ES')}</p>
               <p><strong>Tecnologías:</strong> React, TypeScript, Node.js, PostgreSQL, Prisma</p>
-              <p><strong>Nuevo en v0.10.9:</strong> Sistema completo de distribución de voces con voces primarias, corrección de duplicados admin, y mejoras robustas en autenticación y base de datos</p>
+              <p><strong>Nuevo en v0.10.24:</strong> Mejoras visuales del reproductor con StickyPlayer 10% más grande, marquee universal en títulos, reproductor minimizado arrastrable y corrección de touch en móviles</p>
             </div>
           </div>
           <div className="text-6xl">
