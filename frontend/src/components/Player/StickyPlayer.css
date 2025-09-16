@@ -1998,7 +1998,134 @@ body:has(.mobile-fullscreen-player) .sticky-player .progress-bar {
 
 .song-info__title--with-tooltip:hover {
   color: #60a5fa;
-  text-shadow: 0 0 8px rgba(96, 165, 250, 0.3);
+}
+
+/* MEJORAS ESPECÍFICAS PARA MÓVIL - STICKYPLAYER VERSIÓN CLARA */
+/* Ampliar 10% el reproductor móvil y mejorar botones */
+@media (max-width: 768px) {
+  /* Ampliar la altura del reproductor móvil un 10% */
+  .sticky-player--collapsed {
+    height: 84px; /* Aumentado de 76px a 84px (10% más) */
+  }
+  
+  /* Ampliar el layout general con mejor espaciado */
+  .player-layout {
+    padding: calc(4px + 0.65rem) 0.85rem 0.65rem; /* Aumentado 10% */
+    gap: 0.65rem; /* Aumentado de 0.5rem a 0.65rem */
+    grid-template-columns: 1.4fr 1fr 1fr; /* Ligero ajuste para mejor balance */
+  }
+  
+  /* Avatar más grande para mejor visibilidad */
+  .song-info__avatar-circle {
+    width: 2.75rem; /* Aumentado de 2.5rem a 2.75rem (10% más) */
+    height: 2.75rem;
+    border-radius: 0.6rem; /* Proporcionalmente más grande */
+  }
+  
+  .song-info__avatar-text {
+    font-size: 0.825rem; /* Aumentado de 0.75rem (10% más) */
+    font-weight: 600;
+  }
+  
+  /* Mejorar espaciado entre elementos de información */
+  .song-info {
+    gap: 0.825rem; /* Aumentado de 0.75rem (10% más) */
+  }
+  
+  /* Títulos ligeramente más grandes para mejor legibilidad */
+  .song-info__title {
+    font-size: 0.9625rem; /* Aumentado de 0.875rem (10% más) */
+    font-weight: 500;
+    line-height: 1.3; /* Mejor espaciado vertical */
+  }
+  
+  .song-info__subtitle {
+    font-size: 0.825rem; /* Aumentado de 0.75rem (10% más) */
+    line-height: 1.2;
+  }
+  
+  /* CONTROLES MÁS GRANDES Y MEJOR ORGANIZADOS */
+  .player-controls {
+    gap: 0.6rem; /* Aumentado de 0.25rem para mejor separación */
+    padding: 0.2rem 0; /* Agregar algo de padding vertical */
+  }
+  
+  /* Botones secundarios más grandes */
+  .control-button {
+    padding: 0.45rem; /* Aumentado de 0.375rem (20% más grande) */
+    border-radius: 50%; /* Completamente redondo para mejor estética */
+    min-width: 2.2rem; /* Tamaño mínimo para touch */
+    min-height: 2.2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  /* Botón principal de play/pause MÁS GRANDE */
+  .control-button--primary {
+    padding: 0.65rem; /* Aumentado de 0.5rem (30% más grande) */
+    min-width: 2.8rem; /* Más prominente */
+    min-height: 2.8rem;
+    box-shadow: 0 4px 8px -1px rgba(0, 0, 0, 0.15); /* Sombra más pronunciada */
+  }
+  
+  /* Iconos más grandes para mejor visibilidad */
+  .control-button__icon {
+    width: 1.1rem; /* Aumentado de 1rem (10% más) */
+    height: 1.1rem;
+  }
+  
+  .control-button--primary .control-button__icon {
+    width: 1.3rem; /* Aumentado de 1rem (30% más) */
+    height: 1.3rem;
+  }
+  
+  /* Mejorar efectos hover/active para móvil */
+  .control-button:active {
+    transform: scale(0.92);
+    background-color: rgba(0, 0, 0, 0.05);
+  }
+  
+  .control-button--primary:active {
+    transform: scale(0.94);
+  }
+  
+  /* Controles adicionales con mejor espaciado */
+  .additional-controls {
+    gap: 0.6rem; /* Aumentado de 0.5rem */
+    padding: 0 0.1rem; /* Pequeño padding para evitar cortes */
+  }
+  
+  /* Asegurar que todos los botones tengan buen contraste en tema claro */
+  .control-button {
+    background-color: rgba(255, 255, 255, 0.8);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    color: #374151;
+    backdrop-filter: blur(4px);
+  }
+  
+  .control-button:hover,
+  .control-button:active {
+    background-color: rgba(255, 255, 255, 0.95);
+    border-color: rgba(0, 0, 0, 0.12);
+  }
+  
+  .control-button--active {
+    background-color: #dbeafe;
+    color: #2563eb;
+    border-color: #93c5fd;
+  }
+  
+  /* Mantener el botón principal con su color distintivo */
+  .control-button--primary {
+    background-color: #3b82f6;
+    color: white;
+    border: none;
+  }
+  
+  .control-button--primary:hover {
+    background-color: #2563eb;
+  }
 }
 
 .song-info__tooltip {
