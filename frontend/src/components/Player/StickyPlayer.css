@@ -2,42 +2,147 @@
 
 /* Contenedor principal del reproductor */
 .sticky-player {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
+  position: fixed !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
   background-color: white;
   border-top: 1px solid #e5e7eb;
   box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.1);
-  z-index: 50; /* Mayor z-index para estar siempre visible encima de todo */
+  z-index: 9999 !important; /* MAXIMUM z-index to ensure entire player is always on top */
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* Ensure ALL children inherit proper stacking context */
+.sticky-player * {
+  position: relative;
+}
+
 .sticky-player--collapsed {
-  height: 4rem; /* 64px */
+  height: 76px; /* Increased 5% more for better song title readability */
 }
 
 .sticky-player--expanded {
   height: auto;
 }
 
-/* Barra de progreso principal */
+/* Barra de progreso principal - POSITIONED AT TOP */
 .progress-bar {
-  width: 100%;
+  width: 100% !important;
   background-color: #e5e7eb;
   cursor: pointer;
-  height: 4px;
+  height: 6px !important; /* Increased from 4px to 6px */
+  position: absolute !important; /* Force absolute positioning */
+  top: 0 !important; /* Always stick to the very top */
+  left: 0 !important;
+  right: 0 !important;
+  margin: 0 !important; /* Remove any margins */
+  padding: 0 !important; /* Remove any padding */
   transition: height 0.2s ease-in-out;
+  border-radius: 0 !important; /* Remove border radius so it fits perfectly at top */
+  z-index: 10001 !important; /* Above sticky player but below thumb */
+  /* Prevent accidental page/section navigation while dragging timeline */
+  touch-action: pan-x; /* Only allow horizontal drag for timeline */
+  user-select: none; /* Prevent text selection */
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
 }
 
 .progress-bar:hover {
-  height: 8px;
+  height: 8px; /* Increased from 6px to 8px */
 }
 
 .progress-bar__fill {
   height: 100%;
   background-color: #3b82f6;
-  transition: all 0.1s ease-out;
+  border-radius: 2px;
+  transition: width 0.1s ease-out;
+  position: relative;
+}
+
+.progress-bar__thumb {
+  position: absolute;
+  top: 50%;
+  right: -9px; /* Adjusted for larger size */
+  width: 16px; /* Increased diameter for better visibility */
+  height: 16px;
+  background-color: #3b82f6;
+  border: 3px solid #ffffff; /* Thicker white border for contrast */
+  border-radius: 50%;
+  transform: translateY(-50%); /* Perfect center alignment with the bar */
+  transition: all 0.2s ease;
+  cursor: pointer;
+  z-index: 10002 !important; /* Above progress bar - brings to front */
+  box-shadow: 
+    0 0 0 1px rgba(59, 130, 246, 0.3), /* Subtle outer ring */
+    0 1px 3px rgba(0, 0, 0, 0.12), /* Base shadow */
+    0 2px 6px rgba(59, 130, 246, 0.4), /* Blue glow shadow */
+    0 4px 12px rgba(0, 0, 0, 0.15); /* Elevation shadow */
+  opacity: 0.8; /* Make it visible by default */
+  /* Prevent accidental page/section navigation while dragging */
+  touch-action: none; /* Disable all touch gestures on thumb */
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+
+.progress-bar:hover .progress-bar__thumb {
+  opacity: 1;
+}
+
+.progress-bar__thumb:hover {
+  transform: translateY(-50%) scale(1.15); /* Centered but larger on hover */
+  box-shadow: 
+    0 0 0 2px rgba(59, 130, 246, 0.4), /* Enhanced outer ring */
+    0 2px 4px rgba(0, 0, 0, 0.15), /* Enhanced base shadow */
+    0 4px 8px rgba(59, 130, 246, 0.5), /* Enhanced blue glow */
+    0 8px 16px rgba(0, 0, 0, 0.2); /* Enhanced elevation shadow */
+}
+
+/* Responsive para móvil */
+@media (max-width: 768px) {
+  .progress-bar {
+    height: 4px !important; /* Keep same height as desktop */
+    background-color: #e5e7eb; /* Ensure background is visible */
+    position: absolute !important; /* Force absolute positioning on mobile */
+    top: 0 !important; /* Force to top on mobile */
+    left: 0 !important;
+    right: 0 !important;
+    margin: 0 !important; /* No margins on mobile */
+    padding: 0 !important; /* No padding on mobile */
+  }
+  
+  .progress-bar__fill {
+    height: 100%; /* Full height of the container */
+    background-color: #3b82f6; /* Ensure blue color is visible */
+    border-radius: 2px;
+  }
+  
+  .progress-bar__thumb {
+    opacity: 1; /* Siempre visible en móvil */
+    width: 18px; /* Larger for mobile touch */
+    height: 18px;
+    right: -9px;
+    z-index: 10002 !important; /* Above progress bar */
+    border: 3px solid #ffffff; /* Thick border for mobile */
+    transform: translateY(-50%); /* Perfect center alignment with the bar */
+    box-shadow: 
+      0 0 0 1px rgba(59, 130, 246, 0.4), /* Outer ring for mobile */
+      0 1px 4px rgba(0, 0, 0, 0.15), /* Base shadow */
+      0 3px 8px rgba(59, 130, 246, 0.5), /* Blue glow */
+      0 6px 16px rgba(0, 0, 0, 0.2); /* Elevation shadow */
+  }
+  
+  .progress-bar__thumb:active {
+    transform: translateY(-50%) scale(1.2); /* Centered but larger on touch */
+    box-shadow: 
+      0 0 0 2px rgba(59, 130, 246, 0.5), /* Enhanced ring on active */
+      0 1px 3px rgba(0, 0, 0, 0.2), /* Base shadow */
+      0 2px 6px rgba(59, 130, 246, 0.6), /* Enhanced glow */
+      0 4px 12px rgba(0, 0, 0, 0.25); /* Enhanced elevation */
+  }
 }
 
 /* Control de volumen personalizado */
@@ -86,9 +191,9 @@
 
 /* Layout principal del reproductor */
 .player-layout {
-  padding: 0.5rem 0.75rem;
+  padding: calc(4px + 0.5rem) 0.75rem 0.5rem; /* Top padding includes progress bar height */
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: 1.5fr 1fr 1fr; /* Give more space to song info column */
   align-items: center;
   gap: 0.5rem;
 }
@@ -133,6 +238,85 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  position: relative;
+}
+
+/* Enhanced Marquee animation for long titles - Works on ALL versions (PC web, mobile light/dark) */
+.song-info__title--marquee {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  position: relative;
+  /* Enhanced fade effect on edges for better visual in all themes */
+  mask-image: linear-gradient(
+    to right,
+    rgba(0,0,0,0) 0%,
+    rgba(0,0,0,1) 8%,
+    rgba(0,0,0,1) 92%,
+    rgba(0,0,0,0) 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    to right,
+    rgba(0,0,0,0) 0%,
+    rgba(0,0,0,1) 8%,
+    rgba(0,0,0,1) 92%,
+    rgba(0,0,0,0) 100%
+  );
+  /* Ensure proper rendering in all browsers */
+  -moz-mask-image: linear-gradient(
+    to right,
+    rgba(0,0,0,0) 0%,
+    rgba(0,0,0,1) 8%,
+    rgba(0,0,0,1) 92%,
+    rgba(0,0,0,0) 100%
+  );
+}
+
+.song-info__title--marquee .song-title-text {
+  display: inline-block;
+  animation: enhancedMarquee 10s linear infinite;
+  white-space: nowrap;
+  will-change: transform; /* Optimize for animation */
+  /* Ensure text is always visible */
+  opacity: 1;
+  backface-visibility: hidden; /* Smooth animation on all devices */
+}
+
+/* Pause animation on hover for better UX */
+.song-info__title--marquee:hover .song-title-text {
+  animation-play-state: paused;
+}
+
+/* Enhanced animation: continuous scrolling with pause for readability */
+@keyframes enhancedMarquee {
+  0% {
+    transform: translateX(0%);
+  }
+  25% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+/* Fallback for older browsers or when masks aren't supported */
+@supports not (mask-image: linear-gradient(to right, black, black)) {
+  .song-info__title--marquee {
+    /* Remove mask and use simple overflow hidden */
+    mask-image: none;
+    -webkit-mask-image: none;
+    -moz-mask-image: none;
+  }
+}
+
+@keyframes marquee {
+  0% {
+    transform: translateX(100%);
+  }
+  100% {
+    transform: translateX(-100%);
+  }
 }
 
 .song-info__subtitle {
@@ -264,31 +448,64 @@
   overflow-y: auto;
   animation: slideUp 0.3s ease-out;
   position: relative;
-  z-index: 42; /* Por debajo del reproductor principal */
+  z-index: -1 !important; /* Negative z-index to force below sticky player */
 }
 
-/* Responsive para móvil */
+/* Responsive para móvil - MEJORADO para evitar que tape el sticky player */
 @media (max-width: 768px) {
   .queue-panel {
     position: fixed;
     top: 0;
     left: 0;
     right: 0;
-    bottom: 70px; /* Dejar espacio para el reproductor principal colapsado */
-    max-height: calc(100vh - 70px);
-    height: calc(100vh - 70px);
-    z-index: 45; /* Por debajo del reproductor principal */
+    bottom: 90px; /* INCREASED: More space for sticky player with progress bar */
+    max-height: calc(100vh - 90px);
+    height: calc(100vh - 90px);
+    z-index: -1 !important; /* Negative z-index to force below sticky player */
     padding: 1rem 0.5rem;
     border-top: none;
+    /* NUEVO: Evitar que la cola interfiera con el scroll del sticky player */
+    contain: layout style; /* Aislar el contenido */
+    will-change: auto;
+    /* NUEVO: Asegurar scroll suave y estable */
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    /* NUEVO: Evitar que la cola se mueva fuera de su contenedor */
+    transform: translateZ(0); /* Hardware acceleration */
   }
   
-  /* Asegurar que el reproductor principal esté siempre visible en móvil */
+  /* CRITICAL: Ensure ALL queue panel elements respect z-index */
+  .queue-panel *, 
+  .queue-panel *::before, 
+  .queue-panel *::after {
+    z-index: inherit !important; /* Force all children to inherit low z-index */
+  }
+  
+  /* CRITICAL: Ensure sticky player is ALWAYS on top in mobile */
   .sticky-player {
-    z-index: 50 !important; /* Mayor que la cola para estar siempre visible */
+    z-index: 9999 !important; /* Maximum z-index for mobile */
+    position: fixed !important;
+    isolation: isolate; /* Create new stacking context */
+  }
+  
+  /* MEJORADO: Asegurar que el reproductor principal esté siempre visible en móvil */
+  .sticky-player {
+    z-index: 1000 !important; /* Much higher than queue to be always visible */
+    position: fixed !important;
+    bottom: 0 !important;
+    /* NUEVO: Evitar que otros elementos interfieran */
+    isolation: isolate;
+  }
+  
+  /* NUEVO: Asegurar que cuando hay cola visible, el sticky player no se mueva */
+  .sticky-player--expanded {
+    position: fixed !important;
+    bottom: 0 !important;
+    z-index: 1000 !important; /* Much higher than queue */
   }
 }
 
-/* Mejorar el scroll de la cola */
+/* Mejorar el scroll de la cola - OPTIMIZADO para estabilidad */
 .queue-panel::-webkit-scrollbar {
   width: 6px;
 }
@@ -307,6 +524,27 @@
   background: #94a3b8;
 }
 
+/* NUEVO: Mejorar el comportamiento de scroll en móvil */
+@media (max-width: 768px) {
+  .queue-panel {
+    /* Scroll más suave en móvil */
+    scroll-behavior: smooth;
+    /* Evitar bounce scroll */
+    overscroll-behavior-y: contain;
+    /* Mejorar rendimiento */
+    -webkit-overflow-scrolling: touch;
+    /* Evitar scroll horizontal accidental */
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+  
+  /* NUEVO: Asegurar que el contenido de la cola no se mueva inadecuadamente */
+  .queue-panel > div {
+    position: relative;
+    will-change: auto;
+  }
+}
+
 .queue-item {
   display: flex;
   align-items: center;
@@ -314,13 +552,27 @@
   padding: 0.5rem;
   border-radius: 0.5rem;
   transition: background-color 0.2s ease-in-out;
+  /* NUEVO: Mejorar estabilidad durante drag */
+  position: relative;
+  will-change: auto;
+  backface-visibility: hidden;
+  /* NUEVO: Evitar movimientos no deseados */
+  touch-action: pan-y; /* Solo scroll vertical, no horizontal */
+  user-select: none;
+  -webkit-user-drag: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
-/* Responsive para móvil */
+/* Responsive para móvil - MEJORADO */
 @media (max-width: 768px) {
   .queue-item {
     padding: 0.75rem 0.5rem;
     margin: 0.25rem 0;
+    /* NUEVO: Mejor control en móvil */
+    min-height: 60px; /* Altura mínima para evitar saltos */
+    /* NUEVO: Asegurar que el elemento sea estable durante scroll y drag */
+    contain: layout;
+    transform: translateZ(0); /* Forzar hardware acceleration */
   }
 }
 
@@ -369,7 +621,7 @@
   color: #ef4444;
 }
 
-/* Drag and drop styles for simple queue */
+/* Drag and drop styles for simple queue - MEJORADO para estabilidad */
 .queue-item__drag-handle {
   color: #9ca3af;
   cursor: grab;
@@ -381,8 +633,14 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  /* MEJORADO: Mejor control de touch y drag */
   touch-action: none;
   user-select: none;
+  -webkit-user-drag: none;
+  -webkit-tap-highlight-color: transparent;
+  /* NUEVO: Estabilizar el elemento durante drag */
+  position: relative;
+  z-index: 1;
 }
 
 .queue-item__drag-handle:hover {
@@ -401,6 +659,12 @@
   border-radius: 0.5rem;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   z-index: 1000;
+  /* NUEVO: Estabilizar durante el drag */
+  position: relative;
+  will-change: transform;
+  backface-visibility: hidden;
+  /* NUEVO: Asegurar que no interfiera con el sticky player */
+  contain: layout style;
 }
 
 /* Panel header con botón de cerrar */
@@ -497,13 +761,28 @@
 
 /* Responsive Design - Tablet y Desktop */
 @media (min-width: 768px) {
+  .sticky-player {
+    z-index: 9999 !important; /* Ensure high z-index on desktop */
+  }
+  
+  .progress-bar {
+    height: 4px !important; /* Ensure consistent height */
+    position: absolute !important; /* Force absolute positioning on desktop */
+    top: 0 !important; /* Force to top on desktop */
+    left: 0 !important;
+    right: 0 !important;
+    margin: 0 !important; /* No margins on desktop */
+    padding: 0 !important; /* No padding on desktop */
+    z-index: 10001 !important; /* Above sticky player but below thumb */
+  }
   .sticky-player--collapsed {
-    height: 5rem; /* 80px */
+    height: 92px; /* Increased 5% more for better song title readability in mobile */
   }
   
   .player-layout {
-    padding: 0.75rem 1.5rem;
+    padding: calc(4px + 0.75rem) 1.5rem 0.75rem; /* Top padding includes progress bar height */
     gap: 1rem;
+    grid-template-columns: 1.2fr 1fr 1.2fr; /* More balanced distribution for mobile, centers content more to the right */
   }
   
   .song-info__avatar-circle {
@@ -523,30 +802,58 @@
     font-size: 0.875rem;
   }
   
+  /* Enhanced marquee for mobile devices */
+  .song-info__title--marquee .song-title-text {
+    animation-duration: 8s; /* Faster animation on mobile for better UX */
+  }
+  
   .player-controls {
     gap: 0.75rem;
   }
   
   .control-button {
-    padding: 0.5rem;
+    padding: 0.75rem; /* Increased from 0.5rem for better mobile touch */
   }
   
   .control-button--primary {
-    padding: 0.75rem;
+    padding: 1rem; /* Increased from 0.75rem for better visibility */
   }
   
   .control-button__icon {
-    width: 1.25rem;
-    height: 1.25rem;
+    width: 1.5rem; /* Increased from 1.25rem */
+    height: 1.5rem;
   }
   
   .control-button--primary .control-button__icon {
-    width: 1.25rem;
-    height: 1.25rem;
+    width: 1.75rem; /* Increased from 1.25rem for main play button */
+    height: 1.75rem;
   }
   
   .volume-controls {
     display: flex;
+  }
+  
+  /* Progress bar thumb styling for desktop */
+  .progress-bar__thumb {
+    width: 14px !important;
+    height: 14px !important;
+    border: 3px solid #ffffff !important;
+    z-index: 10002 !important; /* Highest z-index for thumb on desktop */
+    transform: translateY(-50%) !important; /* Perfect center alignment with the bar */
+    box-shadow: 
+      0 0 0 1px rgba(59, 130, 246, 0.3), /* Subtle outer ring */
+      0 1px 3px rgba(0, 0, 0, 0.15), /* Base shadow */
+      0 2px 6px rgba(59, 130, 246, 0.4), /* Blue glow */
+      0 4px 12px rgba(0, 0, 0, 0.15) !important; /* Elevation shadow */
+  }
+  
+  .progress-bar__thumb:hover {
+    transform: translateY(-50%) scale(1.1) !important; /* Centered but larger on hover */
+    box-shadow: 
+      0 0 0 2px rgba(59, 130, 246, 0.4), /* Enhanced ring on hover */
+      0 1px 4px rgba(0, 0, 0, 0.2), /* Enhanced base shadow */
+      0 3px 8px rgba(59, 130, 246, 0.5), /* Enhanced glow */
+      0 6px 16px rgba(0, 0, 0, 0.2) !important; /* Enhanced elevation */
   }
 }
 
@@ -659,7 +966,7 @@
   right: 0;
   bottom: 0;
   background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
-  z-index: 50;
+  z-index: 9997; /* Below sticky player */
   display: flex;
   flex-direction: column;
 }
@@ -925,6 +1232,11 @@
   margin-top: 0.5rem;
 }
 
+/* CRITICAL: Hide main progress bar when mobile fullscreen is active */
+body:has(.mobile-fullscreen-player) .sticky-player .progress-bar {
+  display: none !important;
+}
+
 /* Pantalla completa móvil estilo Spotify mejorada */
 .mobile-fullscreen-player {
   position: fixed;
@@ -935,7 +1247,7 @@
   width: 100vw;
   height: 100vh;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  z-index: 60; /* Mayor que el reproductor principal para pantalla completa */
+  z-index: 9998; /* Just below sticky player but above everything else */
   display: flex;
   flex-direction: column;
   color: white;
@@ -1105,18 +1417,72 @@
 
 .mobile-fullscreen-progress__bar {
   width: 100%;
-  height: 4px;
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 2px;
+  height: 6px; /* Good thickness for visibility */
+  background: rgba(255, 255, 255, 0.2); /* Lighter background to show contrast */
+  border-radius: 3px;
   cursor: pointer;
   position: relative;
+  padding: 12px 0; /* Larger touch area */
+  /* Prevent accidental page navigation while dragging timeline */
+  touch-action: pan-x; /* Only allow horizontal drag for timeline */
+  user-select: none; /* Prevent text selection */
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+
+.mobile-fullscreen-progress__bar:hover {
+  height: 8px; /* Grow slightly on hover */
 }
 
 .mobile-fullscreen-progress__fill {
   height: 100%;
-  background: white;
-  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.9); /* Solid white for clear contrast with background */
+  border-radius: 3px;
   transition: width 0.1s ease-out;
+  position: relative;
+  box-shadow: 
+    0 0 0 1px rgba(255, 255, 255, 0.3), /* Subtle border */
+    0 1px 3px rgba(0, 0, 0, 0.2); /* Subtle shadow for depth */
+}
+
+.mobile-fullscreen-progress__thumb {
+  position: absolute;
+  top: 50%;
+  right: -10px; /* Adjusted for larger size */
+  width: 20px; /* Larger for better touch interaction */
+  height: 20px;
+  background: #ffffff; /* Pure white for contrast */
+  border: 3px solid rgba(255, 255, 255, 0.95); /* Thicker border */
+  border-radius: 50%;
+  transform: translateY(-50%); /* Perfect center alignment with the bar */
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); /* Smooth easing */
+  cursor: pointer;
+  z-index: 10002; /* High z-index to ensure visibility */
+  box-shadow: 
+    0 0 0 2px rgba(255, 255, 255, 0.3), /* Outer ring */
+    0 2px 8px rgba(0, 0, 0, 0.25), /* Base shadow */
+    0 4px 16px rgba(0, 0, 0, 0.15); /* Elevation shadow */
+  /* Prevent accidental page navigation */
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.mobile-fullscreen-progress__thumb:hover {
+  transform: translateY(-50%) scale(1.1); /* Centered but larger on hover */
+  box-shadow: 
+    0 0 0 3px rgba(255, 255, 255, 0.4), /* Enhanced ring */
+    0 3px 12px rgba(0, 0, 0, 0.3), /* Enhanced shadow */
+    0 6px 20px rgba(0, 0, 0, 0.2); /* Enhanced elevation */
+}
+
+.mobile-fullscreen-progress__thumb:active {
+  transform: translateY(-50%) scale(1.2); /* Centered but larger on touch */
+  box-shadow: 
+    0 0 0 4px rgba(255, 255, 255, 0.5), /* Maximum ring */
+    0 4px 16px rgba(0, 0, 0, 0.35), /* Maximum shadow */
+    0 8px 24px rgba(0, 0, 0, 0.25); /* Maximum elevation */
 }
 
 .mobile-fullscreen-controls {
@@ -1400,7 +1766,7 @@
   right: 0;
   bottom: 0;
   background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
-  z-index: 70; /* Por encima de la pantalla completa normal */
+  z-index: 10000; /* Above sticky player for fullscreen queue */
   display: flex;
   flex-direction: column;
   color: white;
@@ -1632,7 +1998,134 @@
 
 .song-info__title--with-tooltip:hover {
   color: #60a5fa;
-  text-shadow: 0 0 8px rgba(96, 165, 250, 0.3);
+}
+
+/* MEJORAS ESPECÍFICAS PARA MÓVIL - STICKYPLAYER VERSIÓN CLARA */
+/* Ampliar 10% el reproductor móvil y mejorar botones */
+@media (max-width: 768px) {
+  /* Ampliar la altura del reproductor móvil un 10% */
+  .sticky-player--collapsed {
+    height: 84px; /* Aumentado de 76px a 84px (10% más) */
+  }
+  
+  /* Ampliar el layout general con mejor espaciado */
+  .player-layout {
+    padding: calc(4px + 0.65rem) 0.85rem 0.65rem; /* Aumentado 10% */
+    gap: 0.65rem; /* Aumentado de 0.5rem a 0.65rem */
+    grid-template-columns: 1.4fr 1fr 1fr; /* Ligero ajuste para mejor balance */
+  }
+  
+  /* Avatar más grande para mejor visibilidad */
+  .song-info__avatar-circle {
+    width: 2.75rem; /* Aumentado de 2.5rem a 2.75rem (10% más) */
+    height: 2.75rem;
+    border-radius: 0.6rem; /* Proporcionalmente más grande */
+  }
+  
+  .song-info__avatar-text {
+    font-size: 0.825rem; /* Aumentado de 0.75rem (10% más) */
+    font-weight: 600;
+  }
+  
+  /* Mejorar espaciado entre elementos de información */
+  .song-info {
+    gap: 0.825rem; /* Aumentado de 0.75rem (10% más) */
+  }
+  
+  /* Títulos ligeramente más grandes para mejor legibilidad */
+  .song-info__title {
+    font-size: 0.9625rem; /* Aumentado de 0.875rem (10% más) */
+    font-weight: 500;
+    line-height: 1.3; /* Mejor espaciado vertical */
+  }
+  
+  .song-info__subtitle {
+    font-size: 0.825rem; /* Aumentado de 0.75rem (10% más) */
+    line-height: 1.2;
+  }
+  
+  /* CONTROLES MÁS GRANDES Y MEJOR ORGANIZADOS */
+  .player-controls {
+    gap: 0.6rem; /* Aumentado de 0.25rem para mejor separación */
+    padding: 0.2rem 0; /* Agregar algo de padding vertical */
+  }
+  
+  /* Botones secundarios más grandes */
+  .control-button {
+    padding: 0.45rem; /* Aumentado de 0.375rem (20% más grande) */
+    border-radius: 50%; /* Completamente redondo para mejor estética */
+    min-width: 2.2rem; /* Tamaño mínimo para touch */
+    min-height: 2.2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  /* Botón principal de play/pause MÁS GRANDE */
+  .control-button--primary {
+    padding: 0.65rem; /* Aumentado de 0.5rem (30% más grande) */
+    min-width: 2.8rem; /* Más prominente */
+    min-height: 2.8rem;
+    box-shadow: 0 4px 8px -1px rgba(0, 0, 0, 0.15); /* Sombra más pronunciada */
+  }
+  
+  /* Iconos más grandes para mejor visibilidad */
+  .control-button__icon {
+    width: 1.1rem; /* Aumentado de 1rem (10% más) */
+    height: 1.1rem;
+  }
+  
+  .control-button--primary .control-button__icon {
+    width: 1.3rem; /* Aumentado de 1rem (30% más) */
+    height: 1.3rem;
+  }
+  
+  /* Mejorar efectos hover/active para móvil */
+  .control-button:active {
+    transform: scale(0.92);
+    background-color: rgba(0, 0, 0, 0.05);
+  }
+  
+  .control-button--primary:active {
+    transform: scale(0.94);
+  }
+  
+  /* Controles adicionales con mejor espaciado */
+  .additional-controls {
+    gap: 0.6rem; /* Aumentado de 0.5rem */
+    padding: 0 0.1rem; /* Pequeño padding para evitar cortes */
+  }
+  
+  /* Asegurar que todos los botones tengan buen contraste en tema claro */
+  .control-button {
+    background-color: rgba(255, 255, 255, 0.8);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    color: #374151;
+    backdrop-filter: blur(4px);
+  }
+  
+  .control-button:hover,
+  .control-button:active {
+    background-color: rgba(255, 255, 255, 0.95);
+    border-color: rgba(0, 0, 0, 0.12);
+  }
+  
+  .control-button--active {
+    background-color: #dbeafe;
+    color: #2563eb;
+    border-color: #93c5fd;
+  }
+  
+  /* Mantener el botón principal con su color distintivo */
+  .control-button--primary {
+    background-color: #3b82f6;
+    color: white;
+    border: none;
+  }
+  
+  .control-button--primary:hover {
+    background-color: #2563eb;
+  }
 }
 
 .song-info__tooltip {

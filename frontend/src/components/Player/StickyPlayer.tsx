@@ -29,6 +29,22 @@ import type { Song } from '../../types';
 import configService from '../../services/configService';
 import './StickyPlayer.css';
 
+// Interfaces para tipado
+interface LyricLine {
+  id: string;
+  content: string;
+  lineNumber: number;
+  voiceType?: string | null;
+  startTime?: number | null;
+  isTextLyrics?: boolean;
+  isHighlighted?: boolean;
+}
+
+interface SongWithFolder extends Song {
+  folderName?: string;
+  parentSongId?: string;
+}
+
 // Componente para elemento sorteable de la cola
 interface SortableQueueItemProps {
   song: Song;
@@ -390,8 +406,8 @@ const LyricsViewerInline: React.FC<LyricsViewerInlineProps> = ({
     loadSyncedLyrics
   } = useLyrics(song?.id);
   
-  // @ts-ignore - Variables used in queue handlers below
-  const { currentTime, duration, seekTo, isPlaying, currentPlaylist, setCurrentSong } = usePlayerStore();
+  // Variables del reproductor para las letras
+  const { currentTime, seekTo, isPlaying } = usePlayerStore();
   const activeLineRef = useRef<HTMLDivElement>(null);
 
   // Cargar letras cuando cambie la canción
@@ -401,7 +417,7 @@ const LyricsViewerInline: React.FC<LyricsViewerInlineProps> = ({
       loadLyrics(song.id);
       loadSyncedLyrics(song.id);
     }
-  }, [song?.id, loadLyrics, loadSyncedLyrics]);
+  }, [song?.id, song?.title, loadLyrics, loadSyncedLyrics]);
 
   // Debug: Log lyrics data when it changes
   useEffect(() => {
@@ -409,7 +425,7 @@ const LyricsViewerInline: React.FC<LyricsViewerInlineProps> = ({
       console.log('📄 [FRONTEND] Lyrics loaded:', lyrics);
       console.log('📁 [FRONTEND] LyricsFiles count:', lyrics.lyricsFiles?.length || 0);
       console.log('📁 [FRONTEND] LyricsFiles:', lyrics.lyricsFiles);
-      console.log('📁 [FRONTEND] Song parentSongId:', (lyrics as any).parentSongId);
+      console.log('📁 [FRONTEND] Song parentSongId:', (lyrics as { parentSongId?: string }).parentSongId);
       console.log('📁 [FRONTEND] Song voiceType:', lyrics.voiceType);
       console.log('📱 [FRONTEND] Device type:', isDesktop ? 'Desktop' : 'Mobile');
       
@@ -420,7 +436,7 @@ const LyricsViewerInline: React.FC<LyricsViewerInlineProps> = ({
           id: song.id,
           title: song.title,
           voiceType: song.voiceType,
-          parentSongId: (song as any).parentSongId
+          parentSongId: (song as SongWithFolder).parentSongId
         });
       }
     }
@@ -746,7 +762,7 @@ const LyricsViewerInline: React.FC<LyricsViewerInlineProps> = ({
     };
   }, [handleUserScroll]);
 
-  const handleLineClick = (lyric: any) => {
+  const handleLineClick = (lyric: LyricLine) => {
     // Al hacer click, marcar como scroll manual y buscar línea
     setUserScrolled(true);
     if (scrollTimeoutRef.current) {
@@ -851,7 +867,7 @@ const LyricsViewerInline: React.FC<LyricsViewerInlineProps> = ({
                 <div className="relative">
                   {/* Mostrar todas las líneas (sincronizadas o no) */}
                   <div className="space-y-3">
-                    {allLyricsForDisplay.map((lyric: any) => {
+                    {allLyricsForDisplay.map((lyric: LyricLine) => {
                       // Determinar si es línea activa basado en el activeLineIndex calculado
                       const activeLyricFromSynced = activeLineIndex >= 0 ? syncedLyrics_withTime[activeLineIndex] : null;
                       const isActiveLine = activeLyricFromSynced && lyric.id === activeLyricFromSynced.id;
@@ -1045,25 +1061,13 @@ const StickyPlayer: React.FC = () => {
 
   // Función para construir URL de canción
   const buildSongUrl = (song: Song): string => {
-    if ((song as any).folderName) {
-      return getSongFileUrl((song as any).folderName, song.fileName);
+    const songWithFolder = song as SongWithFolder;
+    if (songWithFolder.folderName) {
+      return getSongFileUrl(songWithFolder.folderName, song.fileName);
     } else {
       return `${serverInfo.audioBaseUrl}-root/${song.fileName}`;
     }
   };
-
-  // Configurar sensores para drag & drop
-  const pointerSensor = useSensor(PointerSensor, {
-    activationConstraint: {
-      distance: 5, // Distancia mínima para iniciar drag
-    },
-  });
-  
-  const keyboardSensor = useSensor(KeyboardSensor, {
-    coordinateGetter: sortableKeyboardCoordinates,
-  });
-
-  const sensors = useSensors(pointerSensor, keyboardSensor);
 
   const [isMuted, setIsMuted] = useState(false);
   const [previousVolume, setPreviousVolume] = useState(volume);
@@ -1082,6 +1086,10 @@ const StickyPlayer: React.FC = () => {
 
   // Estado para recibir el estado de sincronización desde LyricsViewerInline
   const [hasSyncedLyrics, setHasSyncedLyrics] = useState(false);
+
+  // Estados para el drag de la barra de progreso
+  const [isDragging, setIsDragging] = useState(false);
+  const [draggingElement, setDraggingElement] = useState<HTMLElement | null>(null);
 
   // Función para toggle del sincronizador automático
   const toggleAutoSync = () => {
@@ -1118,6 +1126,21 @@ const StickyPlayer: React.FC = () => {
     return true;
   });
 
+  // Configurar sensores para drag & drop - MEJORADO para móvil
+  const pointerSensor = useSensor(PointerSensor, {
+    activationConstraint: {
+      distance: isDesktop ? 5 : 8, // Más distancia en móvil para evitar conflictos con scroll
+      delay: isDesktop ? 0 : 100, // Pequeño delay en móvil para diferenciar de scroll
+      tolerance: isDesktop ? 5 : 10, // Mayor tolerancia en móvil
+    },
+  });
+  
+  const keyboardSensor = useSensor(KeyboardSensor, {
+    coordinateGetter: sortableKeyboardCoordinates,
+  });
+
+  const sensors = useSensors(pointerSensor, keyboardSensor);
+
   useEffect(() => {
     const handleResize = () => {
       const userAgent = navigator.userAgent;
@@ -1150,6 +1173,78 @@ const StickyPlayer: React.FC = () => {
   // Configurar Media Session API para controles nativos en móvil
   useMediaSession();
 
+  // Función para actualizar el progreso (funciona con cualquier barra de progreso)
+  const handleProgressUpdate = useCallback((clientX: number, targetElement?: HTMLElement) => {
+    if (!duration) return;
+    
+    // Use the target element if provided, otherwise fall back to progressRef
+    const element = targetElement || progressRef.current;
+    if (!element) return;
+    
+    const rect = element.getBoundingClientRect();
+    const x = clientX - rect.left;
+    const percentage = Math.max(0, Math.min(1, x / rect.width));
+    const newTime = percentage * duration;
+    
+    seekTo(newTime);
+  }, [duration, seekTo]);
+
+  // Manejar inicio del drag
+  const handleProgressMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation(); // Prevent event from bubbling up to parent elements
+    setIsDragging(true);
+    setDraggingElement(e.currentTarget);
+    handleProgressUpdate(e.clientX, e.currentTarget);
+  }, [handleProgressUpdate]);
+
+  // Manejar inicio del drag en touch
+  const handleProgressTouchStart = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation(); // Prevent event from bubbling up to parent elements
+    setIsDragging(true);
+    setDraggingElement(e.currentTarget);
+    handleProgressUpdate(e.touches[0].clientX, e.currentTarget);
+  }, [handleProgressUpdate]);
+
+  // Manejar eventos globales de mouse y touch
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (isDragging && draggingElement) {
+        e.preventDefault();
+        e.stopPropagation();
+        handleProgressUpdate(e.clientX, draggingElement);
+      }
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (isDragging && draggingElement && e.touches.length > 0) {
+        e.preventDefault();
+        e.stopPropagation();
+        handleProgressUpdate(e.touches[0].clientX, draggingElement);
+      }
+    };
+
+    const handleEnd = () => {
+      setIsDragging(false);
+      setDraggingElement(null);
+    };
+
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleEnd);
+      document.addEventListener('touchmove', handleTouchMove, { passive: false });
+      document.addEventListener('touchend', handleEnd);
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleEnd);
+      document.removeEventListener('touchmove', handleTouchMove);
+      document.removeEventListener('touchend', handleEnd);
+    };
+  }, [isDragging, draggingElement, handleProgressUpdate]);
+
   // Manejar scroll del body cuando se abre pantalla completa de letras
   useEffect(() => {
     if (isFullscreenLyrics) {
@@ -1174,6 +1269,8 @@ const StickyPlayer: React.FC = () => {
       document.body.style.height = '';
     };
   }, [isFullscreenLyrics]);
+
+
 
   // Actualizar título de la página con el nombre de la canción
   useEffect(() => {
@@ -1277,11 +1374,11 @@ const StickyPlayer: React.FC = () => {
   const progressPercentage = duration > 0 ? (currentTime / duration) * 100 : 0;
 
   const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!progressRef.current || !duration) return;
+    if (!duration || isDragging) return;
     
-    const rect = progressRef.current.getBoundingClientRect();
+    const rect = e.currentTarget.getBoundingClientRect();
     const clickX = e.clientX - rect.left;
-    const percentage = clickX / rect.width;
+    const percentage = Math.max(0, Math.min(1, clickX / rect.width));
     const newTime = percentage * duration;
     
     seekTo(newTime);
@@ -1459,11 +1556,15 @@ const StickyPlayer: React.FC = () => {
         ref={progressRef}
         className="progress-bar"
         onClick={handleProgressClick}
+        onMouseDown={handleProgressMouseDown}
+        onTouchStart={handleProgressTouchStart}
       >
         <div 
           className="progress-bar__fill"
           style={{ width: `${progressPercentage}%` }}
-        />
+        >
+          <div className="progress-bar__thumb" />
+        </div>
       </div>
 
       {/* Contenido principal del reproductor */}
@@ -1486,10 +1587,12 @@ const StickyPlayer: React.FC = () => {
           <div className="song-info__details">
             <div className="song-info__title-container">
               <p 
-                className="song-info__title song-info__title--with-tooltip"
+                className="song-info__title song-info__title--with-tooltip song-info__title--marquee"
                 title={`${currentSong.title} - ${currentSong.artist || 'Artista desconocido'}`}
               >
-                {currentSong.title}
+                <span className="song-title-text">
+                  {currentSong.title} • {currentSong.title}
+                </span>
               </p>
               
               {/* Tooltip/Globo de información */}
@@ -1926,11 +2029,15 @@ const StickyPlayer: React.FC = () => {
             <div 
               className="mobile-fullscreen-progress__bar"
               onClick={handleProgressClick}
+              onMouseDown={handleProgressMouseDown}
+              onTouchStart={handleProgressTouchStart}
             >
               <div 
                 className="mobile-fullscreen-progress__fill"
                 style={{ width: `${progressPercentage}%` }}
-              />
+              >
+                <div className="mobile-fullscreen-progress__thumb" />
+              </div>
             </div>
           </div>
           

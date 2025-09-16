@@ -1,9 +1,17 @@
-import { useEffect } from 'react';
+import { useEffect, useCallback } from 'react';
 import { usePlayerStore } from '../store/playerStore';
 import { usePlaylistStore } from '../store/playlistStore';
 import { useServerInfo } from './useServerInfo';
 import { getSongFileUrl } from '../config/api';
-import type { Song } from '../types';
+
+interface SongData {
+  id: string;
+  title: string;
+  artist?: string;
+  fileName: string;
+  folderName?: string;
+  duration?: number;
+}
 
 export const useMediaSession = () => {
   const { 
@@ -25,13 +33,13 @@ export const useMediaSession = () => {
   const { serverInfo } = useServerInfo();
 
   // Función para construir URL de canción
-  const buildSongUrl = (song: any): string => {
+  const buildSongUrl = useCallback((song: SongData): string => {
     if (song.folderName) {
       return getSongFileUrl(song.folderName, song.fileName);
     } else {
       return `${serverInfo.audioBaseUrl}-root/${song.fileName}`;
     }
-  };
+  }, [serverInfo.audioBaseUrl, getSongFileUrl]);
 
   useEffect(() => {
     if (!('mediaSession' in navigator) || !currentSong) {
@@ -44,7 +52,7 @@ export const useMediaSession = () => {
     // Configurar metadata de la canción
     navigator.mediaSession.metadata = new MediaMetadata({
       title: currentSong.title,
-      artist: (currentSong as any).artist || 'CGPlayerWeb',
+      artist: currentSong.artist || 'CGPlayerWeb',
       album: 'CGPlayerWeb - Música Coral',
       artwork: [
         {
@@ -194,7 +202,7 @@ export const useMediaSession = () => {
       seekTo(Math.min(duration, currentTime + skipTime));
     });
 
-  }, [currentSong, isPlaying, currentTime, duration, currentIndex, queue.length]);
+  }, [currentSong, isPlaying, currentTime, duration, currentIndex, queue.length, repeatMode, queue, buildSongUrl, play, pause, seekTo]);
 
   // Actualizar posición de reproducción - MÁS FRECUENTE Y PRECISO
   useEffect(() => {

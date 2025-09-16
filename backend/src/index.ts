@@ -22,6 +22,9 @@ import profileRoutes from './routes/profile';
 import { swaggerUi, specs } from './config/swagger';
 import { prisma } from './utils/prisma';
 import DatabaseInitializationService from './services/databaseInitialization';
+// Importar configuración dinámica
+import { getDynamicConfig, injectNetworkConfig, getNetworkConfigEndpoint, getDynamicCorsOrigins } from './middleware/dynamicConfig';
+import { networkDetector } from './utils/networkDetector';
 
 // Cargar variables de entorno
 dotenv.config(); // .env del backend
@@ -30,79 +33,65 @@ dotenv.config({ path: path.join(__dirname, '../../../ip-config.env') }); // ip-c
 // Crear instancia del servicio de inicialización
 const dbInitService = new DatabaseInitializationService();
 
-// Usar IP configurada desde variables de entorno o detectar automáticamente
-const getLocalIP = (): string => {
-  // Usar IP desde variables de entorno si está disponible
-  if (process.env.SERVER_IP) {
-    console.log('📍 Usando IP desde variables de entorno:', process.env.SERVER_IP);
-    return process.env.SERVER_IP;
-  }
-
-  // Fallback a detección automática
-  const interfaces = os.networkInterfaces();
-  for (const name of Object.keys(interfaces)) {
-    for (const iface of interfaces[name]!) {
-      if (iface.family === 'IPv4' && !iface.internal) {
-        console.log('📍 IP detectada automáticamente:', iface.address);
-        return iface.address;
-      }
-    }
-  }
-  console.log('📍 Usando localhost como fallback');
-  return 'localhost';
-};
-
 const PORT_NUMBER = Number(process.env.PORT) || 3001;
 const HOST = process.env.HOST || '0.0.0.0';
-const LOCAL_IP = getLocalIP();
 
-console.log('🌐 CONFIGURACIÓN DE RED:');
-console.log(`   📍 IP Local: ${LOCAL_IP}`);
-console.log(`   🚪 Puerto: ${PORT_NUMBER}`);
-console.log(`   🔗 Frontend URL: http://${LOCAL_IP}:5173`);
-console.log(`   🔗 Backend URL: http://${LOCAL_IP}:${PORT_NUMBER}`);
+// Inicializar configuración de red asíncronamente
+let networkConfig: any = null;
+
+async function initializeNetworkConfig() {
+  try {
+    networkConfig = await getDynamicConfig();
+    const urls = await networkDetector.getAccessURLs(PORT_NUMBER);
+    
+    console.log('🌐 CONFIGURACIÓN DE RED (AUTO-DETECTADA):');
+    console.log(`   📍 IP Local: ${networkConfig.serverIP}`);
+    console.log(`   🚪 Puerto: ${PORT_NUMBER}`);
+    console.log(`   🔗 Frontend URL: ${networkConfig.frontendURL}`);
+    console.log(`   🔗 Backend URL: ${networkConfig.backendURL}`);
+    console.log(`   � Red local: ${urls.network}`);
+    console.log(`   🏠 Local: ${urls.local}`);
+  } catch (error) {
+    console.error('❌ Error inicializando configuración de red:', error);
+    networkConfig = {
+      serverIP: 'localhost',
+      frontendURL: 'http://localhost:5173',
+      backendURL: 'http://localhost:3001',
+      corsOrigins: ['http://localhost:5173']
+    };
+  }
+}
 
 const app = express();
 
-// Configure CORS with dynamic origins
-const getAllowedOrigins = () => {
-  const baseOrigins = [
-    'http://localhost:5173',
-    'http://localhost:3000',
-    'http://127.0.0.1:5173',
-    'http://127.0.0.1:3000',
-    `http://${LOCAL_IP}:5173`,
-    `http://${LOCAL_IP}:3000`
-  ];
-
-  // Add environment-specific origins
-  if (process.env.CORS_ORIGINS) {
-    baseOrigins.push(...process.env.CORS_ORIGINS.split(','));
-  }
-
-  return baseOrigins;
-};
-
-const allowedOrigins = getAllowedOrigins();
-
-// CORS configurado para acceso móvil y red local
+// CORS configurado dinámicamente
 app.use(cors({
-  origin: (origin, callback) => {
-    // Allow requests with no origin (mobile apps, curl, etc.)
-    if (!origin) return callback(null, true);
-    
-    // Check if origin is in allowed list
-    if (allowedOrigins.includes(origin)) {
-      return callback(null, true);
+  origin: async (origin, callback) => {
+    try {
+      // Allow requests with no origin (mobile apps, curl, etc.)
+      if (!origin) return callback(null, true);
+      
+      // Obtener origins permitidos dinámicamente
+      const allowedOrigins = await getDynamicCorsOrigins();
+      
+      // Check if origin is in allowed list
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      
+      // Allow any local network IP on development ports
+      const localNetworkPattern = /^http:\/\/(192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)\d+\.\d+:(5173|3000|3001|5000)$/;
+      if (localNetworkPattern.test(origin)) {
+        return callback(null, true);
+      }
+      
+      console.warn(`🚫 CORS blocked origin: ${origin}`);
+      callback(new Error('Not allowed by CORS'));
+    } catch (error) {
+      console.error('❌ Error en CORS dinámico:', error);
+      // Fallback permisivo en caso de error
+      callback(null, true);
     }
-    
-    // Allow any local network IP on development ports
-    const localNetworkPattern = /^http:\/\/(192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)\d+\.\d+:(5173|3000|3001|5000)$/;
-    if (localNetworkPattern.test(origin)) {
-      return callback(null, true);
-    }
-    
-    callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
@@ -185,6 +174,9 @@ app.use('/api/uploads/images/profiles', express.static(path.join(__dirname, '../
 // Servir archivos de letras (PDF, DOC, DOCX, TXT)
 app.use('/uploads/lyrics', express.static(path.join(__dirname, '../uploads/lyrics')));
 
+// Middleware de configuración de red
+app.use(injectNetworkConfig);
+
 // Endpoints públicos (sin autenticación)
 app.get('/api/health', (req, res) => {
   const clientIP = req.headers['x-forwarded-for'] || req.connection.remoteAddress || req.socket.remoteAddress;
@@ -201,6 +193,9 @@ app.get('/api/health', (req, res) => {
 app.get('/api/ping', (req, res) => {
   res.send('pong');
 });
+
+// Endpoint de configuración de red (público para debugging)
+app.get('/api/network-config', getNetworkConfigEndpoint);
 
 // Swagger documentation
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs, {
@@ -247,9 +242,20 @@ app.use('*', (req, res) => {
 });
 
 app.listen(PORT_NUMBER, HOST, async () => {
-  console.log(`🚀 Servidor iniciado exitosamente!`);
-  console.log(`📡 Backend corriendo en: http://${HOST}:${PORT_NUMBER}`);
-  console.log(`📚 API Docs disponibles en: http://${HOST}:${PORT_NUMBER}/api-docs`);
+  // Inicializar configuración de red primero
+  await initializeNetworkConfig();
+  
+  console.log('\n🚀 ============================');
+  console.log('   CGPlayerWeb Backend v0.10.19');
+  console.log('============================== 🚀');
+  console.log(`🌍 Servidor corriendo en:`);
+  console.log(`   📍 Local: http://localhost:${PORT_NUMBER}`);
+  console.log(`   � Red: ${networkConfig?.backendURL || `http://localhost:${PORT_NUMBER}`}`);
+  console.log(`   📍 Host: ${HOST}`);
+  console.log(`   📍 Entorno: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`   🌐 Frontend: ${networkConfig?.frontendURL || 'http://localhost:5173'}`);
+  console.log(`   📚 API Docs: ${networkConfig?.backendURL || `http://localhost:${PORT_NUMBER}`}/api-docs`);
+  console.log('============================== 🎵\n');
   
   // Inicialización automática de base de datos
   console.log('\n🔧 Iniciando verificación de base de datos...');

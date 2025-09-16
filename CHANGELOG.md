@@ -5,6 +5,40 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto se adhiere al [Versionado Semántico](https://semver.org/lang/es/).
 
+## [0.10.24] - 2025-01-16
+
+### 🎨 **MEJORAS VISUALES DEL REPRODUCTOR**
+
+#### 📱 **StickyPlayer Móvil Optimizado**
+- **Tamaño aumentado 10%**: Reproductor sticky en versión móvil clara ampliado para mejor usabilidad
+- **Botones más grandes**: Controles de reproducción (play, pause, siguiente, anterior) redimensionados
+- **Mejor organización**: Elementos distribuidos de forma más eficiente en el espacio disponible
+- **Responsive mejorado**: Mantiene proporciones correctas en diferentes tamaños de pantalla
+
+#### ✨ **Sistema de Animaciones de Texto**
+- **Marquee universal**: Efecto de barrido aplicado a TODOS los títulos de canciones
+- **Animación inteligente**: Funciona tanto en títulos largos como cortos
+- **Detección automática**: Sistema que identifica cuándo aplicar el efecto de desplazamiento
+- **Experiencia consistente**: Implementado en todas las versiones (PC web, móvil claro/oscuro)
+
+#### 🔄 **Reproductor Minimizado Interactivo**
+- **Función de arrastre**: Esfera del reproductor minimizado completamente arrastrable
+- **Interacción táctil corregida**: Solucionado problema de expansión por toque en móviles
+- **Límites inteligentes**: Reproductor se mantiene dentro de los límites visibles
+- **Eventos touch optimizados**: Mejor manejo de preventDefault() para evitar conflictos
+
+### 🔧 **Correcciones Técnicas**
+- **Touch events mejorados**: Distinción precisa entre toque simple y arrastre
+- **Posicionamiento responsive**: Tamaños adaptativos (4rem desktop, 3.5rem móvil)
+- **Boundary calculations**: Cálculos precisos para mantener elementos en viewport
+- **Event propagation**: Control mejorado de propagación de eventos para mejor UX
+
+### 📋 **Detalles de Implementación**
+- **MinimizedPlayer.tsx**: Refactorización completa de eventos touch/mouse
+- **StickyPlayer.css**: Nueva media query específica para mejoras visuales móviles
+- **Marquee universal**: Sistema de detección y aplicación automática de animaciones
+- **Estado de arrastre**: Gestión precisa de estados isDragging, hasMoved, position
+
 ## [0.10.19] - 2025-01-15
 
 ### 🔧 **CORRECCIÓN SISTEMA DE POSTULACIONES A EVENTOS**

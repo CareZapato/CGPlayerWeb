@@ -1,0 +1,36 @@
+# COMANDOS PARA LIMPIAR Y REORGANIZAR UPLOADS EN EL VPS (SSH)
+
+# PASO 1: ELIMINAR LA CARPETA backend QUE ESTÁ DENTRO DE uploads
+# (Esto elimina uploads/backend/ y todo su contenido)
+rm -rf backend/uploads/backend
+
+# PASO 2: CREAR LAS CARPETAS songs y events DIRECTAMENTE EN backend/uploads/
+mkdir -p backend/uploads/songs
+mkdir -p backend/uploads/events
+
+# PASO 3: DAR PERMISOS COMPLETOS A LAS NUEVAS CARPETAS
+chmod 777 backend/uploads/songs
+chmod 777 backend/uploads/events
+
+# PASO 4: VERIFICAR LA ESTRUCTURA FINAL
+ls -la backend/uploads/
+
+# COMANDO TODO EN UNO (COPIAR Y PEGAR):
+rm -rf backend/uploads/backend && mkdir -p backend/uploads/songs backend/uploads/events && chmod 777 backend/uploads/songs backend/uploads/events && ls -la backend/uploads/ && echo "✅ Reorganización completada"
+
+# VERIFICACIÓN ADICIONAL:
+# Ver estructura completa de uploads:
+find backend/uploads -type d
+
+# Ver permisos específicos:
+stat backend/uploads/songs
+stat backend/uploads/events
+
+# RESULTADO ESPERADO:
+# backend/uploads/
+# ├── events/          (vacía, permisos 777)
+# ├── images/          (si existe)
+# │   ├── playlists/   (si existe)
+# │   └── profiles/    (si existe)
+# ├── songs/           (vacía, permisos 777)
+# └── README.md        (si existe)

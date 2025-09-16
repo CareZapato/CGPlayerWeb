@@ -1,0 +1,51 @@
+# COMANDOS PARA CREAR CARPETAS DIRECTAMENTE EN EL VPS (SSH)
+
+# OPCIÓN 1: CREAR CARPETAS EN EL SISTEMA DE ARCHIVOS DEL VPS
+# (Fuera de los contenedores, en el host)
+
+# Navegar al directorio del proyecto:
+cd /ruta/donde/esta/tu/proyecto/CGPlayerWeb
+
+# Crear las carpetas songs y events dentro de backend/uploads:
+mkdir -p backend/uploads/songs
+mkdir -p backend/uploads/events
+
+# Dar permisos completos (777 = lectura, escritura, ejecución para todos):
+chmod 777 backend/uploads/songs
+chmod 777 backend/uploads/events
+
+# Verificar que se crearon correctamente:
+ls -la backend/uploads/
+
+# OPCIÓN 2: TODO EN UNA SOLA LÍNEA
+mkdir -p backend/uploads/songs backend/uploads/events && chmod 777 backend/uploads/songs backend/uploads/events && ls -la backend/uploads/
+
+# OPCIÓN 3: SI QUIERES SER MÁS ESPECÍFICO CON LOS PERMISOS
+# Crear carpetas:
+mkdir -p backend/uploads/songs backend/uploads/events
+
+# Dar permisos de escritura al propietario y grupo (755):
+chmod 755 backend/uploads/songs backend/uploads/events
+
+# O dar permisos completos (777):
+chmod 777 backend/uploads/songs backend/uploads/events
+
+# VERIFICACIÓN:
+# Ver estructura y permisos:
+ls -la backend/uploads/
+
+# Ver permisos específicos en formato detallado:
+stat backend/uploads/songs
+stat backend/uploads/events
+
+# COMANDOS ADICIONALES ÚTILES:
+# Ver el usuario actual:
+whoami
+
+# Ver los permisos en formato octal:
+stat -c "%a %n" backend/uploads/songs
+stat -c "%a %n" backend/uploads/events
+
+# Si necesitas cambiar el propietario (opcional):
+# chown usuario:grupo backend/uploads/songs
+# chown usuario:grupo backend/uploads/events

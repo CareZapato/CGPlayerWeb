@@ -1,0 +1,129 @@
+version: '3.8'
+
+services:
+  # Base de datos PostgreSQL
+  database:
+    image: postgres:15-alpine
+    container_name: cgplayer-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: cgplayerbd
+      POSTGRES_USER: cgplayer
+      POSTGRES_PASSWORD: cgplayerpassword
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/init-db.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "5432:5432"
+    networks:
+      - cgplayer-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cgplayer -d cgplayerbd"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis para caché (opcional)
+  redis:
+    image: redis:7-alpine
+    container_name: cgplayer-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    networks:
+      - cgplayer-network
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  # Aplicación principal (Frontend + Backend)
+  app:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: cgplayer-app
+    restart: unless-stopped
+    environment:
+      # Base de datos
+      DATABASE_URL: postgresql://cgplayer:cgplayerpassword@database:5432/cgplayerbd
+      
+      # JWT y seguridad
+      JWT_SECRET: cgplayer_vps_jwt_ultra_secure_key_2025_!@#$%^&*()
+      
+      # Configuración del servidor
+      NODE_ENV: production
+      PORT: 3001
+      HOST: 0.0.0.0
+      
+      # IP del servidor VPS
+      SERVER_IP: 192.99.122.62
+      
+      # URLs y CORS para VPS
+      FRONTEND_URL: http://192.99.122.62
+      BACKEND_URL: http://192.99.122.62:3001
+      CORS_ORIGINS: http://192.99.122.62,http://localhost,http://127.0.0.1,http://localhost:3000,http://localhost:5173
+      
+      # Redis (opcional)
+      REDIS_URL: redis://redis:6379
+      
+      # Configuración específica de producción
+      LOG_LEVEL: info
+      MAX_FILE_SIZE: 52428800
+      UPLOAD_DIR: uploads
+      TZ: America/Santiago
+      
+    ports:
+      - "80:80"      # Frontend (Nginx)
+      - "3001:3001"  # Backend API
+    volumes:
+      - app_uploads:/app/backend/uploads
+      - app_logs:/app/logs
+      - ./docker/wait-for-it.sh:/app/wait-for-it.sh:ro
+    networks:
+      - cgplayer-network
+    depends_on:
+      database:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Nginx como proxy reverso (alternativa avanzada)
+  nginx:
+    image: nginx:alpine
+    container_name: cgplayer-nginx
+    restart: always
+    ports:
+      - "8080:80"
+    volumes:
+      - ./docker/nginx-proxy.conf:/etc/nginx/nginx.conf:ro
+      - ./logs/nginx:/var/log/nginx
+    networks:
+      - cgplayer-network
+    depends_on:
+      - app
+    profiles:
+      - proxy  # Solo se ejecuta con: docker-compose --profile proxy up
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  app_uploads:
+    driver: local
+  app_logs:
+    driver: local
+
+networks:
+  cgplayer-network:
+    driver: bridge
