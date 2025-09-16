@@ -765,21 +765,38 @@
   }
   
   .progress-bar {
-    height: 4px !important; /* Ensure consistent height */
-    position: absolute !important; /* Force absolute positioning on desktop */
-    top: 0 !important; /* Force to top on desktop */
+    height: 20px !important; /* BARRA ENSANCHADA PARA DESKTOP - SOBRESCRIBE REGLA ANTERIOR */
+    position: absolute !important;
+    top: -15px !important; /* POSICIÓN ELEVADA PARA DESKTOP - SOBRESCRIBE REGLA ANTERIOR */
     left: 0 !important;
     right: 0 !important;
-    margin: 0 !important; /* No margins on desktop */
-    padding: 0 !important; /* No padding on desktop */
-    z-index: 10001 !important; /* Above sticky player but below thumb */
+    margin: 0 !important;
+    padding: 0 !important;
+    border-radius: 10px !important; /* REDONDEADA PARA DESKTOP */
+    background-color: #e5e7eb !important; /* ASEGURAR COLOR DE FONDO */
+    z-index: 10001 !important;
+  }
+  
+  .progress-bar__fill {
+    height: 100% !important;
+    background-color: #3b82f6 !important;
+    border-radius: 10px !important; /* Coincide con contenedor desktop */
+  }
+  
+  .progress-bar__thumb {
+    width: 20px !important; /* CIRCULO ENSANCHADO PARA DESKTOP */
+    height: 20px !important;
+    right: -10px !important; /* Ajustado para círculo de 20px */
+    border: 2px solid #ffffff !important;
+    z-index: 10002 !important;
+    transform: translateY(-50%) !important;
   }
   .sticky-player--collapsed {
     height: 92px; /* Increased 5% more for better song title readability in mobile */
   }
   
   .player-layout {
-    padding: calc(4px + 0.75rem) 1.5rem 0.75rem; /* Top padding includes progress bar height */
+    padding: calc(4px + 0.75rem) 1.5rem 0.75rem; /* Top padding mantenido original - los elementos NO se mueven */
     gap: 1rem;
     grid-template-columns: 1.2fr 1fr 1.2fr; /* More balanced distribution for mobile, centers content more to the right */
   }
