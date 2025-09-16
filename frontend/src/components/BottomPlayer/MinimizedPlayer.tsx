@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { usePlayerStore } from '../../store/playerStore';
 import './BottomPlayer.css';
 
@@ -11,6 +11,134 @@ interface MinimizedPlayerProps {
  */
 const MinimizedPlayer: React.FC<MinimizedPlayerProps> = ({ onExpand }) => {
   const { currentSong, isPlaying, currentTime, duration } = usePlayerStore();
+  
+  // Estados solo para arrastre
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [hasMoved, setHasMoved] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
+  
+  // Refs
+  const playerRef = useRef<HTMLDivElement>(null);
+
+  // Funciones de arrastre corregidas
+  const handleDragStart = useCallback((clientX: number, clientY: number) => {
+    if (!playerRef.current) return;
+    const rect = playerRef.current.getBoundingClientRect();
+    setIsDragging(true);
+    setHasMoved(false);
+    // Guardar el offset del mouse/touch respecto al elemento
+    setDragStart({
+      x: clientX - rect.left,
+      y: clientY - rect.top
+    });
+  }, []);
+
+  const handleDragMove = useCallback((clientX: number, clientY: number) => {
+    if (!isDragging) return;
+    setHasMoved(true);
+    
+    // Calcular nueva posición restando el offset inicial
+    const newX = clientX - dragStart.x;
+    const newY = clientY - dragStart.y;
+    
+    // Obtener dimensiones del elemento según el dispositivo
+    const isMobile = window.innerWidth <= 768;
+    const elementSize = isMobile ? 56 : 64; // 3.5rem en móvil, 4rem en desktop
+    const maxX = window.innerWidth - elementSize;
+    const maxY = window.innerHeight - elementSize;
+    
+    // Aplicar límites para mantenerlo visible
+    setPosition({
+      x: Math.max(0, Math.min(newX, maxX)),
+      y: Math.max(0, Math.min(newY, maxY))
+    });
+  }, [isDragging, dragStart.x, dragStart.y]);
+
+  const handleDragEnd = useCallback(() => {
+    setIsDragging(false);
+    // Solo expandir si no hubo arrastre
+    setTimeout(() => {
+      if (!hasMoved && !isDragging) {
+        onExpand();
+      }
+    }, 0);
+  }, [hasMoved, isDragging, onExpand]);
+
+  // Eventos de mouse
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    handleDragStart(e.clientX, e.clientY);
+  }, [handleDragStart]);
+
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    e.preventDefault();
+    handleDragMove(e.clientX, e.clientY);
+  }, [handleDragMove]);
+
+  const handleMouseUp = useCallback((e: MouseEvent) => {
+    e.preventDefault();
+    handleDragEnd();
+  }, [handleDragEnd]);
+
+  // Eventos touch para móvil
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    // No prevenir el default inicialmente para permitir el tap
+    e.stopPropagation();
+    const touch = e.touches[0];
+    handleDragStart(touch.clientX, touch.clientY);
+  }, [handleDragStart]);
+
+  const handleTouchMove = useCallback((e: TouchEvent) => {
+    // Solo prevenir el scroll si se está moviendo significativamente
+    if (isDragging || hasMoved) {
+      e.preventDefault();
+    }
+    const touch = e.touches[0];
+    handleDragMove(touch.clientX, touch.clientY);
+  }, [handleDragMove, isDragging, hasMoved]);
+
+  const handleTouchEnd = useCallback((e: TouchEvent) => {
+    // Solo prevenir el default si realmente se arrastró
+    if (hasMoved) {
+      e.preventDefault();
+    }
+    handleDragEnd();
+  }, [handleDragEnd, hasMoved]);
+
+  // Inicializar posición por defecto (evita que se vaya a 0,0)
+  useEffect(() => {
+    if (!isInitialized && currentSong) {
+      // Posición inicial en la esquina inferior derecha pero visible
+      const isMobile = window.innerWidth <= 768;
+      const elementSize = isMobile ? 56 : 64; // 3.5rem en móvil, 4rem en desktop
+      const padding = isMobile ? 16 : 24; // 1rem en móvil, 1.5rem en desktop
+      setPosition({
+        x: window.innerWidth - elementSize - padding,
+        y: window.innerHeight - elementSize - padding
+      });
+      setIsInitialized(true);
+    }
+  }, [isInitialized, currentSong]);
+
+  // Efectos para eventos globales
+  useEffect(() => {
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      document.addEventListener('touchmove', handleTouchMove, { passive: false });
+      document.addEventListener('touchend', handleTouchEnd);
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.removeEventListener('touchmove', handleTouchMove);
+      document.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [isDragging, handleMouseMove, handleMouseUp, handleTouchMove, handleTouchEnd]);
 
   if (!currentSong) return null;
 
@@ -35,7 +163,21 @@ const MinimizedPlayer: React.FC<MinimizedPlayerProps> = ({ onExpand }) => {
   };
 
   return (
-    <div className="minimized-player" onClick={onExpand}>
+    <div 
+      ref={playerRef}
+      className={`minimized-player ${isDragging ? 'minimized-player--dragging' : ''}`}
+      style={{
+        transform: `translate(${position.x}px, ${position.y}px)`,
+        cursor: isDragging ? 'grabbing' : 'grab'
+      }}
+      onMouseDown={handleMouseDown}
+      onTouchStart={handleTouchStart}
+      onClick={() => {
+        if (!hasMoved) {
+          onExpand();
+        }
+      }}
+    >
       <div className="minimized-player__container">
         {/* Agua que se llena desde abajo */}
         <div 
