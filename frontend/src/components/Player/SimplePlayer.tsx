@@ -3,7 +3,13 @@ import { usePlayerStore } from '../../store/playerStore';
 import { usePlaylistStore } from '../../store/playlistStore';
 import { useServerInfo } from '../../hooks/useServerInfo';
 import { getSongFileUrl } from '../../config/api';
+import type { Song } from '../../types';
 import './SimplePlayer.css';
+
+// Interface para songs que incluye propiedades adicionales del reproductor
+interface ExtendedSong extends Song {
+  url?: string;
+}
 
 const SimplePlayer: React.FC = () => {
   const { 
@@ -82,8 +88,8 @@ const SimplePlayer: React.FC = () => {
         const { playSong } = usePlayerStore.getState();
         let songUrl: string;
         
-        if ((nextSong as any).folderName) {
-          songUrl = getSongFileUrl((nextSong as any).folderName, nextSong.fileName);
+        if (nextSong.folderName) {
+          songUrl = getSongFileUrl(nextSong.folderName, nextSong.fileName);
         } else {
           songUrl = `${serverInfo.audioBaseUrl}-root/${nextSong.fileName}`;
         }
@@ -117,7 +123,7 @@ const SimplePlayer: React.FC = () => {
         
         // Construir URL alternativa usando función con autenticación
         let correctedUrl = '';
-        const song = currentSong as any;
+        const song = currentSong as ExtendedSong;
         
         if (song.folderName && song.fileName) {
           correctedUrl = getSongFileUrl(song.folderName, song.fileName);
@@ -151,7 +157,7 @@ const SimplePlayer: React.FC = () => {
       audio.removeEventListener('ended', handleEnded);
       audio.removeEventListener('error', handleError);
     };
-  }, [setCurrentTime, setDuration, pause, getNextSong, setCurrentSong, serverInfo]);
+  }, [setCurrentTime, setDuration, pause, getNextSong, setCurrentSong, serverInfo, currentSong]);
 
   // Control de reproducción
   useEffect(() => {
@@ -179,7 +185,7 @@ const SimplePlayer: React.FC = () => {
   }, [volume]);
 
   // Construir URL del audio
-  const getAudioUrl = (song: any) => {
+  const getAudioUrl = (song: ExtendedSong | null) => {
     if (!song) return '';
     
     if (song.folderName && song.fileName) {
