@@ -15,6 +15,50 @@ interface ChangelogEntry {
 
 const changelogData: ChangelogEntry[] = [
   {
+    version: '0.10.27',
+    date: '2025-09-17',
+    type: 'patch',
+    title: 'Corrección Crítica de Errores de Compilación - Critical Build Fix',
+    highlights: [
+      'ProfilePage.tsx completamente reparado tras corrupción crítica',
+      'Eliminación de todos los errores TypeScript de compilación',
+      'Layout del perfil reorganizado según especificaciones del usuario',
+      'Estados informativos para datos faltantes implementados',
+      'SimplePlayer.tsx validado y funcionando correctamente'
+    ],
+    changes: [
+      {
+        category: 'fixed',
+        items: [
+          'ProfilePage.tsx reparado - archivo completamente corrupto reemplazado por versión limpia',
+          'Eliminados todos los errores de TypeScript que impedían la compilación del proyecto',
+          'Estructura del perfil reorganizada: información personal arriba, vocal centro, roles abajo',
+          'Tipos de voz removidos de la sección de cambio de foto según requerimientos',
+          'Build de producción exitoso sin warnings críticos'
+        ]
+      },
+      {
+        category: 'improved',
+        items: [
+          'Layout del perfil con mejor organización: datos personales, información vocal y rol/permisos',
+          'Estados informativos cuando no hay tipos de voz configurados',
+          'Mensajes explicativos sobre el sistema de tipos de voz y cómo configurarlos',
+          'Guía para usuarios sobre cómo contactar directores para asignación de voz',
+          'Feedback visual mejorado con iconos y explicaciones claras'
+        ]
+      },
+      {
+        category: 'added',
+        items: [
+          'Sección dedicada de información vocal con mensajes informativos detallados',
+          'Explicaciones sobre qué significan los tipos de voz y cómo obtenerlos',
+          'Estados vacíos elegantes con iconos y descripciones apropiadas',
+          'Validación completa de SimplePlayer.tsx sin errores de compilación'
+        ]
+      }
+    ]
+  },
+  {
     version: '0.10.24',
     date: '2025-01-16',
     type: 'minor',
@@ -551,7 +595,7 @@ const changelogData: ChangelogEntry[] = [
 ];
 
 const ChangelogPage: React.FC = () => {
-  const [expandedVersions, setExpandedVersions] = useState<string[]>(['0.10.24']);
+  const [expandedVersions, setExpandedVersions] = useState<string[]>(['0.10.27']);
 
   const toggleVersion = (version: string) => {
     setExpandedVersions(prev => 
@@ -614,7 +658,7 @@ const ChangelogPage: React.FC = () => {
               <p><strong>Versión actual:</strong> {changelogData[0].version}</p>
               <p><strong>Última actualización:</strong> {new Date(changelogData[0].date).toLocaleDateString('es-ES')}</p>
               <p><strong>Tecnologías:</strong> React, TypeScript, Node.js, PostgreSQL, Prisma</p>
-              <p><strong>Nuevo en v0.10.24:</strong> Mejoras visuales del reproductor con StickyPlayer 10% más grande, marquee universal en títulos, reproductor minimizado arrastrable y corrección de touch en móviles</p>
+              <p><strong>Nuevo en v0.10.27:</strong> Actualización de la sección Profile, con más información al respecto de la cuenta y voice type.</p>
             </div>
           </div>
           <div className="text-6xl">
