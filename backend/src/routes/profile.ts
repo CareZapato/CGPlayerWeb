@@ -82,7 +82,7 @@ router.get('/me', authenticateToken, async (req: AuthRequest, res: Response) => 
       return res.status(401).json({ error: 'No autorizado' });
     }
 
-    // Buscar usuario con todos los campos incluyendo profileImage y tipos de voz
+    // Buscar usuario con todos los campos incluyendo profileImage, tipos de voz y roles
     const user = await prisma.user.findUnique({
       where: { id: userId },
       include: {
@@ -94,6 +94,23 @@ router.get('/me', authenticateToken, async (req: AuthRequest, res: Response) => 
                 lastName: true
               }
             }
+          }
+        },
+        roles: {
+          include: {
+            assignedByUser: {
+              select: {
+                firstName: true,
+                lastName: true
+              }
+            }
+          }
+        },
+        location: {
+          select: {
+            id: true,
+            name: true,
+            type: true
           }
         }
       }
@@ -115,14 +132,34 @@ router.get('/me', authenticateToken, async (req: AuthRequest, res: Response) => 
       console.log('🖼️ [BACKEND] URL de imagen generada:', profileImageUrl);
     }
 
-    // Formatear tipos de voz
+    // Formatear tipos de voz con información de voz primaria
     const voiceTypes = user.voiceProfiles.map((vp: any) => ({
       voiceType: vp.voiceType,
+      isPrimary: vp.isPrimary,
       assignedBy: vp.assignedByUser ? 
         `${vp.assignedByUser.firstName} ${vp.assignedByUser.lastName}` : 
         'Sistema',
       assignedAt: vp.createdAt
     }));
+
+    // Encontrar la voz primaria
+    const primaryVoice = voiceTypes.find((vt: any) => vt.isPrimary);
+
+    // Formatear roles del usuario
+    const userRoles = user.roles.map((ur: any) => ({
+      role: ur.role,
+      assignedBy: ur.assignedByUser ? 
+        `${ur.assignedByUser.firstName} ${ur.assignedByUser.lastName}` : 
+        'Sistema',
+      assignedAt: ur.createdAt
+    }));
+
+    // Obtener el rol principal (el más alto en jerarquía)
+    const roleHierarchy = ['ADMIN', 'DIRECTOR', 'CANTANTE'];
+    const primaryRole = userRoles.find((ur: any) => ur.role === 'ADMIN') ||
+                       userRoles.find((ur: any) => ur.role === 'DIRECTOR') ||
+                       userRoles.find((ur: any) => ur.role === 'CANTANTE') ||
+                       null;
 
     res.json({
       id: user.id,
@@ -134,6 +171,10 @@ router.get('/me', authenticateToken, async (req: AuthRequest, res: Response) => 
       profileImage: user.profileImage,
       profileImageUrl,
       voiceTypes,
+      primaryVoice,
+      userRoles,
+      primaryRole,
+      location: user.location,
       createdAt: user.createdAt
     });
 

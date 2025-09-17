@@ -1,6 +1,6 @@
 # CGPlayerWeb 🎵
 
-[![Version](https://img.shields.io/badge/version-0.10.24-blue.svg)](https://github.com/CareZapato/CGPlayerWeb/releases/tag/v0.10.24)
+[![Version](https://img.shields.io/badge/version-0.10.27-blue.svg)](https://github.com/CareZapato/CGPlayerWeb/releases/tag/v0.10.27)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
 [![React](https://img.shields.io/badge/React-19+-blue.svg)](https://reactjs.org/)
@@ -208,7 +208,7 @@ Para reportes, incluye:
 
 # CGPlayerWeb 🎵
 
-[![Version](https://img.shields.io/badge/version-0.10.24-blue.svg)](https://github.com/CareZapato/CGPlayerWeb/releases/tag/v0.10.24)
+[![Version](https://img.shields.io/badge/version-0.10.27-blue.svg)](https://github.com/CareZapato/CGPlayerWeb/releases/tag/v0.10.27)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
 [![React](https://img.shields.io/badge/React-19+-blue.svg)](https://reactjs.org/)
@@ -260,18 +260,25 @@ CGPlayerWeb es una aplicación web integral diseñada para coros y grupos musica
 
 ---
 
-## 🆕 **Novedades v0.10.24**
+## 🆕 **Novedades v0.10.27**
 
-### **🎨 Mejoras Visuales del Reproductor**
-- ✅ **StickyPlayer móvil 10% más grande** - Mejor usabilidad en dispositivos móviles
-- ✅ **Botones redimensionados** - Controles más grandes y organizados
-- ✅ **Marquee universal** - Efecto de barrido en TODOS los títulos de canciones
-- ✅ **Reproductor minimizado arrastrable** - Esfera móvil por toda la pantalla
+### **🔧 Corrección Crítica de Errores de Compilación**
+- **ProfilePage.tsx reparado** - Archivo corrupto reemplazado por versión limpia y funcional
+- **Errores TypeScript eliminados** - Todos los errores de compilación corregidos
+- **Build exitoso** - Proyecto compila correctamente en desarrollo y producción
+- **Layout reorganizado** - Perfil reestructurado: personal, vocal, roles
+- **Estados informativos** - Mensajes útiles para datos faltantes implementados
 
-### **🔧 Correcciones de Interacción**
-- ✅ **Touch events optimizados** - Toque para expandir funciona en PC y móvil
-- ✅ **Límites inteligentes** - Reproductor se mantiene en área visible
-- ✅ **Animaciones mejoradas** - Texto con desplazamiento suave y consistente
+### **� Mejoras en Organización del Perfil**
+- **Información personal superior** - Datos y foto en la parte superior
+- **Tipos de voz removidos** - Eliminados de la sección de cambio de foto
+- **Información vocal centralizada** - Nueva sección específica con guías
+- **SimplePlayer validado** - Componente verificado y funcionando correctamente
+
+### **🎨 Mejoras Visuales Heredadas (v0.10.24)**
+- **StickyPlayer móvil optimizado** - Tamaño aumentado 10% para mejor usabilidad
+- **Marquee universal** - Animaciones de texto en TODOS los títulos
+- **Reproductor minimizado arrastrable** - Funcionalidad de drag & drop completa
 
 ---
 
@@ -288,7 +295,7 @@ CGPlayerWeb es una aplicación web integral diseñada para coros y grupos musica
 ## 📄 **Documentación**
 
 - **[Changelog](CHANGELOG.md)** - Historial de versiones
-- **[Release Notes](RELEASE_NOTES_v0.10.24.md)** - Notas de la versión actual
+- **[Release Notes](RELEASE_NOTES_v0.10.27.md)** - Notas de la versión actual
 - **[Docker Guide](docker/README.md)** - Guía completa de despliegue con Docker
 - **API Documentation** - Disponible en `/api-docs` cuando el servidor esté ejecutándose
 
@@ -299,7 +306,7 @@ CGPlayerWeb es una aplicación web integral diseñada para coros y grupos musica
 ¿Encontraste un bug? [Crear un issue](https://github.com/CareZapato/CGPlayerWeb/issues/new)
 
 Para reportes, incluye:
-- **Versión** de CGPlayerWeb (v0.10.24)
+- **Versión** de CGPlayerWeb (v0.10.27)
 - **Navegador** y versión
 - **Pasos** para reproducir
 - **Comportamiento esperado** vs **real**
@@ -319,8 +326,8 @@ Para reportes, incluye:
 
 - **GitHub Issues:** [Reportar problemas](https://github.com/CareZapato/CGPlayerWeb/issues)
 - **Desarrollador:** CareZapato
-- **Versión Actual:** v0.10.24
-- **Última Actualización:** Enero 2025
+- **Versión Actual:** v0.10.27
+- **Última Actualización:** Septiembre 2025
 
 ---
 

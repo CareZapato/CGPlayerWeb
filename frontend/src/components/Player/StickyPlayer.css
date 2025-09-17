@@ -26,53 +26,51 @@
   height: auto;
 }
 
-/* Barra de progreso principal - POSITIONED AT TOP */
+/* Barra de progreso principal - ENSANCHADA PERMANENTEMENTE */
 .progress-bar {
   width: 100% !important;
-  background-color: #e5e7eb;
+  background-color: #e5e7eb !important;
   cursor: pointer;
-  height: 6px !important; /* Increased from 4px to 6px */
-  position: absolute !important; /* Force absolute positioning */
-  top: 0 !important; /* Always stick to the very top */
+  height: 20px !important; /* BARRA MAS ANCHA PARA VER EL CIRCULO */
+  position: absolute !important;
+  top: -15px !important; /* Subida 5px más: de -10px a -15px */
   left: 0 !important;
   right: 0 !important;
-  margin: 0 !important; /* Remove any margins */
-  padding: 0 !important; /* Remove any padding */
-  transition: height 0.2s ease-in-out;
-  border-radius: 0 !important; /* Remove border radius so it fits perfectly at top */
-  z-index: 10001 !important; /* Above sticky player but below thumb */
+  margin: 0 !important;
+  padding: 0 !important;
+  border-radius: 10px !important; /* Redondeada */
+  z-index: 10001 !important;
   /* Prevent accidental page/section navigation while dragging timeline */
-  touch-action: pan-x; /* Only allow horizontal drag for timeline */
-  user-select: none; /* Prevent text selection */
-  -webkit-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
+  touch-action: pan-x !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
 }
 
-.progress-bar:hover {
-  height: 8px; /* Increased from 6px to 8px */
-}
+/* ELIMINADO HOVER PARA EVITAR BUGS - TAMAÑO FIJO */
 
 .progress-bar__fill {
-  height: 100%;
-  background-color: #3b82f6;
-  border-radius: 2px;
+  height: 100% !important;
+  background-color: #3b82f6 !important;
+  border-radius: 10px !important; /* Coincide con el contenedor */
   transition: width 0.1s ease-out;
   position: relative;
 }
 
 .progress-bar__thumb {
-  position: absolute;
-  top: 50%;
-  right: -9px; /* Adjusted for larger size */
-  width: 16px; /* Increased diameter for better visibility */
-  height: 16px;
-  background-color: #3b82f6;
-  border: 3px solid #ffffff; /* Thicker white border for contrast */
-  border-radius: 50%;
-  transform: translateY(-50%); /* Perfect center alignment with the bar */
+  position: absolute !important;
+  top: 50% !important;
+  right: -10px !important; /* Ajustado para círculo de 20px */
+  width: 20px !important; /* CIRCULO MAS GRANDE */
+  height: 20px !important;
+  background-color: #3b82f6 !important;
+  border: 3px solid #ffffff !important;
+  border-radius: 50% !important;
+  transform: translateY(-50%) !important;
   transition: all 0.2s ease;
   cursor: pointer;
+  z-index: 10002 !important; /* Asegurar que esté encima */
   z-index: 10002 !important; /* Above progress bar - brings to front */
   box-shadow: 
     0 0 0 1px rgba(59, 130, 246, 0.3), /* Subtle outer ring */
@@ -101,38 +99,39 @@
     0 8px 16px rgba(0, 0, 0, 0.2); /* Enhanced elevation shadow */
 }
 
-/* Responsive para móvil */
+/* Responsive para móvil - BARRA ENSANCHADA */
 @media (max-width: 768px) {
   .progress-bar {
-    height: 4px !important; /* Keep same height as desktop */
-    background-color: #e5e7eb; /* Ensure background is visible */
-    position: absolute !important; /* Force absolute positioning on mobile */
-    top: 0 !important; /* Force to top on mobile */
+    height: 22px !important; /* BARRA AUN MAS ANCHA EN MOVIL */
+    background-color: #e5e7eb !important;
+    position: absolute !important;
+    top: -16px !important; /* Subida 5px más: de -11px a -16px */
     left: 0 !important;
     right: 0 !important;
-    margin: 0 !important; /* No margins on mobile */
-    padding: 0 !important; /* No padding on mobile */
+    margin: 0 !important;
+    padding: 0 !important;
+    border-radius: 11px !important; /* Redondeada */
   }
   
   .progress-bar__fill {
-    height: 100%; /* Full height of the container */
-    background-color: #3b82f6; /* Ensure blue color is visible */
-    border-radius: 2px;
+    height: 100% !important;
+    background-color: #3b82f6 !important;
+    border-radius: 11px !important; /* Coincide con contenedor móvil */
   }
   
   .progress-bar__thumb {
-    opacity: 1; /* Siempre visible en móvil */
-    width: 18px; /* Larger for mobile touch */
-    height: 18px;
-    right: -9px;
-    z-index: 10002 !important; /* Above progress bar */
-    border: 3px solid #ffffff; /* Thick border for mobile */
-    transform: translateY(-50%); /* Perfect center alignment with the bar */
+    opacity: 1 !important;
+    width: 22px !important; /* CIRCULO MAS GRANDE EN MOVIL */
+    height: 22px !important;
+    right: -11px !important; /* Ajustado para círculo de 22px */
+    z-index: 10002 !important;
+    border: 3px solid #ffffff !important;
+    transform: translateY(-50%) !important;
     box-shadow: 
       0 0 0 1px rgba(59, 130, 246, 0.4), /* Outer ring for mobile */
       0 1px 4px rgba(0, 0, 0, 0.15), /* Base shadow */
       0 3px 8px rgba(59, 130, 246, 0.5), /* Blue glow */
-      0 6px 16px rgba(0, 0, 0, 0.2); /* Elevation shadow */
+      0 6px 16px rgba(0, 0, 0, 0.2) !important; /* Elevation shadow */
   }
   
   .progress-bar__thumb:active {
@@ -766,21 +765,38 @@
   }
   
   .progress-bar {
-    height: 4px !important; /* Ensure consistent height */
-    position: absolute !important; /* Force absolute positioning on desktop */
-    top: 0 !important; /* Force to top on desktop */
+    height: 20px !important; /* BARRA ENSANCHADA PARA DESKTOP - SOBRESCRIBE REGLA ANTERIOR */
+    position: absolute !important;
+    top: -15px !important; /* POSICIÓN ELEVADA PARA DESKTOP - SOBRESCRIBE REGLA ANTERIOR */
     left: 0 !important;
     right: 0 !important;
-    margin: 0 !important; /* No margins on desktop */
-    padding: 0 !important; /* No padding on desktop */
-    z-index: 10001 !important; /* Above sticky player but below thumb */
+    margin: 0 !important;
+    padding: 0 !important;
+    border-radius: 10px !important; /* REDONDEADA PARA DESKTOP */
+    background-color: #e5e7eb !important; /* ASEGURAR COLOR DE FONDO */
+    z-index: 10001 !important;
+  }
+  
+  .progress-bar__fill {
+    height: 100% !important;
+    background-color: #3b82f6 !important;
+    border-radius: 10px !important; /* Coincide con contenedor desktop */
+  }
+  
+  .progress-bar__thumb {
+    width: 20px !important; /* CIRCULO ENSANCHADO PARA DESKTOP */
+    height: 20px !important;
+    right: -10px !important; /* Ajustado para círculo de 20px */
+    border: 2px solid #ffffff !important;
+    z-index: 10002 !important;
+    transform: translateY(-50%) !important;
   }
   .sticky-player--collapsed {
     height: 92px; /* Increased 5% more for better song title readability in mobile */
   }
   
   .player-layout {
-    padding: calc(4px + 0.75rem) 1.5rem 0.75rem; /* Top padding includes progress bar height */
+    padding: calc(4px + 0.75rem) 1.5rem 0.75rem; /* Top padding mantenido original - los elementos NO se mueven */
     gap: 1rem;
     grid-template-columns: 1.2fr 1fr 1.2fr; /* More balanced distribution for mobile, centers content more to the right */
   }
