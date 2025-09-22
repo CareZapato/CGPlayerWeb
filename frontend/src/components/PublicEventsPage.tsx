@@ -14,6 +14,7 @@ import {
   X,
   CheckCircle,
   AlertCircle,
+  XCircle,
   Search,
   FileText
 } from 'lucide-react';
@@ -905,6 +906,21 @@ const PublicEventsPage: React.FC = () => {
                               <div className="flex items-center" title="Solicitud aprobada">
                                 <div className="relative">
                                   <CheckCircle className="h-4 w-4 text-green-500" />
+                                </div>
+                              </div>
+                            );
+                          } else if (status === 'REJECTED') {
+                            return (
+                              <div 
+                                className="flex items-center cursor-pointer" 
+                                title="Solicitud rechazada - Clic para ver detalles"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedEvent(event);
+                                }}
+                              >
+                                <div className="relative">
+                                  <XCircle className="h-4 w-4 text-red-500" />
                                 </div>
                               </div>
                             );

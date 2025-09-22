@@ -278,6 +278,13 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
   React.useEffect(() => {
     console.log(`🔄 [SYNC DEBUG] Syncing localJoinRequests:`, event.joinRequests?.length || 0);
     setLocalJoinRequests(event.joinRequests || []);
+    
+    // Si tenemos una vista preservada, restaurarla
+    if (preserveRequestsView.current) {
+      console.log(`🔄 [VIEW DEBUG] Restaurando vista preservada:`, preserveRequestsView.current);
+      setRequestsView(preserveRequestsView.current);
+      preserveRequestsView.current = null; // Limpiar después de usar
+    }
   }, [event.joinRequests, event.id]); // Agregar event.id como dependencia
   
   // Paginación para asistentes
@@ -287,6 +294,9 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
   // Singer management state
   // State for join requests management
   const [requestsView, setRequestsView] = useState<'pending' | 'processed'>('pending');
+  
+  // Ref para preservar la vista actual durante actualizaciones
+  const preserveRequestsView = React.useRef<'pending' | 'processed' | null>(null);
 
   // Check if user can modify event (simplified)
   const canModifyEvent = true; // For now, allow all users to reactivate
@@ -571,6 +581,9 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
           pendingRequests: localJoinRequests.filter(r => r.status === 'PENDING').length,
           processedRequests: localJoinRequests.filter(r => r.status !== 'PENDING').length
         });
+        
+        // Preservar la vista actual antes de la actualización
+        preserveRequestsView.current = requestsView;
         
         // Actualizar el estado local inmediatamente para que la UI responda
         setLocalJoinRequests(prevRequests => {
