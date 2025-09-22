@@ -1112,11 +1112,11 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
                       <div className="flex items-center space-x-4 mt-1 text-xs text-gray-500">
                         <div className="flex items-center space-x-1">
                           <div className="w-3 h-3 rounded-full border-2 border-purple-500"></div>
-                          <span>Designados</span>
+                          <span>Designados ({(event.attendees?.filter(a => !a.cameFromJoinRequest) || []).length})</span>
                         </div>
                         <div className="flex items-center space-x-1">
                           <div className="w-3 h-3 rounded-full border-2 border-yellow-400"></div>
-                          <span>Por solicitud</span>
+                          <span>Por solicitud ({(event.attendees?.filter(a => a.cameFromJoinRequest) || []).length})</span>
                         </div>
                       </div>
                     </div>

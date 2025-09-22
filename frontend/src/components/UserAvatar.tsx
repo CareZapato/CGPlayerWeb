@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import './UserAvatar.css';
 
 interface UserAvatarProps {
   user: {
@@ -40,6 +41,16 @@ const UserAvatar: React.FC<UserAvatarProps> = ({
 
   const defaultBgColor = backgroundColor || '#6b7280';
   
+  // Determinar tipo de animación basado en el color del borde
+  const isGoldenBorder = borderColor === '#fbbf24' || borderColor?.includes('fbbf24');
+  const isPurpleBorder = borderColor === '#8b5cf6' || borderColor?.includes('8b5cf6');
+  
+  // Clases de animación CSS
+  const animationClass = showBorder ? (
+    isGoldenBorder ? 'avatar-golden-glow' : 
+    isPurpleBorder ? 'avatar-purple-wave' : ''
+  ) : '';
+  
   const borderStyles = showBorder ? {
     border: `4px ${borderType} ${borderColor}`,
     boxShadow: `0 0 0 2px ${borderColor}30`
@@ -53,7 +64,7 @@ const UserAvatar: React.FC<UserAvatarProps> = ({
   if ((!user.profileImage && !user.profileImageUrl) || imageError) {
     return (
       <div 
-        className={`${sizeClasses[size]} rounded-full flex items-center justify-center text-white font-semibold flex-shrink-0 ${className}`}
+        className={`${sizeClasses[size]} rounded-full flex items-center justify-center text-white font-semibold flex-shrink-0 ${className} ${animationClass}`}
         style={{ 
           backgroundColor: defaultBgColor,
           ...borderStyles
@@ -66,7 +77,7 @@ const UserAvatar: React.FC<UserAvatarProps> = ({
 
   return (
     <div 
-      className={`${sizeClasses[size]} rounded-full overflow-hidden flex-shrink-0 ${className}`}
+      className={`${sizeClasses[size]} rounded-full overflow-hidden flex-shrink-0 ${className} ${animationClass}`}
       style={borderStyles}
     >
       <img
