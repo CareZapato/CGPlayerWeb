@@ -5,6 +5,45 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto se adhiere al [Versionado Semántico](https://semver.org/lang/es/).
 
+## [0.11.0] - 2025-09-22
+
+### 🎭 **FUNCIONALIDAD PRINCIPAL: SISTEMA DE ENSAYOS**
+- **Nueva sección completa de Ensayos**: Sistema integral para la gestión y programación de ensayos
+- **Calendario de ensayos**: Vista de calendario especializada para programar y visualizar ensayos
+- **Categorías de eventos**: Diferenciación entre eventos regulares y ensayos con iconografía específica
+- **Gestión de asistencia**: Control detallado de asistencia para ensayos con confirmaciones
+
+### ✨ **Mejoras Visuales de Avatares**
+- **Avatares animados**: Implementación de animaciones elegantes en avatares de usuarios
+- **Franjas identificadoras**: Sistema visual para distinguir tipos de asistentes:
+  - 🟣 **Franja morada ondulante**: Asistentes designados desde el inicio (efecto tela al viento)
+  - 🟡 **Franja dorada brillante**: Asistentes que llegaron por solicitud externa (efecto de brillo)
+- **Contadores dinámicos**: Leyenda que muestra la cantidad exacta de cada tipo de asistente
+- **Imágenes de perfil mejoradas**: Visualización correcta de fotos de perfil en secciones de usuarios y eventos
+
+### 🗓️ **Mejoras en Gestión de Eventos**
+- **Vista de calendario perfeccionada**: Mejor visualización de eventos y ensayos
+- **Confirmación de asistencia mejorada**: Sistema más intuitivo para confirmar participación
+- **Botones de gestión optimizados**: Interfaz simplificada para "Asiste" y "No Asiste"
+- **Información de dashboard actualizada**: Estadísticas más precisas de eventos pendientes y realizados
+
+### 🎨 **Refinamientos de Interfaz**
+- **Iconos de eventos actualizados**: Mejores íconos para distinguir eventos y ensayos
+- **Elementos visuales centrados**: Mejor alineación de avatares y componentes
+- **Diseño responsivo mejorado**: Mejor adaptación en diferentes tamaños de pantalla
+- **Correcciones de posicionamiento**: Elementos de interfaz mejor alineados
+
+### 🐛 **Correcciones Importantes**
+- **Refresco de página solucionado**: Los cambios de asistencia ya no requieren recargar la página
+- **Estados de solicitudes corregidos**: Mejor manejo de solicitudes de unión a eventos
+- **Backup de IP dinámico**: Sistema de respaldo mejorado para conexiones
+- **Botones de eventos alineados**: Elementos siempre visibles y correctamente posicionados
+
+### 🔧 **Optimizaciones del Sistema**
+- **Rendimiento mejorado**: Carga más rápida de avatares y componentes visuales
+- **Gestión de memoria optimizada**: Mejor manejo de recursos en animaciones
+- **Accesibilidad mejorada**: Respeto por preferencias de movimiento reducido del usuario
+
 ## [0.10.27] - 2025-09-17
 
 ### 🔧 **CORRECCIÓN CRÍTICA DE ERRORES DE COMPILACIÓN**
