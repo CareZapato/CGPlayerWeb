@@ -749,7 +749,7 @@ const PublicEventsPage: React.FC = () => {
               return (
                 <div
                   key={event.id}
-                  className={cardClass}
+                  className={`${cardClass} flex flex-col h-full`}
                 >
                 {/* Event Image */}
                 {event.imageUrl ? (
@@ -764,7 +764,7 @@ const PublicEventsPage: React.FC = () => {
                   </div>
                 )}
 
-                <div className="p-6">
+                <div className="p-6 flex flex-col flex-1">
                   {/* Header with Privacy Badge */}
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex-1">
@@ -847,8 +847,11 @@ const PublicEventsPage: React.FC = () => {
                     </span>
                   </div>
 
+                  {/* Spacer para empujar los botones hacia abajo */}
+                  <div className="flex-1"></div>
+
                   {/* Stats */}
-                  <div className={`flex items-center justify-between pt-4 border-t ${isEnsayo ? 'border-gray-600' : 'border-gray-100'}`}>
+                  <div className={`flex items-center justify-between pt-4 border-t ${isEnsayo ? 'border-gray-600' : 'border-gray-100'} mt-auto`}>
                     <div className="flex items-center space-x-4">
                       <div className={`flex items-center px-3 py-2 rounded-lg ${
                         isEnsayo 
@@ -857,7 +860,7 @@ const PublicEventsPage: React.FC = () => {
                       }`}>
                         <Users className={`h-5 w-5 mr-2 ${isEnsayo ? 'text-blue-300' : 'text-indigo-500'}`} />
                         <span className={`text-sm font-bold ${isEnsayo ? 'text-blue-200' : 'text-indigo-700'}`}>
-                          {event._count?.attendees || 0} asistentes
+                          {event._count?.attendees || 0} Asist.
                         </span>
                       </div>
                       
