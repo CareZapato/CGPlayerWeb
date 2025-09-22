@@ -16,7 +16,6 @@ import {
   AlertCircle,
   XCircle,
   Search,
-  FileText
 } from 'lucide-react';
 import { getApiUrl, getSongFileUrl } from '../config/api';
 import { useEventPlaylist } from '../hooks/useEventPlaylist';
@@ -784,7 +783,7 @@ const PublicEventsPage: React.FC = () => {
                           : 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white'
                       }`}>
                         {isEnsayo ? (
-                          <FileText className="h-3 w-3 mr-1" />
+                          <Music className="h-3 w-3 mr-1" />
                         ) : (
                           <Calendar className="h-3 w-3 mr-1" />
                         )}
@@ -865,7 +864,7 @@ const PublicEventsPage: React.FC = () => {
                       }`}>
                         <Users className={`h-5 w-5 mr-2 ${isEnsayo ? 'text-blue-300' : 'text-indigo-500'}`} />
                         <span className={`text-sm font-bold ${isEnsayo ? 'text-blue-200' : 'text-indigo-700'}`}>
-                          {event._count?.attendees || 0} Asist.
+                          {event._count?.attendees || 0} 
                         </span>
                       </div>
                       
@@ -1003,6 +1002,19 @@ const PublicEventsPage: React.FC = () => {
                       {selectedEvent.title}
                     </h2>
                     <div className="flex items-center space-x-2">
+                      {/* Etiqueta de tipo de evento */}
+                      {selectedEvent.category === 'Ensayo' ? (
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                          <Music className="h-3 w-3 mr-1" />
+                          Ensayo
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                          <Calendar className="h-3 w-3 mr-1" />
+                          Evento
+                        </span>
+                      )}
+                      
                       {selectedEvent.isPublic ? (
                         <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
                           <Globe className="h-3 w-3 mr-1" />

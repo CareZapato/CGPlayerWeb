@@ -14,7 +14,6 @@ import {
   Trash2,
   Edit,
   Play,
-  FileText,
   AlertCircle
 } from 'lucide-react';
 import CreateEventModal from './CreateEventModal.tsx';
@@ -645,7 +644,7 @@ const EventManagement: React.FC = () => {
                           : 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white'
                       }`}>
                         {isEnsayo ? (
-                          <FileText className="h-3 w-3 mr-1" />
+                          <Music className="h-3 w-3 mr-1" />
                         ) : (
                           <Calendar className="h-3 w-3 mr-1" />
                         )}
@@ -726,7 +725,7 @@ const EventManagement: React.FC = () => {
                       }`}>
                         <Users className={`h-5 w-5 mr-2 ${isEnsayo ? 'text-blue-300' : 'text-indigo-500'}`} />
                         <span className={`text-sm font-bold ${isEnsayo ? 'text-blue-200' : 'text-indigo-700'}`}>
-                          {event._count?.attendees || 0} Asist.
+                          {event._count?.attendees || 0} 
                         </span>
                         {/* Indicador de asistentes pendientes */}
                         {event.attendees && event.attendees.filter(a => a.status === 'PENDING').length > 0 && (

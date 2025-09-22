@@ -16,7 +16,8 @@ import {
   MessageSquare,
   ChevronLeft,
   ChevronRight,
-  AlertCircle
+  AlertCircle,
+  Music
 } from 'lucide-react';
 import { getApiUrl } from '../config/api';
 
@@ -41,6 +42,7 @@ interface Event {
   description?: string;
   date: string;
   time?: string;
+  category?: string;
   eventCity?: string;
   eventAddress?: string;
   mapLink?: string;
@@ -669,6 +671,19 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
                 <h3 className="text-3xl font-light text-gray-900 tracking-tight">{event.title}</h3>
               </div>
               <div className="flex items-center space-x-3 ml-4">
+                {/* Etiqueta de tipo de evento */}
+                {event.category === 'Ensayo' ? (
+                  <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-purple-50 text-purple-700 border border-purple-200">
+                    <Music className="h-3 w-3 mr-1" />
+                    Ensayo
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
+                    <Calendar className="h-3 w-3 mr-1" />
+                    Evento
+                  </span>
+                )}
+                
                 {event.isPublic ? (
                   <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
                     <Globe className="h-3 w-3 mr-1" />
