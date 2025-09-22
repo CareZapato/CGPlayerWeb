@@ -2150,6 +2150,23 @@ router.put('/:id/join-requests/:requestId', authenticateToken, requireRole(['ADM
       }
     }
 
+    // Si se rechaza una solicitud que previamente fue aprobada, eliminar de attendees
+    if (status === 'REJECTED' && joinRequest.status === 'APPROVED') {
+      try {
+        const deletedAttendee = await prisma.eventAttendee.delete({
+          where: {
+            eventId_userId: {
+              eventId: id,
+              userId: joinRequest.userId
+            }
+          }
+        });
+        console.log(`🗑️ User ${joinRequest.userId} removed from attendees due to request cancellation`);
+      } catch (deleteError) {
+        console.log(`⚠️ Could not remove user ${joinRequest.userId} from attendees (may not exist):`, deleteError);
+      }
+    }
+
     res.json({
       success: true,
       message: `Solicitud ${status === 'APPROVED' ? 'aceptada' : 'rechazada'} exitosamente`,
