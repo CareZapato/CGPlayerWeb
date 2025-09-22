@@ -119,7 +119,7 @@ const EventManagement: React.FC = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
-  const [initialModalTab, setInitialModalTab] = useState<'info' | 'attendees' | 'requests' | 'songs'>('info'); // Nueva estado
+  const [initialModalTab, setInitialModalTab] = useState<'info' | 'attendees' | 'requests' | 'singers'>('info'); // Nueva estado
   const [showEditModal, setShowEditModal] = useState(false);
   const [eventToEdit, setEventToEdit] = useState<Event | null>(null);
 
@@ -235,13 +235,11 @@ const EventManagement: React.FC = () => {
     }
   }, []);
 
-  // Función separada para actualizar el evento seleccionado
-  const updateSelectedEvent = useCallback(async () => {
-    if (!selectedEvent) return;
-    
+  // Función para recargar un evento específico por ID
+  const reloadEventById = useCallback(async (eventId: string): Promise<Event | null> => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(getApiUrl(`/events/management/${selectedEvent.id}`), {
+      const response = await fetch(getApiUrl(`/events/${eventId}`), {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -250,14 +248,15 @@ const EventManagement: React.FC = () => {
 
       if (response.ok) {
         const data = await response.json();
-        if (data.success) {
-          setSelectedEvent(data.data);
+        if (data.success && data.data) {
+          return data.data;
         }
       }
     } catch (err) {
-      console.error('Error updating selected event:', err);
+      console.error('Error reloading event:', err);
     }
-  }, [selectedEvent]);
+    return null;
+  }, []);
 
   useEffect(() => {
     fetchEvents();
@@ -837,9 +836,16 @@ const EventManagement: React.FC = () => {
               setShowDetailsModal(false);
               setInitialModalTab('info'); // Reset a info por defecto
             }}
-            onEventUpdated={() => {
-              fetchEvents(); // Actualizar lista de eventos
-              updateSelectedEvent(); // Actualizar evento seleccionado específicamente
+            onEventUpdated={async () => {
+              // Primero actualizar la lista completa
+              await fetchEvents();
+              
+              // Luego recargar el evento seleccionado con datos frescos
+              const updatedEvent = await reloadEventById(selectedEvent.id);
+              if (updatedEvent) {
+                console.log(`🔄 [EVENT UPDATE] Updated selectedEvent:`, updatedEvent);
+                setSelectedEvent(updatedEvent);
+              }
             }}
             initialTab={initialModalTab}
           />

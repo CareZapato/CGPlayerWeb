@@ -19,6 +19,21 @@ import {
 } from 'lucide-react';
 import { getApiUrl } from '../config/api';
 
+interface VoiceProfile {
+  voiceType: string;
+  isPrimary: boolean;
+}
+
+interface EventVoice {
+  id: string;
+  name: string;
+  status: string;
+  voiceProfiles: VoiceProfile[];
+  primaryVoice?: {
+    voiceType: string;
+  };
+}
+
 interface Event {
   id: string;
   title: string;
@@ -46,10 +61,7 @@ interface Event {
       lastName: string;
       location?: { name: string };
       assignedRoles: Array<{ role: string }>;
-      voiceProfiles?: Array<{
-        voiceType: string;
-        isPrimary: boolean;
-      }>;
+      voiceProfiles?: VoiceProfile[];
     };
     addedByUser: {
       firstName: string;
@@ -74,7 +86,7 @@ interface EventDetailsModalProps {
   event: Event;
   onClose: () => void;
   onEventUpdated: () => void;
-  initialTab?: 'info' | 'attendees' | 'requests' | 'songs'; // Nueva prop opcional
+  initialTab?: 'info' | 'attendees' | 'requests' | 'singers'; // Nueva prop opcional
 }
 
 const EventDetailsModal: React.FC<EventDetailsModalProps> = ({ 
@@ -102,16 +114,16 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
       user: firstAttendee.user,
       userKeys: Object.keys(firstAttendee.user),
       hasVoiceProfiles: 'voiceProfiles' in firstAttendee.user,
-      voiceProfilesValue: (firstAttendee.user as any).voiceProfiles
+      voiceProfilesValue: firstAttendee.user.voiceProfiles
     });
   }
 
   // Estado para las voces obtenidas del endpoint específico
-  const [eventVoices, setEventVoices] = useState<any[]>([]);
+  const [eventVoices, setEventVoices] = useState<EventVoice[]>([]);
   const [voicesLoaded, setVoicesLoaded] = useState(false);
   
   // Función para obtener voces del endpoint específico
-  const fetchEventVoices = async () => {
+  const fetchEventVoices = React.useCallback(async () => {
     try {
       console.log('🎤 Obteniendo voces del evento...');
       const response = await fetch(getApiUrl(`/events/${event.id}/voices`), {
@@ -133,14 +145,23 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
     } catch (error) {
       console.error('❌ Error obteniendo voces:', error);
     }
-  };
+  }, [event.id]);
 
   // Llamar al endpoint de voces cuando se monta el componente
   React.useEffect(() => {
     fetchEventVoices();
-  }, [event.id]);
-  const [activeTab, setActiveTab] = useState<'info' | 'attendees' | 'requests' | 'singers'>(initialTab as any || 'info');
+  }, [fetchEventVoices]);
+  const [activeTab, setActiveTab] = useState<'info' | 'attendees' | 'requests' | 'singers'>(initialTab || 'info');
   const [loading, setLoading] = useState(false);
+  
+  // Estado local para las solicitudes de unión para forzar re-render
+  const [localJoinRequests, setLocalJoinRequests] = useState(event.joinRequests || []);
+  
+  // Sincronizar las solicitudes locales cuando cambie el prop event
+  React.useEffect(() => {
+    console.log(`🔄 [SYNC DEBUG] Syncing localJoinRequests:`, event.joinRequests?.length || 0);
+    setLocalJoinRequests(event.joinRequests || []);
+  }, [event.joinRequests, event.id]); // Agregar event.id como dependencia
   
   // Paginación para asistentes
   const [attendeesPage, setAttendeesPage] = useState(1);
@@ -354,7 +375,7 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
     console.log('📈 Resultado final:', result);
     console.log('🎵 FIN - Calculando composición del coro');
     return result;
-  }, [event.attendees, voicesLoaded, eventVoices]);
+  }, [event.attendees, event.id, event.title, voicesLoaded, eventVoices]);
 
   // Datos para el gráfico de torta
   const chartData = useMemo(() => {
@@ -404,10 +425,16 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
       const token = localStorage.getItem('token');
       
       console.log(`📝 [SOLICITUDES DEBUG] Procesando solicitud: ${status} para request ${requestId}`);
-      console.log(`📊 [SOLICITUDES DEBUG] Total joinRequests antes:`, event.joinRequests?.length || 0);
-      console.log(`📊 [SOLICITUDES DEBUG] Solicitudes pendientes antes:`, event.joinRequests?.filter(r => r.status === 'PENDING').length || 0);
+      console.log(`📊 [SOLICITUDES DEBUG] Total joinRequests antes:`, localJoinRequests.length);
+      console.log(`📊 [SOLICITUDES DEBUG] Solicitudes pendientes antes:`, localJoinRequests.filter(r => r.status === 'PENDING').length);
       
-      const response_data = await fetch(getApiUrl(`/events/${event.id}/join-requests/${requestId}`), {
+      // Debug de la URL construida
+      const apiUrl = getApiUrl(`/events/${event.id}/join-requests/${requestId}`);
+      console.log(`🔗 [SOLICITUDES DEBUG] URL construida:`, apiUrl);
+      console.log(`🆔 [SOLICITUDES DEBUG] Event ID:`, event.id);
+      console.log(`🆔 [SOLICITUDES DEBUG] Request ID:`, requestId);
+      
+      const response_data = await fetch(apiUrl, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -423,17 +450,50 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
         
         // Log del estado antes del refresh
         console.log(`📊 [SOLICITUDES DEBUG] Estado ANTES del refresh:`, {
-          totalRequests: event.joinRequests?.length || 0,
-          pendingRequests: event.joinRequests?.filter(r => r.status === 'PENDING').length || 0,
-          processedRequests: event.joinRequests?.filter(r => r.status !== 'PENDING').length || 0
+          totalRequests: localJoinRequests.length,
+          pendingRequests: localJoinRequests.filter(r => r.status === 'PENDING').length,
+          processedRequests: localJoinRequests.filter(r => r.status !== 'PENDING').length
         });
         
+        // Actualizar el estado local inmediatamente para que la UI responda
+        setLocalJoinRequests(prevRequests => {
+          const updated = prevRequests.map(req => 
+            req.id === requestId 
+              ? { ...req, status: status }
+              : req
+          );
+          console.log(`🔄 [SOLICITUDES DEBUG] Estado local actualizado inmediatamente:`, {
+            before: prevRequests.length,
+            after: updated.length,
+            pendingBefore: prevRequests.filter(r => r.status === 'PENDING').length,
+            pendingAfter: updated.filter(r => r.status === 'PENDING').length
+          });
+          return updated;
+        });
+        
+        // Llamar al callback del componente padre para actualizar la lista
+        console.log(`🔄 [SOLICITUDES DEBUG] Llamando onEventUpdated()...`);
         await onEventUpdated();
         
-        console.log(`✅ [SOLICITUDES DEBUG] onEventUpdated() completado`);
+        // También recargar los datos de voces localmente para asegurar coherencia
+        await fetchEventVoices();
+        
+        console.log(`✅ [SOLICITUDES DEBUG] Todo completado - onEventUpdated() y fetchEventVoices()`);
       } else {
-        const errorData = await response_data.json();
-        console.error(`❌ Error al ${status.toLowerCase()} solicitud:`, errorData);
+        console.error(`❌ [SOLICITUDES DEBUG] Response status:`, response_data.status);
+        console.error(`❌ [SOLICITUDES DEBUG] Response statusText:`, response_data.statusText);
+        
+        let errorData;
+        try {
+          errorData = await response_data.json();
+        } catch (parseError) {
+          console.error(`❌ [SOLICITUDES DEBUG] No se pudo parsear JSON de error:`, parseError);
+          const textResponse = await response_data.text();
+          console.error(`❌ [SOLICITUDES DEBUG] Respuesta de texto:`, textResponse);
+          throw new Error(`Error ${response_data.status}: ${textResponse || response_data.statusText}`);
+        }
+        
+        console.error(`❌ [SOLICITUDES DEBUG] Error data:`, errorData);
         throw new Error(errorData.message || `Error al ${status.toLowerCase()} la solicitud`);
       }
     } catch (error) {
@@ -456,7 +516,7 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
       id: 'requests' as const, 
       label: 'Solicitudes', 
       icon: Mail, 
-      badge: event.joinRequests?.filter(r => r.status === 'PENDING').length || 0 
+      badge: localJoinRequests.filter(r => r.status === 'PENDING').length || 0 
     }
   ];
 
@@ -831,7 +891,7 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
                           : 'text-gray-500 hover:text-gray-700'
                       }`}
                     >
-                      Pendientes ({event.joinRequests?.filter(r => r.status === 'PENDING').length || 0})
+                      Pendientes ({localJoinRequests.filter(r => r.status === 'PENDING').length || 0})
                     </button>
                     <button
                       onClick={() => setRequestsView('processed')}
@@ -841,15 +901,15 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
                           : 'text-gray-500 hover:text-gray-700'
                       }`}
                     >
-                      Procesadas ({event.joinRequests?.filter(r => r.status !== 'PENDING').length || 0})
+                      Procesadas ({localJoinRequests.filter(r => r.status !== 'PENDING').length || 0})
                     </button>
                   </div>
                 </div>
 
                 {(() => {
-                  const filteredRequests = event.joinRequests?.filter(request => 
+                  const filteredRequests = localJoinRequests.filter(request => 
                     requestsView === 'pending' ? request.status === 'PENDING' : request.status !== 'PENDING'
-                  ) || [];
+                  );
 
                   return filteredRequests.length > 0 ? (
                     <div className="space-y-4">
