@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Plus, 
   Calendar, 
@@ -20,6 +20,7 @@ import EventDetailsModal from './EventDetailsModal.tsx';
 import { useEventPlaylist } from '../hooks/useEventPlaylist';
 import { usePlayerStore } from '../store/playerStore';
 import { usePlaylistStore } from '../store/playlistStore';
+import type { Song } from '../types';
 import { getSongFileUrl } from '../config/api';
 import { getApiUrl } from '../config/api';
 
@@ -36,12 +37,60 @@ interface Creator {
   lastName: string;
 }
 
+interface EventAttendee {
+  user: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    location?: { name: string };
+    assignedRoles: Array<{ role: string }>;
+    voiceProfiles?: Array<{
+      voiceType: string;
+      isPrimary: boolean;
+    }>;
+  };
+  addedByUser: {
+    firstName: string;
+    lastName: string;
+  };
+  addedBy: 'individual' | 'group';
+  groupName?: string;
+  status: string;
+}
+
+interface EventJoinRequest {
+  id: string;
+  user: {
+    firstName: string;
+    lastName: string;
+    assignedRoles: Array<{ role: string }>;
+  };
+  message?: string;
+  status: string;
+  createdAt: string;
+}
+
+interface EventSong {
+  id: string;
+  song: {
+    id: string;
+    title: string;
+    artist?: string;
+    voiceType?: string;
+    filePath?: string;
+    parentSongId?: string;
+  };
+  order: number;
+}
+
 interface Event {
   id: string;
   title: string;
   description?: string;
   date: string;
   time?: string;
+  category?: string;
   location?: Location;
   creator?: Creator;
   eventCity?: string;
@@ -56,8 +105,9 @@ interface Event {
     eventSongs?: number;
     uniqueEventSongs?: number;
   };
-  attendees?: any[];
-  joinRequests?: any[];
+  attendees?: EventAttendee[];
+  joinRequests?: EventJoinRequest[];
+  eventSongs?: EventSong[];
 }
 
 const EventManagement: React.FC = () => {
@@ -81,10 +131,6 @@ const EventManagement: React.FC = () => {
   const { playEvent, loading: playLoading } = useEventPlaylist();
   const { setCurrentSong } = usePlayerStore();
   const { replaceQueueAndPlay } = usePlaylistStore();
-
-  useEffect(() => {
-    fetchEvents();
-  }, []);
 
   // Función para filtrar eventos
   const getFilteredEvents = () => {
@@ -157,7 +203,7 @@ const EventManagement: React.FC = () => {
   const uniqueCities = getUniqueCities();
   const uniqueRegions = getUniqueRegions();
 
-  const fetchEvents = async () => {
+  const fetchEvents = useCallback(async () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
@@ -195,11 +241,16 @@ const EventManagement: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedEvent, showDetailsModal]);
 
-  const handleEventCreated = (newEventData: any) => {
+  useEffect(() => {
+    fetchEvents();
+  }, [fetchEvents]);
+
+  const handleEventCreated = (newEventData: unknown) => {
     // Extraer el evento de la respuesta del backend
-    const newEvent = newEventData?.data || newEventData;
+    const response = newEventData as { data?: Event } | Event;
+    const newEvent = 'data' in response && response.data ? response.data : response as Event;
     
     // Agregar el nuevo evento al principio de la lista
     setEvents(prev => [newEvent, ...prev]);
@@ -257,12 +308,14 @@ const EventManagement: React.FC = () => {
     }
   };
 
-  const handleEventUpdated = (_updatedEventData: any) => {
+  const handleEventUpdated = () => {
     // Actualizar la lista de eventos
     fetchEvents();
     setShowEditModal(false);
     setEventToEdit(null);
   };
+
+
 
   // Función para reproducir evento como playlist
   const handlePlayEvent = async (event: Event) => {
@@ -295,11 +348,11 @@ const EventManagement: React.FC = () => {
         console.log(`🎵 Songs with URLs:`, songsWithUrls);
 
         // Agregar todas las canciones a la cola y empezar a reproducir la primera
-        replaceQueueAndPlay(songsWithUrls as any[], 0);
+        replaceQueueAndPlay(songsWithUrls as unknown as Song[], 0);
         
         // También establecer en playerStore para reproducción inmediata
         if (songsWithUrls[0]) {
-          setCurrentSong(songsWithUrls[0] as any);
+          setCurrentSong(songsWithUrls[0] as unknown as Song);
         }
         
         console.log(`✅ Evento reproducido: ${result.eventTitle} con ${result.totalSongs} canciones`);
@@ -347,10 +400,10 @@ const EventManagement: React.FC = () => {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
           <div>
             <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-2">
-              Gestión de Eventos
+              Gestión de Programación
             </h1>
             <p className="text-gray-600">
-              Crea y administra eventos musicales para el coro
+              Crea y administra eventos y ensayos para el coro
             </p>
           </div>
           <button
@@ -358,7 +411,7 @@ const EventManagement: React.FC = () => {
             className="mt-4 md:mt-0 inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-xl text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transform hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl"
           >
             <Plus className="h-5 w-5 mr-2" />
-            Crear Evento
+            Nueva Programación
           </button>
         </div>
 
@@ -374,7 +427,7 @@ const EventManagement: React.FC = () => {
               }`}
             >
               <Calendar className="w-5 h-5 inline mr-2" />
-              Próximos Eventos ({events.filter(e => new Date(e.date) >= new Date()).length})
+              Próxima Programación ({events.filter(e => new Date(e.date) >= new Date()).length})
             </button>
             <button
               onClick={() => setActiveTab('past')}
@@ -385,7 +438,7 @@ const EventManagement: React.FC = () => {
               }`}
             >
               <Clock className="w-5 h-5 inline mr-2" />
-              Eventos Pasados ({events.filter(e => new Date(e.date) < new Date()).length})
+              Programación Pasada ({events.filter(e => new Date(e.date) < new Date()).length})
             </button>
           </div>
 
@@ -397,7 +450,7 @@ const EventManagement: React.FC = () => {
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
                 <input
                   type="text"
-                  placeholder="Buscar eventos..."
+                  placeholder="Buscar programación..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
@@ -513,12 +566,12 @@ const EventManagement: React.FC = () => {
             <div className="bg-white/80 backdrop-blur-sm rounded-xl p-8 border border-gray-100 shadow-lg max-w-md mx-auto">
               <Calendar className="mx-auto h-16 w-16 text-gray-400 mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">
-                {searchTerm ? 'No se encontraron eventos' : 'No hay eventos creados'}
+                {searchTerm ? 'No se encontró programación' : 'No hay programación creada'}
               </h3>
               <p className="text-gray-500 mb-4">
                 {searchTerm 
                   ? 'Intenta con otros términos de búsqueda'
-                  : 'Crea tu primer evento para comenzar'
+                  : 'Crea tu primera programación para comenzar'
                 }
               </p>
               {!searchTerm && (
@@ -527,18 +580,24 @@ const EventManagement: React.FC = () => {
                   className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 transition-all duration-200"
                 >
                   <Plus className="h-4 w-4 mr-2" />
-                  Crear Primer Evento
+                  Crear Primera Programación
                 </button>
               )}
             </div>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredEvents.map((event) => (
-              <div
-                key={event.id}
-                className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100 overflow-hidden group"
-              >
+            {filteredEvents.map((event) => {
+              const isEnsayo = event.category === 'Ensayo';
+              const cardClass = isEnsayo 
+                ? "bg-gray-800/90 backdrop-blur-sm rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-700 overflow-hidden group" 
+                : "bg-white/80 backdrop-blur-sm rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100 overflow-hidden group";
+              
+              return (
+                <div
+                  key={event.id}
+                  className={cardClass}
+                >
                 {/* Event Image */}
                 {event.imageUrl ? (
                   <img
@@ -555,17 +614,37 @@ const EventManagement: React.FC = () => {
                 <div className="p-6">
                   {/* Header with Privacy Badge */}
                   <div className="flex items-start justify-between mb-3">
-                    <h3 className="text-lg font-bold text-gray-900 line-clamp-2 flex-1">
-                      {event.title}
-                    </h3>
+                    <div className="flex-1">
+                      <h3 className={`text-lg font-bold line-clamp-2 ${isEnsayo ? 'text-white' : 'text-gray-900'}`}>
+                        {event.title}
+                      </h3>
+                      {/* Etiqueta de categoría */}
+                      {event.category && (
+                        <span className={`inline-block mt-1 px-2 py-1 rounded-full text-xs font-medium ${
+                          isEnsayo 
+                            ? 'bg-gray-700 text-gray-200' 
+                            : 'bg-blue-100 text-blue-800'
+                        }`}>
+                          {event.category}
+                        </span>
+                      )}
+                    </div>
                     <div className="ml-2 flex flex-col gap-1">
                       {event.isPublic ? (
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                          isEnsayo 
+                            ? 'bg-green-800 text-green-200' 
+                            : 'bg-green-100 text-green-800'
+                        }`}>
                           <Globe className="h-3 w-3 mr-1" />
                           Público
                         </span>
                       ) : (
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                          isEnsayo 
+                            ? 'bg-gray-700 text-gray-300' 
+                            : 'bg-gray-100 text-gray-800'
+                        }`}>
                           <Lock className="h-3 w-3 mr-1" />
                           Privado
                         </span>
@@ -573,7 +652,11 @@ const EventManagement: React.FC = () => {
                       
                       {/* Etiqueta "Abierto a Postulaciones" */}
                       {event.allowExternalJoin && (
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                          isEnsayo 
+                            ? 'bg-blue-800 text-blue-200' 
+                            : 'bg-blue-100 text-blue-800'
+                        }`}>
                           <UserPlus className="h-3 w-3 mr-1" />
                           Abierto a Postulaciones
                         </span>
@@ -583,28 +666,28 @@ const EventManagement: React.FC = () => {
 
                   {/* Description */}
                   {event.description && (
-                    <p className="text-gray-600 text-sm mb-4 line-clamp-2">
+                    <p className={`text-sm mb-4 line-clamp-2 ${isEnsayo ? 'text-gray-300' : 'text-gray-600'}`}>
                       {event.description}
                     </p>
                   )}
 
                   {/* Date & Time */}
-                  <div className="flex items-center text-slate-600 mb-3">
-                    <Calendar className="h-4 w-4 mr-2 text-indigo-500" />
+                  <div className={`flex items-center mb-3 ${isEnsayo ? 'text-gray-400' : 'text-slate-600'}`}>
+                    <Calendar className={`h-4 w-4 mr-2 ${isEnsayo ? 'text-indigo-400' : 'text-indigo-500'}`} />
                     <span className="text-sm font-medium">
                       {formatDate(event.date)}
                     </span>
                     {event.time && (
                       <>
-                        <Clock className="h-4 w-4 ml-4 mr-2 text-emerald-500" />
+                        <Clock className={`h-4 w-4 ml-4 mr-2 ${isEnsayo ? 'text-emerald-400' : 'text-emerald-500'}`} />
                         <span className="text-sm font-medium">{formatTime(event.time)}</span>
                       </>
                     )}
                   </div>
 
                   {/* Location */}
-                  <div className="flex items-center text-slate-600 mb-4">
-                    <MapPin className="h-4 w-4 mr-2 text-red-500" />
+                  <div className={`flex items-center mb-4 ${isEnsayo ? 'text-gray-400' : 'text-slate-600'}`}>
+                    <MapPin className={`h-4 w-4 mr-2 ${isEnsayo ? 'text-red-400' : 'text-red-500'}`} />
                     <span className="text-sm font-medium line-clamp-1">
                       {event.eventCity || event.location?.city || 'Ubicación por confirmar'}
                       {event.eventAddress && `, ${event.eventAddress}`}
@@ -647,7 +730,11 @@ const EventManagement: React.FC = () => {
                         <button
                           onClick={() => handlePlayEvent(event)}
                           disabled={playLoading}
-                          className="flex items-center text-green-600 bg-green-50 px-2 py-1 rounded-lg hover:text-green-700 hover:bg-green-100 transition-all duration-200 disabled:opacity-50"
+                          className={`flex items-center px-2 py-1 rounded-lg transition-all duration-200 disabled:opacity-50 ${
+                            isEnsayo 
+                              ? 'text-green-400 bg-green-900/30 hover:text-green-300 hover:bg-green-900/50' 
+                              : 'text-green-600 bg-green-50 hover:text-green-700 hover:bg-green-100'
+                          }`}
                           title="Reproducir como playlist"
                         >
                           <span className="text-sm font-medium mr-1">
@@ -658,20 +745,32 @@ const EventManagement: React.FC = () => {
                       )}
                       <button
                         onClick={() => handleViewDetails(event)}
-                        className="p-2 text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-all duration-200"
+                        className={`p-2 rounded-lg transition-all duration-200 ${
+                          isEnsayo 
+                            ? 'text-blue-400 hover:text-blue-300 hover:bg-blue-900/30' 
+                            : 'text-blue-500 hover:text-blue-700 hover:bg-blue-50'
+                        }`}
                         title="Ver detalles"
                       >
                         <Eye className="h-4 w-4" />
                       </button>
                       <button
                         onClick={() => handleEditEvent(event)}
-                        className="p-2 text-purple-500 hover:text-purple-700 hover:bg-purple-50 rounded-lg transition-all duration-200"
+                        className={`p-2 rounded-lg transition-all duration-200 ${
+                          isEnsayo 
+                            ? 'text-purple-400 hover:text-purple-300 hover:bg-purple-900/30' 
+                            : 'text-purple-500 hover:text-purple-700 hover:bg-purple-50'
+                        }`}
                         title="Editar evento"
                       >
                         <Edit className="h-4 w-4" />
                       </button>
                       <button
-                        className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-all duration-200"
+                        className={`p-2 rounded-lg transition-all duration-200 ${
+                          isEnsayo 
+                            ? 'text-red-400 hover:text-red-300 hover:bg-red-900/30' 
+                            : 'text-red-500 hover:text-red-700 hover:bg-red-50'
+                        }`}
                         title="Eliminar evento"
                       >
                         <Trash2 className="h-4 w-4" />
@@ -680,7 +779,8 @@ const EventManagement: React.FC = () => {
                   </div>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
@@ -700,7 +800,7 @@ const EventManagement: React.FC = () => {
             }}
             onEventCreated={handleEventUpdated}
             editMode={true}
-            eventData={eventToEdit}
+            eventData={eventToEdit as Parameters<typeof CreateEventModal>[0]['eventData']}
           />
         )}
 

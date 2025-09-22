@@ -1,6 +1,8 @@
 import type { User } from '../types';
 import React from 'react';
 
+/* eslint-disable react-refresh/only-export-components */
+// Este archivo exporta utilidades y constantes además de componentes
 // Configuración de permisos por sección basada en roles de la BD
 export const SECTION_PERMISSIONS = {
   // Secciones accesibles para cantantes
@@ -25,6 +27,8 @@ export const SECTION_PERMISSIONS = {
 
 // Tipos para TypeScript
 export type SectionKey = keyof typeof SECTION_PERMISSIONS;
+export type RoleName = 'ADMIN' | 'CANTANTE' | 'DIRECTOR';
+export type AllowedRoles = readonly RoleName[];
 
 /**
  * Verifica si un usuario tiene acceso a una sección específica
@@ -46,10 +50,10 @@ export const hasAccess = (user: User | null, section: SectionKey): boolean => {
     allowedRoles,
     allUserRoles: user.roles,
     activeUserRoles: userRoles,
-    hasAccess: userRoles.some(role => allowedRoles.includes(role as any))
+    hasAccess: userRoles.some(role => (allowedRoles as readonly string[]).includes(role))
   });
   
-  return userRoles.some(role => allowedRoles.includes(role as any));
+  return userRoles.some(role => (allowedRoles as readonly string[]).includes(role));
 };
 
 /**
@@ -108,7 +112,7 @@ export const usePermissions = () => {
       },
       {
         key: 'EVENTS',
-        label: 'Eventos',
+        label: 'Programación',
         icon: 'Calendar',
         path: '/events',
         type: 'single'
@@ -137,7 +141,7 @@ export const usePermissions = () => {
           },
           {
             key: 'EVENTS_MGMT',
-            label: 'Gestión de Eventos',
+            label: 'Gestionar Programación',
             icon: 'Calendar',
             path: '/events-management',
             requiredPermission: 'MANAGEMENT'
@@ -157,7 +161,7 @@ export const usePermissions = () => {
     return menuItems.filter(item => {
       if (item.type === 'dropdown') {
         // Para dropdowns, verificar si al menos un hijo es accesible
-        const accessibleChildren: any[] = item.children?.filter(child => 
+        const accessibleChildren = item.children?.filter(child => 
           hasAccess(user, child.requiredPermission as SectionKey)
         ) || [];
         const hasDropdownAccess: boolean = accessibleChildren.length > 0;
