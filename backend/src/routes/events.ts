@@ -2573,4 +2573,136 @@ router.post('/:id/resubmit-join-request', authenticateToken, async (req, res) =>
   }
 });
 
+// Actualizar el estado de asistencia de un asistente específico (solo admin/director)
+router.put('/:id/attendees/:userId/status', authenticateToken, requireRole(['ADMIN', 'DIRECTOR']), async (req, res) => {
+  try {
+    const { id, userId } = req.params;
+    const { status } = req.body;
+
+    console.log(`🔄 Updating attendance status for EventID=${id}, UserID=${userId}, Status=${status}`);
+
+    // Validar que el status sea válido
+    if (!['CONFIRMED', 'REFUSED', 'PENDING'].includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Estado inválido. Debe ser CONFIRMED, REFUSED o PENDING'
+      });
+    }
+
+    // Verificar que el evento existe
+    const event = await prisma.event.findUnique({
+      where: { id }
+    });
+
+    if (!event) {
+      return res.status(404).json({
+        success: false,
+        message: 'Evento no encontrado'
+      });
+    }
+
+    // Buscar si el usuario es asistente del evento
+    const existingAttendee = await prisma.eventAttendee.findFirst({
+      where: {
+        eventId: id,
+        userId: userId
+      }
+    });
+
+    if (!existingAttendee) {
+      return res.status(404).json({
+        success: false,
+        message: 'El usuario no es asistente de este evento'
+      });
+    }
+
+    // Actualizar el estado de asistencia
+    const updatedAttendee = await prisma.eventAttendee.update({
+      where: {
+        id: existingAttendee.id
+      },
+      data: {
+        status: status,
+        // Si se confirma la asistencia, también actualizar attendanceConfirmed
+        ...(status === 'CONFIRMED' && { attendanceConfirmed: true }),
+        ...(status === 'REFUSED' && { attendanceConfirmed: false })
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true
+          }
+        }
+      }
+    });
+
+    console.log(`✅ Attendance status updated successfully:`, updatedAttendee);
+
+    res.status(200).json({
+      success: true,
+      message: 'Estado de asistencia actualizado exitosamente',
+      data: updatedAttendee
+    });
+
+  } catch (error) {
+    console.error('❌ Error updating attendance status:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al actualizar el estado de asistencia'
+    });
+  }
+});
+
+// Marcar todos los asistentes PENDING como REFUSED (solo admin/director)
+router.put('/:id/attendees/mark-pending-refused', authenticateToken, requireRole(['ADMIN', 'DIRECTOR']), async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    console.log(`🔄 Marking all PENDING attendees as REFUSED for EventID=${id}`);
+
+    // Verificar que el evento existe
+    const event = await prisma.event.findUnique({
+      where: { id }
+    });
+
+    if (!event) {
+      return res.status(404).json({
+        success: false,
+        message: 'Evento no encontrado'
+      });
+    }
+
+    // Actualizar todos los asistentes con status PENDING a REFUSED
+    const updatedAttendees = await prisma.eventAttendee.updateMany({
+      where: {
+        eventId: id,
+        status: 'PENDING'
+      },
+      data: {
+        status: 'REFUSED',
+        attendanceConfirmed: false
+      }
+    });
+
+    console.log(`✅ Updated ${updatedAttendees.count} attendees from PENDING to REFUSED`);
+
+    res.status(200).json({
+      success: true,
+      message: `${updatedAttendees.count} asistentes marcados como ausentes`,
+      data: {
+        updatedCount: updatedAttendees.count
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Error marking pending attendees as refused:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al marcar asistentes como ausentes'
+    });
+  }
+});
+
 export default router;

@@ -17,7 +17,9 @@ import {
   ChevronLeft,
   ChevronRight,
   AlertCircle,
-  Music
+  Music,
+  Check,
+  Trash2
 } from 'lucide-react';
 import { getApiUrl } from '../config/api';
 
@@ -636,6 +638,77 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
     }
   };
 
+  // Función para verificar si el evento ya pasó
+  const isEventPast = () => {
+    const eventDate = new Date(event.date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Resetear la hora para comparar solo fechas
+    return eventDate < today;
+  };
+
+  // Función para actualizar el estado de asistencia individual
+  const handleAttendanceStatusUpdate = async (attendeeId: string, newStatus: 'CONFIRMED' | 'REFUSED') => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      
+      const response = await fetch(getApiUrl(`/events/${event.id}/attendees/${attendeeId}/status`), {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ status: newStatus })
+      });
+
+      if (response.ok) {
+        console.log(`✅ Estado de asistencia actualizado: ${newStatus} para attendee ${attendeeId}`);
+        // Actualizar la lista de eventos para reflejar los cambios
+        await onEventUpdated();
+        await fetchEventVoices();
+      } else {
+        const errorData = await response.json();
+        console.error('Error actualizando estado de asistencia:', errorData);
+        throw new Error(errorData.message || 'Error al actualizar el estado');
+      }
+    } catch (error) {
+      console.error('Error actualizando estado de asistencia:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Función para marcar todos los PENDING como REFUSED
+  const handleMarkAllPendingAsRefused = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      
+      const response = await fetch(getApiUrl(`/events/${event.id}/attendees/mark-pending-refused`), {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        console.log('✅ Todos los asistentes PENDING marcados como REFUSED');
+        // Actualizar la lista de eventos para reflejar los cambios
+        await onEventUpdated();
+        await fetchEventVoices();
+      } else {
+        const errorData = await response.json();
+        console.error('Error marcando asistentes como rechazados:', errorData);
+        throw new Error(errorData.message || 'Error al marcar asistentes');
+      }
+    } catch (error) {
+      console.error('Error marcando asistentes como rechazados:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const tabs = [
     { id: 'info' as const, label: 'Información', icon: Calendar },
     { 
@@ -853,9 +926,23 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
               <div className="space-y-6">
                 {/* Header con estadísticas */}
                 <div className="flex items-center justify-between">
-                  <h4 className="text-lg font-medium text-gray-900">
-                    Asistentes ({event.attendees?.length || 0})
-                  </h4>
+                  <div className="flex items-center space-x-4">
+                    <h4 className="text-lg font-medium text-gray-900">
+                      Asistentes ({event.attendees?.length || 0})
+                    </h4>
+                    {/* Botón para marcar todos los PENDING como REFUSED - solo si el evento ya pasó */}
+                    {isEventPast() && event.attendees?.some(a => a.status === 'PENDING') && (
+                      <button
+                        onClick={handleMarkAllPendingAsRefused}
+                        disabled={loading}
+                        className="flex items-center px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Marcar todos los asistentes pendientes como ausentes"
+                      >
+                        <Trash2 className="h-3 w-3 mr-1" />
+                        Marcar Pendientes como Ausentes
+                      </button>
+                    )}
+                  </div>
                   {totalPages > 1 && (
                     <div className="text-sm text-gray-500">
                       Página {attendeesPage} de {totalPages}
@@ -873,7 +960,37 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
                           key={index}
                           className={`flex items-center justify-between p-3 rounded-lg border ${statusColors.bg} ${statusColors.border} transition-all hover:shadow-sm`}
                         >
-                          <div className="flex items-center space-x-3">
+                          {/* Botones de gestión de asistencia - solo si el evento ya pasó */}
+                          {isEventPast() && (
+                            <div className="flex flex-col space-y-1 mr-3">
+                              <button
+                                onClick={() => handleAttendanceStatusUpdate(attendee.user.id, 'CONFIRMED')}
+                                disabled={loading}
+                                className={`p-1.5 rounded-lg transition-colors text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed ${
+                                  attendee.status === 'CONFIRMED' 
+                                    ? 'bg-green-600 text-white' 
+                                    : 'bg-green-100 text-green-700 hover:bg-green-200'
+                                }`}
+                                title="Confirmar asistencia"
+                              >
+                                <Check className="h-3 w-3" />
+                              </button>
+                              <button
+                                onClick={() => handleAttendanceStatusUpdate(attendee.user.id, 'REFUSED')}
+                                disabled={loading}
+                                className={`p-1.5 rounded-lg transition-colors text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed ${
+                                  attendee.status === 'REFUSED' || attendee.status === 'REJECTED'
+                                    ? 'bg-red-600 text-white' 
+                                    : 'bg-red-100 text-red-700 hover:bg-red-200'
+                                }`}
+                                title="Marcar como ausente"
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            </div>
+                          )}
+                          
+                          <div className="flex items-center space-x-3 flex-1">
                             <div className={`w-3 h-3 rounded-full ${statusColors.icon === 'text-green-600' ? 'bg-green-500' : statusColors.icon === 'text-red-600' ? 'bg-red-500' : statusColors.icon === 'text-gray-600' ? 'bg-gray-500' : 'bg-gray-500'}`}></div>
                             <div className="flex-1">
                               <div className="flex items-center space-x-2">
@@ -899,6 +1016,7 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
                               )}
                             </div>
                           </div>
+                          
                           <div className="flex items-center space-x-2">
                             <span className={`text-xs font-medium px-2 py-1 rounded-full ${statusColors.bg} ${statusColors.text}`}>
                               {attendee.status === 'CONFIRMED' ? 'Confirmado' : 
