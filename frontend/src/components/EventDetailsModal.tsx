@@ -199,6 +199,9 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
   initialTab = 'info' // Por defecto 'info' si no se especifica
 }) => {
   
+  // Estado local para los asistentes para actualizar sin recargar la página
+  const [localAttendees, setLocalAttendees] = useState(event.attendees || []);
+  
   // 🐛 DEBUG: Log completo del objeto event que llega como prop
   console.log('🎭 [SOLICITUDES DEBUG] Event prop recibido:', {
     id: event.id,
@@ -224,12 +227,12 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
   };
 
   const currentUserId = getCurrentUserId();
-  const userAttendance = event.attendees?.find(a => a.user.id === currentUserId);
+  const userAttendance = localAttendees?.find(a => a.user.id === currentUserId);
   const shouldShowConfirmation = userAttendance && userAttendance.status === 'PENDING';
   
-  // 🐛 DEBUG: Verificar estructura específica del primer attendee si existe
-  if (event.attendees && event.attendees.length > 0) {
-    const firstAttendee = event.attendees[0];
+  // 🐛 DEBUG: Verificar estructura específica del primer attendee si existe  
+  if (localAttendees && localAttendees.length > 0) {
+    const firstAttendee = localAttendees[0];
     console.log('👤 [FRONTEND DEBUG] Primer attendee raw:', {
       status: firstAttendee.status,
       user: firstAttendee.user,
@@ -290,6 +293,12 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
       preserveRequestsView.current = null; // Limpiar después de usar
     }
   }, [event.joinRequests, event.id]); // Agregar event.id como dependencia
+  
+  // Sincronizar los asistentes locales cuando cambie el prop event
+  React.useEffect(() => {
+    console.log(`🔄 [SYNC DEBUG] Syncing localAttendees:`, event.attendees?.length || 0);
+    setLocalAttendees(event.attendees || []);
+  }, [event.attendees, event.id]);
   
   // Paginación para asistentes
   const [attendeesPage, setAttendeesPage] = useState(1);
@@ -396,21 +405,21 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
     
     // FALLBACK: Código original (que no funciona por falta de voiceProfiles)
     console.log('📊 FALLBACK: Usando datos originales del evento');
-    console.log('📊 Event attendees:', event.attendees);
+    console.log('📊 Local attendees:', localAttendees);
     
     console.log('🎭 === INICIO CÁLCULO COMPOSICIÓN DEL CORO ===');
-    console.log('📊 Total de attendees:', event.attendees?.length || 0);
+    console.log('📊 Total de attendees:', localAttendees?.length || 0);
     
     // Debug completo de la estructura del evento
     console.log('🔍 Estructura completa del evento:', {
       id: event.id,
       title: event.title,
-      attendeesCount: event.attendees?.length || 0,
-      hasAttendees: !!event.attendees
+      attendeesCount: localAttendees?.length || 0,
+      hasAttendees: !!localAttendees
     });
     
     // Debug completo de cada attendee
-    event.attendees?.forEach((attendee, index) => {
+    localAttendees?.forEach((attendee, index) => {
       console.log(`📋 Attendee ${index + 1}:`, {
         status: attendee.status,
         user: {
@@ -423,7 +432,7 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
       });
     });
     
-    if (!event.attendees || event.attendees.length === 0) {
+    if (!localAttendees || localAttendees.length === 0) {
       console.log('⚠️ No hay attendees en el evento');
       return { 
         voices: { SOPRANO: 0, MESOSOPRANO: 0, CONTRALTO: 0, TENOR: 0, BARITONO: 0, BAJO: 0 }, 
@@ -434,8 +443,8 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
     }
     
     // Filtrar solo los confirmados para obtener las voces
-    const confirmedAttendees = event.attendees.filter(a => a.status.toUpperCase() === 'CONFIRMED');
-    console.log(`✅ Confirmados: ${confirmedAttendees.length} de ${event.attendees.length} total`);
+    const confirmedAttendees = localAttendees.filter(a => a.status.toUpperCase() === 'CONFIRMED');
+    console.log(`✅ Confirmados: ${confirmedAttendees.length} de ${localAttendees.length} total`);
     
     // Contar voces primarias de los confirmados
     const voiceCounts = {
@@ -476,15 +485,15 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
 
     // Contar estados
     const statusCounts = {
-      CONFIRMED: event.attendees.filter(a => a.status.toUpperCase() === 'CONFIRMED').length,
-      REFUSED: event.attendees.filter(a => a.status.toUpperCase() === 'REFUSED' || a.status.toUpperCase() === 'REJECTED').length,  
-      PENDING: event.attendees.filter(a => a.status.toUpperCase() === 'PENDING').length
+      CONFIRMED: localAttendees.filter(a => a.status.toUpperCase() === 'CONFIRMED').length,
+      REFUSED: localAttendees.filter(a => a.status.toUpperCase() === 'REFUSED' || a.status.toUpperCase() === 'REJECTED').length,  
+      PENDING: localAttendees.filter(a => a.status.toUpperCase() === 'PENDING').length
     };
 
     console.log('🎶 Conteo final de voces:', voiceCounts);
     console.log('📊 Conteo de estados:', statusCounts);
 
-    const totalAttendees = event.attendees.length;
+    const totalAttendees = localAttendees.length;
 
     const result = {
       voices: voiceCounts,
@@ -506,7 +515,7 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
     console.log('📈 Resultado final:', result);
     console.log('🎵 FIN - Calculando composición del coro');
     return result;
-  }, [event.attendees, event.id, event.title, voicesLoaded, eventVoices]);
+  }, [localAttendees, event.id, event.title, voicesLoaded, eventVoices]);
 
   // Datos para el gráfico de torta
   const chartData = useMemo(() => {
@@ -525,12 +534,12 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
 
   // Paginación de asistentes
   const paginatedAttendees = useMemo(() => {
-    if (!event.attendees) return [];
+    if (!localAttendees) return [];
     const startIndex = (attendeesPage - 1) * attendeesPerPage;
-    return event.attendees.slice(startIndex, startIndex + attendeesPerPage);
-  }, [event.attendees, attendeesPage, attendeesPerPage]);
+    return localAttendees.slice(startIndex, startIndex + attendeesPerPage);
+  }, [localAttendees, attendeesPage, attendeesPerPage]);
 
-  const totalPages = Math.ceil((event.attendees?.length || 0) / attendeesPerPage);
+  const totalPages = Math.ceil((localAttendees?.length || 0) / attendeesPerPage);
 
 
 
@@ -663,8 +672,15 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
 
       if (response.ok) {
         console.log(`✅ Estado de asistencia actualizado: ${newStatus} para attendee ${attendeeId}`);
-        // Actualizar la lista de eventos para reflejar los cambios
-        await onEventUpdated();
+        
+        // Actualizar solo el estado local del asistente sin recargar la página
+        setLocalAttendees(prev => prev.map(attendee => 
+          attendee.user.id === attendeeId 
+            ? { ...attendee, status: newStatus }
+            : attendee
+        ));
+        
+        // Actualizar las voces si es necesario
         await fetchEventVoices();
       } else {
         const errorData = await response.json();
@@ -694,8 +710,15 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
 
       if (response.ok) {
         console.log('✅ Todos los asistentes PENDING marcados como REFUSED');
-        // Actualizar la lista de eventos para reflejar los cambios
-        await onEventUpdated();
+        
+        // Actualizar solo el estado local marcando todos los PENDING como REFUSED
+        setLocalAttendees(prev => prev.map(attendee => 
+          attendee.status.toUpperCase() === 'PENDING' 
+            ? { ...attendee, status: 'REFUSED' }
+            : attendee
+        ));
+        
+        // Actualizar las voces si es necesario
         await fetchEventVoices();
       } else {
         const errorData = await response.json();
@@ -715,7 +738,7 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
       id: 'attendees' as const, 
       label: 'Asistentes', 
       icon: Users, 
-      badge: event._count?.attendees || 0 
+      badge: localAttendees?.length || 0 
     },
     { 
       id: 'requests' as const, 
