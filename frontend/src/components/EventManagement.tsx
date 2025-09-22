@@ -13,7 +13,8 @@ import {
   UserPlus,
   Trash2,
   Edit,
-  Play
+  Play,
+  FileText
 } from 'lucide-react';
 import CreateEventModal from './CreateEventModal.tsx';
 import EventDetailsModal from './EventDetailsModal.tsx';
@@ -627,86 +628,89 @@ const EventManagement: React.FC = () => {
                 )}
 
                 <div className="p-6 flex flex-col flex-1">
-                  {/* Header with Privacy Badge */}
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex-1">
-                      <h3 className={`text-lg font-bold line-clamp-2 ${isEnsayo ? 'text-white' : 'text-gray-900'}`}>
-                        {event.title}
-                      </h3>
-                      {/* Etiqueta de categoría */}
-                      {event.category && (
-                        <span className={`inline-block mt-1 px-3 py-1 rounded-full text-xs font-bold shadow-md ${
-                          isEnsayo 
-                            ? 'bg-gradient-to-r from-orange-600 to-red-600 text-white border border-orange-500/50' 
-                            : 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white'
-                        }`}>
-                          {event.category}
-                        </span>
-                      )}
-                    </div>
-                    <div className="ml-2 flex flex-col gap-1">
-                      {event.isPublic ? (
-                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                          isEnsayo 
-                            ? 'bg-green-800 text-green-200' 
-                            : 'bg-green-100 text-green-800'
-                        }`}>
-                          <Globe className="h-3 w-3 mr-1" />
-                          Público
-                        </span>
-                      ) : (
-                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                          isEnsayo 
-                            ? 'bg-gray-700 text-gray-300' 
-                            : 'bg-gray-100 text-gray-800'
-                        }`}>
-                          <Lock className="h-3 w-3 mr-1" />
-                          Privado
-                        </span>
-                      )}
-                      
-                      {/* Etiqueta "Abierto a Postulaciones" */}
-                      {event.allowExternalJoin && (
-                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                          isEnsayo 
-                            ? 'bg-blue-800 text-blue-200' 
-                            : 'bg-blue-100 text-blue-800'
-                        }`}>
-                          <UserPlus className="h-3 w-3 mr-1" />
-                          Abierto a Postulaciones
-                        </span>
-                      )}
-                    </div>
+                  {/* Fila 1: Título completo */}
+                  <div className="mb-3">
+                    <h3 className={`text-lg font-bold line-clamp-2 ${isEnsayo ? 'text-white' : 'text-gray-900'}`}>
+                      {event.title}
+                    </h3>
                   </div>
 
-                  {/* Description */}
-                  {event.description && (
-                    <p className={`text-sm mb-4 line-clamp-2 ${isEnsayo ? 'text-gray-300' : 'text-gray-600'}`}>
-                      {event.description}
-                    </p>
-                  )}
+                  {/* Fila 2: Todas las etiquetas */}
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {/* Etiqueta de categoría con icono */}
+                    {event.category && (
+                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold shadow-md ${
+                        isEnsayo 
+                          ? 'bg-gradient-to-r from-orange-600 to-red-600 text-white border border-orange-500/50' 
+                          : 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white'
+                      }`}>
+                        {isEnsayo ? (
+                          <FileText className="h-3 w-3 mr-1" />
+                        ) : (
+                          <Calendar className="h-3 w-3 mr-1" />
+                        )}
+                        {event.category}
+                      </span>
+                    )}
 
-                  {/* Date & Time */}
-                  <div className={`flex items-center mb-3 ${isEnsayo ? 'text-gray-400' : 'text-slate-600'}`}>
-                    <Calendar className={`h-4 w-4 mr-2 ${isEnsayo ? 'text-indigo-400' : 'text-indigo-500'}`} />
-                    <span className="text-sm font-medium">
-                      {formatDate(event.date)}
-                    </span>
-                    {event.time && (
-                      <>
-                        <Clock className={`h-4 w-4 ml-4 mr-2 ${isEnsayo ? 'text-emerald-400' : 'text-emerald-500'}`} />
-                        <span className="text-sm font-medium">{formatTime(event.time)}</span>
-                      </>
+                    {/* Etiqueta Público/Privado */}
+                    {event.isPublic ? (
+                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                        isEnsayo 
+                          ? 'bg-green-800 text-green-200' 
+                          : 'bg-green-100 text-green-800'
+                      }`}>
+                        <Globe className="h-3 w-3 mr-1" />
+                        Público
+                      </span>
+                    ) : (
+                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                        isEnsayo 
+                          ? 'bg-gray-700 text-gray-300' 
+                          : 'bg-gray-100 text-gray-800'
+                      }`}>
+                        <Lock className="h-3 w-3 mr-1" />
+                        Privado
+                      </span>
+                    )}
+                    
+                    {/* Etiqueta "Abierto a Postulaciones" */}
+                    {event.allowExternalJoin && (
+                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                        isEnsayo 
+                          ? 'bg-blue-800 text-blue-200' 
+                          : 'bg-blue-100 text-blue-800'
+                      }`}>
+                        <UserPlus className="h-3 w-3 mr-1" />
+                        Abierto a Postulaciones
+                      </span>
                     )}
                   </div>
 
-                  {/* Location */}
-                  <div className={`flex items-center mb-4 ${isEnsayo ? 'text-gray-400' : 'text-slate-600'}`}>
-                    <MapPin className={`h-4 w-4 mr-2 ${isEnsayo ? 'text-red-400' : 'text-red-500'}`} />
-                    <span className="text-sm font-medium line-clamp-1">
-                      {event.eventCity || event.location?.city || 'Ubicación por confirmar'}
-                      {event.eventAddress && `, ${event.eventAddress}`}
-                    </span>
+                  {/* Fila 3: Fecha, Hora y Lugar */}
+                  <div className={`flex flex-col gap-2 mb-4 ${isEnsayo ? 'text-gray-400' : 'text-slate-600'}`}>
+                    {/* Fecha y Hora */}
+                    <div className="flex items-center">
+                      <Calendar className={`h-4 w-4 mr-2 ${isEnsayo ? 'text-indigo-400' : 'text-indigo-500'}`} />
+                      <span className="text-sm font-medium">
+                        {formatDate(event.date)}
+                      </span>
+                      {event.time && (
+                        <>
+                          <Clock className={`h-4 w-4 ml-4 mr-2 ${isEnsayo ? 'text-emerald-400' : 'text-emerald-500'}`} />
+                          <span className="text-sm font-medium">{formatTime(event.time)}</span>
+                        </>
+                      )}
+                    </div>
+
+                    {/* Lugar */}
+                    <div className="flex items-center">
+                      <MapPin className={`h-4 w-4 mr-2 ${isEnsayo ? 'text-red-400' : 'text-red-500'}`} />
+                      <span className="text-sm font-medium line-clamp-1">
+                        {event.eventCity || event.location?.city || 'Ubicación por confirmar'}
+                        {event.eventAddress && `, ${event.eventAddress}`}
+                      </span>
+                    </div>
                   </div>
 
                   {/* Spacer para empujar los botones hacia abajo */}
