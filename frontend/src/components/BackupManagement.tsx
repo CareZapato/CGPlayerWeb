@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { 
   Download, 
   Upload, 
@@ -16,6 +16,7 @@ import {
   X,
   UserCircle // Icono para perfiles
 } from 'lucide-react';
+import { useAPIURL } from '../hooks/useNetworkConfig';
 
 interface BackupInfo {
   id: string;
@@ -27,6 +28,24 @@ interface BackupInfo {
 }
 
 const BackupManagement: React.FC = () => {
+  // Hook para obtener la URL de la API dinámicamente
+  const apiURL = useAPIURL();
+  
+  // Función helper para obtener la URL de la API con fallback
+  const getApiUrl = useCallback(() => {
+    if (apiURL && apiURL !== '') {
+      return apiURL;
+    }
+    
+    // Fallback basado en la ubicación actual
+    const hostname = window.location.hostname;
+    const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1';
+    const fallbackURL = isLocalhost ? 'http://localhost:3001' : `http://${hostname}:3001`;
+    
+    console.warn('⚠️ Using fallback API URL:', fallbackURL, 'Original apiURL:', apiURL);
+    return fallbackURL;
+  }, [apiURL]);
+  
   const [isCreatingBackup, setIsCreatingBackup] = useState(false);
   const [isRestoringBackup, setIsRestoringBackup] = useState(false);
   const [backupProgress, setBackupProgress] = useState(0);
@@ -50,16 +69,13 @@ const BackupManagement: React.FC = () => {
     storageUsed: '0 MB'
   });
 
-  // Cargar información del sistema
-  React.useEffect(() => {
-    loadSystemInfo();
-    loadBackupHistory();
-  }, []);
-
-  const loadSystemInfo = async () => {
+  const loadSystemInfo = useCallback(async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/admin/system-info`, {
+      const currentApiUrl = getApiUrl();
+      console.log('🌐 Loading system info from:', `${currentApiUrl}/api/admin/system-info`);
+      
+      const response = await fetch(`${currentApiUrl}/api/admin/system-info`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -72,13 +88,19 @@ const BackupManagement: React.FC = () => {
     } catch (error) {
       console.error('Error loading system info:', error);
     }
-  };
+  }, [getApiUrl]);
 
-  const loadBackupHistory = async () => {
+  const loadBackupHistory = useCallback(async () => {
     // Los backups ya no se almacenan en el servidor, solo se descargan
     // Mantenemos un historial local simple o lo eliminamos
     setBackupHistory([]);
-  };
+  }, []);
+
+  // Cargar información del sistema
+  React.useEffect(() => {
+    loadSystemInfo();
+    loadBackupHistory();
+  }, [loadSystemInfo, loadBackupHistory]);
 
   const createBackup = async () => {
     if (isCreatingBackup) return;
@@ -131,7 +153,10 @@ const BackupManagement: React.FC = () => {
           reject(new Error('Error de conexión durante la descarga'));
         });
 
-        xhr.open('POST', `${import.meta.env.VITE_API_BASE_URL}/api/admin/backup/create`);
+        const currentApiUrl = getApiUrl();
+        console.log('🌐 Creating backup at:', `${currentApiUrl}/api/admin/backup/create`);
+        
+        xhr.open('POST', `${currentApiUrl}/api/admin/backup/create`);
         xhr.setRequestHeader('Authorization', `Bearer ${token}`);
         xhr.setRequestHeader('Content-Type', 'application/json');
         
@@ -244,7 +269,10 @@ const BackupManagement: React.FC = () => {
         });
 
         // Configurar request
-        xhr.open('POST', `${import.meta.env.VITE_API_BASE_URL}/api/admin/backup/restore`);
+        const currentApiUrl = getApiUrl();
+        console.log('🌐 Restoring backup at:', `${currentApiUrl}/api/admin/backup/restore`);
+        
+        xhr.open('POST', `${currentApiUrl}/api/admin/backup/restore`);
         xhr.setRequestHeader('Authorization', `Bearer ${token}`);
         xhr.timeout = 300000; // 5 minutos timeout
         
