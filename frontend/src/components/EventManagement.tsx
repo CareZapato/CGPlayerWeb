@@ -687,9 +687,9 @@ const EventManagement: React.FC = () => {
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                {/* Calendario */}
-                <div className="lg:col-span-3">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Calendario - 50% del ancho */}
+                <div className="lg:col-span-1">
                   {/* Días de la semana */}
                   <div className="grid grid-cols-7 gap-1 mb-2">
                     {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map(day => (
@@ -713,7 +713,7 @@ const EventManagement: React.FC = () => {
                           key={index}
                           onClick={() => hasEvents ? setSelectedDate(day) : null}
                           className={`
-                            min-h-[80px] p-2 border border-gray-100 rounded-lg relative transition-all cursor-pointer
+                            min-h-[72px] p-2 border border-gray-100 rounded-lg relative transition-all cursor-pointer
                             ${!isCurrentMonth ? 'bg-gray-50 text-gray-400' : 'bg-white text-gray-900'}
                             ${isToday ? 'ring-2 ring-indigo-500 bg-indigo-50' : ''}
                             ${isSelected ? 'bg-indigo-100 border-indigo-300' : ''}
@@ -767,40 +767,133 @@ const EventManagement: React.FC = () => {
                           return (
                             <div
                               key={event.id}
-                              onClick={() => handleViewDetails(event)}
                               className={`
-                                p-3 rounded-lg cursor-pointer transition-all hover:shadow-md border
+                                p-4 rounded-lg border transition-all duration-200 hover:shadow-md
                                 ${isEnsayo 
-                                  ? 'bg-gray-800 text-white border-gray-700 hover:bg-gray-700' 
-                                  : 'bg-white text-gray-900 border-gray-200 hover:bg-gray-50'
+                                  ? 'bg-gray-800 text-white border-gray-700' 
+                                  : 'bg-white text-gray-900 border-gray-200'
                                 }
                               `}
                             >
-                              <div className="flex items-center justify-between mb-2">
-                                <div className="flex items-center space-x-2">
-                                  {isEnsayo ? (
-                                    <Music className="h-4 w-4" />
-                                  ) : (
-                                    <Star className="h-4 w-4" />
-                                  )}
-                                  <span className="text-xs font-medium">
-                                    {isEnsayo ? 'Ensayo' : 'Evento'}
-                                  </span>
-                                </div>
+                              {/* Encabezado con tipo de evento */}
+                              <div className="flex items-center space-x-2 mb-3">
+                                {isEnsayo ? (
+                                  <Music className="h-4 w-4" />
+                                ) : (
+                                  <Star className="h-4 w-4" />
+                                )}
+                                <span className="text-xs font-medium">
+                                  {isEnsayo ? 'Ensayo' : 'Evento'}
+                                </span>
                                 {event.time && (
                                   <span className="text-xs opacity-75">
                                     {event.time}
                                   </span>
                                 )}
                               </div>
-                              <h4 className="font-medium text-sm mb-1 line-clamp-2">
-                                {event.title}
-                              </h4>
-                              {event.eventCity && (
-                                <p className="text-xs opacity-75">
-                                  {event.eventCity}
-                                </p>
-                              )}
+                              
+                              {/* Layout principal: título/lugar a la izquierda, botones a la derecha */}
+                              <div className="flex items-start justify-between">
+                                {/* Lado izquierdo: Título y lugar */}
+                                <div className="flex-1 min-w-0 mr-3">
+                                  <h4 className="font-medium text-sm line-clamp-1 mb-1">
+                                    {event.title}
+                                  </h4>
+                                  {event.eventCity && (
+                                    <p className="text-xs opacity-75">
+                                      {event.eventCity}
+                                    </p>
+                                  )}
+                                </div>
+                                
+                                {/* Lado derecho: Indicadores y botones horizontales */}
+                                <div className="flex items-center space-x-2">
+                                  {/* Indicadores de estado */}
+                                  {event.attendees && event.attendees.some(a => a.status === 'PENDING') && (
+                                    <div className="relative group">
+                                      <AlertCircle className="h-4 w-4 text-amber-500" />
+                                    </div>
+                                  )}
+                                  
+                                  {/* Solicitudes pendientes */}
+                                  {event.allowExternalJoin && (event._count?.joinRequests ?? 0) > 0 && (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleViewRequests(event);
+                                      }}
+                                      className="relative hover:bg-orange-50 rounded-full p-1"
+                                      title={`${event._count?.joinRequests ?? 0} solicitudes pendientes`}
+                                    >
+                                      <UserPlus className="h-4 w-4 text-orange-500" />
+                                      <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">
+                                        {event._count?.joinRequests ?? 0}
+                                      </span>
+                                    </button>
+                                  )}
+                                  
+                                  {/* Contador de canciones */}
+                                  {(event._count?.uniqueEventSongs ?? event._count?.eventSongs ?? 0) > 0 && (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handlePlayEvent(event);
+                                      }}
+                                      className={`flex items-center px-2 py-1 rounded-lg transition-all duration-200 ${
+                                        isEnsayo 
+                                          ? 'text-green-400 bg-green-900/30 hover:text-green-300 hover:bg-green-900/50' 
+                                          : 'text-green-600 bg-green-50 hover:text-green-700 hover:bg-green-100'
+                                      }`}
+                                      title="Reproducir como playlist"
+                                    >
+                                      <span className="text-sm font-medium mr-1">
+                                        {event._count?.uniqueEventSongs ?? event._count?.eventSongs ?? 0}
+                                      </span>
+                                      <Play className="h-4 w-4" />
+                                    </button>
+                                  )}
+                                  
+                                  {/* Botones de acción */}
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleViewDetails(event);
+                                    }}
+                                    className={`p-2 rounded-lg transition-all duration-200 ${
+                                      isEnsayo 
+                                        ? 'text-blue-400 hover:text-blue-300 hover:bg-blue-900/30' 
+                                        : 'text-blue-500 hover:text-blue-700 hover:bg-blue-50'
+                                    }`}
+                                    title="Ver detalles"
+                                  >
+                                    <Eye className="h-4 w-4" />
+                                  </button>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleEditEvent(event);
+                                    }}
+                                    className={`p-2 rounded-lg transition-all duration-200 ${
+                                      isEnsayo 
+                                        ? 'text-purple-400 hover:text-purple-300 hover:bg-purple-900/30' 
+                                        : 'text-purple-500 hover:text-purple-700 hover:bg-purple-50'
+                                    }`}
+                                    title="Editar evento"
+                                  >
+                                    <Edit className="h-4 w-4" />
+                                  </button>
+                                  <button
+                                    className={`p-2 rounded-lg transition-all duration-200 ${
+                                      isEnsayo 
+                                        ? 'text-red-400 hover:text-red-300 hover:bg-red-900/30' 
+                                        : 'text-red-500 hover:text-red-700 hover:bg-red-50'
+                                    }`}
+                                    title="Eliminar evento"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </button>
+                                </div>
+                              </div>
                             </div>
                           );
                         })}
