@@ -16,6 +16,10 @@ import {
   AlertCircle,
   XCircle,
   Search,
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  Star
 } from 'lucide-react';
 import { getApiUrl, getSongFileUrl } from '../config/api';
 import { useEventPlaylist } from '../hooks/useEventPlaylist';
@@ -143,7 +147,11 @@ const PublicEventsPage: React.FC = () => {
   const [nonAttendanceComment, setNonAttendanceComment] = useState('');
   
   // Estados para pestañas y filtros
-  const [activeTab, setActiveTab] = useState<'upcoming' | 'past'>('upcoming');
+  const [activeTab, setActiveTab] = useState<'upcoming' | 'past' | 'calendar'>('upcoming');
+  
+  // Estados para la vista de calendario
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCity, setSelectedCity] = useState('');
   const [selectedRegion, setSelectedRegion] = useState('');
@@ -223,6 +231,37 @@ const PublicEventsPage: React.FC = () => {
       if (event.location?.region) regions.add(event.location.region);
     });
     return Array.from(regions).sort();
+  };
+
+  // Funciones auxiliares para el calendario
+  const getDaysInMonth = (date: Date) => {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const daysInMonth = lastDay.getDate();
+    const startDate = new Date(firstDay);
+    startDate.setDate(startDate.getDate() - firstDay.getDay()); // Empezar desde domingo
+    
+    const days = [];
+    for (let i = 0; i < 42; i++) { // 6 semanas x 7 días
+      days.push(new Date(startDate));
+      startDate.setDate(startDate.getDate() + 1);
+    }
+    return { days, daysInMonth, firstDay };
+  };
+
+  const getEventsForDate = (date: Date) => {
+    const dateStr = date.toISOString().split('T')[0];
+    return events.filter(event => event.date.startsWith(dateStr));
+  };
+
+  const isSameMonth = (date1: Date, date2: Date) => {
+    return date1.getFullYear() === date2.getFullYear() && date1.getMonth() === date2.getMonth();
+  };
+
+  const isSameDate = (date1: Date, date2: Date) => {
+    return date1.toDateString() === date2.toDateString();
   };
 
   const filteredEvents = getFilteredEvents();
@@ -674,6 +713,17 @@ const PublicEventsPage: React.FC = () => {
               <Clock className="w-5 h-5 inline mr-2" />
               Programación Pasada ({events.filter(e => new Date(e.date) < new Date()).length})
             </button>
+            <button
+              onClick={() => setActiveTab('calendar')}
+              className={`flex-1 px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === 'calendar'
+                  ? 'border-indigo-500 text-indigo-600 bg-indigo-50'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <CalendarDays className="w-5 h-5 inline mr-2" />
+              Vista Calendario
+            </button>
           </div>
 
           {/* Filtros */}
@@ -724,7 +774,187 @@ const PublicEventsPage: React.FC = () => {
           </div>
         </div>
 
-        {filteredEvents.length === 0 ? (
+        {/* Vista Calendario */}
+        {activeTab === 'calendar' ? (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 mb-8">
+            <div className="p-6">
+              {/* Header del calendario */}
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center space-x-4">
+                  <button
+                    onClick={() => {
+                      const newDate = new Date(currentMonth);
+                      newDate.setMonth(newDate.getMonth() - 1);
+                      setCurrentMonth(newDate);
+                    }}
+                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                  >
+                    <ChevronLeft className="h-5 w-5 text-gray-600" />
+                  </button>
+                  <h2 className="text-xl font-semibold text-gray-900">
+                    {currentMonth.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' }).charAt(0).toUpperCase() + currentMonth.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' }).slice(1)}
+                  </h2>
+                  <button
+                    onClick={() => {
+                      const newDate = new Date(currentMonth);
+                      newDate.setMonth(newDate.getMonth() + 1);
+                      setCurrentMonth(newDate);
+                    }}
+                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                  >
+                    <ChevronRight className="h-5 w-5 text-gray-600" />
+                  </button>
+                </div>
+                <button
+                  onClick={() => setCurrentMonth(new Date())}
+                  className="px-4 py-2 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition-colors text-sm font-medium"
+                >
+                  Hoy
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                {/* Calendario */}
+                <div className="lg:col-span-3">
+                  {/* Días de la semana */}
+                  <div className="grid grid-cols-7 gap-1 mb-2">
+                    {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map(day => (
+                      <div key={day} className="p-2 text-center text-sm font-medium text-gray-500">
+                        {day}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Días del mes */}
+                  <div className="grid grid-cols-7 gap-1">
+                    {getDaysInMonth(currentMonth).days.map((day, index) => {
+                      const dayEvents = getEventsForDate(day);
+                      const isCurrentMonth = isSameMonth(day, currentMonth);
+                      const isToday = isSameDate(day, new Date());
+                      const isSelected = selectedDate && isSameDate(day, selectedDate);
+                      const hasEvents = dayEvents.length > 0;
+
+                      return (
+                        <div
+                          key={index}
+                          onClick={() => hasEvents ? setSelectedDate(day) : null}
+                          className={`
+                            min-h-[80px] p-2 border border-gray-100 rounded-lg relative transition-all cursor-pointer
+                            ${!isCurrentMonth ? 'bg-gray-50 text-gray-400' : 'bg-white text-gray-900'}
+                            ${isToday ? 'ring-2 ring-indigo-500 bg-indigo-50' : ''}
+                            ${isSelected ? 'bg-indigo-100 border-indigo-300' : ''}
+                            ${hasEvents ? 'hover:bg-gray-50' : ''}
+                          `}
+                        >
+                          <div className="text-sm font-medium mb-1">
+                            {day.getDate()}
+                          </div>
+                          
+                          {/* Franjas de eventos */}
+                          {hasEvents && (
+                            <div className="space-y-1">
+                              {dayEvents.slice(0, 3).map((event, eventIndex) => (
+                                <div
+                                  key={eventIndex}
+                                  className={`
+                                    h-1 rounded-full
+                                    ${event.category === 'Ensayo' ? 'bg-gray-400' : 'bg-purple-400'}
+                                  `}
+                                  title={event.title}
+                                />
+                              ))}
+                              {dayEvents.length > 3 && (
+                                <div className="text-xs text-gray-500 mt-1">
+                                  +{dayEvents.length - 3} más
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Panel lateral - Eventos del día seleccionado */}
+                <div className="lg:col-span-1">
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <h3 className="font-medium text-gray-900 mb-4">
+                      {selectedDate 
+                        ? `Eventos - ${selectedDate.toLocaleDateString('es-ES', { day: 'numeric', month: 'long' })}`
+                        : 'Selecciona un día'
+                      }
+                    </h3>
+                    
+                    {selectedDate ? (
+                      <div className="space-y-3">
+                        {getEventsForDate(selectedDate).map((event) => {
+                          const isEnsayo = event.category === 'Ensayo';
+                          return (
+                            <div
+                              key={event.id}
+                              onClick={() => setSelectedEvent(event)}
+                              className={`
+                                p-3 rounded-lg cursor-pointer transition-all hover:shadow-md border
+                                ${isEnsayo 
+                                  ? 'bg-gray-800 text-white border-gray-700 hover:bg-gray-700' 
+                                  : 'bg-white text-gray-900 border-gray-200 hover:bg-gray-50'
+                                }
+                              `}
+                            >
+                              <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center space-x-2">
+                                  {isEnsayo ? (
+                                    <Music className="h-4 w-4" />
+                                  ) : (
+                                    <Star className="h-4 w-4" />
+                                  )}
+                                  <span className="text-xs font-medium">
+                                    {isEnsayo ? 'Ensayo' : 'Evento'}
+                                  </span>
+                                </div>
+                                {event.time && (
+                                  <span className="text-xs opacity-75">
+                                    {event.time}
+                                  </span>
+                                )}
+                              </div>
+                              <h4 className="font-medium text-sm mb-1 line-clamp-2">
+                                {event.title}
+                              </h4>
+                              {event.eventCity && (
+                                <p className="text-xs opacity-75">
+                                  {event.eventCity}
+                                </p>
+                              )}
+                            </div>
+                          );
+                        })}
+                        
+                        {getEventsForDate(selectedDate).length === 0 && (
+                          <p className="text-sm text-gray-500 text-center py-4">
+                            No hay eventos programados para este día
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-500 text-center py-8">
+                        Haz clic en un día con eventos para ver los detalles
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          /* Events Grid - Solo para las pestañas upcoming y past */
+          <div></div>
+        )}
+
+        {/* Events Grid - Solo para las pestañas upcoming y past */}
+        {activeTab !== 'calendar' && (
+          filteredEvents.length === 0 ? (
           <div className="text-center py-12">
             <div className="bg-white/80 backdrop-blur-sm rounded-xl p-8 border border-gray-100 shadow-lg max-w-md mx-auto">
               <Calendar className="mx-auto h-16 w-16 text-gray-400 mb-4" />
@@ -985,7 +1215,7 @@ const PublicEventsPage: React.FC = () => {
               );
             })}
           </div>
-        )}
+        ))}
 
         {/* Modal de detalles del evento */}
         {selectedEvent && (
