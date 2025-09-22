@@ -1810,41 +1810,41 @@ const PublicEventsPage: React.FC = () => {
                           </div>
                         </div>
                       )}
+
+                      {selectedEvent.userJoinRequest && !selectedEvent.isUserAttendee && (
+                        <div className="w-full">
+                          {selectedEvent.userJoinRequest.status === 'PENDING' && (
+                            <button
+                              onClick={() => handleJoinRequest(selectedEvent.id, 'cancel')}
+                              disabled={joinRequestLoading}
+                              className="w-full bg-red-600 text-white py-3 px-4 rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 font-medium"
+                            >
+                              {joinRequestLoading ? 'Cancelando...' : 'Cancelar solicitud'}
+                            </button>
+                          )}
+                          
+                          {selectedEvent.userJoinRequest.status === 'REJECTED' && (
+                            <button
+                              onClick={() => handleResubmitRequest(selectedEvent.id)}
+                              disabled={joinRequestLoading}
+                              className="w-full bg-amber-600 text-white py-3 px-4 rounded-lg hover:bg-amber-700 transition-colors disabled:opacity-50 font-medium"
+                            >
+                              {joinRequestLoading ? 'Reenviando...' : 'Reenviar solicitud'}
+                            </button>
+                          )}
+                        </div>
+                      )}
+
+                      {!selectedEvent.userJoinRequest && !selectedEvent.isUserAttendee && selectedEvent.allowExternalJoin && (
+                        <button
+                          onClick={() => handleJoinRequest(selectedEvent.id, 'join')}
+                          disabled={joinRequestLoading}
+                          className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 font-medium"
+                        >
+                          {joinRequestLoading ? 'Enviando...' : 'Solicitar participación'}
+                        </button>
+                      )}
                     </>
-                  )}
-
-                  {selectedEvent.userJoinRequest && !selectedEvent.isUserAttendee && (
-                    <div className="w-full">
-                      {selectedEvent.userJoinRequest.status === 'PENDING' && (
-                        <button
-                          onClick={() => handleJoinRequest(selectedEvent.id, 'cancel')}
-                          disabled={joinRequestLoading}
-                          className="w-full bg-red-600 text-white py-3 px-4 rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 font-medium"
-                        >
-                          {joinRequestLoading ? 'Cancelando...' : 'Cancelar solicitud'}
-                        </button>
-                      )}
-                      
-                      {selectedEvent.userJoinRequest.status === 'REJECTED' && (
-                        <button
-                          onClick={() => handleResubmitRequest(selectedEvent.id)}
-                          disabled={joinRequestLoading}
-                          className="w-full bg-amber-600 text-white py-3 px-4 rounded-lg hover:bg-amber-700 transition-colors disabled:opacity-50 font-medium"
-                        >
-                          {joinRequestLoading ? 'Reenviando...' : 'Reenviar solicitud'}
-                        </button>
-                      )}
-                    </div>
-                  )}
-
-                  {!selectedEvent.userJoinRequest && !selectedEvent.isUserAttendee && selectedEvent.allowExternalJoin && (
-                    <button
-                      onClick={() => handleJoinRequest(selectedEvent.id, 'join')}
-                      disabled={joinRequestLoading}
-                      className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 font-medium"
-                    >
-                      {joinRequestLoading ? 'Enviando...' : 'Solicitar participación'}
-                    </button>
                   )}
                 </div>
               )}
