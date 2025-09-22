@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '../../store/authStore';
+import UserAvatar from '../UserAvatar';
 import './EventManagement.css';
 
 interface Location {
@@ -25,6 +26,7 @@ interface User {
   firstName: string;
   lastName: string;
   email?: string;
+  profileImageUrl?: string | null;
 }
 
 interface LocationWithUsers {
@@ -457,15 +459,22 @@ const EventDetailModal: React.FC<EventDetailModalProps> = ({ event, onClose, can
                   {event.soloists.map(soloist => (
                     <div key={soloist.id} className="p-2 bg-gray-50 rounded">
                       <div className="flex justify-between items-start">
-                        <div>
-                          <p className="font-medium text-sm">{soloist.user.firstName} {soloist.user.lastName}</p>
-                          <p className="text-xs text-gray-600">Tipo: {soloist.soloistType}</p>
-                          {soloist.song && (
-                            <p className="text-xs text-gray-600">Canción: {soloist.song.title}</p>
-                          )}
-                          {soloist.notes && (
-                            <p className="text-xs text-gray-500 mt-1">{soloist.notes}</p>
-                          )}
+                        <div className="flex items-start space-x-3">
+                          <UserAvatar
+                            user={soloist.user}
+                            size="sm"
+                            backgroundColor="#6b7280"
+                          />
+                          <div className="flex-1">
+                            <p className="font-medium text-sm">{soloist.user.firstName} {soloist.user.lastName}</p>
+                            <p className="text-xs text-gray-600">Tipo: {soloist.soloistType}</p>
+                            {soloist.song && (
+                              <p className="text-xs text-gray-600">Canción: {soloist.song.title}</p>
+                            )}
+                            {soloist.notes && (
+                              <p className="text-xs text-gray-500 mt-1">{soloist.notes}</p>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -963,12 +972,17 @@ const EventFormModal: React.FC<{
                             <h5 className="font-medium text-gray-900 mb-3">{location.name} - {location.city}</h5>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
                               {location.users.map((user: User) => (
-                                <label key={user.id} className="flex items-center space-x-2">
+                                <label key={user.id} className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-2 rounded">
                                   <input
                                     type="checkbox"
                                     checked={selectedAttendees.includes(user.id)}
                                     onChange={() => handleToggleAttendee(user.id)}
                                     className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                  />
+                                  <UserAvatar
+                                    user={user}
+                                    size="sm"
+                                    backgroundColor="#6b7280"
                                   />
                                   <span className="text-sm text-gray-700">
                                     {user.firstName} {user.lastName}

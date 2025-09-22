@@ -5,9 +5,85 @@ import { NewsService } from '../services/newsService';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import os from 'os';
 
 const router = express.Router();
 const prisma = new PrismaClient();
+
+// Función para obtener la IP del servidor de forma consistente
+const getServerIP = (): string => {
+  // Usar IP desde variables de entorno si está disponible (ip-config.env)
+  if (process.env.SERVER_IP) {
+    return process.env.SERVER_IP;
+  }
+  
+  // Fallback a variables de entorno del sistema
+  if (process.env.IP_ADDRESS) {
+    return process.env.IP_ADDRESS;
+  }
+  
+  if (process.env.API_HOST) {
+    return process.env.API_HOST;
+  }
+
+  // Fallback a detección automática
+  const interfaces = os.networkInterfaces();
+  for (const name of Object.keys(interfaces)) {
+    for (const iface of interfaces[name]!) {
+      if (iface.family === 'IPv4' && !iface.internal) {
+        return iface.address;
+      }
+    }
+  }
+  
+  // Último fallback
+  return 'localhost';
+};
+
+// Función helper para generar URL de imagen de perfil
+const generateProfileImageUrl = (profileImage: string | null): string | null => {
+  if (!profileImage) return null;
+  
+  const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http';
+  const host = getServerIP();
+  const port = process.env.PORT || '3001';
+  return `${protocol}://${host}:${port}/api/uploads/images/profiles/${profileImage}`;
+};
+
+// Función helper para transformar datos de eventos con URLs de imágenes
+const transformEventWithImageUrls = async (event: any) => {
+  // Obtener todas las solicitudes de unión (tanto pendientes como procesadas) para este evento
+  const allJoinRequests = await prisma.eventJoinRequest.findMany({
+    where: { eventId: event.id },
+    select: { userId: true, status: true }
+  });
+  
+  const joinRequestUserIds = new Set(allJoinRequests.map(req => req.userId));
+
+  return {
+    ...event,
+    attendees: event.attendees?.map((attendee: any) => {
+      // Verificar si este asistente vino de una solicitud de unión
+      const cameFromJoinRequest = joinRequestUserIds.has(attendee.userId);
+      
+      return {
+        ...attendee,
+        cameFromJoinRequest, // Nuevo campo para identificar el origen
+        user: {
+          ...attendee.user,
+          profileImageUrl: generateProfileImageUrl(attendee.user.profileImage)
+        }
+      };
+    }),
+    joinRequests: event.joinRequests?.map((request: any) => ({
+      ...request,
+      user: {
+        ...request.user,
+        profileImageUrl: generateProfileImageUrl(request.user.profileImage)
+      }
+    }))
+  };
+};
 
 // Función auxiliar para calcular el número de canciones padre únicas
 async function calculateUniqueEventSongs(eventId: string): Promise<number> {
@@ -90,6 +166,7 @@ router.get('/', authenticateToken, requireRole(['ADMIN', 'DIRECTOR']), async (re
                 id: true,
                 firstName: true, 
                 lastName: true, 
+                profileImage: true,
                 locationId: true,
                 location: { select: { name: true } },
                 assignedRoles: { select: { role: true } }
@@ -142,9 +219,12 @@ router.get('/', authenticateToken, requireRole(['ADMIN', 'DIRECTOR']), async (re
       orderBy: { date: 'asc' }
     });
 
+    // Transformar eventos para agregar URLs de imágenes
+    const transformedEvents = await Promise.all(events.map(transformEventWithImageUrls));
+
     res.json({
       success: true,
-      data: events
+      data: transformedEvents
     });
   } catch (error) {
     console.error('Error fetching events:', error);
@@ -172,6 +252,7 @@ router.get('/management/all', authenticateToken, requireRole(['ADMIN', 'DIRECTOR
                 id: true,
                 firstName: true, 
                 lastName: true, 
+                profileImage: true,
                 locationId: true,
                 location: { select: { name: true } },
                 assignedRoles: { select: { role: true } }
@@ -221,9 +302,12 @@ router.get('/management/all', authenticateToken, requireRole(['ADMIN', 'DIRECTOR
       })
     );
 
+    // Transformar eventos para agregar URLs de imágenes
+    const transformedEvents = await Promise.all(eventsWithUniqueCount.map(transformEventWithImageUrls));
+
     res.json({
       success: true,
-      data: eventsWithUniqueCount
+      data: transformedEvents
     });
   } catch (error) {
     console.error('Error fetching events for management:', error);

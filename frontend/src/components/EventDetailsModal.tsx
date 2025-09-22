@@ -24,6 +24,7 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import { getApiUrl } from '../config/api';
+import UserAvatar from './UserAvatar';
 
 interface VoiceProfile {
   voiceType: string;
@@ -66,6 +67,8 @@ interface Event {
       id: string;
       firstName: string;
       lastName: string;
+      profileImage?: string | null;
+      profileImageUrl?: string | null;
       location?: { name: string };
       assignedRoles: Array<{ role: string }>;
       voiceProfiles?: VoiceProfile[];
@@ -75,6 +78,7 @@ interface Event {
       lastName: string;
     };
     status: string;
+    cameFromJoinRequest?: boolean;
   }>;
   joinRequests?: Array<{
     id: string;
@@ -1101,9 +1105,21 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
                 {/* Header con estadísticas */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-4">
-                    <h4 className="text-lg font-medium text-gray-900">
-                      Asistentes ({event.attendees?.length || 0})
-                    </h4>
+                    <div>
+                      <h4 className="text-lg font-medium text-gray-900">
+                        Asistentes ({event.attendees?.length || 0})
+                      </h4>
+                      <div className="flex items-center space-x-4 mt-1 text-xs text-gray-500">
+                        <div className="flex items-center space-x-1">
+                          <div className="w-3 h-3 rounded-full border-2 border-purple-500"></div>
+                          <span>Designados</span>
+                        </div>
+                        <div className="flex items-center space-x-1">
+                          <div className="w-3 h-3 rounded-full border-2 border-yellow-400"></div>
+                          <span>Por solicitud</span>
+                        </div>
+                      </div>
+                    </div>
                     {/* Botón para marcar todos los PENDING como REFUSED - solo si el evento ya pasó */}
                     {isEventPast() && event.attendees?.some(a => a.status === 'PENDING') && (
                       <button
@@ -1132,7 +1148,7 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
                       return (
                         <div
                           key={index}
-                          className={`flex items-center justify-between p-3 rounded-lg border ${statusColors.bg} ${statusColors.border} transition-all hover:shadow-sm`}
+                          className={`flex items-center justify-between p-4 rounded-lg border ${statusColors.bg} ${statusColors.border} transition-all hover:shadow-sm`}
                         >
                           {/* Botones de gestión de asistencia - solo si el evento ya pasó */}
                           {isEventPast() && (
@@ -1164,8 +1180,18 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
                             </div>
                           )}
                           
-                          <div className="flex items-center space-x-3 flex-1">
-                            <div className={`w-3 h-3 rounded-full ${statusColors.icon === 'text-green-600' ? 'bg-green-500' : statusColors.icon === 'text-red-600' ? 'bg-red-500' : statusColors.icon === 'text-gray-600' ? 'bg-gray-500' : 'bg-gray-500'}`}></div>
+                          <div className="flex items-center space-x-4 flex-1">
+                            <UserAvatar
+                              user={attendee.user}
+                              size="md"
+                              showBorder={true}
+                              borderColor={
+                                attendee.cameFromJoinRequest 
+                                  ? '#fbbf24' // Dorado brillante para los que pidieron solicitud
+                                  : '#8b5cf6' // Morado para los designados desde un principio
+                              }
+                              borderType="solid"
+                            />
                             <div className="flex-1">
                               <div className="flex items-center space-x-2">
                                 <p className={`font-medium ${statusColors.text}`}>

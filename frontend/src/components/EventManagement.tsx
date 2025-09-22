@@ -39,43 +39,9 @@ interface Location {
   country: string;
 }
 
-interface Creator {
-  firstName: string;
-  lastName: string;
-}
-
-interface EventAttendee {
-  user: {
-    id: string;
-    firstName: string;
-    lastName: string;
-    email: string;
-    location?: { name: string };
-    assignedRoles: Array<{ role: string }>;
-    voiceProfiles?: Array<{
-      voiceType: string;
-      isPrimary: boolean;
-    }>;
-  };
-  addedByUser: {
-    firstName: string;
-    lastName: string;
-  };
-  addedBy: 'individual' | 'group';
-  groupName?: string;
-  status: string;
-}
-
-interface EventJoinRequest {
-  id: string;
-  user: {
-    firstName: string;
-    lastName: string;
-    assignedRoles: Array<{ role: string }>;
-  };
-  message?: string;
-  status: string;
-  createdAt: string;
+interface VoiceProfile {
+  voiceType: string;
+  isPrimary: boolean;
 }
 
 interface EventSong {
@@ -99,7 +65,10 @@ interface Event {
   time?: string;
   category?: string;
   location?: Location;
-  creator?: Creator;
+  creator?: {
+    firstName: string;
+    lastName: string;
+  };
   eventCity?: string;
   eventAddress?: string;
   mapLink?: string;
@@ -112,8 +81,33 @@ interface Event {
     eventSongs?: number;
     uniqueEventSongs?: number;
   };
-  attendees?: EventAttendee[];
-  joinRequests?: EventJoinRequest[];
+  attendees?: Array<{
+    user: {
+      id: string;
+      firstName: string;
+      lastName: string;
+      location?: { name: string };
+      assignedRoles: Array<{ role: string }>;
+      voiceProfiles?: VoiceProfile[];
+    };
+    addedByUser: {
+      firstName: string;
+      lastName: string;
+    };
+    status: string;
+  }>;
+  joinRequests?: Array<{
+    id: string;
+    user: {
+      id: string;
+      firstName: string;
+      lastName: string;
+      assignedRoles: Array<{ role: string }>;
+    };
+    message?: string;
+    status: string;
+    createdAt: string;
+  }>;
   eventSongs?: EventSong[];
 }
 
