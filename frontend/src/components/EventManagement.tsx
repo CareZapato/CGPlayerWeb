@@ -14,7 +14,8 @@ import {
   Trash2,
   Edit,
   Play,
-  FileText
+  FileText,
+  AlertCircle
 } from 'lucide-react';
 import CreateEventModal from './CreateEventModal.tsx';
 import EventDetailsModal from './EventDetailsModal.tsx';
@@ -727,6 +728,18 @@ const EventManagement: React.FC = () => {
                         <span className={`text-sm font-bold ${isEnsayo ? 'text-blue-200' : 'text-indigo-700'}`}>
                           {event._count?.attendees || 0} Asist.
                         </span>
+                        {/* Indicador de asistentes pendientes */}
+                        {event.attendees && event.attendees.filter(a => a.status === 'PENDING').length > 0 && (
+                          <div className="ml-2 relative group">
+                            <AlertCircle className="h-4 w-4 text-amber-500 animate-pulse" />
+                            <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block z-10">
+                              <div className="bg-gray-800 text-white text-xs rounded py-1 px-2 whitespace-nowrap">
+                                {event.attendees.filter(a => a.status === 'PENDING').length} por confirmar
+                              </div>
+                              <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-2 border-r-2 border-t-2 border-transparent border-t-gray-800"></div>
+                            </div>
+                          </div>
+                        )}
                       </div>
                       
                       {/* Mostrar solicitudes como badge solo si hay más de 0 y permite solicitudes externas */}

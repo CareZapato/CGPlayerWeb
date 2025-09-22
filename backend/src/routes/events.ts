@@ -518,7 +518,7 @@ router.post('/', authenticateToken, requireRole(['ADMIN', 'DIRECTOR']), upload.s
             eventId: event.id,
             userId: attendeeId,
             addedBy: userId,
-            status: 'CONFIRMED'
+            status: 'PENDING' // Cambiar a PENDING para que confirmen asistencia
           })),
           skipDuplicates: true
         });
@@ -551,7 +551,7 @@ router.post('/', authenticateToken, requireRole(['ADMIN', 'DIRECTOR']), upload.s
               eventId: event.id,
               userId: member.id,
               addedBy: userId,
-              status: 'CONFIRMED'
+              status: 'PENDING' // Cambiar a PENDING para que confirmen asistencia
             })),
             skipDuplicates: true
           });
@@ -761,7 +761,7 @@ router.put('/:id', authenticateToken, upload.single('image'), async (req, res) =
             eventId: id,
             userId: attendeeId,
             addedBy: userId,
-            status: 'CONFIRMED'
+            status: 'PENDING' // Cambiar a PENDING para que confirmen asistencia
           })),
           skipDuplicates: true
         });
@@ -798,7 +798,7 @@ router.put('/:id', authenticateToken, upload.single('image'), async (req, res) =
               eventId: id,
               userId: member.id,
               addedBy: userId,
-              status: 'CONFIRMED'
+              status: 'PENDING' // Cambiar a PENDING para que confirmen asistencia
             })),
             skipDuplicates: true
           });

@@ -15,7 +15,8 @@ import {
   XCircle,
   MessageSquare,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  AlertCircle
 } from 'lucide-react';
 import { getApiUrl } from '../config/api';
 
@@ -89,6 +90,104 @@ interface EventDetailsModalProps {
   initialTab?: 'info' | 'attendees' | 'requests' | 'singers'; // Nueva prop opcional
 }
 
+interface AttendanceConfirmationProps {
+  eventId: string;
+  eventTitle: string;
+  onConfirmationUpdate: () => void;
+}
+
+// Componente para confirmar asistencia
+const AttendanceConfirmation: React.FC<AttendanceConfirmationProps> = ({ 
+  eventId, 
+  eventTitle, 
+  onConfirmationUpdate 
+}) => {
+  const [loading, setLoading] = useState(false);
+  const [comment, setComment] = useState('');
+
+  const handleConfirmation = async (willAttend: boolean) => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      
+      const response = await fetch(getApiUrl(`/events/${eventId}/attendance-confirmation`), {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          attendanceConfirmed: willAttend,
+          nonAttendanceComment: willAttend ? '' : comment
+        })
+      });
+
+      if (response.ok) {
+        console.log(`✅ Asistencia ${willAttend ? 'confirmada' : 'rechazada'} para evento ${eventTitle}`);
+        onConfirmationUpdate();
+      } else {
+        const errorData = await response.json();
+        console.error('Error confirmando asistencia:', errorData);
+      }
+    } catch (error) {
+      console.error('Error confirmando asistencia:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
+      <div className="flex items-start space-x-3">
+        <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5" />
+        <div className="flex-1">
+          <h4 className="font-medium text-amber-800 mb-2">
+            Confirma tu asistencia a "{eventTitle}"
+          </h4>
+          <p className="text-sm text-amber-700 mb-4">
+            Has sido invitado/a a este evento. Por favor, confirma si podrás asistir.
+          </p>
+          
+          <div className="flex flex-col space-y-3">
+            <div className="flex space-x-3">
+              <button
+                onClick={() => handleConfirmation(true)}
+                disabled={loading}
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 disabled:opacity-50"
+              >
+                <CheckCircle className="h-4 w-4 mr-2" />
+                Sí, asistiré
+              </button>
+              <button
+                onClick={() => handleConfirmation(false)}
+                disabled={loading}
+                className="inline-flex items-center px-4 py-2 border border-red-300 text-sm font-medium rounded-md text-red-700 bg-white hover:bg-red-50 disabled:opacity-50"
+              >
+                <XCircle className="h-4 w-4 mr-2" />
+                No podré asistir
+              </button>
+            </div>
+            
+            <div>
+              <textarea
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+                placeholder="Comentario opcional (especialmente si no puedes asistir)"
+                className="w-full px-3 py-2 border border-amber-300 rounded-md text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                rows={2}
+                maxLength={300}
+              />
+              <p className="text-xs text-amber-600 mt-1">
+                {comment.length}/300 caracteres
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const EventDetailsModal: React.FC<EventDetailsModalProps> = ({ 
   event, 
   onClose, 
@@ -105,6 +204,24 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
     joinRequestsStatus: event.joinRequests?.map(r => ({id: r.id, status: r.status, user: r.user.firstName + ' ' + r.user.lastName})) || [],
     timestamp: new Date().toLocaleTimeString()
   });
+
+  // Obtener ID del usuario actual para verificar si es asistente pendiente
+  const getCurrentUserId = () => {
+    const token = localStorage.getItem('token');
+    if (!token) return null;
+    
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      return payload.userId;
+    } catch (error) {
+      console.error('Error parsing token:', error);
+      return null;
+    }
+  };
+
+  const currentUserId = getCurrentUserId();
+  const userAttendance = event.attendees?.find(a => a.user.id === currentUserId);
+  const shouldShowConfirmation = userAttendance && userAttendance.status === 'PENDING';
   
   // 🐛 DEBUG: Verificar estructura específica del primer attendee si existe
   if (event.attendees && event.attendees.length > 0) {
@@ -186,7 +303,7 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
         return { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200', icon: 'text-red-600' };
       case 'PENDING':
       case 'PENDIENTE':
-        return { bg: 'bg-gray-50', text: 'text-gray-700', border: 'border-gray-200', icon: 'text-gray-600' };
+        return { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', icon: 'text-amber-600' };
       default:
         return { bg: 'bg-gray-50', text: 'text-gray-700', border: 'border-gray-200', icon: 'text-gray-600' };
     }
@@ -566,6 +683,15 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
             </button>
           </div>
 
+          {/* Confirmación de asistencia si el usuario está pendiente */}
+          {shouldShowConfirmation && (
+            <AttendanceConfirmation
+              eventId={event.id}
+              eventTitle={event.title}
+              onConfirmationUpdate={onEventUpdated}
+            />
+          )}
+
           {/* Event Image */}
           {event.imageUrl && (
             <div className="mb-6 rounded-xl overflow-hidden">
@@ -722,9 +848,22 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
                           <div className="flex items-center space-x-3">
                             <div className={`w-3 h-3 rounded-full ${statusColors.icon === 'text-green-600' ? 'bg-green-500' : statusColors.icon === 'text-red-600' ? 'bg-red-500' : statusColors.icon === 'text-gray-600' ? 'bg-gray-500' : 'bg-gray-500'}`}></div>
                             <div className="flex-1">
-                              <p className={`font-medium ${statusColors.text}`}>
-                                {attendee.user.firstName} {attendee.user.lastName}
-                              </p>
+                              <div className="flex items-center space-x-2">
+                                <p className={`font-medium ${statusColors.text}`}>
+                                  {attendee.user.firstName} {attendee.user.lastName}
+                                </p>
+                                {attendee.status === 'PENDING' && (
+                                  <div className="relative group">
+                                    <AlertCircle className="h-4 w-4 text-amber-500 animate-pulse" />
+                                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block">
+                                      <div className="bg-gray-800 text-white text-xs rounded py-1 px-2 whitespace-nowrap">
+                                        Debe confirmar asistencia
+                                      </div>
+                                      <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-2 border-r-2 border-t-2 border-transparent border-t-gray-800"></div>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
                               {attendee.user.location && (
                                 <p className="text-xs text-gray-600">
                                   {attendee.user.location.name}
@@ -735,7 +874,7 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
                           <div className="flex items-center space-x-2">
                             <span className={`text-xs font-medium px-2 py-1 rounded-full ${statusColors.bg} ${statusColors.text}`}>
                               {attendee.status === 'CONFIRMED' ? 'Confirmado' : 
-                               attendee.status === 'PENDING' ? 'Pendiente' : 
+                               attendee.status === 'PENDING' ? '⏳ Por Confirmar' : 
                                attendee.status === 'REJECTED' || attendee.status === 'REFUSED' ? 'No Asiste' : attendee.status}
                             </span>
                           </div>
@@ -1022,6 +1161,16 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
                                       className="inline-flex items-center px-2 py-1 border border-green-300 text-xs font-medium rounded text-green-700 bg-white hover:bg-green-50 disabled:opacity-50"
                                     >
                                       Reactivar
+                                    </button>
+                                  )}
+                                  {request.status === 'APPROVED' && canModifyEvent && (
+                                    <button
+                                      onClick={() => handleJoinRequestResponse(request.id, 'REJECTED')}
+                                      disabled={loading}
+                                      className="inline-flex items-center px-2 py-1 border border-red-300 text-xs font-medium rounded text-red-700 bg-white hover:bg-red-50 disabled:opacity-50"
+                                    >
+                                      <XCircle className="h-3 w-3 mr-1" />
+                                      Cancelar
                                     </button>
                                   )}
                                 </div>
