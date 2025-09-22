@@ -27,9 +27,9 @@ const UserAvatar: React.FC<UserAvatarProps> = ({
   const [imageError, setImageError] = useState(false);
 
   const sizeClasses = {
-    sm: 'w-6 h-6 text-xs',
-    md: 'w-8 h-8 text-sm lg:w-10 lg:h-10 lg:text-sm',
-    lg: 'w-12 h-12 text-base'
+    sm: 'w-8 h-8 text-xs',
+    md: 'w-10 h-10 text-sm lg:w-12 lg:h-12 lg:text-base',
+    lg: 'w-14 h-14 text-lg'
   };
 
   const getInitials = () => {
@@ -41,8 +41,8 @@ const UserAvatar: React.FC<UserAvatarProps> = ({
   const defaultBgColor = backgroundColor || '#6b7280';
   
   const borderStyles = showBorder ? {
-    border: `3px ${borderType} ${borderColor}`,
-    boxShadow: `0 0 0 1px ${borderColor}20`
+    border: `4px ${borderType} ${borderColor}`,
+    boxShadow: `0 0 0 2px ${borderColor}30`
   } : {};
 
   const handleImageError = () => {

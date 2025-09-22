@@ -1858,9 +1858,12 @@ router.get('/:id', authenticateToken, async (req, res) => {
       }
     }
 
+    // Transformar evento para agregar URLs de imágenes y campo cameFromJoinRequest
+    const transformedEvent = await transformEventWithImageUrls(event);
+
     res.json({
       success: true,
-      data: event
+      data: transformedEvent
     });
   } catch (error) {
     console.error('Error fetching event:', error);
