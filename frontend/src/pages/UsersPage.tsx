@@ -9,6 +9,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { useAuthStore } from '../store/authStore';
 import { getApiUrl } from '../config/api';
+import UserAvatar from '../components/UserAvatar';
 import toast from 'react-hot-toast';
 
 interface User {
@@ -20,6 +21,8 @@ interface User {
   phone?: string;
   isActive: boolean;
   createdAt: string;
+  profileImage?: string | null;
+  profileImageUrl?: string | null;
   location?: {
     id: string;
     name: string;
@@ -29,6 +32,7 @@ interface User {
   voiceProfiles: Array<{
     id: string;
     voiceType: string;
+    isPrimary?: boolean;
     createdAt: string;
     assignedByUser?: {
       firstName: string;
@@ -49,6 +53,17 @@ interface Location {
   address?: string;
   phone?: string;
   color?: string; // Color hexadecimal de la ubicación
+}
+
+interface CSVUser {
+  lineNumber: number;
+  firstName: string;
+  lastName: string;
+  email: string;
+  username: string;
+  phone: string;
+  locationName: string;
+  voiceTypes: string[];
 }
 
 // Función para obtener el color de la ubicación
@@ -175,7 +190,7 @@ const UsersPage: React.FC = () => {
   });
 
   // Estado para importación CSV
-  const [csvPreview, setCsvPreview] = useState<any[]>([]);
+  const [csvPreview, setCsvPreview] = useState<CSVUser[]>([]);
   const [importProgress, setImportProgress] = useState(0);
   const [isImporting, setIsImporting] = useState(false);
 
@@ -322,7 +337,7 @@ const UsersPage: React.FC = () => {
     console.log('User location:', user.location); // Debug log
     setSelectedUser(user);
     // Encontrar la voz primaria
-    const primaryVoiceProfile = user.voiceProfiles?.find(vp => (vp as any).isPrimary);
+    const primaryVoiceProfile = user.voiceProfiles?.find(vp => vp.isPrimary);
     
     setEditForm({
       firstName: user.firstName,
@@ -492,9 +507,10 @@ const UsersPage: React.FC = () => {
         primaryVoice: '',
         selectedRole: 'CANTANTE'
       });
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error creating user:', error);
-      toast.error(error.message || 'Error al crear usuario');
+      const errorMessage = error instanceof Error ? error.message : 'Error al crear usuario';
+      toast.error(errorMessage);
     }
   };
 
@@ -510,7 +526,16 @@ const UsersPage: React.FC = () => {
       
       const data = lines.slice(1).map((line, index) => {
         const values = line.split(',').map(v => v.trim());
-        const user: any = { lineNumber: index + 2 }; // +2 porque empezamos desde línea 2 (después del header)
+        const user: CSVUser = { 
+          lineNumber: index + 2, // +2 porque empezamos desde línea 2 (después del header)
+          firstName: '',
+          lastName: '',
+          email: '',
+          username: '',
+          phone: '',
+          locationName: '',
+          voiceTypes: []
+        };
         
         // Mapear según el formato esperado:
         // Nombre, Apellido, Email, Usuario, Telefono, Ubicacion, voicetype1, voicetype2, voicetype3, voicetype4, voicetype5
@@ -572,9 +597,10 @@ const UsersPage: React.FC = () => {
       fetchUsers();
       setShowImportModal(false);
       setCsvPreview([]);
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error importing users:', error);
-      toast.error(error.message || 'Error al importar usuarios');
+      const errorMessage = error instanceof Error ? error.message : 'Error al importar usuarios';
+      toast.error(errorMessage);
     } finally {
       setIsImporting(false);
       setImportProgress(0);
@@ -769,12 +795,11 @@ const UsersPage: React.FC = () => {
                       >
                         <td className="px-3 lg:px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
-                            <div 
-                              className="w-8 h-8 lg:w-10 lg:h-10 rounded-full flex items-center justify-center text-white font-semibold text-xs lg:text-sm"
-                              style={{ backgroundColor: getLocationColor(user.location) }}
-                            >
-                              {user.firstName.charAt(0)}{user.lastName.charAt(0)}
-                            </div>
+                            <UserAvatar
+                              user={user}
+                              size="md"
+                              backgroundColor={getLocationColor(user.location)}
+                            />
                             <div className="ml-3 lg:ml-4">
                               <div className="text-xs lg:text-sm font-medium text-gray-900">
                                 {user.firstName} {user.lastName}
@@ -797,18 +822,18 @@ const UsersPage: React.FC = () => {
                         <td className="hidden lg:table-cell px-3 lg:px-6 py-4 whitespace-nowrap">
                           <div className="flex flex-wrap gap-1">
                             {user.voiceProfiles
-                              .sort((a, b) => ((b as any).isPrimary ? 1 : 0) - ((a as any).isPrimary ? 1 : 0)) // Voz primaria primero
+                              .sort((a, b) => ((b.isPrimary ? 1 : 0) - (a.isPrimary ? 1 : 0))) // Voz primaria primero
                               .map((voice) => (
                               <span
                                 key={voice.id}
                                 className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                                  (voice as any).isPrimary 
+                                  voice.isPrimary 
                                     ? 'bg-yellow-100 text-yellow-800 border border-yellow-300 font-semibold' 
                                     : 'bg-blue-100 text-blue-800'
                                 }`}
-                                title={(voice as any).isPrimary ? 'Voz Primaria' : 'Voz Secundaria'}
+                                title={voice.isPrimary ? 'Voz Primaria' : 'Voz Secundaria'}
                               >
-                                {(voice as any).isPrimary && <span className="mr-1">⭐</span>}
+                                {voice.isPrimary && <span className="mr-1">⭐</span>}
                                 {formatVoiceType(voice.voiceType)}
                               </span>
                             ))}
@@ -892,8 +917,13 @@ const UsersPage: React.FC = () => {
                 <div>
                   {/* Header del usuario */}
                   <div className="text-center mb-6">
-                    <div className="w-16 h-16 lg:w-20 lg:h-20 rounded-full bg-blue-500 flex items-center justify-center text-white text-lg lg:text-2xl font-bold mx-auto mb-4">
-                      {selectedUser.firstName.charAt(0)}{selectedUser.lastName.charAt(0)}
+                    <div className="flex justify-center mb-4">
+                      <UserAvatar
+                        user={selectedUser}
+                        size="lg"
+                        backgroundColor={getLocationColor(selectedUser.location)}
+                        className="w-16 h-16 lg:w-20 lg:h-20 text-lg lg:text-2xl"
+                      />
                     </div>
                     <h3 className="text-base lg:text-lg font-semibold text-gray-900">
                       {selectedUser.firstName} {selectedUser.lastName}

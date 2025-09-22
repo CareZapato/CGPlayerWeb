@@ -144,8 +144,8 @@ const SongsGridView: React.FC = () => {
         });
         
         setSongs(filteredSongs);
-      } catch (error: any) {
-        setError(error.message);
+      } catch (error) {
+        setError(error instanceof Error ? error.message : 'Error al cargar las canciones');
       } finally {
         setLoading(false);
       }

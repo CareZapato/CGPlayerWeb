@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
 import { 
   X, 
   Calendar, 
@@ -20,7 +20,8 @@ import {
   Play,
   Pause
 } from 'lucide-react';
-import { getApiUrl } from '../config/api';
+import { getApiUrl, getSongFileUrl } from '../config/api';
+import type { Song } from '../types';
 
 // Lista de ciudades de Chile
 const CHILE_CITIES = [
@@ -71,20 +72,7 @@ interface SelectedAttendee {
   groupName?: string;
 }
 
-interface Song {
-  id: string;
-  title: string;
-  artist: string;
-  album?: string;
-  duration?: number;
-  voiceType?: string;
-  filePath: string;
-  parentSongId?: string;
-  uploader: {
-    firstName: string;
-    lastName: string;
-  };
-}
+
 
 interface Playlist {
   id: string;
@@ -99,11 +87,47 @@ interface Playlist {
   };
 }
 
+interface EventSong {
+  song: Song;
+  id: string;
+  order: number;
+}
+
+interface PlaylistItem {
+  song: Song;
+}
+
+interface EventData {
+  id: string;
+  title: string;
+  description?: string;
+  date: string;
+  time?: string;
+  category?: string;
+  eventCity?: string;
+  eventAddress?: string;
+  isPublic: boolean;
+  allowExternalJoin: boolean;
+  attendees?: Array<{
+    user: {
+      id: string;
+      firstName: string;
+      lastName: string;
+      email: string;
+      assignedRoles: Array<{ role: string }>;
+      location?: { name: string };
+    };
+    addedBy: 'individual' | 'group';
+    groupName?: string;
+  }>;
+  eventSongs?: EventSong[];
+}
+
 interface CreateEventModalProps {
   onClose: () => void;
-  onEventCreated: (event: any) => void;
+  onEventCreated: (event: EventData | { data: EventData }) => void;
   editMode?: boolean;
-  eventData?: any;
+  eventData?: EventData;
 }
 
 const CreateEventModal: React.FC<CreateEventModalProps> = ({ 
@@ -119,7 +143,7 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({
   const [description, setDescription] = useState('');
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
-  const [category, setCategory] = useState('Culto');
+  const [category, setCategory] = useState('Evento');
   const [eventCity, setEventCity] = useState('');
   const [eventAddress, setEventAddress] = useState('');
   const [citySearchTerm, setCitySearchTerm] = useState('');
@@ -246,11 +270,11 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({
       const token = localStorage.getItem('token');
       
       // Get unique parent song IDs from event variations
-      const eventSongs = eventData.eventSongs.map((es: any) => es.song);
+      const eventSongs = eventData.eventSongs.map((es: EventSong) => es.song);
       const parentSongIds = [...new Set(
         eventSongs
-          .filter((song: any) => song.parentSongId)
-          .map((song: any) => song.parentSongId)
+          .filter((song: Song) => song.parentSongId)
+          .map((song: Song) => song.parentSongId)
       )];
 
       console.log('🎵 Loading parent songs for IDs:', parentSongIds);
@@ -526,7 +550,7 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({
       
       if (response.ok) {
         const result = await response.json();
-        const playlistSongs = result.data.items?.map((item: any) => item.song) || [];
+        const playlistSongs = result.data.items?.map((item: PlaylistItem) => item.song) || [];
         
         const newSongs = playlistSongs.filter((song: Song) => 
           song.voiceType && !selectedSongs.some(s => s.id === song.id)
@@ -564,7 +588,7 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({
       // If we're in edit mode and have event data, also ensure songs are set and variations updated
       if (editMode && eventData && eventData.eventSongs) {
         console.log('🎵 [TAB CHANGE] Setting up edit mode songs...');
-        const eventSongs = eventData.eventSongs.map((es: any) => es.song);
+        const eventSongs = eventData.eventSongs.map((es: EventSong) => es.song);
         console.log('🎵 [TAB CHANGE] Event songs to set:', eventSongs.length);
         
         // Set selected songs after a short delay to ensure songs are loaded
@@ -637,7 +661,7 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({
       setTime(eventData.time || '');
       setEventCity(eventData.eventCity || '');
       setEventAddress(eventData.eventAddress || '');
-      setCategory(eventData.category || 'Culto');
+      setCategory(eventData.category || 'Evento');
       setIsPublic(eventData.isPublic ?? true);
       setAllowExternalJoin(eventData.allowExternalJoin ?? false);
       
@@ -649,7 +673,7 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({
       
       // Load attendees
       if (eventData.attendees) {
-        setSelectedAttendees(eventData.attendees.map((attendee: any) => ({
+        setSelectedAttendees(eventData.attendees.map((attendee) => ({
           id: attendee.user.id,
           firstName: attendee.user.firstName,
           lastName: attendee.user.lastName,
@@ -669,7 +693,7 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({
       
       if (eventData.eventSongs && Array.isArray(eventData.eventSongs)) {
         console.log('🔄 [EDIT LOAD] EventSongs is array with length:', eventData.eventSongs.length);
-        eventData.eventSongs.forEach((es: any, index: number) => {
+        eventData.eventSongs.forEach((es: EventSong, index: number) => {
           console.log(`🔄 [EDIT LOAD] EventSong ${index}:`, es);
           console.log(`🔄 [EDIT LOAD] EventSong ${index} song:`, es.song);
         });
@@ -677,7 +701,7 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({
       
       if (eventData.eventSongs) {
         console.log('🔄 [EDIT LOAD] Processing eventSongs...');
-        const eventSongs = eventData.eventSongs.map((es: any) => {
+        const eventSongs = eventData.eventSongs.map((es: EventSong) => {
           console.log('🔄 [EDIT LOAD] Mapping eventSong:', es);
           console.log('🔄 [EDIT LOAD] Extracted song:', es.song);
           return es.song;
@@ -703,16 +727,16 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({
       console.log('🎵 [EDIT MODE] Event songs from data:', eventData.eventSongs);
       
       // When songs are loaded and we're in edit mode, set the selected songs and update variations
-      const eventSongs = eventData.eventSongs.map((es: any) => es.song);
+      const eventSongs = eventData.eventSongs.map((es: EventSong) => es.song);
       console.log('🎵 [EDIT MODE] Mapped event songs:', eventSongs);
-      console.log('🎵 [EDIT MODE] Songs with voiceType:', eventSongs.filter((s: any) => s.voiceType));
+      console.log('🎵 [EDIT MODE] Songs with voiceType:', eventSongs.filter((s: Song) => s.voiceType));
       
       setSelectedSongs(eventSongs);
       
       // Log what we just set
       console.log('🎵 [EDIT MODE] Just set selectedSongs to:', eventSongs);
-      console.log('🎵 [EDIT MODE] Songs with voiceType count:', eventSongs.filter((s: any) => s.voiceType).length);
-      console.log('🎵 [EDIT MODE] All voiceTypes found:', eventSongs.filter((s: any) => s.voiceType).map((s: any) => s.voiceType));
+      console.log('🎵 [EDIT MODE] Songs with voiceType count:', eventSongs.filter((s: Song) => s.voiceType).length);
+      console.log('🎵 [EDIT MODE] All voiceTypes found:', eventSongs.filter((s: Song) => s.voiceType).map((s: Song) => s.voiceType));
       
       // Use the special edit mode function to update variations
       setTimeout(() => {
@@ -771,7 +795,7 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({
         formData.append('songIds', JSON.stringify(songIds));
       }
 
-      const url = editMode ? `/events/${eventData.id}` : '/events';
+      const url = editMode ? `/events/${eventData?.id}` : '/events';
       const method = editMode ? 'PUT' : 'POST';
 
       const response = await fetch(getApiUrl(url), {
@@ -796,6 +820,7 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({
         setError(errorData.message || `Error al ${editMode ? 'actualizar' : 'crear'} el evento`);
       }
     } catch (error) {
+      console.error('Connection error:', error);
       setError('Error de conexión al crear el evento');
     }
     setIsLoading(false);
@@ -872,7 +897,7 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({
       songsToProcess = selectedSongs;
       console.log('🎵 [VARIATIONS] Using selectedSongs:', songsToProcess);
     } else if (eventData && eventData.eventSongs) {
-      songsToProcess = eventData.eventSongs.map((es: any) => es.song);
+      songsToProcess = eventData.eventSongs.map((es: EventSong) => es.song);
       console.log('🎵 [VARIATIONS] Using eventData songs:', songsToProcess);
     } else {
       console.log('🎵 [VARIATIONS] No songs to process');
@@ -885,8 +910,8 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({
     // Find unique parent song IDs from the selected variations
     const parentSongIds = [...new Set(
       songsToProcess
-        .filter((song: any) => song.parentSongId)
-        .map((song: any) => song.parentSongId)
+        .filter((song: Song) => song.parentSongId)
+        .map((song: Song) => song.parentSongId)
     )];
     
     console.log('🎵 [VARIATIONS] Parent song IDs found:', parentSongIds);
@@ -938,7 +963,7 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({
           console.log(`🎵 [VARIATIONS] Valid variations for ${parentId}:`, validVariations);
           
           // Contar cuántas variaciones están seleccionadas
-          const selectedCount = songsToProcess.filter((s: any) => s.parentSongId === parentId).length;
+          const selectedCount = songsToProcess.filter((s: Song) => s.parentSongId === parentId).length;
           
           console.log(`🎵 [VARIATIONS] Parent ${parentId}: ${selectedCount}/${validVariations.length} variations selected`);
           
@@ -978,7 +1003,22 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({
     }
     
     // Create new audio element
-    const audio = new Audio(getApiUrl(`/uploads/${song.filePath}`));
+    // Parse filePath to extract folder and filename
+    // Format: "songs\folderName\fileName.mp3"
+    const pathParts = song.filePath.split('\\');
+    let audioUrl: string;
+    
+    if (pathParts.length >= 3 && pathParts[0] === 'songs') {
+      // Use the specific song file URL endpoint
+      const folderName = pathParts[1];
+      const fileName = pathParts[2];
+      audioUrl = getSongFileUrl(folderName, fileName);
+    } else {
+      // Fallback to the original method
+      audioUrl = getApiUrl(`/uploads/${song.filePath}`);
+    }
+    
+    const audio = new Audio(audioUrl);
     audio.volume = 0.5; // Set volume to 50%
     
     audio.onended = () => {
@@ -1000,14 +1040,14 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({
     });
   };
 
-  const stopAudio = () => {
+  const stopAudio = useCallback(() => {
     if (currentPlayingAudio) {
       currentPlayingAudio.pause();
       currentPlayingAudio.currentTime = 0;
       setCurrentPlayingAudio(null);
       setCurrentPlayingSongId(null);
     }
-  };
+  }, [currentPlayingAudio]);
 
   // Stop audio when modal closes or tab changes
   const handleTabChange = (newTab: 'basic' | 'attendees' | 'music') => {
@@ -1022,7 +1062,7 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({
     return () => {
       stopAudio();
     };
-  }, []);
+  }, [stopAudio]);
 
   // Handle modal close with audio cleanup
   const handleClose = () => {
@@ -1071,7 +1111,7 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({
             ].map(({ id, label, icon: Icon, hasData }) => (
               <button
                 key={id}
-                onClick={() => handleTabChange(id as any)}
+                onClick={() => handleTabChange(id as 'basic' | 'attendees' | 'music')}
                 className={`py-4 px-2 border-b-2 font-medium text-sm flex items-center space-x-2 transition-colors relative ${
                   activeTab === id
                     ? 'border-indigo-500 text-indigo-600'
@@ -1168,12 +1208,8 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({
                   onChange={(e) => setCategory(e.target.value)}
                   className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
                 >
-                  <option value="Culto">Culto</option>
+                  <option value="Evento">Evento</option>
                   <option value="Ensayo">Ensayo</option>
-                  <option value="Conferencia">Conferencia</option>
-                  <option value="Retiro">Retiro</option>
-                  <option value="Evangelismo">Evangelismo</option>
-                  <option value="Especial">Evento Especial</option>
                 </select>
               </div>
 
@@ -1901,7 +1937,7 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({
                 onClick={() => {
                   const tabs = ['basic', 'attendees', 'music'];
                   const currentIndex = tabs.indexOf(activeTab);
-                  handleTabChange(tabs[currentIndex - 1] as any);
+                  handleTabChange(tabs[currentIndex - 1] as 'basic' | 'attendees' | 'music');
                 }}
                 className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors"
               >
@@ -1913,7 +1949,7 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({
                 onClick={() => {
                   const tabs = ['basic', 'attendees', 'music'];
                   const currentIndex = tabs.indexOf(activeTab);
-                  handleTabChange(tabs[currentIndex + 1] as any);
+                  handleTabChange(tabs[currentIndex + 1] as 'basic' | 'attendees' | 'music');
                 }}
                 className="px-4 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors"
               >

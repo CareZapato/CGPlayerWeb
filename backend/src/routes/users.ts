@@ -1,8 +1,49 @@
 import express, { Response } from 'express';
 import { authenticateToken, requireRole, AuthRequest } from '../middleware/auth';
 import { prisma } from '../utils/prisma';
+import os from 'os';
 
 const router = express.Router();
+
+// Función para obtener la IP del servidor de forma consistente
+const getServerIP = (): string => {
+  // Usar IP desde variables de entorno si está disponible (ip-config.env)
+  if (process.env.SERVER_IP) {
+    return process.env.SERVER_IP;
+  }
+  
+  // Fallback a variables de entorno del sistema
+  if (process.env.IP_ADDRESS) {
+    return process.env.IP_ADDRESS;
+  }
+  
+  if (process.env.API_HOST) {
+    return process.env.API_HOST;
+  }
+
+  // Fallback a detección automática
+  const interfaces = os.networkInterfaces();
+  for (const name of Object.keys(interfaces)) {
+    for (const iface of interfaces[name]!) {
+      if (iface.family === 'IPv4' && !iface.internal) {
+        return iface.address;
+      }
+    }
+  }
+  
+  // Último fallback
+  return 'localhost';
+};
+
+// Función helper para generar URL de imagen de perfil
+const generateProfileImageUrl = (profileImage: string | null): string | null => {
+  if (!profileImage) return null;
+  
+  const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http';
+  const host = getServerIP();
+  const port = process.env.PORT || '3001';
+  return `${protocol}://${host}:${port}/api/uploads/images/profiles/${profileImage}`;
+};
 
 /**
  * @swagger
@@ -164,6 +205,7 @@ router.get('/', authenticateToken, requireRole(['DIRECTOR', 'ADMIN']), async (re
           isActive: true,
           createdAt: true,
           updatedAt: true,
+          profileImage: true,
           location: {
             select: {
               id: true,
@@ -205,10 +247,16 @@ router.get('/', authenticateToken, requireRole(['DIRECTOR', 'ADMIN']), async (re
 
     const totalPages = Math.ceil(totalCount / limitNum);
 
+    // Transformar usuarios para agregar profileImageUrl
+    const transformedUsers = users.map(user => ({
+      ...user,
+      profileImageUrl: generateProfileImageUrl(user.profileImage)
+    }));
+
     res.json({
       success: true,
       data: {
-        users,
+        users: transformedUsers,
         pagination: {
           currentPage: pageNum,
           totalPages,
@@ -237,6 +285,7 @@ router.get('/stats', authenticateToken, requireRole(['ADMIN']), async (req: Auth
         lastName: true,
         isActive: true,
         createdAt: true,
+        profileImage: true,
         location: {
           select: {
             id: true,

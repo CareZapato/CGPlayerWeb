@@ -5,9 +5,85 @@ import { NewsService } from '../services/newsService';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import os from 'os';
 
 const router = express.Router();
 const prisma = new PrismaClient();
+
+// Función para obtener la IP del servidor de forma consistente
+const getServerIP = (): string => {
+  // Usar IP desde variables de entorno si está disponible (ip-config.env)
+  if (process.env.SERVER_IP) {
+    return process.env.SERVER_IP;
+  }
+  
+  // Fallback a variables de entorno del sistema
+  if (process.env.IP_ADDRESS) {
+    return process.env.IP_ADDRESS;
+  }
+  
+  if (process.env.API_HOST) {
+    return process.env.API_HOST;
+  }
+
+  // Fallback a detección automática
+  const interfaces = os.networkInterfaces();
+  for (const name of Object.keys(interfaces)) {
+    for (const iface of interfaces[name]!) {
+      if (iface.family === 'IPv4' && !iface.internal) {
+        return iface.address;
+      }
+    }
+  }
+  
+  // Último fallback
+  return 'localhost';
+};
+
+// Función helper para generar URL de imagen de perfil
+const generateProfileImageUrl = (profileImage: string | null): string | null => {
+  if (!profileImage) return null;
+  
+  const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http';
+  const host = getServerIP();
+  const port = process.env.PORT || '3001';
+  return `${protocol}://${host}:${port}/api/uploads/images/profiles/${profileImage}`;
+};
+
+// Función helper para transformar datos de eventos con URLs de imágenes
+const transformEventWithImageUrls = async (event: any) => {
+  // Obtener todas las solicitudes de unión (tanto pendientes como procesadas) para este evento
+  const allJoinRequests = await prisma.eventJoinRequest.findMany({
+    where: { eventId: event.id },
+    select: { userId: true, status: true }
+  });
+  
+  const joinRequestUserIds = new Set(allJoinRequests.map(req => req.userId));
+
+  return {
+    ...event,
+    attendees: event.attendees?.map((attendee: any) => {
+      // Verificar si este asistente vino de una solicitud de unión
+      const cameFromJoinRequest = joinRequestUserIds.has(attendee.userId);
+      
+      return {
+        ...attendee,
+        cameFromJoinRequest, // Nuevo campo para identificar el origen
+        user: {
+          ...attendee.user,
+          profileImageUrl: generateProfileImageUrl(attendee.user.profileImage)
+        }
+      };
+    }),
+    joinRequests: event.joinRequests?.map((request: any) => ({
+      ...request,
+      user: {
+        ...request.user,
+        profileImageUrl: generateProfileImageUrl(request.user.profileImage)
+      }
+    }))
+  };
+};
 
 // Función auxiliar para calcular el número de canciones padre únicas
 async function calculateUniqueEventSongs(eventId: string): Promise<number> {
@@ -90,6 +166,7 @@ router.get('/', authenticateToken, requireRole(['ADMIN', 'DIRECTOR']), async (re
                 id: true,
                 firstName: true, 
                 lastName: true, 
+                profileImage: true,
                 locationId: true,
                 location: { select: { name: true } },
                 assignedRoles: { select: { role: true } }
@@ -142,9 +219,12 @@ router.get('/', authenticateToken, requireRole(['ADMIN', 'DIRECTOR']), async (re
       orderBy: { date: 'asc' }
     });
 
+    // Transformar eventos para agregar URLs de imágenes
+    const transformedEvents = await Promise.all(events.map(transformEventWithImageUrls));
+
     res.json({
       success: true,
-      data: events
+      data: transformedEvents
     });
   } catch (error) {
     console.error('Error fetching events:', error);
@@ -172,6 +252,7 @@ router.get('/management/all', authenticateToken, requireRole(['ADMIN', 'DIRECTOR
                 id: true,
                 firstName: true, 
                 lastName: true, 
+                profileImage: true,
                 locationId: true,
                 location: { select: { name: true } },
                 assignedRoles: { select: { role: true } }
@@ -221,9 +302,12 @@ router.get('/management/all', authenticateToken, requireRole(['ADMIN', 'DIRECTOR
       })
     );
 
+    // Transformar eventos para agregar URLs de imágenes
+    const transformedEvents = await Promise.all(eventsWithUniqueCount.map(transformEventWithImageUrls));
+
     res.json({
       success: true,
-      data: eventsWithUniqueCount
+      data: transformedEvents
     });
   } catch (error) {
     console.error('Error fetching events for management:', error);
@@ -518,7 +602,7 @@ router.post('/', authenticateToken, requireRole(['ADMIN', 'DIRECTOR']), upload.s
             eventId: event.id,
             userId: attendeeId,
             addedBy: userId,
-            status: 'CONFIRMED'
+            status: 'PENDING' // Cambiar a PENDING para que confirmen asistencia
           })),
           skipDuplicates: true
         });
@@ -551,7 +635,7 @@ router.post('/', authenticateToken, requireRole(['ADMIN', 'DIRECTOR']), upload.s
               eventId: event.id,
               userId: member.id,
               addedBy: userId,
-              status: 'CONFIRMED'
+              status: 'PENDING' // Cambiar a PENDING para que confirmen asistencia
             })),
             skipDuplicates: true
           });
@@ -761,7 +845,7 @@ router.put('/:id', authenticateToken, upload.single('image'), async (req, res) =
             eventId: id,
             userId: attendeeId,
             addedBy: userId,
-            status: 'CONFIRMED'
+            status: 'PENDING' // Cambiar a PENDING para que confirmen asistencia
           })),
           skipDuplicates: true
         });
@@ -798,7 +882,7 @@ router.put('/:id', authenticateToken, upload.single('image'), async (req, res) =
               eventId: id,
               userId: member.id,
               addedBy: userId,
-              status: 'CONFIRMED'
+              status: 'PENDING' // Cambiar a PENDING para que confirmen asistencia
             })),
             skipDuplicates: true
           });
@@ -1774,9 +1858,12 @@ router.get('/:id', authenticateToken, async (req, res) => {
       }
     }
 
+    // Transformar evento para agregar URLs de imágenes y campo cameFromJoinRequest
+    const transformedEvent = await transformEventWithImageUrls(event);
+
     res.json({
       success: true,
-      data: event
+      data: transformedEvent
     });
   } catch (error) {
     console.error('Error fetching event:', error);
@@ -2147,6 +2234,23 @@ router.put('/:id/join-requests/:requestId', authenticateToken, requireRole(['ADM
         } else {
           throw attendeeError;
         }
+      }
+    }
+
+    // Si se rechaza una solicitud que previamente fue aprobada, eliminar de attendees
+    if (status === 'REJECTED' && joinRequest.status === 'APPROVED') {
+      try {
+        const deletedAttendee = await prisma.eventAttendee.delete({
+          where: {
+            eventId_userId: {
+              eventId: id,
+              userId: joinRequest.userId
+            }
+          }
+        });
+        console.log(`🗑️ User ${joinRequest.userId} removed from attendees due to request cancellation`);
+      } catch (deleteError) {
+        console.log(`⚠️ Could not remove user ${joinRequest.userId} from attendees (may not exist):`, deleteError);
       }
     }
 
@@ -2552,6 +2656,138 @@ router.post('/:id/resubmit-join-request', authenticateToken, async (req, res) =>
     res.status(500).json({
       success: false,
       message: 'Error al reenviar solicitud'
+    });
+  }
+});
+
+// Actualizar el estado de asistencia de un asistente específico (solo admin/director)
+router.put('/:id/attendees/:userId/status', authenticateToken, requireRole(['ADMIN', 'DIRECTOR']), async (req, res) => {
+  try {
+    const { id, userId } = req.params;
+    const { status } = req.body;
+
+    console.log(`🔄 Updating attendance status for EventID=${id}, UserID=${userId}, Status=${status}`);
+
+    // Validar que el status sea válido
+    if (!['CONFIRMED', 'REFUSED', 'PENDING'].includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Estado inválido. Debe ser CONFIRMED, REFUSED o PENDING'
+      });
+    }
+
+    // Verificar que el evento existe
+    const event = await prisma.event.findUnique({
+      where: { id }
+    });
+
+    if (!event) {
+      return res.status(404).json({
+        success: false,
+        message: 'Evento no encontrado'
+      });
+    }
+
+    // Buscar si el usuario es asistente del evento
+    const existingAttendee = await prisma.eventAttendee.findFirst({
+      where: {
+        eventId: id,
+        userId: userId
+      }
+    });
+
+    if (!existingAttendee) {
+      return res.status(404).json({
+        success: false,
+        message: 'El usuario no es asistente de este evento'
+      });
+    }
+
+    // Actualizar el estado de asistencia
+    const updatedAttendee = await prisma.eventAttendee.update({
+      where: {
+        id: existingAttendee.id
+      },
+      data: {
+        status: status,
+        // Si se confirma la asistencia, también actualizar attendanceConfirmed
+        ...(status === 'CONFIRMED' && { attendanceConfirmed: true }),
+        ...(status === 'REFUSED' && { attendanceConfirmed: false })
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true
+          }
+        }
+      }
+    });
+
+    console.log(`✅ Attendance status updated successfully:`, updatedAttendee);
+
+    res.status(200).json({
+      success: true,
+      message: 'Estado de asistencia actualizado exitosamente',
+      data: updatedAttendee
+    });
+
+  } catch (error) {
+    console.error('❌ Error updating attendance status:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al actualizar el estado de asistencia'
+    });
+  }
+});
+
+// Marcar todos los asistentes PENDING como REFUSED (solo admin/director)
+router.put('/:id/attendees/mark-pending-refused', authenticateToken, requireRole(['ADMIN', 'DIRECTOR']), async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    console.log(`🔄 Marking all PENDING attendees as REFUSED for EventID=${id}`);
+
+    // Verificar que el evento existe
+    const event = await prisma.event.findUnique({
+      where: { id }
+    });
+
+    if (!event) {
+      return res.status(404).json({
+        success: false,
+        message: 'Evento no encontrado'
+      });
+    }
+
+    // Actualizar todos los asistentes con status PENDING a REFUSED
+    const updatedAttendees = await prisma.eventAttendee.updateMany({
+      where: {
+        eventId: id,
+        status: 'PENDING'
+      },
+      data: {
+        status: 'REFUSED',
+        attendanceConfirmed: false
+      }
+    });
+
+    console.log(`✅ Updated ${updatedAttendees.count} attendees from PENDING to REFUSED`);
+
+    res.status(200).json({
+      success: true,
+      message: `${updatedAttendees.count} asistentes marcados como ausentes`,
+      data: {
+        updatedCount: updatedAttendees.count
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Error marking pending attendees as refused:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al marcar asistentes como ausentes'
     });
   }
 });

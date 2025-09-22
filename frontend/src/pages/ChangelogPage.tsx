@@ -15,6 +15,57 @@ interface ChangelogEntry {
 
 const changelogData: ChangelogEntry[] = [
   {
+    version: '0.11.0',
+    date: '2025-09-22',
+    type: 'minor',
+    title: 'Sistema de Ensayos y Mejoras Visuales de Avatares - Rehearsal System & Avatar Visual Enhancements',
+    highlights: [
+      'Nueva funcionalidad completa de Ensayos con calendario especializado',
+      'Avatares animados con franjas identificadoras para tipos de asistentes',
+      'Sistema visual: franja morada ondulante (designados) vs dorada brillante (solicitudes)',
+      'Contadores dinámicos de asistentes por categoría',
+      'Mejoras significativas en gestión de eventos y confirmación de asistencia'
+    ],
+    changes: [
+      {
+        category: 'added',
+        items: [
+          'Sistema completo de Ensayos con calendario especializado',
+          'Categorías diferenciadas entre eventos regulares y ensayos',
+          'Animaciones elegantes en avatares con efectos CSS avanzados',
+          'Franjas identificadoras: morada ondulante (designados) y dorada brillante (externos)',
+          'Contadores dinámicos en leyenda de tipos de asistentes',
+          'Gestión mejorada de asistencia para ensayos',
+          'Iconografía específica para distinguir eventos y ensayos'
+        ]
+      },
+      {
+        category: 'improved',
+        items: [
+          'Vista de calendario perfeccionada para eventos y ensayos',
+          'Sistema de confirmación de asistencia más intuitivo',
+          'Visualización correcta de imágenes de perfil en todas las secciones',
+          'Interfaz simplificada para botones "Asiste" y "No Asiste"',
+          'Dashboard con estadísticas más precisas de eventos',
+          'Mejor alineación y centrado de componentes visuales',
+          'Diseño responsivo optimizado para diferentes pantallas',
+          'Rendimiento mejorado en carga de avatares y animaciones'
+        ]
+      },
+      {
+        category: 'fixed',
+        items: [
+          'Eliminado el refresco obligatorio de página tras cambios de asistencia',
+          'Corrección en manejo de estados de solicitudes de unión',
+          'Sistema de backup de IP dinámico mejorado',
+          'Botones de eventos siempre visibles y correctamente posicionados',
+          'Gestión optimizada de memoria en animaciones CSS',
+          'Correcciones de accesibilidad respetando preferencias de movimiento'
+        ]
+      }
+    ]
+  },
+  {
     version: '0.10.27',
     date: '2025-09-17',
     type: 'patch',

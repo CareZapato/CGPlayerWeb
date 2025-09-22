@@ -15,9 +15,31 @@ import {
   XCircle,
   MessageSquare,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  AlertCircle,
+  Music,
+  Check,
+  Trash2,
+  Star,
+  AlertTriangle
 } from 'lucide-react';
 import { getApiUrl } from '../config/api';
+import UserAvatar from './UserAvatar';
+
+interface VoiceProfile {
+  voiceType: string;
+  isPrimary: boolean;
+}
+
+interface EventVoice {
+  id: string;
+  name: string;
+  status: string;
+  voiceProfiles: VoiceProfile[];
+  primaryVoice?: {
+    voiceType: string;
+  };
+}
 
 interface Event {
   id: string;
@@ -25,6 +47,7 @@ interface Event {
   description?: string;
   date: string;
   time?: string;
+  category?: string;
   eventCity?: string;
   eventAddress?: string;
   mapLink?: string;
@@ -44,22 +67,23 @@ interface Event {
       id: string;
       firstName: string;
       lastName: string;
+      profileImage?: string | null;
+      profileImageUrl?: string | null;
       location?: { name: string };
       assignedRoles: Array<{ role: string }>;
-      voiceProfiles?: Array<{
-        voiceType: string;
-        isPrimary: boolean;
-      }>;
+      voiceProfiles?: VoiceProfile[];
     };
     addedByUser: {
       firstName: string;
       lastName: string;
     };
     status: string;
+    cameFromJoinRequest?: boolean;
   }>;
   joinRequests?: Array<{
     id: string;
     user: {
+      id: string;
       firstName: string;
       lastName: string;
       assignedRoles: Array<{ role: string }>;
@@ -74,8 +98,246 @@ interface EventDetailsModalProps {
   event: Event;
   onClose: () => void;
   onEventUpdated: () => void;
-  initialTab?: 'info' | 'attendees' | 'requests' | 'songs'; // Nueva prop opcional
+  initialTab?: 'info' | 'attendees' | 'requests' | 'singers'; // Nueva prop opcional
 }
+
+interface AttendanceConfirmationProps {
+  eventId: string;
+  eventTitle: string;
+  onConfirmationUpdate: () => void;
+}
+
+// Componente para confirmar asistencia
+const AttendanceConfirmation: React.FC<AttendanceConfirmationProps> = ({ 
+  eventId, 
+  eventTitle, 
+  onConfirmationUpdate 
+}) => {
+  const [loading, setLoading] = useState(false);
+  const [comment, setComment] = useState('');
+
+  const handleConfirmation = async (willAttend: boolean) => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      
+      const response = await fetch(getApiUrl(`/events/${eventId}/attendance-confirmation`), {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          attendanceConfirmed: willAttend,
+          nonAttendanceComment: willAttend ? '' : comment
+        })
+      });
+
+      if (response.ok) {
+        console.log(`✅ Asistencia ${willAttend ? 'confirmada' : 'rechazada'} para evento ${eventTitle}`);
+        onConfirmationUpdate();
+      } else {
+        const errorData = await response.json();
+        console.error('Error confirmando asistencia:', errorData);
+      }
+    } catch (error) {
+      console.error('Error confirmando asistencia:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
+      <div className="flex items-start space-x-3">
+        <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5" />
+        <div className="flex-1">
+          <h4 className="font-medium text-amber-800 mb-2">
+            Confirma tu asistencia a "{eventTitle}"
+          </h4>
+          <p className="text-sm text-amber-700 mb-4">
+            Has sido invitado/a a este evento. Por favor, confirma si podrás asistir.
+          </p>
+          
+          <div className="flex flex-col space-y-3">
+            <div className="flex space-x-3">
+              <button
+                onClick={() => handleConfirmation(true)}
+                disabled={loading}
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 disabled:opacity-50"
+              >
+                <CheckCircle className="h-4 w-4 mr-2" />
+                Sí, asistiré
+              </button>
+              <button
+                onClick={() => handleConfirmation(false)}
+                disabled={loading}
+                className="inline-flex items-center px-4 py-2 border border-red-300 text-sm font-medium rounded-md text-red-700 bg-white hover:bg-red-50 disabled:opacity-50"
+              >
+                <XCircle className="h-4 w-4 mr-2" />
+                No podré asistir
+              </button>
+            </div>
+            
+            <div>
+              <textarea
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+                placeholder="Comentario opcional (especialmente si no puedes asistir)"
+                className="w-full px-3 py-2 border border-amber-300 rounded-md text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                rows={2}
+                maxLength={300}
+              />
+              <p className="text-xs text-amber-600 mt-1">
+                {comment.length}/300 caracteres
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Componente para mostrar el estado post-evento
+interface PostEventAttendanceStatusProps {
+  userAttendance: {
+    status: string;
+    nonAttendanceComment?: string;
+  } | undefined;
+  userJoinRequest: {
+    status: string;
+    user: {
+      id: string;
+      firstName: string;
+      lastName: string;
+    };
+  } | undefined;
+}
+
+const PostEventAttendanceStatus: React.FC<PostEventAttendanceStatusProps> = ({
+  userAttendance,
+  userJoinRequest
+}) => {
+  // Determinar el estado y mensaje a mostrar
+  const getAttendanceStatus = () => {
+    const isExternalParticipant = userJoinRequest && userJoinRequest.status === 'APPROVED';
+    
+    if (!userAttendance && !isExternalParticipant) {
+      // No estaba considerado en el evento
+      return {
+        type: 'not-considered',
+        message: 'Este evento ya finalizó',
+        description: 'No fuiste considerado para este evento.',
+        bgColor: 'bg-gray-50',
+        textColor: 'text-gray-700',
+        borderColor: 'border-gray-200',
+        icon: Calendar,
+        iconColor: 'text-gray-500'
+      };
+    }
+    
+    if (userAttendance && userAttendance.status === 'REFUSED') {
+      // Estaba considerado pero marcado como REFUSED
+      return {
+        type: 'refused',
+        message: 'Faltaste a este evento',
+        description: userAttendance.nonAttendanceComment || 'No se proporcionó una excusa.',
+        bgColor: 'bg-red-50',
+        textColor: 'text-red-700',
+        borderColor: 'border-red-200',
+        icon: XCircle,
+        iconColor: 'text-red-600'
+      };
+    }
+    
+    if (userAttendance && userAttendance.status === 'CONFIRMED') {
+      // Asistió al evento
+      if (isExternalParticipant) {
+        // Asistió siendo participante externo (con estrella especial)
+        return {
+          type: 'confirmed-external',
+          message: 'Asististe a este evento',
+          description: '¡Excelente! Te uniste desde fuera del grupo original.',
+          bgColor: 'bg-green-50',
+          textColor: 'text-green-700',
+          borderColor: 'border-green-200',
+          icon: CheckCircle,
+          iconColor: 'text-green-600',
+          showStar: true
+        };
+      } else {
+        // Asistió normalmente
+        return {
+          type: 'confirmed',
+          message: 'Asististe a este evento',
+          description: '¡Gracias por tu participación!',
+          bgColor: 'bg-green-50',
+          textColor: 'text-green-700',
+          borderColor: 'border-green-200',
+          icon: CheckCircle,
+          iconColor: 'text-green-600'
+        };
+      }
+    }
+    
+    if (isExternalParticipant && (!userAttendance || userAttendance.status !== 'CONFIRMED')) {
+      // Era participante externo aprobado pero no asistió
+      return {
+        type: 'external-no-show',
+        message: 'No asististe al evento',
+        description: 'Fuiste aprobado para participar pero no asististe.',
+        bgColor: 'bg-yellow-50',
+        textColor: 'text-yellow-700',
+        borderColor: 'border-yellow-200',
+        icon: AlertTriangle,
+        iconColor: 'text-yellow-600'
+      };
+    }
+    
+    // Caso por defecto
+    return {
+      type: 'unknown',
+      message: 'Estado del evento',
+      description: 'Este evento ya finalizó.',
+      bgColor: 'bg-gray-50',
+      textColor: 'text-gray-700',
+      borderColor: 'border-gray-200',
+      icon: Calendar,
+      iconColor: 'text-gray-500'
+    };
+  };
+
+  const status = getAttendanceStatus();
+  const IconComponent = status.icon;
+
+  return (
+    <div className={`rounded-xl p-4 border-2 ${status.bgColor} ${status.borderColor} mb-6`}>
+      <div className="flex items-start space-x-3">
+        <div className="flex items-center space-x-2">
+          <IconComponent className={`h-6 w-6 ${status.iconColor}`} />
+          {status.showStar && (
+            <Star className="h-5 w-5 text-yellow-500 fill-current" />
+          )}
+        </div>
+        <div className="flex-1">
+          <h3 className={`font-semibold ${status.textColor} text-lg`}>
+            {status.message}
+          </h3>
+          <p className={`text-sm ${status.textColor} opacity-80 mt-1`}>
+            {status.description}
+          </p>
+          {status.type === 'confirmed-external' && (
+            <p className="text-xs text-yellow-600 mt-2 flex items-center">
+              <Star className="h-4 w-4 mr-1 fill-current" />
+              Participación especial desde solicitud externa
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const EventDetailsModal: React.FC<EventDetailsModalProps> = ({ 
   event, 
@@ -83,6 +345,9 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
   onEventUpdated,
   initialTab = 'info' // Por defecto 'info' si no se especifica
 }) => {
+  
+  // Estado local para los asistentes para actualizar sin recargar la página
+  const [localAttendees, setLocalAttendees] = useState(event.attendees || []);
   
   // 🐛 DEBUG: Log completo del objeto event que llega como prop
   console.log('🎭 [SOLICITUDES DEBUG] Event prop recibido:', {
@@ -93,25 +358,42 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
     joinRequestsStatus: event.joinRequests?.map(r => ({id: r.id, status: r.status, user: r.user.firstName + ' ' + r.user.lastName})) || [],
     timestamp: new Date().toLocaleTimeString()
   });
+
+  // Obtener ID del usuario actual para verificar si es asistente pendiente
+  const getCurrentUserId = () => {
+    const token = localStorage.getItem('token');
+    if (!token) return null;
+    
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      return payload.userId;
+    } catch (error) {
+      console.error('Error parsing token:', error);
+      return null;
+    }
+  };
+
+  const currentUserId = getCurrentUserId();
+  const userAttendance = localAttendees?.find(a => a.user.id === currentUserId);
   
-  // 🐛 DEBUG: Verificar estructura específica del primer attendee si existe
-  if (event.attendees && event.attendees.length > 0) {
-    const firstAttendee = event.attendees[0];
+  // 🐛 DEBUG: Verificar estructura específica del primer attendee si existe  
+  if (localAttendees && localAttendees.length > 0) {
+    const firstAttendee = localAttendees[0];
     console.log('👤 [FRONTEND DEBUG] Primer attendee raw:', {
       status: firstAttendee.status,
       user: firstAttendee.user,
       userKeys: Object.keys(firstAttendee.user),
       hasVoiceProfiles: 'voiceProfiles' in firstAttendee.user,
-      voiceProfilesValue: (firstAttendee.user as any).voiceProfiles
+      voiceProfilesValue: firstAttendee.user.voiceProfiles
     });
   }
 
   // Estado para las voces obtenidas del endpoint específico
-  const [eventVoices, setEventVoices] = useState<any[]>([]);
+  const [eventVoices, setEventVoices] = useState<EventVoice[]>([]);
   const [voicesLoaded, setVoicesLoaded] = useState(false);
   
   // Función para obtener voces del endpoint específico
-  const fetchEventVoices = async () => {
+  const fetchEventVoices = React.useCallback(async () => {
     try {
       console.log('🎤 Obteniendo voces del evento...');
       const response = await fetch(getApiUrl(`/events/${event.id}/voices`), {
@@ -133,14 +415,48 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
     } catch (error) {
       console.error('❌ Error obteniendo voces:', error);
     }
-  };
+  }, [event.id]);
 
   // Llamar al endpoint de voces cuando se monta el componente
   React.useEffect(() => {
     fetchEventVoices();
-  }, [event.id]);
-  const [activeTab, setActiveTab] = useState<'info' | 'attendees' | 'requests' | 'singers'>(initialTab as any || 'info');
+  }, [fetchEventVoices]);
+  const [activeTab, setActiveTab] = useState<'info' | 'attendees' | 'requests' | 'singers'>(initialTab || 'info');
   const [loading, setLoading] = useState(false);
+  
+  // Estado local para las solicitudes de unión para forzar re-render
+  const [localJoinRequests, setLocalJoinRequests] = useState(event.joinRequests || []);
+  
+  // Función para verificar si el evento ya pasó
+  const isEventPast = () => {
+    const eventDate = new Date(event.date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Resetear la hora para comparar solo fechas
+    return eventDate < today;
+  };
+  
+  // Variables para el estado de asistencia del usuario actual
+  const userJoinRequest = localJoinRequests?.find(r => r.user.id === currentUserId);
+  const shouldShowConfirmation = userAttendance && userAttendance.status === 'PENDING' && !isEventPast();
+  
+  // Sincronizar las solicitudes locales cuando cambie el prop event
+  React.useEffect(() => {
+    console.log(`🔄 [SYNC DEBUG] Syncing localJoinRequests:`, event.joinRequests?.length || 0);
+    setLocalJoinRequests(event.joinRequests || []);
+    
+    // Si tenemos una vista preservada, restaurarla
+    if (preserveRequestsView.current) {
+      console.log(`🔄 [VIEW DEBUG] Restaurando vista preservada:`, preserveRequestsView.current);
+      setRequestsView(preserveRequestsView.current);
+      preserveRequestsView.current = null; // Limpiar después de usar
+    }
+  }, [event.joinRequests, event.id]); // Agregar event.id como dependencia
+  
+  // Sincronizar los asistentes locales cuando cambie el prop event
+  React.useEffect(() => {
+    console.log(`🔄 [SYNC DEBUG] Syncing localAttendees:`, event.attendees?.length || 0);
+    setLocalAttendees(event.attendees || []);
+  }, [event.attendees, event.id]);
   
   // Paginación para asistentes
   const [attendeesPage, setAttendeesPage] = useState(1);
@@ -149,6 +465,9 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
   // Singer management state
   // State for join requests management
   const [requestsView, setRequestsView] = useState<'pending' | 'processed'>('pending');
+  
+  // Ref para preservar la vista actual durante actualizaciones
+  const preserveRequestsView = React.useRef<'pending' | 'processed' | null>(null);
 
   // Check if user can modify event (simplified)
   const canModifyEvent = true; // For now, allow all users to reactivate
@@ -165,7 +484,7 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
         return { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200', icon: 'text-red-600' };
       case 'PENDING':
       case 'PENDIENTE':
-        return { bg: 'bg-gray-50', text: 'text-gray-700', border: 'border-gray-200', icon: 'text-gray-600' };
+        return { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', icon: 'text-amber-600' };
       default:
         return { bg: 'bg-gray-50', text: 'text-gray-700', border: 'border-gray-200', icon: 'text-gray-600' };
     }
@@ -244,21 +563,21 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
     
     // FALLBACK: Código original (que no funciona por falta de voiceProfiles)
     console.log('📊 FALLBACK: Usando datos originales del evento');
-    console.log('📊 Event attendees:', event.attendees);
+    console.log('📊 Local attendees:', localAttendees);
     
     console.log('🎭 === INICIO CÁLCULO COMPOSICIÓN DEL CORO ===');
-    console.log('📊 Total de attendees:', event.attendees?.length || 0);
+    console.log('📊 Total de attendees:', localAttendees?.length || 0);
     
     // Debug completo de la estructura del evento
     console.log('🔍 Estructura completa del evento:', {
       id: event.id,
       title: event.title,
-      attendeesCount: event.attendees?.length || 0,
-      hasAttendees: !!event.attendees
+      attendeesCount: localAttendees?.length || 0,
+      hasAttendees: !!localAttendees
     });
     
     // Debug completo de cada attendee
-    event.attendees?.forEach((attendee, index) => {
+    localAttendees?.forEach((attendee, index) => {
       console.log(`📋 Attendee ${index + 1}:`, {
         status: attendee.status,
         user: {
@@ -271,7 +590,7 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
       });
     });
     
-    if (!event.attendees || event.attendees.length === 0) {
+    if (!localAttendees || localAttendees.length === 0) {
       console.log('⚠️ No hay attendees en el evento');
       return { 
         voices: { SOPRANO: 0, MESOSOPRANO: 0, CONTRALTO: 0, TENOR: 0, BARITONO: 0, BAJO: 0 }, 
@@ -282,8 +601,8 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
     }
     
     // Filtrar solo los confirmados para obtener las voces
-    const confirmedAttendees = event.attendees.filter(a => a.status.toUpperCase() === 'CONFIRMED');
-    console.log(`✅ Confirmados: ${confirmedAttendees.length} de ${event.attendees.length} total`);
+    const confirmedAttendees = localAttendees.filter(a => a.status.toUpperCase() === 'CONFIRMED');
+    console.log(`✅ Confirmados: ${confirmedAttendees.length} de ${localAttendees.length} total`);
     
     // Contar voces primarias de los confirmados
     const voiceCounts = {
@@ -324,15 +643,15 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
 
     // Contar estados
     const statusCounts = {
-      CONFIRMED: event.attendees.filter(a => a.status.toUpperCase() === 'CONFIRMED').length,
-      REFUSED: event.attendees.filter(a => a.status.toUpperCase() === 'REFUSED' || a.status.toUpperCase() === 'REJECTED').length,  
-      PENDING: event.attendees.filter(a => a.status.toUpperCase() === 'PENDING').length
+      CONFIRMED: localAttendees.filter(a => a.status.toUpperCase() === 'CONFIRMED').length,
+      REFUSED: localAttendees.filter(a => a.status.toUpperCase() === 'REFUSED' || a.status.toUpperCase() === 'REJECTED').length,  
+      PENDING: localAttendees.filter(a => a.status.toUpperCase() === 'PENDING').length
     };
 
     console.log('🎶 Conteo final de voces:', voiceCounts);
     console.log('📊 Conteo de estados:', statusCounts);
 
-    const totalAttendees = event.attendees.length;
+    const totalAttendees = localAttendees.length;
 
     const result = {
       voices: voiceCounts,
@@ -354,7 +673,7 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
     console.log('📈 Resultado final:', result);
     console.log('🎵 FIN - Calculando composición del coro');
     return result;
-  }, [event.attendees, voicesLoaded, eventVoices]);
+  }, [localAttendees, event.id, event.title, voicesLoaded, eventVoices]);
 
   // Datos para el gráfico de torta
   const chartData = useMemo(() => {
@@ -373,12 +692,12 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
 
   // Paginación de asistentes
   const paginatedAttendees = useMemo(() => {
-    if (!event.attendees) return [];
+    if (!localAttendees) return [];
     const startIndex = (attendeesPage - 1) * attendeesPerPage;
-    return event.attendees.slice(startIndex, startIndex + attendeesPerPage);
-  }, [event.attendees, attendeesPage, attendeesPerPage]);
+    return localAttendees.slice(startIndex, startIndex + attendeesPerPage);
+  }, [localAttendees, attendeesPage, attendeesPerPage]);
 
-  const totalPages = Math.ceil((event.attendees?.length || 0) / attendeesPerPage);
+  const totalPages = Math.ceil((localAttendees?.length || 0) / attendeesPerPage);
 
 
 
@@ -404,10 +723,16 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
       const token = localStorage.getItem('token');
       
       console.log(`📝 [SOLICITUDES DEBUG] Procesando solicitud: ${status} para request ${requestId}`);
-      console.log(`📊 [SOLICITUDES DEBUG] Total joinRequests antes:`, event.joinRequests?.length || 0);
-      console.log(`📊 [SOLICITUDES DEBUG] Solicitudes pendientes antes:`, event.joinRequests?.filter(r => r.status === 'PENDING').length || 0);
+      console.log(`📊 [SOLICITUDES DEBUG] Total joinRequests antes:`, localJoinRequests.length);
+      console.log(`📊 [SOLICITUDES DEBUG] Solicitudes pendientes antes:`, localJoinRequests.filter(r => r.status === 'PENDING').length);
       
-      const response_data = await fetch(getApiUrl(`/events/${event.id}/join-requests/${requestId}`), {
+      // Debug de la URL construida
+      const apiUrl = getApiUrl(`/events/${event.id}/join-requests/${requestId}`);
+      console.log(`🔗 [SOLICITUDES DEBUG] URL construida:`, apiUrl);
+      console.log(`🆔 [SOLICITUDES DEBUG] Event ID:`, event.id);
+      console.log(`🆔 [SOLICITUDES DEBUG] Request ID:`, requestId);
+      
+      const response_data = await fetch(apiUrl, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -423,22 +748,135 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
         
         // Log del estado antes del refresh
         console.log(`📊 [SOLICITUDES DEBUG] Estado ANTES del refresh:`, {
-          totalRequests: event.joinRequests?.length || 0,
-          pendingRequests: event.joinRequests?.filter(r => r.status === 'PENDING').length || 0,
-          processedRequests: event.joinRequests?.filter(r => r.status !== 'PENDING').length || 0
+          totalRequests: localJoinRequests.length,
+          pendingRequests: localJoinRequests.filter(r => r.status === 'PENDING').length,
+          processedRequests: localJoinRequests.filter(r => r.status !== 'PENDING').length
         });
         
+        // Preservar la vista actual antes de la actualización
+        preserveRequestsView.current = requestsView;
+        
+        // Actualizar el estado local inmediatamente para que la UI responda
+        setLocalJoinRequests(prevRequests => {
+          const updated = prevRequests.map(req => 
+            req.id === requestId 
+              ? { ...req, status: status }
+              : req
+          );
+          console.log(`🔄 [SOLICITUDES DEBUG] Estado local actualizado inmediatamente:`, {
+            before: prevRequests.length,
+            after: updated.length,
+            pendingBefore: prevRequests.filter(r => r.status === 'PENDING').length,
+            pendingAfter: updated.filter(r => r.status === 'PENDING').length
+          });
+          return updated;
+        });
+        
+        // Llamar al callback del componente padre para actualizar la lista
+        console.log(`🔄 [SOLICITUDES DEBUG] Llamando onEventUpdated()...`);
         await onEventUpdated();
         
-        console.log(`✅ [SOLICITUDES DEBUG] onEventUpdated() completado`);
+        // También recargar los datos de voces localmente para asegurar coherencia
+        await fetchEventVoices();
+        
+        console.log(`✅ [SOLICITUDES DEBUG] Todo completado - onEventUpdated() y fetchEventVoices()`);
       } else {
-        const errorData = await response_data.json();
-        console.error(`❌ Error al ${status.toLowerCase()} solicitud:`, errorData);
+        console.error(`❌ [SOLICITUDES DEBUG] Response status:`, response_data.status);
+        console.error(`❌ [SOLICITUDES DEBUG] Response statusText:`, response_data.statusText);
+        
+        let errorData;
+        try {
+          errorData = await response_data.json();
+        } catch (parseError) {
+          console.error(`❌ [SOLICITUDES DEBUG] No se pudo parsear JSON de error:`, parseError);
+          const textResponse = await response_data.text();
+          console.error(`❌ [SOLICITUDES DEBUG] Respuesta de texto:`, textResponse);
+          throw new Error(`Error ${response_data.status}: ${textResponse || response_data.statusText}`);
+        }
+        
+        console.error(`❌ [SOLICITUDES DEBUG] Error data:`, errorData);
         throw new Error(errorData.message || `Error al ${status.toLowerCase()} la solicitud`);
       }
     } catch (error) {
       console.error('Error responding to join request:', error);
       throw error; // Re-throw para que el componente padre pueda manejarlo si es necesario
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Función para actualizar el estado de asistencia individual
+  const handleAttendanceStatusUpdate = async (attendeeId: string, newStatus: 'CONFIRMED' | 'REFUSED') => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      
+      const response = await fetch(getApiUrl(`/events/${event.id}/attendees/${attendeeId}/status`), {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ status: newStatus })
+      });
+
+      if (response.ok) {
+        console.log(`✅ Estado de asistencia actualizado: ${newStatus} para attendee ${attendeeId}`);
+        
+        // Actualizar solo el estado local del asistente sin recargar la página
+        setLocalAttendees(prev => prev.map(attendee => 
+          attendee.user.id === attendeeId 
+            ? { ...attendee, status: newStatus }
+            : attendee
+        ));
+        
+        // Actualizar las voces si es necesario
+        await fetchEventVoices();
+      } else {
+        const errorData = await response.json();
+        console.error('Error actualizando estado de asistencia:', errorData);
+        throw new Error(errorData.message || 'Error al actualizar el estado');
+      }
+    } catch (error) {
+      console.error('Error actualizando estado de asistencia:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Función para marcar todos los PENDING como REFUSED
+  const handleMarkAllPendingAsRefused = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      
+      const response = await fetch(getApiUrl(`/events/${event.id}/attendees/mark-pending-refused`), {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        console.log('✅ Todos los asistentes PENDING marcados como REFUSED');
+        
+        // Actualizar solo el estado local marcando todos los PENDING como REFUSED
+        setLocalAttendees(prev => prev.map(attendee => 
+          attendee.status.toUpperCase() === 'PENDING' 
+            ? { ...attendee, status: 'REFUSED' }
+            : attendee
+        ));
+        
+        // Actualizar las voces si es necesario
+        await fetchEventVoices();
+      } else {
+        const errorData = await response.json();
+        console.error('Error marcando asistentes como rechazados:', errorData);
+        throw new Error(errorData.message || 'Error al marcar asistentes');
+      }
+    } catch (error) {
+      console.error('Error marcando asistentes como rechazados:', error);
     } finally {
       setLoading(false);
     }
@@ -450,13 +888,13 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
       id: 'attendees' as const, 
       label: 'Asistentes', 
       icon: Users, 
-      badge: event._count?.attendees || 0 
+      badge: localAttendees?.length || 0 
     },
     { 
       id: 'requests' as const, 
       label: 'Solicitudes', 
       icon: Mail, 
-      badge: event.joinRequests?.filter(r => r.status === 'PENDING').length || 0 
+      badge: localJoinRequests.filter(r => r.status === 'PENDING').length || 0 
     }
   ];
 
@@ -479,6 +917,19 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
                 <h3 className="text-3xl font-light text-gray-900 tracking-tight">{event.title}</h3>
               </div>
               <div className="flex items-center space-x-3 ml-4">
+                {/* Etiqueta de tipo de evento */}
+                {event.category === 'Ensayo' ? (
+                  <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-purple-50 text-purple-700 border border-purple-200">
+                    <Music className="h-3 w-3 mr-1" />
+                    Ensayo
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
+                    <Calendar className="h-3 w-3 mr-1" />
+                    Evento
+                  </span>
+                )}
+                
                 {event.isPublic ? (
                   <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
                     <Globe className="h-3 w-3 mr-1" />
@@ -505,6 +956,20 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
               <X className="h-5 w-5 text-gray-400" />
             </button>
           </div>
+
+          {/* Confirmación de asistencia si el usuario está pendiente o estado post-evento */}
+          {isEventPast() ? (
+            <PostEventAttendanceStatus
+              userAttendance={userAttendance}
+              userJoinRequest={userJoinRequest}
+            />
+          ) : shouldShowConfirmation ? (
+            <AttendanceConfirmation
+              eventId={event.id}
+              eventTitle={event.title}
+              onConfirmationUpdate={onEventUpdated}
+            />
+          ) : null}
 
           {/* Event Image */}
           {event.imageUrl && (
@@ -639,9 +1104,35 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
               <div className="space-y-6">
                 {/* Header con estadísticas */}
                 <div className="flex items-center justify-between">
-                  <h4 className="text-lg font-medium text-gray-900">
-                    Asistentes ({event.attendees?.length || 0})
-                  </h4>
+                  <div className="flex items-center space-x-4">
+                    <div>
+                      <h4 className="text-lg font-medium text-gray-900">
+                        Asistentes ({event.attendees?.length || 0})
+                      </h4>
+                      <div className="flex items-center space-x-4 mt-1 text-xs text-gray-500">
+                        <div className="flex items-center space-x-1">
+                          <div className="w-3 h-3 rounded-full border-2 border-purple-500"></div>
+                          <span>Designados ({(event.attendees?.filter(a => !a.cameFromJoinRequest) || []).length})</span>
+                        </div>
+                        <div className="flex items-center space-x-1">
+                          <div className="w-3 h-3 rounded-full border-2 border-yellow-400"></div>
+                          <span>Por solicitud ({(event.attendees?.filter(a => a.cameFromJoinRequest) || []).length})</span>
+                        </div>
+                      </div>
+                    </div>
+                    {/* Botón para marcar todos los PENDING como REFUSED - solo si el evento ya pasó */}
+                    {isEventPast() && event.attendees?.some(a => a.status === 'PENDING') && (
+                      <button
+                        onClick={handleMarkAllPendingAsRefused}
+                        disabled={loading}
+                        className="flex items-center px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Marcar todos los asistentes pendientes como ausentes"
+                      >
+                        <Trash2 className="h-3 w-3 mr-1" />
+                        Marcar Pendientes como Ausentes
+                      </button>
+                    )}
+                  </div>
                   {totalPages > 1 && (
                     <div className="text-sm text-gray-500">
                       Página {attendeesPage} de {totalPages}
@@ -657,14 +1148,67 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
                       return (
                         <div
                           key={index}
-                          className={`flex items-center justify-between p-3 rounded-lg border ${statusColors.bg} ${statusColors.border} transition-all hover:shadow-sm`}
+                          className={`flex items-center justify-between p-4 rounded-lg border ${statusColors.bg} ${statusColors.border} transition-all hover:shadow-sm`}
                         >
-                          <div className="flex items-center space-x-3">
-                            <div className={`w-3 h-3 rounded-full ${statusColors.icon === 'text-green-600' ? 'bg-green-500' : statusColors.icon === 'text-red-600' ? 'bg-red-500' : statusColors.icon === 'text-gray-600' ? 'bg-gray-500' : 'bg-gray-500'}`}></div>
+                          {/* Botones de gestión de asistencia - solo si el evento ya pasó */}
+                          {isEventPast() && (
+                            <div className="flex flex-col space-y-1 mr-3">
+                              <button
+                                onClick={() => handleAttendanceStatusUpdate(attendee.user.id, 'CONFIRMED')}
+                                disabled={loading}
+                                className={`p-1.5 rounded-lg transition-colors text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed ${
+                                  attendee.status === 'CONFIRMED' 
+                                    ? 'bg-green-600 text-white' 
+                                    : 'bg-green-100 text-green-700 hover:bg-green-200'
+                                }`}
+                                title="Confirmar asistencia"
+                              >
+                                <Check className="h-3 w-3" />
+                              </button>
+                              <button
+                                onClick={() => handleAttendanceStatusUpdate(attendee.user.id, 'REFUSED')}
+                                disabled={loading}
+                                className={`p-1.5 rounded-lg transition-colors text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed ${
+                                  attendee.status === 'REFUSED' || attendee.status === 'REJECTED'
+                                    ? 'bg-red-600 text-white' 
+                                    : 'bg-red-100 text-red-700 hover:bg-red-200'
+                                }`}
+                                title="Marcar como ausente"
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            </div>
+                          )}
+                          
+                          <div className="flex items-center space-x-4 flex-1">
+                            <UserAvatar
+                              user={attendee.user}
+                              size="md"
+                              showBorder={true}
+                              borderColor={
+                                attendee.cameFromJoinRequest 
+                                  ? '#fbbf24' // Dorado brillante para los que pidieron solicitud
+                                  : '#8b5cf6' // Morado para los designados desde un principio
+                              }
+                              borderType="solid"
+                            />
                             <div className="flex-1">
-                              <p className={`font-medium ${statusColors.text}`}>
-                                {attendee.user.firstName} {attendee.user.lastName}
-                              </p>
+                              <div className="flex items-center space-x-2">
+                                <p className={`font-medium ${statusColors.text}`}>
+                                  {attendee.user.firstName} {attendee.user.lastName}
+                                </p>
+                                {attendee.status === 'PENDING' && (
+                                  <div className="relative group">
+                                    <AlertCircle className="h-4 w-4 text-amber-500 animate-pulse" />
+                                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block">
+                                      <div className="bg-gray-800 text-white text-xs rounded py-1 px-2 whitespace-nowrap">
+                                        Debe confirmar asistencia
+                                      </div>
+                                      <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-2 border-r-2 border-t-2 border-transparent border-t-gray-800"></div>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
                               {attendee.user.location && (
                                 <p className="text-xs text-gray-600">
                                   {attendee.user.location.name}
@@ -672,10 +1216,11 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
                               )}
                             </div>
                           </div>
+                          
                           <div className="flex items-center space-x-2">
                             <span className={`text-xs font-medium px-2 py-1 rounded-full ${statusColors.bg} ${statusColors.text}`}>
                               {attendee.status === 'CONFIRMED' ? 'Confirmado' : 
-                               attendee.status === 'PENDING' ? 'Pendiente' : 
+                               attendee.status === 'PENDING' ? '⏳ Por Confirmar' : 
                                attendee.status === 'REJECTED' || attendee.status === 'REFUSED' ? 'No Asiste' : attendee.status}
                             </span>
                           </div>
@@ -831,7 +1376,7 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
                           : 'text-gray-500 hover:text-gray-700'
                       }`}
                     >
-                      Pendientes ({event.joinRequests?.filter(r => r.status === 'PENDING').length || 0})
+                      Pendientes ({localJoinRequests.filter(r => r.status === 'PENDING').length || 0})
                     </button>
                     <button
                       onClick={() => setRequestsView('processed')}
@@ -841,15 +1386,15 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
                           : 'text-gray-500 hover:text-gray-700'
                       }`}
                     >
-                      Procesadas ({event.joinRequests?.filter(r => r.status !== 'PENDING').length || 0})
+                      Procesadas ({localJoinRequests.filter(r => r.status !== 'PENDING').length || 0})
                     </button>
                   </div>
                 </div>
 
                 {(() => {
-                  const filteredRequests = event.joinRequests?.filter(request => 
+                  const filteredRequests = localJoinRequests.filter(request => 
                     requestsView === 'pending' ? request.status === 'PENDING' : request.status !== 'PENDING'
-                  ) || [];
+                  );
 
                   return filteredRequests.length > 0 ? (
                     <div className="space-y-4">
@@ -962,6 +1507,16 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
                                       className="inline-flex items-center px-2 py-1 border border-green-300 text-xs font-medium rounded text-green-700 bg-white hover:bg-green-50 disabled:opacity-50"
                                     >
                                       Reactivar
+                                    </button>
+                                  )}
+                                  {request.status === 'APPROVED' && canModifyEvent && (
+                                    <button
+                                      onClick={() => handleJoinRequestResponse(request.id, 'REJECTED')}
+                                      disabled={loading}
+                                      className="inline-flex items-center px-2 py-1 border border-red-300 text-xs font-medium rounded text-red-700 bg-white hover:bg-red-50 disabled:opacity-50"
+                                    >
+                                      <XCircle className="h-3 w-3 mr-1" />
+                                      Cancelar
                                     </button>
                                   )}
                                 </div>

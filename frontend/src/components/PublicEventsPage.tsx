@@ -14,7 +14,13 @@ import {
   X,
   CheckCircle,
   AlertCircle,
-  Search
+  XCircle,
+  Search,
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  Star,
+  AlertTriangle
 } from 'lucide-react';
 import { getApiUrl, getSongFileUrl } from '../config/api';
 import { useEventPlaylist } from '../hooks/useEventPlaylist';
@@ -35,12 +41,47 @@ interface Creator {
   lastName: string;
 }
 
+interface Attendee {
+  id: string;
+  userId: string;
+  user: {
+    id: string;
+    firstName: string;
+    lastName: string;
+  };
+}
+
+interface JoinRequest {
+  id: string;
+  userId: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  message?: string;
+  user: {
+    firstName: string;
+    lastName: string;
+    locationId?: string;
+  };
+}
+
+interface CurrentUser {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  assignedRoles?: Array<{
+    role: string;
+  }>;
+}
+
+
+
 interface Event {
   id: string;
   title: string;
   description?: string;
   date: string;
   time?: string;
+  category?: string;
   location?: Location;
   creator?: Creator;
   eventCity?: string;
@@ -55,8 +96,8 @@ interface Event {
     eventSongs?: number;
     uniqueEventSongs?: number;
   };
-  attendees?: any[];
-  joinRequests?: any[];
+  attendees?: Attendee[];
+  joinRequests?: JoinRequest[];
   eventSongs?: EventSong[];
   userJoinRequest?: {
     id: string;
@@ -94,6 +135,143 @@ interface EventsResponse {
   };
 }
 
+// Componente para mostrar el estado post-evento
+interface PostEventAttendanceStatusProps {
+  userAttendance: {
+    attendanceConfirmed: boolean | null;
+    nonAttendanceComment?: string;
+    status?: 'CONFIRMED' | 'REFUSED' | 'PENDING';
+  } | undefined;
+  userJoinRequest: {
+    id: string;
+    status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  } | undefined;
+}
+
+const PostEventAttendanceStatus: React.FC<PostEventAttendanceStatusProps> = ({
+  userAttendance,
+  userJoinRequest
+}) => {
+  // Determinar el estado y mensaje a mostrar
+  const getAttendanceStatus = () => {
+    const isExternalParticipant = userJoinRequest && userJoinRequest.status === 'APPROVED';
+    
+    if (!userAttendance && !isExternalParticipant) {
+      // No estaba considerado en el evento
+      return {
+        type: 'not-considered',
+        message: 'Este evento ya finalizó',
+        description: 'No fuiste considerado para este evento.',
+        bgColor: 'bg-gray-50',
+        textColor: 'text-gray-700',
+        borderColor: 'border-gray-200',
+        icon: Calendar,
+        iconColor: 'text-gray-500'
+      };
+    }
+    
+    if (userAttendance && (userAttendance.status === 'REFUSED' || userAttendance.attendanceConfirmed === false)) {
+      // Estaba considerado pero marcado como REFUSED o attendanceConfirmed false
+      return {
+        type: 'refused',
+        message: 'Faltaste a este evento',
+        description: userAttendance.nonAttendanceComment || 'No se proporcionó una excusa.',
+        bgColor: 'bg-red-50',
+        textColor: 'text-red-700',
+        borderColor: 'border-red-200',
+        icon: XCircle,
+        iconColor: 'text-red-600'
+      };
+    }
+    
+    if (userAttendance && (userAttendance.status === 'CONFIRMED' || userAttendance.attendanceConfirmed === true)) {
+      // Asistió al evento
+      if (isExternalParticipant) {
+        // Asistió siendo participante externo (con estrella especial)
+        return {
+          type: 'confirmed-external',
+          message: 'Asististe a este evento',
+          description: '¡Excelente! Te uniste desde fuera del grupo original.',
+          bgColor: 'bg-green-50',
+          textColor: 'text-green-700',
+          borderColor: 'border-green-200',
+          icon: CheckCircle,
+          iconColor: 'text-green-600',
+          showStar: true
+        };
+      } else {
+        // Asistió normalmente
+        return {
+          type: 'confirmed',
+          message: 'Asististe a este evento',
+          description: '¡Gracias por tu participación!',
+          bgColor: 'bg-green-50',
+          textColor: 'text-green-700',
+          borderColor: 'border-green-200',
+          icon: CheckCircle,
+          iconColor: 'text-green-600'
+        };
+      }
+    }
+    
+    if (isExternalParticipant && (!userAttendance || (userAttendance.status !== 'CONFIRMED' && userAttendance.attendanceConfirmed !== true))) {
+      // Era participante externo aprobado pero no asistió
+      return {
+        type: 'external-no-show',
+        message: 'No asististe al evento',
+        description: 'Fuiste aprobado para participar pero no asististe.',
+        bgColor: 'bg-yellow-50',
+        textColor: 'text-yellow-700',
+        borderColor: 'border-yellow-200',
+        icon: AlertTriangle,
+        iconColor: 'text-yellow-600'
+      };
+    }
+    
+    // Caso por defecto
+    return {
+      type: 'unknown',
+      message: 'Estado del evento',
+      description: 'Este evento ya finalizó.',
+      bgColor: 'bg-gray-50',
+      textColor: 'text-gray-700',
+      borderColor: 'border-gray-200',
+      icon: Calendar,
+      iconColor: 'text-gray-500'
+    };
+  };
+
+  const status = getAttendanceStatus();
+  const IconComponent = status.icon;
+
+  return (
+    <div className={`rounded-xl p-4 border-2 ${status.bgColor} ${status.borderColor} mb-6`}>
+      <div className="flex items-start space-x-3">
+        <div className="flex items-center space-x-2">
+          <IconComponent className={`h-6 w-6 ${status.iconColor}`} />
+          {status.showStar && (
+            <Star className="h-5 w-5 text-yellow-500 fill-current" />
+          )}
+        </div>
+        <div className="flex-1">
+          <h3 className={`font-semibold ${status.textColor} text-lg`}>
+            {status.message}
+          </h3>
+          <p className={`text-sm ${status.textColor} opacity-80 mt-1`}>
+            {status.description}
+          </p>
+          {status.type === 'confirmed-external' && (
+            <p className="text-xs text-yellow-600 mt-2 flex items-center">
+              <Star className="h-4 w-4 mr-1 fill-current" />
+              Participación especial desde solicitud externa
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const PublicEventsPage: React.FC = () => {
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
@@ -102,12 +280,16 @@ const PublicEventsPage: React.FC = () => {
   const [eventSongs, setEventSongs] = useState<EventSong[]>([]);
   const [songsLoading, setSongsLoading] = useState(false);
   const [joinRequestLoading, setJoinRequestLoading] = useState(false);
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [showNonAttendanceModal, setShowNonAttendanceModal] = useState(false);
   const [nonAttendanceComment, setNonAttendanceComment] = useState('');
   
   // Estados para pestañas y filtros
-  const [activeTab, setActiveTab] = useState<'upcoming' | 'past'>('upcoming');
+  const [activeTab, setActiveTab] = useState<'upcoming' | 'past' | 'calendar'>('upcoming');
+  
+  // Estados para la vista de calendario
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCity, setSelectedCity] = useState('');
   const [selectedRegion, setSelectedRegion] = useState('');
@@ -187,6 +369,45 @@ const PublicEventsPage: React.FC = () => {
       if (event.location?.region) regions.add(event.location.region);
     });
     return Array.from(regions).sort();
+  };
+
+  // Funciones auxiliares para el calendario
+  const getDaysInMonth = (date: Date) => {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const daysInMonth = lastDay.getDate();
+    const startDate = new Date(firstDay);
+    startDate.setDate(startDate.getDate() - firstDay.getDay()); // Empezar desde domingo
+    
+    const days = [];
+    for (let i = 0; i < 42; i++) { // 6 semanas x 7 días
+      days.push(new Date(startDate));
+      startDate.setDate(startDate.getDate() + 1);
+    }
+    return { days, daysInMonth, firstDay };
+  };
+
+  const getEventsForDate = (date: Date) => {
+    const dateStr = date.toISOString().split('T')[0];
+    return events.filter(event => event.date.startsWith(dateStr));
+  };
+
+  const isSameMonth = (date1: Date, date2: Date) => {
+    return date1.getFullYear() === date2.getFullYear() && date1.getMonth() === date2.getMonth();
+  };
+
+  // Función para verificar si el evento ya pasó
+  const isEventPast = (eventDate: string) => {
+    const eventDateObj = new Date(eventDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Resetear la hora para comparar solo fechas
+    return eventDateObj < today;
+  };
+
+  const isSameDate = (date1: Date, date2: Date) => {
+    return date1.toDateString() === date2.toDateString();
   };
 
   const filteredEvents = getFilteredEvents();
@@ -276,11 +497,13 @@ const PublicEventsPage: React.FC = () => {
         console.log(`🎵 Songs with URLs:`, songsWithUrls);
 
         // Agregar todas las canciones a la cola y empezar a reproducir la primera
-        replaceQueueAndPlay(songsWithUrls as any[], 0);
+        // @ts-expect-error - Incompatibilidad de tipos entre EventSong y Song del store
+        replaceQueueAndPlay(songsWithUrls, 0);
         
         // También establecer en playerStore para reproducción inmediata
         if (songsWithUrls[0]) {
-          setCurrentSong(songsWithUrls[0] as any);
+          // @ts-expect-error - Incompatibilidad de tipos entre EventSong y Song del store
+          setCurrentSong(songsWithUrls[0]);
         }
         
         console.log(`✅ Evento reproducido: ${result.eventTitle} con ${result.totalSongs} canciones`);
@@ -316,7 +539,7 @@ const PublicEventsPage: React.FC = () => {
         console.log('🎵 [FRONTEND DEBUG] Canciones recibidas:', {
           total: data.data?.length || 0,
           totalDuration: data.totalDuration,
-          songs: data.data?.slice(0, 3).map((s: any) => ({ title: s.title, artist: s.artist })) || []
+          songs: data.data?.slice(0, 3).map((s: EventSong) => ({ title: s.title, artist: s.artist })) || []
         });
         
         setEventSongs(data.data || []);
@@ -545,8 +768,10 @@ const PublicEventsPage: React.FC = () => {
       url: songUrl
     };
     
-    setCurrentSong(songWithUrl as any);
-    replaceQueueAndPlay([songWithUrl as any], 0);
+    // @ts-expect-error - Incompatibilidad de tipos entre EventSong y Song del store
+    setCurrentSong(songWithUrl);
+    // @ts-expect-error - Incompatibilidad de tipos entre EventSong y Song del store
+    replaceQueueAndPlay([songWithUrl], 0);
   };
 
   const formatDate = (dateString: string) => {
@@ -601,10 +826,10 @@ const PublicEventsPage: React.FC = () => {
         {/* Header */}
         <div className="text-center mb-12">
           <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-4">
-            Eventos del Coro
+            Programación del Coro
           </h1>
           <p className="text-gray-600 max-w-3xl mx-auto">
-            Descubre las próximas presentaciones y conciertos de nuestro coro. 
+            Descubre nuestros próximos eventos, conciertos y ensayos. 
             Únete a nosotros en estas experiencias musicales únicas.
           </p>
         </div>
@@ -621,7 +846,7 @@ const PublicEventsPage: React.FC = () => {
               }`}
             >
               <Calendar className="w-5 h-5 inline mr-2" />
-              Próximos Eventos ({events.filter(e => new Date(e.date) >= new Date()).length})
+              Próxima Programación ({events.filter(e => new Date(e.date) >= new Date()).length})
             </button>
             <button
               onClick={() => setActiveTab('past')}
@@ -632,7 +857,18 @@ const PublicEventsPage: React.FC = () => {
               }`}
             >
               <Clock className="w-5 h-5 inline mr-2" />
-              Eventos Pasados ({events.filter(e => new Date(e.date) < new Date()).length})
+              Programación Pasada ({events.filter(e => new Date(e.date) < new Date()).length})
+            </button>
+            <button
+              onClick={() => setActiveTab('calendar')}
+              className={`flex-1 px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === 'calendar'
+                  ? 'border-indigo-500 text-indigo-600 bg-indigo-50'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <CalendarDays className="w-5 h-5 inline mr-2" />
+              Vista Calendario
             </button>
           </div>
 
@@ -684,12 +920,287 @@ const PublicEventsPage: React.FC = () => {
           </div>
         </div>
 
-        {filteredEvents.length === 0 ? (
+        {/* Vista Calendario */}
+        {activeTab === 'calendar' ? (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 mb-8">
+            <div className="p-6">
+              {/* Header del calendario */}
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center space-x-4">
+                  <button
+                    onClick={() => {
+                      const newDate = new Date(currentMonth);
+                      newDate.setMonth(newDate.getMonth() - 1);
+                      setCurrentMonth(newDate);
+                    }}
+                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                  >
+                    <ChevronLeft className="h-5 w-5 text-gray-600" />
+                  </button>
+                  <h2 className="text-xl font-semibold text-gray-900">
+                    {currentMonth.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' }).charAt(0).toUpperCase() + currentMonth.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' }).slice(1)}
+                  </h2>
+                  <button
+                    onClick={() => {
+                      const newDate = new Date(currentMonth);
+                      newDate.setMonth(newDate.getMonth() + 1);
+                      setCurrentMonth(newDate);
+                    }}
+                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                  >
+                    <ChevronRight className="h-5 w-5 text-gray-600" />
+                  </button>
+                </div>
+                <button
+                  onClick={() => setCurrentMonth(new Date())}
+                  className="px-4 py-2 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition-colors text-sm font-medium"
+                >
+                  Hoy
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Calendario */}
+                <div className="lg:col-span-1">
+                  {/* Días de la semana */}
+                  <div className="grid grid-cols-7 gap-1 mb-2">
+                    {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map(day => (
+                      <div key={day} className="p-2 text-center text-sm font-medium text-gray-500">
+                        {day}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Días del mes */}
+                  <div className="grid grid-cols-7 gap-1">
+                    {getDaysInMonth(currentMonth).days.map((day, index) => {
+                      const dayEvents = getEventsForDate(day);
+                      const isCurrentMonth = isSameMonth(day, currentMonth);
+                      const isToday = isSameDate(day, new Date());
+                      const isSelected = selectedDate && isSameDate(day, selectedDate);
+                      const hasEvents = dayEvents.length > 0;
+
+                      return (
+                        <div
+                          key={index}
+                          onClick={() => hasEvents ? setSelectedDate(day) : null}
+                          className={`
+                            min-h-[72px] p-2 border border-gray-100 rounded-lg relative transition-all cursor-pointer
+                            ${!isCurrentMonth ? 'bg-gray-50 text-gray-400' : 'bg-white text-gray-900'}
+                            ${isToday ? 'ring-2 ring-indigo-500 bg-indigo-50' : ''}
+                            ${isSelected ? 'bg-indigo-100 border-indigo-300' : ''}
+                            ${hasEvents ? 'hover:bg-gray-50' : ''}
+                          `}
+                        >
+                          <div className="text-sm font-medium mb-1">
+                            {day.getDate()}
+                          </div>
+                          
+                          {/* Franjas de eventos */}
+                          {hasEvents && (
+                            <div className="space-y-1">
+                              {dayEvents.slice(0, 3).map((event, eventIndex) => (
+                                <div
+                                  key={eventIndex}
+                                  className={`
+                                    h-1 rounded-full
+                                    ${event.category === 'Ensayo' ? 'bg-gray-400' : 'bg-purple-400'}
+                                  `}
+                                  title={event.title}
+                                />
+                              ))}
+                              {dayEvents.length > 3 && (
+                                <div className="text-xs text-gray-500 mt-1">
+                                  +{dayEvents.length - 3} más
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Panel lateral - Eventos del día seleccionado */}
+                <div className="lg:col-span-1">
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <h3 className="font-medium text-gray-900 mb-4">
+                      {selectedDate 
+                        ? `Eventos - ${selectedDate.toLocaleDateString('es-ES', { day: 'numeric', month: 'long' })}`
+                        : 'Selecciona un día'
+                      }
+                    </h3>
+                    
+                    {selectedDate ? (
+                      <div className="space-y-3">
+                        {getEventsForDate(selectedDate).map((event) => {
+                          const isEnsayo = event.category === 'Ensayo';
+                          return (
+                            <div
+                              key={event.id}
+                              className={`
+                                p-4 rounded-lg border transition-all duration-200 hover:shadow-md
+                                ${isEnsayo 
+                                  ? 'bg-gray-800 text-white border-gray-700' 
+                                  : 'bg-white text-gray-900 border-gray-200'
+                                }
+                              `}
+                            >
+                              {/* Encabezado con tipo de evento */}
+                              <div className="flex items-center space-x-2 mb-3">
+                                {isEnsayo ? (
+                                  <Music className="h-4 w-4" />
+                                ) : (
+                                  <Star className="h-4 w-4" />
+                                )}
+                                <span className="text-xs font-medium">
+                                  {isEnsayo ? 'Ensayo' : 'Evento'}
+                                </span>
+                                {event.time && (
+                                  <span className="text-xs opacity-75">
+                                    {event.time}
+                                  </span>
+                                )}
+                              </div>
+                              
+                              {/* Layout principal: título/lugar a la izquierda, botones a la derecha */}
+                              <div className="flex items-start justify-between">
+                                {/* Lado izquierdo: Título y lugar */}
+                                <div className="flex-1 min-w-0 mr-3">
+                                  <h4 className="font-medium text-sm line-clamp-1 mb-1">
+                                    {event.title}
+                                  </h4>
+                                  {event.eventCity && (
+                                    <p className="text-xs opacity-75">
+                                      {event.eventCity}
+                                    </p>
+                                  )}
+                                </div>
+                                
+                                {/* Lado derecho: Indicadores y botones horizontales */}
+                                <div className="flex items-center space-x-2">
+                                  {/* Indicadores de estado de usuario */}
+                                  {(() => {
+                                    // Icono de solicitud pendiente
+                                    if (event.userJoinRequest && event.userJoinRequest.status === 'PENDING') {
+                                      return (
+                                        <div className="flex items-center" title="Solicitud pendiente">
+                                          <Clock className="h-4 w-4 text-yellow-500" />
+                                        </div>
+                                      );
+                                    }
+                                    
+                                    // Icono de solicitud rechazada
+                                    if (event.userJoinRequest && event.userJoinRequest.status === 'REJECTED') {
+                                      return (
+                                        <div className="flex items-center" title="Solicitud rechazada">
+                                          <XCircle className="h-4 w-4 text-red-500" />
+                                        </div>
+                                      );
+                                    }
+                                    
+                                    // Icono de aprobado con confirmación pendiente
+                                    if (event.userJoinRequest && event.userJoinRequest.status === 'APPROVED' && event.isUserAttendee && event.userAttendanceStatus?.status === 'PENDING') {
+                                      return (
+                                        <div className="flex items-center" title="Pendiente de confirmar asistencia">
+                                          <AlertCircle className="h-4 w-4 text-amber-500" />
+                                        </div>
+                                      );
+                                    }
+                                    
+                                    // Icono de confirmado
+                                    if (event.userJoinRequest && event.userJoinRequest.status === 'APPROVED' && event.isUserAttendee && event.userAttendanceStatus?.status === 'CONFIRMED') {
+                                      return (
+                                        <div className="flex items-center" title="Asistencia confirmada">
+                                          <CheckCircle className="h-4 w-4 text-green-500" />
+                                        </div>
+                                      );
+                                    }
+                                    
+                                    // Icono de cantante invitado
+                                    if (!event.userJoinRequest && event.isUserAttendee) {
+                                      return (
+                                        <div className="flex items-center" title="Cantante invitado">
+                                          <UserCheck className="h-4 w-4 text-blue-500" />
+                                        </div>
+                                      );
+                                    }
+                                    
+                                    return null;
+                                  })()}
+                                  
+                                  {/* Contador de canciones */}
+                                  {(event._count?.uniqueEventSongs ?? event._count?.eventSongs ?? 0) > 0 && (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handlePlayEvent(event);
+                                      }}
+                                      className={`flex items-center px-2 py-1 rounded-lg transition-all duration-200 ${
+                                        isEnsayo 
+                                          ? 'text-green-400 bg-green-900/30 hover:text-green-300 hover:bg-green-900/50' 
+                                          : 'text-green-600 bg-green-50 hover:text-green-700 hover:bg-green-100'
+                                      }`}
+                                      title="Reproducir como playlist"
+                                    >
+                                      <span className="text-sm font-medium mr-1">
+                                        {event._count?.uniqueEventSongs ?? event._count?.eventSongs ?? 0}
+                                      </span>
+                                      <Play className="h-4 w-4" />
+                                    </button>
+                                  )}
+                                  
+                                  {/* Botón Ver detalles */}
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedEvent(event);
+                                    }}
+                                    className={`p-2 rounded-lg transition-all duration-200 ${
+                                      isEnsayo 
+                                        ? 'text-blue-400 hover:text-blue-300 hover:bg-blue-900/30' 
+                                        : 'text-blue-500 hover:text-blue-700 hover:bg-blue-50'
+                                    }`}
+                                    title="Ver detalles"
+                                  >
+                                    <Eye className="h-4 w-4" />
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                        
+                        {getEventsForDate(selectedDate).length === 0 && (
+                          <p className="text-sm text-gray-500 text-center py-4">
+                            No hay eventos programados para este día
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-500 text-center py-8">
+                        Haz clic en un día con eventos para ver los detalles
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          /* Events Grid - Solo para las pestañas upcoming y past */
+          <div></div>
+        )}
+
+        {/* Events Grid - Solo para las pestañas upcoming y past */}
+        {activeTab !== 'calendar' && (
+          filteredEvents.length === 0 ? (
           <div className="text-center py-12">
             <div className="bg-white/80 backdrop-blur-sm rounded-xl p-8 border border-gray-100 shadow-lg max-w-md mx-auto">
               <Calendar className="mx-auto h-16 w-16 text-gray-400 mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">
-                {activeTab === 'upcoming' ? 'No hay próximos eventos' : 'No hay eventos pasados'}
+                {activeTab === 'upcoming' ? 'No hay programación próxima' : 'No hay programación pasada'}
               </h3>
               <p className="text-gray-500">
                 {activeTab === 'upcoming' 
@@ -701,11 +1212,17 @@ const PublicEventsPage: React.FC = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredEvents.map((event) => (
-              <div
-                key={event.id}
-                className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100 overflow-hidden group"
-              >
+            {filteredEvents.map((event) => {
+              const isEnsayo = event.category === 'Ensayo';
+              const cardClass = isEnsayo 
+                ? "bg-gray-800/90 backdrop-blur-sm rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-700 overflow-hidden group" 
+                : "bg-white/80 backdrop-blur-sm rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100 overflow-hidden group";
+              
+              return (
+                <div
+                  key={event.id}
+                  className={`${cardClass} flex flex-col h-full`}
+                >
                 {/* Event Image */}
                 {event.imageUrl ? (
                   <img
@@ -719,79 +1236,113 @@ const PublicEventsPage: React.FC = () => {
                   </div>
                 )}
 
-                <div className="p-6">
-                  {/* Header with Privacy Badge */}
-                  <div className="flex items-start justify-between mb-3">
-                    <h3 className="text-lg font-bold text-gray-900 line-clamp-2 flex-1">
+                <div className="p-6 flex flex-col flex-1">
+                  {/* Fila 1: Título completo */}
+                  <div className="mb-3">
+                    <h3 className={`text-lg font-bold line-clamp-2 ${isEnsayo ? 'text-white' : 'text-gray-900'}`}>
                       {event.title}
                     </h3>
-                    <div className="ml-2 flex flex-col gap-1">
-                      {event.isPublic ? (
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                          <Globe className="h-3 w-3 mr-1" />
-                          Público
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                          <Lock className="h-3 w-3 mr-1" />
-                          Privado
-                        </span>
-                      )}
-                      
-                      {/* Etiqueta "Abierto a Postulaciones" */}
-                      {event.allowExternalJoin && (
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                          <UserPlus className="h-3 w-3 mr-1" />
-                          Abierto a Postulaciones
-                        </span>
-                      )}
-                    </div>
                   </div>
 
-                  {/* Description */}
-                  {event.description && (
-                    <p className="text-gray-600 text-sm mb-4 line-clamp-2">
-                      {event.description}
-                    </p>
-                  )}
+                  {/* Fila 2: Todas las etiquetas */}
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {/* Etiqueta de categoría con icono */}
+                    {event.category && (
+                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold shadow-md ${
+                        isEnsayo 
+                          ? 'bg-gradient-to-r from-orange-600 to-red-600 text-white border border-orange-500/50' 
+                          : 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white'
+                      }`}>
+                        {isEnsayo ? (
+                          <Music className="h-3 w-3 mr-1" />
+                        ) : (
+                          <Calendar className="h-3 w-3 mr-1" />
+                        )}
+                        {event.category}
+                      </span>
+                    )}
 
-                  {/* Date & Time */}
-                  <div className="flex items-center text-slate-600 mb-3">
-                    <Calendar className="h-4 w-4 mr-2 text-indigo-500" />
-                    <span className="text-sm font-medium">
-                      {formatDate(event.date)}
-                    </span>
-                    {event.time && (
-                      <>
-                        <Clock className="h-4 w-4 ml-4 mr-2 text-emerald-500" />
-                        <span className="text-sm font-medium">{formatTime(event.time)}</span>
-                      </>
+                    {/* Etiqueta Público/Privado */}
+                    {event.isPublic ? (
+                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                        isEnsayo 
+                          ? 'bg-green-800 text-green-200' 
+                          : 'bg-green-100 text-green-800'
+                      }`}>
+                        <Globe className="h-3 w-3 mr-1" />
+                        Público
+                      </span>
+                    ) : (
+                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                        isEnsayo 
+                          ? 'bg-gray-700 text-gray-300' 
+                          : 'bg-gray-100 text-gray-800'
+                      }`}>
+                        <Lock className="h-3 w-3 mr-1" />
+                        Privado
+                      </span>
+                    )}
+                    
+                    {/* Etiqueta "Abierto a Postulaciones" */}
+                    {event.allowExternalJoin && (
+                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                        isEnsayo 
+                          ? 'bg-blue-800 text-blue-200' 
+                          : 'bg-blue-100 text-blue-800'
+                      }`}>
+                        <UserPlus className="h-3 w-3 mr-1" />
+                        Abierto a Postulaciones
+                      </span>
                     )}
                   </div>
 
-                  {/* Location */}
-                  <div className="flex items-center text-slate-600 mb-4">
-                    <MapPin className="h-4 w-4 mr-2 text-red-500" />
-                    <span className="text-sm font-medium line-clamp-1">
-                      {event.eventCity || event.location?.city || 'Ubicación por confirmar'}
-                      {event.eventAddress && `, ${event.eventAddress}`}
-                    </span>
+                  {/* Fila 3: Fecha, Hora y Lugar */}
+                  <div className={`flex flex-col gap-2 mb-4 ${isEnsayo ? 'text-gray-400' : 'text-slate-600'}`}>
+                    {/* Fecha y Hora */}
+                    <div className="flex items-center">
+                      <Calendar className={`h-4 w-4 mr-2 ${isEnsayo ? 'text-indigo-400' : 'text-indigo-500'}`} />
+                      <span className="text-sm font-medium">
+                        {formatDate(event.date)}
+                      </span>
+                      {event.time && (
+                        <>
+                          <Clock className={`h-4 w-4 ml-4 mr-2 ${isEnsayo ? 'text-emerald-400' : 'text-emerald-500'}`} />
+                          <span className="text-sm font-medium">{formatTime(event.time)}</span>
+                        </>
+                      )}
+                    </div>
+
+                    {/* Lugar */}
+                    <div className="flex items-center">
+                      <MapPin className={`h-4 w-4 mr-2 ${isEnsayo ? 'text-red-400' : 'text-red-500'}`} />
+                      <span className="text-sm font-medium line-clamp-1">
+                        {event.eventCity || event.location?.city || 'Ubicación por confirmar'}
+                        {event.eventAddress && `, ${event.eventAddress}`}
+                      </span>
+                    </div>
                   </div>
 
+                  {/* Spacer para empujar los botones hacia abajo */}
+                  <div className="flex-1"></div>
+
                   {/* Stats */}
-                  <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                  <div className={`flex items-center justify-between pt-4 border-t ${isEnsayo ? 'border-gray-600' : 'border-gray-100'} mt-auto`}>
                     <div className="flex items-center space-x-4">
-                      <div className="flex items-center text-indigo-600">
-                        <Users className="h-4 w-4 mr-1 text-indigo-500" />
-                        <span className="text-sm font-medium">
-                          {event._count?.attendees || 0} asistentes
+                      <div className={`flex items-center px-3 py-2 rounded-lg ${
+                        isEnsayo 
+                          ? 'bg-gradient-to-r from-blue-700/40 to-indigo-700/40 border border-blue-600/30'
+                          : 'bg-indigo-50'
+                      }`}>
+                        <Users className={`h-5 w-5 mr-2 ${isEnsayo ? 'text-blue-300' : 'text-indigo-500'}`} />
+                        <span className={`text-sm font-bold ${isEnsayo ? 'text-blue-200' : 'text-indigo-700'}`}>
+                          {event._count?.attendees || 0} 
                         </span>
                       </div>
                       
                       {/* Mostrar iconos según el rol del usuario */}
                       {(() => {
                         const isCreatorOrAdmin = currentUser && (
-                          currentUser.assignedRoles?.some((role: any) => role.role === 'ADMIN') ||
+                          currentUser.assignedRoles?.some((role: { role: string }) => role.role === 'ADMIN') ||
                           event.creator?.id === currentUser.id
                         );
 
@@ -828,6 +1379,21 @@ const PublicEventsPage: React.FC = () => {
                                 </div>
                               </div>
                             );
+                          } else if (status === 'REJECTED') {
+                            return (
+                              <div 
+                                className="flex items-center cursor-pointer" 
+                                title="Solicitud rechazada - Clic para ver detalles"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedEvent(event);
+                                }}
+                              >
+                                <div className="relative">
+                                  <XCircle className="h-4 w-4 text-red-500" />
+                                </div>
+                              </div>
+                            );
                           }
                         }
 
@@ -855,7 +1421,11 @@ const PublicEventsPage: React.FC = () => {
                             handlePlayEvent(event);
                           }}
                           disabled={playLoading}
-                          className="flex items-center text-green-600 bg-green-50 px-2 py-1 rounded-lg hover:text-green-700 hover:bg-green-100 transition-all duration-200 disabled:opacity-50"
+                          className={`flex items-center px-2 py-1 rounded-lg transition-all duration-200 disabled:opacity-50 ${
+                            isEnsayo 
+                              ? 'text-green-400 bg-green-900/30 hover:text-green-300 hover:bg-green-900/50' 
+                              : 'text-green-600 bg-green-50 hover:text-green-700 hover:bg-green-100'
+                          }`}
                           title="Reproducir como playlist"
                         >
                           <span className="text-sm font-medium mr-1">
@@ -870,7 +1440,11 @@ const PublicEventsPage: React.FC = () => {
                           e.stopPropagation();
                           setSelectedEvent(event);
                         }}
-                        className="p-2 text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-all duration-200"
+                        className={`p-2 rounded-lg transition-all duration-200 ${
+                          isEnsayo 
+                            ? 'text-blue-400 hover:text-blue-300 hover:bg-blue-900/30' 
+                            : 'text-blue-500 hover:text-blue-700 hover:bg-blue-50'
+                        }`}
                         title="Ver detalles"
                       >
                         <Eye className="h-4 w-4" />
@@ -879,9 +1453,10 @@ const PublicEventsPage: React.FC = () => {
                   </div>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
-        )}
+        ))}
 
         {/* Modal de detalles del evento */}
         {selectedEvent && (
@@ -898,6 +1473,19 @@ const PublicEventsPage: React.FC = () => {
                       {selectedEvent.title}
                     </h2>
                     <div className="flex items-center space-x-2">
+                      {/* Etiqueta de tipo de evento */}
+                      {selectedEvent.category === 'Ensayo' ? (
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                          <Music className="h-3 w-3 mr-1" />
+                          Ensayo
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                          <Calendar className="h-3 w-3 mr-1" />
+                          Evento
+                        </span>
+                      )}
+                      
                       {selectedEvent.isPublic ? (
                         <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
                           <Globe className="h-3 w-3 mr-1" />
@@ -1175,78 +1763,88 @@ const PublicEventsPage: React.FC = () => {
               {/* Footer fijo con botones principales */}
               {(selectedEvent.isUserAttendee || selectedEvent.userJoinRequest || selectedEvent.allowExternalJoin) && (
                 <div className="border-t border-gray-200 p-6 bg-gray-50 flex-shrink-0 rounded-b-xl">
-                  {selectedEvent.isUserAttendee && (
-                    <div className="space-y-3">
-                      <div className="text-center">
-                        <h4 className="font-medium text-gray-900 mb-2">Confirmación de Asistencia</h4>
-                        <p className="text-sm text-gray-600 mb-4">
-                          {(selectedEvent.userAttendanceStatus?.attendanceConfirmed !== null || selectedEvent.userAttendanceStatus?.status)
-                            ? "Puedes cambiar tu respuesta cuando quieras"
-                            : "Por favor, confirma si podrás asistir al evento"}
-                        </p>
-                      </div>
-                      
-                      <div className="flex space-x-3">
-                        <button
-                          onClick={() => handleAttendanceConfirmation(selectedEvent.id, true)}
-                          disabled={joinRequestLoading}
-                          className={`flex-1 py-3 px-4 rounded-lg font-medium transition-all duration-200 disabled:opacity-50 ${
-                            selectedEvent.userAttendanceStatus?.status === 'CONFIRMED' ||
-                            selectedEvent.userAttendanceStatus?.attendanceConfirmed === true
-                              ? 'bg-green-700 text-white shadow-lg scale-105 border-2 border-green-600' 
-                              : 'bg-green-600 text-white hover:bg-green-700 hover:scale-105'
-                          }`}
-                        >
-                          {joinRequestLoading ? 'Confirmando...' : 'Confirmar Asistencia'}
-                        </button>
-                        <button
-                          onClick={() => setShowNonAttendanceModal(true)}
-                          disabled={joinRequestLoading}
-                          className={`flex-1 py-3 px-4 rounded-lg font-medium transition-all duration-200 disabled:opacity-50 ${
-                            selectedEvent.userAttendanceStatus?.status === 'REFUSED' ||
-                            selectedEvent.userAttendanceStatus?.attendanceConfirmed === false
-                              ? 'bg-red-700 text-white shadow-lg scale-105 border-2 border-red-600' 
-                              : 'bg-red-600 text-white hover:bg-red-700 hover:scale-105'
-                          }`}
-                        >
-                          {joinRequestLoading ? 'Actualizando...' : 'No Podré Asistir'}
-                        </button>
-                      </div>
-                    </div>
-                  )}
+                  {/* Mostrar estado post-evento o confirmación según si el evento ya pasó */}
+                  {isEventPast(selectedEvent.date) ? (
+                    <PostEventAttendanceStatus
+                      userAttendance={selectedEvent.userAttendanceStatus}
+                      userJoinRequest={selectedEvent.userJoinRequest}
+                    />
+                  ) : (
+                    <>
+                      {selectedEvent.isUserAttendee && (
+                        <div className="space-y-3">
+                          <div className="text-center">
+                            <h4 className="font-medium text-gray-900 mb-2">Confirmación de Asistencia</h4>
+                            <p className="text-sm text-gray-600 mb-4">
+                              {(selectedEvent.userAttendanceStatus?.attendanceConfirmed !== null || selectedEvent.userAttendanceStatus?.status)
+                                ? "Puedes cambiar tu respuesta cuando quieras"
+                                : "Por favor, confirma si podrás asistir al evento"}
+                            </p>
+                          </div>
+                          
+                          <div className="flex space-x-3">
+                            <button
+                              onClick={() => handleAttendanceConfirmation(selectedEvent.id, true)}
+                              disabled={joinRequestLoading}
+                              className={`flex-1 py-3 px-4 rounded-lg font-medium transition-all duration-200 disabled:opacity-50 ${
+                                selectedEvent.userAttendanceStatus?.status === 'CONFIRMED' ||
+                                selectedEvent.userAttendanceStatus?.attendanceConfirmed === true
+                                  ? 'bg-green-700 text-white shadow-lg scale-105 border-2 border-green-600' 
+                                  : 'bg-green-600 text-white hover:bg-green-700 hover:scale-105'
+                              }`}
+                            >
+                              {joinRequestLoading ? 'Confirmando...' : 'Confirmar Asistencia'}
+                            </button>
+                            <button
+                              onClick={() => setShowNonAttendanceModal(true)}
+                              disabled={joinRequestLoading}
+                              className={`flex-1 py-3 px-4 rounded-lg font-medium transition-all duration-200 disabled:opacity-50 ${
+                                selectedEvent.userAttendanceStatus?.status === 'REFUSED' ||
+                                selectedEvent.userAttendanceStatus?.attendanceConfirmed === false
+                                  ? 'bg-red-700 text-white shadow-lg scale-105 border-2 border-red-600' 
+                                  : 'bg-red-600 text-white hover:bg-red-700 hover:scale-105'
+                              }`}
+                            >
+                              {joinRequestLoading ? 'Actualizando...' : 'No Podré Asistir'}
+                            </button>
+                          </div>
+                        </div>
+                      )}
 
-                  {selectedEvent.userJoinRequest && !selectedEvent.isUserAttendee && (
-                    <div className="w-full">
-                      {selectedEvent.userJoinRequest.status === 'PENDING' && (
+                      {selectedEvent.userJoinRequest && !selectedEvent.isUserAttendee && (
+                        <div className="w-full">
+                          {selectedEvent.userJoinRequest.status === 'PENDING' && (
+                            <button
+                              onClick={() => handleJoinRequest(selectedEvent.id, 'cancel')}
+                              disabled={joinRequestLoading}
+                              className="w-full bg-red-600 text-white py-3 px-4 rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 font-medium"
+                            >
+                              {joinRequestLoading ? 'Cancelando...' : 'Cancelar solicitud'}
+                            </button>
+                          )}
+                          
+                          {selectedEvent.userJoinRequest.status === 'REJECTED' && (
+                            <button
+                              onClick={() => handleResubmitRequest(selectedEvent.id)}
+                              disabled={joinRequestLoading}
+                              className="w-full bg-amber-600 text-white py-3 px-4 rounded-lg hover:bg-amber-700 transition-colors disabled:opacity-50 font-medium"
+                            >
+                              {joinRequestLoading ? 'Reenviando...' : 'Reenviar solicitud'}
+                            </button>
+                          )}
+                        </div>
+                      )}
+
+                      {!selectedEvent.userJoinRequest && !selectedEvent.isUserAttendee && selectedEvent.allowExternalJoin && (
                         <button
-                          onClick={() => handleJoinRequest(selectedEvent.id, 'cancel')}
+                          onClick={() => handleJoinRequest(selectedEvent.id, 'join')}
                           disabled={joinRequestLoading}
-                          className="w-full bg-red-600 text-white py-3 px-4 rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 font-medium"
+                          className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 font-medium"
                         >
-                          {joinRequestLoading ? 'Cancelando...' : 'Cancelar solicitud'}
+                          {joinRequestLoading ? 'Enviando...' : 'Solicitar participación'}
                         </button>
                       )}
-                      
-                      {selectedEvent.userJoinRequest.status === 'REJECTED' && (
-                        <button
-                          onClick={() => handleResubmitRequest(selectedEvent.id)}
-                          disabled={joinRequestLoading}
-                          className="w-full bg-amber-600 text-white py-3 px-4 rounded-lg hover:bg-amber-700 transition-colors disabled:opacity-50 font-medium"
-                        >
-                          {joinRequestLoading ? 'Reenviando...' : 'Reenviar solicitud'}
-                        </button>
-                      )}
-                    </div>
-                  )}
-
-                  {!selectedEvent.userJoinRequest && !selectedEvent.isUserAttendee && selectedEvent.allowExternalJoin && (
-                    <button
-                      onClick={() => handleJoinRequest(selectedEvent.id, 'join')}
-                      disabled={joinRequestLoading}
-                      className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 font-medium"
-                    >
-                      {joinRequestLoading ? 'Enviando...' : 'Solicitar participación'}
-                    </button>
+                    </>
                   )}
                 </div>
               )}
