@@ -19,7 +19,8 @@ import {
   CalendarDays,
   ChevronLeft,
   ChevronRight,
-  Star
+  Star,
+  AlertTriangle
 } from 'lucide-react';
 import { getApiUrl, getSongFileUrl } from '../config/api';
 import { useEventPlaylist } from '../hooks/useEventPlaylist';
@@ -133,6 +134,143 @@ interface EventsResponse {
     hasPrevPage: boolean;
   };
 }
+
+// Componente para mostrar el estado post-evento
+interface PostEventAttendanceStatusProps {
+  userAttendance: {
+    attendanceConfirmed: boolean | null;
+    nonAttendanceComment?: string;
+    status?: 'CONFIRMED' | 'REFUSED' | 'PENDING';
+  } | undefined;
+  userJoinRequest: {
+    id: string;
+    status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  } | undefined;
+}
+
+const PostEventAttendanceStatus: React.FC<PostEventAttendanceStatusProps> = ({
+  userAttendance,
+  userJoinRequest
+}) => {
+  // Determinar el estado y mensaje a mostrar
+  const getAttendanceStatus = () => {
+    const isExternalParticipant = userJoinRequest && userJoinRequest.status === 'APPROVED';
+    
+    if (!userAttendance && !isExternalParticipant) {
+      // No estaba considerado en el evento
+      return {
+        type: 'not-considered',
+        message: 'Este evento ya finalizó',
+        description: 'No fuiste considerado para este evento.',
+        bgColor: 'bg-gray-50',
+        textColor: 'text-gray-700',
+        borderColor: 'border-gray-200',
+        icon: Calendar,
+        iconColor: 'text-gray-500'
+      };
+    }
+    
+    if (userAttendance && (userAttendance.status === 'REFUSED' || userAttendance.attendanceConfirmed === false)) {
+      // Estaba considerado pero marcado como REFUSED o attendanceConfirmed false
+      return {
+        type: 'refused',
+        message: 'Faltaste a este evento',
+        description: userAttendance.nonAttendanceComment || 'No se proporcionó una excusa.',
+        bgColor: 'bg-red-50',
+        textColor: 'text-red-700',
+        borderColor: 'border-red-200',
+        icon: XCircle,
+        iconColor: 'text-red-600'
+      };
+    }
+    
+    if (userAttendance && (userAttendance.status === 'CONFIRMED' || userAttendance.attendanceConfirmed === true)) {
+      // Asistió al evento
+      if (isExternalParticipant) {
+        // Asistió siendo participante externo (con estrella especial)
+        return {
+          type: 'confirmed-external',
+          message: 'Asististe a este evento',
+          description: '¡Excelente! Te uniste desde fuera del grupo original.',
+          bgColor: 'bg-green-50',
+          textColor: 'text-green-700',
+          borderColor: 'border-green-200',
+          icon: CheckCircle,
+          iconColor: 'text-green-600',
+          showStar: true
+        };
+      } else {
+        // Asistió normalmente
+        return {
+          type: 'confirmed',
+          message: 'Asististe a este evento',
+          description: '¡Gracias por tu participación!',
+          bgColor: 'bg-green-50',
+          textColor: 'text-green-700',
+          borderColor: 'border-green-200',
+          icon: CheckCircle,
+          iconColor: 'text-green-600'
+        };
+      }
+    }
+    
+    if (isExternalParticipant && (!userAttendance || (userAttendance.status !== 'CONFIRMED' && userAttendance.attendanceConfirmed !== true))) {
+      // Era participante externo aprobado pero no asistió
+      return {
+        type: 'external-no-show',
+        message: 'No asististe al evento',
+        description: 'Fuiste aprobado para participar pero no asististe.',
+        bgColor: 'bg-yellow-50',
+        textColor: 'text-yellow-700',
+        borderColor: 'border-yellow-200',
+        icon: AlertTriangle,
+        iconColor: 'text-yellow-600'
+      };
+    }
+    
+    // Caso por defecto
+    return {
+      type: 'unknown',
+      message: 'Estado del evento',
+      description: 'Este evento ya finalizó.',
+      bgColor: 'bg-gray-50',
+      textColor: 'text-gray-700',
+      borderColor: 'border-gray-200',
+      icon: Calendar,
+      iconColor: 'text-gray-500'
+    };
+  };
+
+  const status = getAttendanceStatus();
+  const IconComponent = status.icon;
+
+  return (
+    <div className={`rounded-xl p-4 border-2 ${status.bgColor} ${status.borderColor} mb-6`}>
+      <div className="flex items-start space-x-3">
+        <div className="flex items-center space-x-2">
+          <IconComponent className={`h-6 w-6 ${status.iconColor}`} />
+          {status.showStar && (
+            <Star className="h-5 w-5 text-yellow-500 fill-current" />
+          )}
+        </div>
+        <div className="flex-1">
+          <h3 className={`font-semibold ${status.textColor} text-lg`}>
+            {status.message}
+          </h3>
+          <p className={`text-sm ${status.textColor} opacity-80 mt-1`}>
+            {status.description}
+          </p>
+          {status.type === 'confirmed-external' && (
+            <p className="text-xs text-yellow-600 mt-2 flex items-center">
+              <Star className="h-4 w-4 mr-1 fill-current" />
+              Participación especial desde solicitud externa
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const PublicEventsPage: React.FC = () => {
   const [events, setEvents] = useState<Event[]>([]);
@@ -258,6 +396,14 @@ const PublicEventsPage: React.FC = () => {
 
   const isSameMonth = (date1: Date, date2: Date) => {
     return date1.getFullYear() === date2.getFullYear() && date1.getMonth() === date2.getMonth();
+  };
+
+  // Función para verificar si el evento ya pasó
+  const isEventPast = (eventDate: string) => {
+    const eventDateObj = new Date(eventDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Resetear la hora para comparar solo fechas
+    return eventDateObj < today;
   };
 
   const isSameDate = (date1: Date, date2: Date) => {
@@ -1617,44 +1763,54 @@ const PublicEventsPage: React.FC = () => {
               {/* Footer fijo con botones principales */}
               {(selectedEvent.isUserAttendee || selectedEvent.userJoinRequest || selectedEvent.allowExternalJoin) && (
                 <div className="border-t border-gray-200 p-6 bg-gray-50 flex-shrink-0 rounded-b-xl">
-                  {selectedEvent.isUserAttendee && (
-                    <div className="space-y-3">
-                      <div className="text-center">
-                        <h4 className="font-medium text-gray-900 mb-2">Confirmación de Asistencia</h4>
-                        <p className="text-sm text-gray-600 mb-4">
-                          {(selectedEvent.userAttendanceStatus?.attendanceConfirmed !== null || selectedEvent.userAttendanceStatus?.status)
-                            ? "Puedes cambiar tu respuesta cuando quieras"
-                            : "Por favor, confirma si podrás asistir al evento"}
-                        </p>
-                      </div>
-                      
-                      <div className="flex space-x-3">
-                        <button
-                          onClick={() => handleAttendanceConfirmation(selectedEvent.id, true)}
-                          disabled={joinRequestLoading}
-                          className={`flex-1 py-3 px-4 rounded-lg font-medium transition-all duration-200 disabled:opacity-50 ${
-                            selectedEvent.userAttendanceStatus?.status === 'CONFIRMED' ||
-                            selectedEvent.userAttendanceStatus?.attendanceConfirmed === true
-                              ? 'bg-green-700 text-white shadow-lg scale-105 border-2 border-green-600' 
-                              : 'bg-green-600 text-white hover:bg-green-700 hover:scale-105'
-                          }`}
-                        >
-                          {joinRequestLoading ? 'Confirmando...' : 'Confirmar Asistencia'}
-                        </button>
-                        <button
-                          onClick={() => setShowNonAttendanceModal(true)}
-                          disabled={joinRequestLoading}
-                          className={`flex-1 py-3 px-4 rounded-lg font-medium transition-all duration-200 disabled:opacity-50 ${
-                            selectedEvent.userAttendanceStatus?.status === 'REFUSED' ||
-                            selectedEvent.userAttendanceStatus?.attendanceConfirmed === false
-                              ? 'bg-red-700 text-white shadow-lg scale-105 border-2 border-red-600' 
-                              : 'bg-red-600 text-white hover:bg-red-700 hover:scale-105'
-                          }`}
-                        >
-                          {joinRequestLoading ? 'Actualizando...' : 'No Podré Asistir'}
-                        </button>
-                      </div>
-                    </div>
+                  {/* Mostrar estado post-evento o confirmación según si el evento ya pasó */}
+                  {isEventPast(selectedEvent.date) ? (
+                    <PostEventAttendanceStatus
+                      userAttendance={selectedEvent.userAttendanceStatus}
+                      userJoinRequest={selectedEvent.userJoinRequest}
+                    />
+                  ) : (
+                    <>
+                      {selectedEvent.isUserAttendee && (
+                        <div className="space-y-3">
+                          <div className="text-center">
+                            <h4 className="font-medium text-gray-900 mb-2">Confirmación de Asistencia</h4>
+                            <p className="text-sm text-gray-600 mb-4">
+                              {(selectedEvent.userAttendanceStatus?.attendanceConfirmed !== null || selectedEvent.userAttendanceStatus?.status)
+                                ? "Puedes cambiar tu respuesta cuando quieras"
+                                : "Por favor, confirma si podrás asistir al evento"}
+                            </p>
+                          </div>
+                          
+                          <div className="flex space-x-3">
+                            <button
+                              onClick={() => handleAttendanceConfirmation(selectedEvent.id, true)}
+                              disabled={joinRequestLoading}
+                              className={`flex-1 py-3 px-4 rounded-lg font-medium transition-all duration-200 disabled:opacity-50 ${
+                                selectedEvent.userAttendanceStatus?.status === 'CONFIRMED' ||
+                                selectedEvent.userAttendanceStatus?.attendanceConfirmed === true
+                                  ? 'bg-green-700 text-white shadow-lg scale-105 border-2 border-green-600' 
+                                  : 'bg-green-600 text-white hover:bg-green-700 hover:scale-105'
+                              }`}
+                            >
+                              {joinRequestLoading ? 'Confirmando...' : 'Confirmar Asistencia'}
+                            </button>
+                            <button
+                              onClick={() => setShowNonAttendanceModal(true)}
+                              disabled={joinRequestLoading}
+                              className={`flex-1 py-3 px-4 rounded-lg font-medium transition-all duration-200 disabled:opacity-50 ${
+                                selectedEvent.userAttendanceStatus?.status === 'REFUSED' ||
+                                selectedEvent.userAttendanceStatus?.attendanceConfirmed === false
+                                  ? 'bg-red-700 text-white shadow-lg scale-105 border-2 border-red-600' 
+                                  : 'bg-red-600 text-white hover:bg-red-700 hover:scale-105'
+                              }`}
+                            >
+                              {joinRequestLoading ? 'Actualizando...' : 'No Podré Asistir'}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </>
                   )}
 
                   {selectedEvent.userJoinRequest && !selectedEvent.isUserAttendee && (

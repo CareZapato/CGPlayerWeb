@@ -19,7 +19,9 @@ import {
   AlertCircle,
   Music,
   Check,
-  Trash2
+  Trash2,
+  Star,
+  AlertTriangle
 } from 'lucide-react';
 import { getApiUrl } from '../config/api';
 
@@ -77,6 +79,7 @@ interface Event {
   joinRequests?: Array<{
     id: string;
     user: {
+      id: string;
       firstName: string;
       lastName: string;
       assignedRoles: Array<{ role: string }>;
@@ -192,6 +195,146 @@ const AttendanceConfirmation: React.FC<AttendanceConfirmationProps> = ({
   );
 };
 
+// Componente para mostrar el estado post-evento
+interface PostEventAttendanceStatusProps {
+  userAttendance: {
+    status: string;
+    nonAttendanceComment?: string;
+  } | undefined;
+  userJoinRequest: {
+    status: string;
+    user: {
+      id: string;
+      firstName: string;
+      lastName: string;
+    };
+  } | undefined;
+}
+
+const PostEventAttendanceStatus: React.FC<PostEventAttendanceStatusProps> = ({
+  userAttendance,
+  userJoinRequest
+}) => {
+  // Determinar el estado y mensaje a mostrar
+  const getAttendanceStatus = () => {
+    const isExternalParticipant = userJoinRequest && userJoinRequest.status === 'APPROVED';
+    
+    if (!userAttendance && !isExternalParticipant) {
+      // No estaba considerado en el evento
+      return {
+        type: 'not-considered',
+        message: 'Este evento ya finalizó',
+        description: 'No fuiste considerado para este evento.',
+        bgColor: 'bg-gray-50',
+        textColor: 'text-gray-700',
+        borderColor: 'border-gray-200',
+        icon: Calendar,
+        iconColor: 'text-gray-500'
+      };
+    }
+    
+    if (userAttendance && userAttendance.status === 'REFUSED') {
+      // Estaba considerado pero marcado como REFUSED
+      return {
+        type: 'refused',
+        message: 'Faltaste a este evento',
+        description: userAttendance.nonAttendanceComment || 'No se proporcionó una excusa.',
+        bgColor: 'bg-red-50',
+        textColor: 'text-red-700',
+        borderColor: 'border-red-200',
+        icon: XCircle,
+        iconColor: 'text-red-600'
+      };
+    }
+    
+    if (userAttendance && userAttendance.status === 'CONFIRMED') {
+      // Asistió al evento
+      if (isExternalParticipant) {
+        // Asistió siendo participante externo (con estrella especial)
+        return {
+          type: 'confirmed-external',
+          message: 'Asististe a este evento',
+          description: '¡Excelente! Te uniste desde fuera del grupo original.',
+          bgColor: 'bg-green-50',
+          textColor: 'text-green-700',
+          borderColor: 'border-green-200',
+          icon: CheckCircle,
+          iconColor: 'text-green-600',
+          showStar: true
+        };
+      } else {
+        // Asistió normalmente
+        return {
+          type: 'confirmed',
+          message: 'Asististe a este evento',
+          description: '¡Gracias por tu participación!',
+          bgColor: 'bg-green-50',
+          textColor: 'text-green-700',
+          borderColor: 'border-green-200',
+          icon: CheckCircle,
+          iconColor: 'text-green-600'
+        };
+      }
+    }
+    
+    if (isExternalParticipant && (!userAttendance || userAttendance.status !== 'CONFIRMED')) {
+      // Era participante externo aprobado pero no asistió
+      return {
+        type: 'external-no-show',
+        message: 'No asististe al evento',
+        description: 'Fuiste aprobado para participar pero no asististe.',
+        bgColor: 'bg-yellow-50',
+        textColor: 'text-yellow-700',
+        borderColor: 'border-yellow-200',
+        icon: AlertTriangle,
+        iconColor: 'text-yellow-600'
+      };
+    }
+    
+    // Caso por defecto
+    return {
+      type: 'unknown',
+      message: 'Estado del evento',
+      description: 'Este evento ya finalizó.',
+      bgColor: 'bg-gray-50',
+      textColor: 'text-gray-700',
+      borderColor: 'border-gray-200',
+      icon: Calendar,
+      iconColor: 'text-gray-500'
+    };
+  };
+
+  const status = getAttendanceStatus();
+  const IconComponent = status.icon;
+
+  return (
+    <div className={`rounded-xl p-4 border-2 ${status.bgColor} ${status.borderColor} mb-6`}>
+      <div className="flex items-start space-x-3">
+        <div className="flex items-center space-x-2">
+          <IconComponent className={`h-6 w-6 ${status.iconColor}`} />
+          {status.showStar && (
+            <Star className="h-5 w-5 text-yellow-500 fill-current" />
+          )}
+        </div>
+        <div className="flex-1">
+          <h3 className={`font-semibold ${status.textColor} text-lg`}>
+            {status.message}
+          </h3>
+          <p className={`text-sm ${status.textColor} opacity-80 mt-1`}>
+            {status.description}
+          </p>
+          {status.type === 'confirmed-external' && (
+            <p className="text-xs text-yellow-600 mt-2 flex items-center">
+              <Star className="h-4 w-4 mr-1 fill-current" />
+              Participación especial desde solicitud externa
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const EventDetailsModal: React.FC<EventDetailsModalProps> = ({ 
   event, 
   onClose, 
@@ -228,7 +371,6 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
 
   const currentUserId = getCurrentUserId();
   const userAttendance = localAttendees?.find(a => a.user.id === currentUserId);
-  const shouldShowConfirmation = userAttendance && userAttendance.status === 'PENDING';
   
   // 🐛 DEBUG: Verificar estructura específica del primer attendee si existe  
   if (localAttendees && localAttendees.length > 0) {
@@ -280,6 +422,18 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
   
   // Estado local para las solicitudes de unión para forzar re-render
   const [localJoinRequests, setLocalJoinRequests] = useState(event.joinRequests || []);
+  
+  // Función para verificar si el evento ya pasó
+  const isEventPast = () => {
+    const eventDate = new Date(event.date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Resetear la hora para comparar solo fechas
+    return eventDate < today;
+  };
+  
+  // Variables para el estado de asistencia del usuario actual
+  const userJoinRequest = localJoinRequests?.find(r => r.user.id === currentUserId);
+  const shouldShowConfirmation = userAttendance && userAttendance.status === 'PENDING' && !isEventPast();
   
   // Sincronizar las solicitudes locales cuando cambie el prop event
   React.useEffect(() => {
@@ -647,14 +801,6 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
     }
   };
 
-  // Función para verificar si el evento ya pasó
-  const isEventPast = () => {
-    const eventDate = new Date(event.date);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0); // Resetear la hora para comparar solo fechas
-    return eventDate < today;
-  };
-
   // Función para actualizar el estado de asistencia individual
   const handleAttendanceStatusUpdate = async (attendeeId: string, newStatus: 'CONFIRMED' | 'REFUSED') => {
     try {
@@ -807,14 +953,19 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({
             </button>
           </div>
 
-          {/* Confirmación de asistencia si el usuario está pendiente */}
-          {shouldShowConfirmation && (
+          {/* Confirmación de asistencia si el usuario está pendiente o estado post-evento */}
+          {isEventPast() ? (
+            <PostEventAttendanceStatus
+              userAttendance={userAttendance}
+              userJoinRequest={userJoinRequest}
+            />
+          ) : shouldShowConfirmation ? (
             <AttendanceConfirmation
               eventId={event.id}
               eventTitle={event.title}
               onConfirmationUpdate={onEventUpdated}
             />
-          )}
+          ) : null}
 
           {/* Event Image */}
           {event.imageUrl && (
