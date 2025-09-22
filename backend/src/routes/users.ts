@@ -39,7 +39,8 @@ const getServerIP = (): string => {
 const generateProfileImageUrl = (profileImage: string | null): string | null => {
   if (!profileImage) return null;
   
-  const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http';
+  // Usar protocolo desde variable de entorno, fallback a detección automática
+  const protocol = process.env.IMAGE_URL_PROTOCOL || (process.env.NODE_ENV === 'production' ? 'http' : 'http');
   const host = getServerIP();
   const port = process.env.PORT || '3001';
   return `${protocol}://${host}:${port}/api/uploads/images/profiles/${profileImage}`;

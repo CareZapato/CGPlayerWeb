@@ -123,8 +123,8 @@ router.get('/me', authenticateToken, async (req: AuthRequest, res: Response) => 
     // Construir URL completa de la imagen si existe
     let profileImageUrl = null;
     if (user.profileImage) {
-      // Usar la IP desde las variables de entorno si está disponible
-      const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http';
+      // Usar protocolo desde variable de entorno, fallback a HTTP para evitar errores SSL
+      const protocol = process.env.IMAGE_URL_PROTOCOL || (process.env.NODE_ENV === 'production' ? 'http' : 'http');
       const host = getServerIP();
       const port = process.env.PORT || '3001';
       profileImageUrl = `${protocol}://${host}:${port}/api/uploads/images/profiles/${user.profileImage}`;
@@ -346,7 +346,7 @@ router.post('/me/image', authenticateToken, upload.single('profileImage'), async
       } as any
     }) as any;
 
-    const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http';
+    const protocol = process.env.IMAGE_URL_PROTOCOL || (process.env.NODE_ENV === 'production' ? 'http' : 'http');
     const host = getServerIP();
     const port = process.env.PORT || '3001';
     const profileImageUrl = `${protocol}://${host}:${port}/api/uploads/images/profiles/${updatedUser.profileImage}`;
