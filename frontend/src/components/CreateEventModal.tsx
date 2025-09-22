@@ -20,7 +20,7 @@ import {
   Play,
   Pause
 } from 'lucide-react';
-import { getApiUrl } from '../config/api';
+import { getApiUrl, getSongFileUrl } from '../config/api';
 import type { Song } from '../types';
 
 // Lista de ciudades de Chile
@@ -1003,7 +1003,22 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({
     }
     
     // Create new audio element
-    const audio = new Audio(getApiUrl(`/uploads/${song.filePath}`));
+    // Parse filePath to extract folder and filename
+    // Format: "songs\folderName\fileName.mp3"
+    const pathParts = song.filePath.split('\\');
+    let audioUrl: string;
+    
+    if (pathParts.length >= 3 && pathParts[0] === 'songs') {
+      // Use the specific song file URL endpoint
+      const folderName = pathParts[1];
+      const fileName = pathParts[2];
+      audioUrl = getSongFileUrl(folderName, fileName);
+    } else {
+      // Fallback to the original method
+      audioUrl = getApiUrl(`/uploads/${song.filePath}`);
+    }
+    
+    const audio = new Audio(audioUrl);
     audio.volume = 0.5; // Set volume to 50%
     
     audio.onended = () => {

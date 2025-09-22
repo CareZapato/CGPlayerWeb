@@ -223,15 +223,6 @@ const EventManagement: React.FC = () => {
       
       if (data.success) {
         setEvents(data.data);
-        
-        // 🔄 CRUCIAL: Actualizar selectedEvent si hay un modal abierto
-        if (selectedEvent && showDetailsModal) {
-          const updatedSelectedEvent = data.data.find((event: Event) => event.id === selectedEvent.id);
-          if (updatedSelectedEvent) {
-            console.log('🔄 [SOLICITUDES DEBUG] Actualizando selectedEvent con datos frescos');
-            setSelectedEvent(updatedSelectedEvent);
-          }
-        }
       } else {
         setError('Error al cargar eventos');
       }
@@ -241,7 +232,31 @@ const EventManagement: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [selectedEvent, showDetailsModal]);
+  }, []);
+
+  // Función separada para actualizar el evento seleccionado
+  const updateSelectedEvent = useCallback(async () => {
+    if (!selectedEvent) return;
+    
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(getApiUrl(`/events/management/${selectedEvent.id}`), {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setSelectedEvent(data.data);
+        }
+      }
+    } catch (err) {
+      console.error('Error updating selected event:', err);
+    }
+  }, [selectedEvent]);
 
   useEffect(() => {
     fetchEvents();
@@ -620,10 +635,10 @@ const EventManagement: React.FC = () => {
                       </h3>
                       {/* Etiqueta de categoría */}
                       {event.category && (
-                        <span className={`inline-block mt-1 px-2 py-1 rounded-full text-xs font-medium ${
+                        <span className={`inline-block mt-1 px-3 py-1 rounded-full text-xs font-bold shadow-md ${
                           isEnsayo 
-                            ? 'bg-gray-700 text-gray-200' 
-                            : 'bg-blue-100 text-blue-800'
+                            ? 'bg-gradient-to-r from-orange-600 to-red-600 text-white border border-orange-500/50' 
+                            : 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white'
                         }`}>
                           {event.category}
                         </span>
@@ -695,11 +710,15 @@ const EventManagement: React.FC = () => {
                   </div>
 
                   {/* Stats */}
-                  <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                  <div className={`flex items-center justify-between pt-4 border-t ${isEnsayo ? 'border-gray-600' : 'border-gray-100'}`}>
                     <div className="flex items-center space-x-4">
-                      <div className="flex items-center text-indigo-600">
-                        <Users className="h-4 w-4 mr-1 text-indigo-500" />
-                        <span className="text-sm font-medium">
+                      <div className={`flex items-center px-3 py-2 rounded-lg ${
+                        isEnsayo 
+                          ? 'bg-gradient-to-r from-blue-700/40 to-indigo-700/40 border border-blue-600/30'
+                          : 'bg-indigo-50'
+                      }`}>
+                        <Users className={`h-5 w-5 mr-2 ${isEnsayo ? 'text-blue-300' : 'text-indigo-500'}`} />
+                        <span className={`text-sm font-bold ${isEnsayo ? 'text-blue-200' : 'text-indigo-700'}`}>
                           {event._count?.attendees || 0} asistentes
                         </span>
                       </div>
@@ -811,7 +830,10 @@ const EventManagement: React.FC = () => {
               setShowDetailsModal(false);
               setInitialModalTab('info'); // Reset a info por defecto
             }}
-            onEventUpdated={fetchEvents}
+            onEventUpdated={() => {
+              fetchEvents(); // Actualizar lista de eventos
+              updateSelectedEvent(); // Actualizar evento seleccionado específicamente
+            }}
             initialTab={initialModalTab}
           />
         )}
