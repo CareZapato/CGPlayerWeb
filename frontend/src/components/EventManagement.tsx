@@ -14,7 +14,10 @@ import {
   Trash2,
   Edit,
   Play,
-  AlertCircle
+  AlertCircle,
+  Star,
+  CheckCircle,
+  CalendarClock
 } from 'lucide-react';
 import CreateEventModal from './CreateEventModal.tsx';
 import EventDetailsModal from './EventDetailsModal.tsx';
@@ -507,55 +510,89 @@ const EventManagement: React.FC = () => {
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          {/* Eventos Pendientes */}
           <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 border border-gray-100 shadow-lg hover:shadow-xl transition-all duration-200">
             <div className="flex items-center">
-              <div className="p-3 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600">
-                <Calendar className="h-6 w-6 text-white" />
+              <div className="p-3 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600">
+                <Star className="h-6 w-6 text-white" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Total Eventos</p>
-                <p className="text-2xl font-bold text-gray-900">{events.length}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 border border-gray-100 shadow-lg hover:shadow-xl transition-all duration-200">
-            <div className="flex items-center">
-              <div className="p-3 rounded-xl bg-gradient-to-r from-green-500 to-green-600">
-                <Globe className="h-6 w-6 text-white" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Eventos Públicos</p>
+                <p className="text-sm font-medium text-gray-600">Eventos Pendientes</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {events.filter(e => e.isPublic).length}
+                  {(() => {
+                    const now = new Date();
+                    now.setHours(0, 0, 0, 0);
+                    return events.filter(e => 
+                      e.category !== 'Ensayo' && 
+                      new Date(e.date) >= now
+                    ).length;
+                  })()}
                 </p>
               </div>
             </div>
           </div>
 
+          {/* Ensayos Pendientes */}
           <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 border border-gray-100 shadow-lg hover:shadow-xl transition-all duration-200">
             <div className="flex items-center">
               <div className="p-3 rounded-xl bg-gradient-to-r from-purple-500 to-purple-600">
-                <Lock className="h-6 w-6 text-white" />
+                <Music className="h-6 w-6 text-white" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Eventos Privados</p>
+                <p className="text-sm font-medium text-gray-600">Ensayos Pendientes</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {events.filter(e => !e.isPublic).length}
+                  {(() => {
+                    const now = new Date();
+                    now.setHours(0, 0, 0, 0);
+                    return events.filter(e => 
+                      e.category === 'Ensayo' && 
+                      new Date(e.date) >= now
+                    ).length;
+                  })()}
                 </p>
               </div>
             </div>
           </div>
 
+          {/* Eventos Realizados */}
           <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 border border-gray-100 shadow-lg hover:shadow-xl transition-all duration-200">
             <div className="flex items-center">
-              <div className="p-3 rounded-xl bg-gradient-to-r from-orange-500 to-orange-600">
-                <Users className="h-6 w-6 text-white" />
+              <div className="p-3 rounded-xl bg-gradient-to-r from-green-500 to-green-600">
+                <CheckCircle className="h-6 w-6 text-white" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Total Asistentes</p>
+                <p className="text-sm font-medium text-gray-600">Eventos Realizados</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {events.reduce((total, event) => total + (event._count?.attendees || 0), 0)}
+                  {(() => {
+                    const now = new Date();
+                    now.setHours(0, 0, 0, 0);
+                    return events.filter(e => 
+                      e.category !== 'Ensayo' && 
+                      new Date(e.date) < now
+                    ).length;
+                  })()}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Ensayos Realizados */}
+          <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 border border-gray-100 shadow-lg hover:shadow-xl transition-all duration-200">
+            <div className="flex items-center">
+              <div className="p-3 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600">
+                <CalendarClock className="h-6 w-6 text-white" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">Ensayos Realizados</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {(() => {
+                    const now = new Date();
+                    now.setHours(0, 0, 0, 0);
+                    return events.filter(e => 
+                      e.category === 'Ensayo' && 
+                      new Date(e.date) < now
+                    ).length;
+                  })()}
                 </p>
               </div>
             </div>
