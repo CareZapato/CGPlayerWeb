@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useAuthStore } from '../store/authStore';
 import { getApiUrl } from '../config/api';
 import { isAdmin, isDirector } from '../utils/permissions';
+import UserAvatar from '../components/UserAvatar';
 
 interface LocationDetail {
   locationId: string;
@@ -200,6 +201,7 @@ interface UserData {
   lastName: string;
   email: string;
   isActive: boolean;
+  profileImage?: string;
   status: 'active' | 'risky' | 'inactive';
   riskData?: {
     total: number;
@@ -942,11 +944,17 @@ const DashboardPage: React.FC = () => {
                         'bg-red-50 hover:bg-red-100 border-l-4 border-l-red-500'
                       }`}>
                         <div className="flex items-center space-x-3">
-                          <div className="flex items-center justify-center w-8 h-8 bg-white rounded-full shadow-sm">
-                            <span className="text-sm font-bold text-gray-600">
-                              {user.firstName.charAt(0)}{user.lastName.charAt(0)}
-                            </span>
-                          </div>
+                          <UserAvatar 
+                            user={{
+                              ...user,
+                              profileImageUrl: user.profileImage 
+                                ? `${getApiUrl('/uploads')}/images/profiles/${user.profileImage}`
+                                : undefined
+                            }} 
+                            size="sm" 
+                            className="shadow-sm" 
+                            backgroundColor="#6b7280"
+                          />
                           <div>
                             <div className="flex items-center space-x-2">
                               <span className="text-sm font-semibold text-gray-900">

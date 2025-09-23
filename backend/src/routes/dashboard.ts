@@ -5,7 +5,7 @@ import { prisma } from '../utils/prisma';
 const router = express.Router();
 
 // Configuración de riesgo de asistencia (configurable)
-const RISK_ATTENDANCE_THRESHOLD = 0.3; // 30% - esto se podría mover a una tabla de configuración
+const RISK_ATTENDANCE_THRESHOLD = 0.9; // 30% - esto se podría mover a una tabla de configuración
 
 // Función para calcular cantantes en riesgo
 async function calculateRiskySingers(locationId?: string) {
@@ -330,6 +330,7 @@ router.get('/stats', authenticateToken, async (req: AuthRequest, res: Response) 
         lastName: true,
         email: true,
         isActive: true,
+        profileImage: true,
         voiceProfiles: {
           select: {
             voiceType: true,
@@ -366,6 +367,7 @@ router.get('/stats', authenticateToken, async (req: AuthRequest, res: Response) 
           lastName: user.lastName,
           email: user.email,
           isActive: user.isActive,
+          profileImage: user.profileImage,
           status: userStatus,
           riskData: riskData[user.id] || null,
           isPrimary: vp.isPrimary
@@ -411,6 +413,7 @@ router.get('/stats', authenticateToken, async (req: AuthRequest, res: Response) 
           lastName: user.lastName,
           email: user.email,
           isActive: user.isActive,
+          profileImage: user.profileImage,
           status: userStatus,
           riskData: riskData[user.id] || null,
           isPrimary: true
