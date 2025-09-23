@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuthStore } from '../store/authStore';
 import { getApiUrl } from '../config/api';
 import { isAdmin, isDirector } from '../utils/permissions';
@@ -12,6 +12,8 @@ interface LocationDetail {
   phone?: string;
   totalUsers: number;
   activeUsers: number;
+  riskyUsers: number;
+  inactiveUsers: number;
   director?: {
     id: string;
     firstName: string;
@@ -28,6 +30,12 @@ interface LocationDetail {
       lastName: string;
       email: string;
       isActive: boolean;
+      status: 'active' | 'risky' | 'inactive';
+      riskData?: {
+        total: number;
+        refused: number;
+        isRisky: boolean;
+      } | null;
     }[];
   }[];
 }
@@ -36,6 +44,7 @@ interface DashboardData {
   totalUsers: number;
   activeUsers: number;
   inactiveUsers: number;
+  riskyUsers: number;
   totalSongs: number;
   totalEvents: number;
   totalLocations: number;
@@ -44,12 +53,20 @@ interface DashboardData {
     voiceType: string;
     count: number;
     activeCount: number;
+    riskyCount: number;
+    inactiveCount: number;
     users: {
       id: string;
       firstName: string;
       lastName: string;
       email: string;
       isActive: boolean;
+      status: 'active' | 'risky' | 'inactive';
+      riskData?: {
+        total: number;
+        refused: number;
+        isRisky: boolean;
+      } | null;
     }[];
   }[];
   recentEvents: {
@@ -57,8 +74,12 @@ interface DashboardData {
     title: string;
     category: string;
     dateTime: string;
-    location: { name: string };
+    location: { name: string } | null;
   }[];
+  riskConfig: {
+    attendanceThreshold: number;
+    currentYear: number;
+  };
   isFiltered: boolean;
   filterLocation?: string;
 }
@@ -76,11 +97,7 @@ const DashboardPage: React.FC = () => {
   const [hoveredSlice, setHoveredSlice] = useState<string | null>(null);
   const [showPercentages, setShowPercentages] = useState(false);
 
-  useEffect(() => {
-    fetchDashboardData();
-  }, [token]);
-
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = useCallback(async () => {
     if (!token) return;
 
     try {
@@ -110,13 +127,17 @@ const DashboardPage: React.FC = () => {
       } else {
         throw new Error('Formato de respuesta inválido');
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error fetching dashboard data:', error);
-      setError(error.message || 'Error desconocido');
+      setError(error instanceof Error ? error.message : 'Error desconocido');
     } finally {
       setLoading(false);
     }
-  };
+  }, [token]);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [token, fetchDashboardData]);
 
   const toggleVoiceTypeExpansion = (voiceType: string) => {
     setExpandedVoiceTypes(prev => {
@@ -143,15 +164,19 @@ const DashboardPage: React.FC = () => {
       return location?.voiceDistribution.map(vd => ({
         voiceType: vd.voiceType,
         count: vd.count,
-        activeCount: vd.users.filter(u => u.isActive).length,
+        activeCount: vd.users.filter(u => u.status === 'active').length,
+        riskyCount: vd.users.filter(u => u.status === 'risky').length,
+        inactiveCount: vd.users.filter(u => u.status === 'inactive').length,
         users: vd.users
       })) || [];
     }
-    // ✅ FIXED: Ahora también muestra usuarios en la vista global
+    // Vista global con nuevos campos
     return data?.globalVoiceDistribution.map(gvd => ({
       voiceType: gvd.voiceType,
       count: gvd.count,
       activeCount: gvd.activeCount,
+      riskyCount: gvd.riskyCount || 0,
+      inactiveCount: gvd.inactiveCount || 0,
       users: gvd.users || []
     })) || [];
   };
@@ -312,63 +337,85 @@ const DashboardPage: React.FC = () => {
 
       {/* Layout principal: Tabla de ubicaciones + Gráfico de torta */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Tabla de Sedes */}
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">
-            🏢 Sedes y Cantantes
+        {/* Tabla de Sedes Modernizada */}
+        <div className="bg-white rounded-lg shadow-md p-4">
+          <h2 className="text-lg font-semibold text-gray-900 mb-3 flex items-center">
+            <span className="text-lg mr-2">🏢</span>
+            Sedes y Cantantes
           </h2>
           <div className="overflow-x-auto">
             <table className="min-w-full">
               <thead>
-                <tr className="border-b">
-                  <th className="text-left py-2 px-3 font-medium text-gray-700">Sede</th>
-                  <th className="text-center py-2 px-3 font-medium text-gray-700">Cantantes</th>
-                  <th className="text-center py-2 px-3 font-medium text-gray-700">Acciones</th>
+                <tr className="border-b border-gray-200">
+                  <th className="text-left py-2 px-2 font-medium text-gray-600 text-sm">Sede</th>
+                  <th className="text-center py-2 px-2 font-medium text-gray-600 text-sm">Cantantes</th>
+                  <th className="text-center py-2 px-2 font-medium text-gray-600 text-sm">Acciones</th>
                 </tr>
               </thead>
               <tbody>
                 {data.locations.map((location) => (
                   <tr 
                     key={location.locationId}
-                    className="border-b hover:bg-gray-50 cursor-pointer transition-colors"
+                    className="border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors"
                     onMouseEnter={() => setHoveredLocation(location)}
                     onMouseLeave={() => setHoveredLocation(null)}
                     onClick={() => setSelectedLocation(location)}
                   >
-                    <td className="py-3 px-3">
-                      <div className="flex items-center space-x-3">
+                    <td className="py-2 px-2">
+                      <div className="flex items-center space-x-2">
                         <div 
-                          className="w-4 h-4 rounded-full"
+                          className="w-3 h-3 rounded-full"
                           style={{ backgroundColor: location.color }}
                         ></div>
                         <div>
-                          <p className="font-medium text-gray-900">{location.locationName}</p>
-                          <p className="text-sm text-gray-500">{location.city}</p>
+                          <p className="font-medium text-gray-900 text-sm">{location.locationName}</p>
+                          <p className="text-xs text-gray-500">{location.city}</p>
                         </div>
                       </div>
                     </td>
-                    <td className="py-3 px-3 text-center">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                        {location.totalUsers} total
-                      </span>
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 ml-1">
-                        {location.activeUsers} activos
-                      </span>
+                    <td className="py-2 px-2">
+                      <div className="flex justify-center space-x-1">
+                        {/* Total */}
+                        <div className="flex items-center px-1.5 py-0.5 rounded text-xs bg-purple-100 text-purple-700">
+                          <span className="mr-1">👥</span>
+                          <span className="font-medium">{location.totalUsers}</span>
+                        </div>
+                        {/* Activos */}
+                        <div className="flex items-center px-1.5 py-0.5 rounded text-xs bg-green-100 text-green-700">
+                          <span className="mr-1">🟢</span>
+                          <span className="font-medium">{location.activeUsers}</span>
+                        </div>
+                        {/* En Riesgo */}
+                        {location.riskyUsers > 0 && (
+                          <div className="flex items-center px-1.5 py-0.5 rounded text-xs bg-yellow-100 text-yellow-700">
+                            <span className="mr-1">🟡</span>
+                            <span className="font-medium">{location.riskyUsers}</span>
+                          </div>
+                        )}
+                        {/* Inactivos */}
+                        {location.inactiveUsers > 0 && (
+                          <div className="flex items-center px-1.5 py-0.5 rounded text-xs bg-red-100 text-red-700">
+                            <span className="mr-1">🔴</span>
+                            <span className="font-medium">{location.inactiveUsers}</span>
+                          </div>
+                        )}
+                      </div>
                     </td>
-                    <td className="py-3 px-3 text-center">
-                      <div className="flex items-center justify-center space-x-2">
+                    <td className="py-2 px-2">
+                      <div className="flex items-center justify-center space-x-1">
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
                             toggleLocationPin(location.locationId);
                           }}
-                          className={`px-2 py-1 text-xs rounded ${
+                          className={`p-1 rounded text-xs transition-colors ${
                             pinnedLocation === location.locationId
-                              ? 'bg-yellow-100 text-yellow-800 border border-yellow-300'
+                              ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
                               : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                           }`}
+                          title={pinnedLocation === location.locationId ? 'Desfijar' : 'Fijar sede'}
                         >
-                          📌 {pinnedLocation === location.locationId ? 'Fijado' : 'Fijar'}
+                          📌
                         </button>
                         <button
                           onClick={(e) => {
@@ -376,9 +423,10 @@ const DashboardPage: React.FC = () => {
                             setSelectedLocation(location);
                             setShowLocationModal(true);
                           }}
-                          className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                          className="p-1 bg-blue-100 text-blue-600 hover:bg-blue-200 rounded text-xs transition-colors"
+                          title="Ver detalles"
                         >
-                          Ver más
+                          👁️
                         </button>
                       </div>
                     </td>
@@ -386,6 +434,28 @@ const DashboardPage: React.FC = () => {
                 ))}
               </tbody>
             </table>
+          </div>
+          
+          {/* Leyenda */}
+          <div className="mt-3 pt-3 border-t border-gray-100">
+            <div className="flex flex-wrap gap-2 text-xs">
+              <div className="flex items-center">
+                <span className="mr-1">👥</span>
+                <span className="text-gray-600">Total</span>
+              </div>
+              <div className="flex items-center">
+                <span className="mr-1">🟢</span>
+                <span className="text-gray-600">Activos</span>
+              </div>
+              <div className="flex items-center">
+                <span className="mr-1">🟡</span>
+                <span className="text-gray-600">En Riesgo (&lt;{Math.round((data.riskConfig?.attendanceThreshold || 0.3) * 100)}% asistencia)</span>
+              </div>
+              <div className="flex items-center">
+                <span className="mr-1">🔴</span>
+                <span className="text-gray-600">Inactivos</span>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -546,11 +616,26 @@ const DashboardPage: React.FC = () => {
                     <span className="text-sm text-gray-600">
                       {voice.count} total
                     </span>
-                    {pinnedLocation && (
-                      <span className="text-xs text-green-600">
-                        ({voice.activeCount} activos)
-                      </span>
-                    )}
+                    <div className="flex items-center space-x-1">
+                      {voice.activeCount > 0 && (
+                        <span className="text-xs text-green-600 flex items-center">
+                          <span className="w-1.5 h-1.5 bg-green-500 rounded-full mr-1"></span>
+                          {voice.activeCount}
+                        </span>
+                      )}
+                      {voice.riskyCount > 0 && (
+                        <span className="text-xs text-yellow-600 flex items-center">
+                          <span className="w-1.5 h-1.5 bg-yellow-500 rounded-full mr-1"></span>
+                          {voice.riskyCount}
+                        </span>
+                      )}
+                      {voice.inactiveCount > 0 && (
+                        <span className="text-xs text-red-600 flex items-center">
+                          <span className="w-1.5 h-1.5 bg-red-500 rounded-full mr-1"></span>
+                          {voice.inactiveCount}
+                        </span>
+                      )}
+                    </div>
                     <span className="text-xs text-gray-400">
                       {expandedVoiceTypes.has(voice.voiceType) ? '▲' : '▼'}
                     </span>
@@ -560,18 +645,42 @@ const DashboardPage: React.FC = () => {
                 {/* Lista expandible de usuarios */}
                 {expandedVoiceTypes.has(voice.voiceType) && voice.users && voice.users.length > 0 && (
                   <div className="ml-6 bg-gray-50 rounded p-3 space-y-1">
-                    {voice.users.map((user) => (
+                    {voice.users
+                      .sort((a, b) => {
+                        // Ordenar por estado: activos primero, luego riesgo, luego inactivos
+                        const statusOrder = { 'active': 0, 'risky': 1, 'inactive': 2 };
+                        return statusOrder[a.status] - statusOrder[b.status];
+                      })
+                      .map((user) => (
                       <div key={user.id} className="flex items-center justify-between text-xs">
                         <span className="text-gray-700">
                           {user.firstName} {user.lastName}
                         </span>
                         <div className="flex items-center space-x-2">
                           <span className="text-gray-500">{user.email}</span>
+                          {user.status === 'risky' && user.riskData && (
+                            <span 
+                              className="text-xs text-yellow-600 cursor-help" 
+                              title={`Faltas sin excusa: ${user.riskData.refused}/${user.riskData.total} ensayos`}
+                            >
+                              ⚠️
+                            </span>
+                          )}
                           <span
                             className={`w-2 h-2 rounded-full ${
-                              user.isActive ? 'bg-green-500' : 'bg-red-500'
+                              user.status === 'active' 
+                                ? 'bg-green-500' 
+                                : user.status === 'risky'
+                                ? 'bg-yellow-500'
+                                : 'bg-red-500'
                             }`}
-                            title={user.isActive ? 'Activo' : 'Inactivo'}
+                            title={
+                              user.status === 'active' 
+                                ? 'Activo' 
+                                : user.status === 'risky'
+                                ? `En riesgo - ${user.riskData ? Math.round((1 - user.riskData.refused / user.riskData.total) * 100) : 0}% asistencia`
+                                : 'Inactivo'
+                            }
                           ></span>
                         </div>
                       </div>
@@ -654,7 +763,7 @@ const DashboardPage: React.FC = () => {
                 <h3 className="font-medium text-gray-900">{event.title}</h3>
                 <div className="flex items-center gap-4 text-sm text-gray-600">
                   <span className="bg-gray-100 px-2 py-1 rounded">{event.category}</span>
-                  <span>📍 {event.location.name}</span>
+                  <span>📍 {event.location?.name || 'Sin ubicación'}</span>
                   <span>📅 {new Date(event.dateTime).toLocaleDateString()}</span>
                 </div>
               </div>

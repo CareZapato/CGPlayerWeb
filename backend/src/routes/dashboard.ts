@@ -4,6 +4,81 @@ import { prisma } from '../utils/prisma';
 
 const router = express.Router();
 
+// Configuración de riesgo de asistencia (configurable)
+const RISK_ATTENDANCE_THRESHOLD = 0.3; // 30% - esto se podría mover a una tabla de configuración
+
+// Función para calcular cantantes en riesgo
+async function calculateRiskySingers(locationId?: string) {
+  const currentYear = new Date().getFullYear();
+  const currentDate = new Date();
+  
+  // Obtener eventos de tipo "Ensayo" del año actual QUE YA HAN OCURRIDO
+  // Solo consideramos ensayos pasados para calcular el riesgo de asistencia
+  // Los ensayos futuros no deben influir en el cálculo del porcentaje actual
+  const rehearsalEvents = await prisma.event.findMany({
+    where: {
+      category: 'Ensayo',
+      date: {
+        gte: new Date(currentYear, 0, 1), // Desde el inicio del año
+        lte: currentDate // Hasta la fecha actual (solo ensayos pasados)
+      },
+      ...(locationId ? { locationId } : {})
+    },
+    select: { id: true }
+  });
+
+  if (rehearsalEvents.length === 0) {
+    return {}; // No hay ensayos, no hay cantantes en riesgo
+  }
+
+  const rehearsalEventIds = rehearsalEvents.map(e => e.id);
+  
+  // Obtener todos los usuarios y sus asistencias a ensayos
+  const usersFilter = locationId ? { locationId } : {};
+  const users = await prisma.user.findMany({
+    where: {
+      ...usersFilter,
+      isActive: true
+    },
+    select: {
+      id: true,
+      locationId: true
+    }
+  });
+
+  const riskCalculations: Record<string, { total: number; refused: number; isRisky: boolean }> = {};
+
+  for (const user of users) {
+    // Contar asistencias del usuario a ensayos
+    const attendanceRecords = await prisma.eventAttendee.findMany({
+      where: {
+        userId: user.id,
+        eventId: { in: rehearsalEventIds }
+      },
+      select: {
+        status: true,
+        nonAttendanceComment: true
+      }
+    });
+
+    const totalInvitations = attendanceRecords.length;
+    const refusedWithoutExcuse = attendanceRecords.filter(
+      record => record.status === 'REFUSED' && !record.nonAttendanceComment
+    ).length;
+
+    if (totalInvitations > 0) {
+      const attendanceRate = 1 - (refusedWithoutExcuse / totalInvitations);
+      riskCalculations[user.id] = {
+        total: totalInvitations,
+        refused: refusedWithoutExcuse,
+        isRisky: attendanceRate < RISK_ATTENDANCE_THRESHOLD
+      };
+    }
+  }
+
+  return riskCalculations;
+}
+
 // Obtener estadísticas del dashboard (ADMIN y DIRECTOR)
 router.get('/stats', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
@@ -15,6 +90,11 @@ router.get('/stats', authenticateToken, async (req: AuthRequest, res: Response) 
     const locationFilter = isDirector && !isAdmin && user?.locationId 
       ? { locationId: user.locationId }
       : {};
+
+    // Calcular cantantes en riesgo
+    const riskData = await calculateRiskySingers(
+      isDirector && !isAdmin ? user?.locationId : undefined
+    );
 
     // Obtener datos básicos
     const [totalUsers, activeUsers, totalSongs, totalEvents] = await Promise.all([
@@ -91,6 +171,8 @@ router.get('/stats', authenticateToken, async (req: AuthRequest, res: Response) 
       // Filtrar solo ubicaciones que tienen usuarios
       const allUsers = location.users;
       const activeUsers = allUsers.filter(user => user.isActive);
+      const riskyUsers = allUsers.filter(user => riskData[user.id]?.isRisky);
+      const inactiveUsers = allUsers.filter(user => !user.isActive);
       
       if (allUsers.length === 0) return null; // Excluir ubicaciones sin usuarios
       
@@ -100,12 +182,23 @@ router.get('/stats', authenticateToken, async (req: AuthRequest, res: Response) 
             voiceDistribution[vp.voiceType] = { count: 0, users: [] };
           }
           voiceDistribution[vp.voiceType].count++;
+          
+          // Determinar el estado del usuario
+          let userStatus = 'active';
+          if (!user.isActive) {
+            userStatus = 'inactive';
+          } else if (riskData[user.id]?.isRisky) {
+            userStatus = 'risky';
+          }
+          
           voiceDistribution[vp.voiceType].users.push({
             id: user.id,
             firstName: user.firstName,
             lastName: user.lastName,
             email: user.email,
-            isActive: user.isActive
+            isActive: user.isActive,
+            status: userStatus,
+            riskData: riskData[user.id] || null
           });
         });
       });
@@ -121,6 +214,8 @@ router.get('/stats', authenticateToken, async (req: AuthRequest, res: Response) 
         phone: location.phone,
         totalUsers: allUsers.length,
         activeUsers: activeUsers.length,
+        riskyUsers: riskyUsers.length,
+        inactiveUsers: inactiveUsers.length,
         director: directorInfo ? {
           id: directorInfo.id,
           firstName: directorInfo.firstName,
@@ -153,22 +248,34 @@ router.get('/stats', authenticateToken, async (req: AuthRequest, res: Response) 
       }
     });
 
-    const globalVoiceStats: Record<string, { count: number; activeCount: number; users: any[] }> = {};
+    const globalVoiceStats: Record<string, { count: number; activeCount: number; riskyCount: number; inactiveCount: number; users: any[] }> = {};
     allUsersDetailed.forEach(user => {
       user.voiceProfiles.forEach(vp => {
         if (!globalVoiceStats[vp.voiceType]) {
-          globalVoiceStats[vp.voiceType] = { count: 0, activeCount: 0, users: [] };
+          globalVoiceStats[vp.voiceType] = { count: 0, activeCount: 0, riskyCount: 0, inactiveCount: 0, users: [] };
         }
         globalVoiceStats[vp.voiceType].count++;
-        if (user.isActive) {
+        
+        // Determinar el estado del usuario
+        let userStatus = 'active';
+        if (!user.isActive) {
+          userStatus = 'inactive';
+          globalVoiceStats[vp.voiceType].inactiveCount++;
+        } else if (riskData[user.id]?.isRisky) {
+          userStatus = 'risky';
+          globalVoiceStats[vp.voiceType].riskyCount++;
+        } else {
           globalVoiceStats[vp.voiceType].activeCount++;
         }
+        
         globalVoiceStats[vp.voiceType].users.push({
           id: user.id,
           firstName: user.firstName,
           lastName: user.lastName,
           email: user.email,
-          isActive: user.isActive
+          isActive: user.isActive,
+          status: userStatus,
+          riskData: riskData[user.id] || null
         });
       });
     });
@@ -177,6 +284,8 @@ router.get('/stats', authenticateToken, async (req: AuthRequest, res: Response) 
       voiceType,
       count: data.count,
       activeCount: data.activeCount,
+      riskyCount: data.riskyCount,
+      inactiveCount: data.inactiveCount,
       users: data.users
     }));
 
@@ -191,6 +300,7 @@ router.get('/stats', authenticateToken, async (req: AuthRequest, res: Response) 
         id: true,
         title: true,
         date: true,
+        category: true,
         location: {
           select: {
             name: true
@@ -209,6 +319,7 @@ router.get('/stats', authenticateToken, async (req: AuthRequest, res: Response) 
         totalUsers,
         activeUsers,
         inactiveUsers: totalUsers - activeUsers,
+        riskyUsers: Object.values(riskData).filter(r => r.isRisky).length,
         totalSongs,
         totalEvents,
         totalLocations: processedLocations.length,
@@ -217,9 +328,15 @@ router.get('/stats', authenticateToken, async (req: AuthRequest, res: Response) 
         recentEvents: recentEvents.map(event => ({
           id: event.id,
           title: event.title,
+          category: event.category || 'Culto',
           dateTime: event.date,
-          location: event.location?.name || 'Sin ubicación'
+          location: event.location
         })),
+        // Configuración de riesgo
+        riskConfig: {
+          attendanceThreshold: RISK_ATTENDANCE_THRESHOLD,
+          currentYear: new Date().getFullYear()
+        },
         // Metadatos para el frontend
         isFiltered: isDirector && !isAdmin,
         filterLocation: isDirector && !isAdmin ? user?.locationId : null
