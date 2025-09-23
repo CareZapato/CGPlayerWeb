@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { 
   Calendar, 
   Clock, 
@@ -273,6 +274,7 @@ const PostEventAttendanceStatus: React.FC<PostEventAttendanceStatusProps> = ({
 };
 
 const PublicEventsPage: React.FC = () => {
+  const [searchParams] = useSearchParams();
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -303,6 +305,39 @@ const PublicEventsPage: React.FC = () => {
     fetchEvents();
     fetchCurrentUser();
   }, []);
+
+  // Efecto para seleccionar automáticamente el evento desde URL
+  useEffect(() => {
+    const eventId = searchParams.get('eventId');
+    if (eventId && events.length > 0) {
+      const event = events.find(e => e.id === eventId);
+      if (event) {
+        setSelectedEvent(event);
+        // Asegurar que estamos en la pestaña correcta
+        const now = new Date();
+        const eventDate = new Date(event.date);
+        if (eventDate >= now) {
+          setActiveTab('upcoming');
+        } else {
+          setActiveTab('past');
+        }
+        
+        // Scroll hasta el evento seleccionado con un delay mayor
+        setTimeout(() => {
+          const eventElement = document.getElementById(`event-${eventId}`);
+          if (eventElement) {
+            eventElement.scrollIntoView({ 
+              behavior: 'smooth', 
+              block: 'center',
+              inline: 'nearest'
+            });
+            // Agregar un efecto de parpadeo para llamar la atención
+            eventElement.style.animation = 'pulse 2s ease-in-out 3';
+          }
+        }, 300);
+      }
+    }
+  }, [events, searchParams]);
 
   // Función para filtrar eventos
   const getFilteredEvents = () => {
@@ -822,6 +857,20 @@ const PublicEventsPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
+      <style>
+        {`
+          @keyframes pulse {
+            0%, 100% {
+              transform: scale(1);
+              box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4);
+            }
+            50% {
+              transform: scale(1.02);
+              box-shadow: 0 0 0 10px rgba(59, 130, 246, 0);
+            }
+          }
+        `}
+      </style>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="text-center mb-12">
@@ -1214,13 +1263,19 @@ const PublicEventsPage: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredEvents.map((event) => {
               const isEnsayo = event.category === 'Ensayo';
+              const isHighlighted = searchParams.get('eventId') === event.id;
               const cardClass = isEnsayo 
-                ? "bg-gray-800/90 backdrop-blur-sm rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-700 overflow-hidden group" 
-                : "bg-white/80 backdrop-blur-sm rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100 overflow-hidden group";
+                ? `bg-gray-800/90 backdrop-blur-sm rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 border overflow-hidden group ${
+                    isHighlighted ? 'border-yellow-500 border-2 shadow-yellow-500/20' : 'border-gray-700'
+                  }` 
+                : `bg-white/80 backdrop-blur-sm rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 border overflow-hidden group ${
+                    isHighlighted ? 'border-blue-500 border-2 shadow-blue-500/20' : 'border-gray-100'
+                  }`;
               
               return (
                 <div
                   key={event.id}
+                  id={`event-${event.id}`}
                   className={`${cardClass} flex flex-col h-full`}
                 >
                 {/* Event Image */}
