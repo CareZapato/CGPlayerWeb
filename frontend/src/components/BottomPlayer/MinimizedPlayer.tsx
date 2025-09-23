@@ -124,10 +124,9 @@ const MinimizedPlayer: React.FC<MinimizedPlayerProps> = ({ onExpand }) => {
     } else {
       // En desktop: usar lógica tradicional con distancia mayor
       const minDistance = 50;
-      const shouldShowTrash = distance > minDistance;
-      if (shouldShowTrash !== showTrashZone) {
-        console.log('�️ Cambiando estado del basurero desktop:', shouldShowTrash ? 'MOSTRAR' : 'OCULTAR', 'distancia:', distance);
-        setShowTrashZone(shouldShowTrash);
+      if (distance > minDistance && !showTrashZone) {
+        console.log("���️ Mostrando basurero en desktop - movimiento detectado:", distance);
+        setShowTrashZone(true);
       }
     }
     
