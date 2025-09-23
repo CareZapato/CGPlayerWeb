@@ -871,59 +871,64 @@ const PublicEventsPage: React.FC = () => {
           }
         `}
       </style>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
         {/* Header */}
-        <div className="text-center mb-12">
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-4">
+        <div className="text-center mb-8 sm:mb-12">
+          <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-3 sm:mb-4">
             Programación del Coro
           </h1>
-          <p className="text-gray-600 max-w-3xl mx-auto">
+          <p className="text-sm sm:text-base text-gray-600 max-w-3xl mx-auto px-2">
             Descubre nuestros próximos eventos, conciertos y ensayos. 
             Únete a nosotros en estas experiencias musicales únicas.
           </p>
         </div>
 
         {/* Pestañas */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 mb-8">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 mb-6 sm:mb-8">
           <div className="flex border-b border-gray-200">
             <button
               onClick={() => setActiveTab('upcoming')}
-              className={`flex-1 px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+              className={`flex-1 px-2 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-medium border-b-2 transition-colors ${
                 activeTab === 'upcoming'
                   ? 'border-indigo-500 text-indigo-600 bg-indigo-50'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
-              <Calendar className="w-5 h-5 inline mr-2" />
-              Próxima Programación ({events.filter(e => new Date(e.date) >= new Date()).length})
+              <Calendar className="w-4 h-4 sm:w-5 sm:h-5 inline mr-1 sm:mr-2" />
+              <span className="hidden sm:inline">Próxima Programación</span>
+              <span className="sm:hidden">Próximos</span>
+              <span className="ml-1">({events.filter(e => new Date(e.date) >= new Date()).length})</span>
             </button>
             <button
               onClick={() => setActiveTab('past')}
-              className={`flex-1 px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+              className={`flex-1 px-2 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-medium border-b-2 transition-colors ${
                 activeTab === 'past'
                   ? 'border-indigo-500 text-indigo-600 bg-indigo-50'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
-              <Clock className="w-5 h-5 inline mr-2" />
-              Programación Pasada ({events.filter(e => new Date(e.date) < new Date()).length})
+              <Clock className="w-4 h-4 sm:w-5 sm:h-5 inline mr-1 sm:mr-2" />
+              <span className="hidden sm:inline">Programación Pasada</span>  
+              <span className="sm:hidden">Pasados</span>
+              <span className="ml-1">({events.filter(e => new Date(e.date) < new Date()).length})</span>
             </button>
             <button
               onClick={() => setActiveTab('calendar')}
-              className={`flex-1 px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+              className={`flex-1 px-2 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-medium border-b-2 transition-colors ${
                 activeTab === 'calendar'
                   ? 'border-indigo-500 text-indigo-600 bg-indigo-50'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
-              <CalendarDays className="w-5 h-5 inline mr-2" />
-              Vista Calendario
+              <CalendarDays className="w-4 h-4 sm:w-5 sm:h-5 inline mr-1 sm:mr-2" />
+              <span className="hidden sm:inline">Vista Calendario</span>
+              <span className="sm:hidden">Calendario</span>
             </button>
           </div>
 
           {/* Filtros */}
-          <div className="p-6 bg-gray-50 border-t border-gray-100">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="p-3 sm:p-6 bg-gray-50 border-t border-gray-100">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
               {/* Búsqueda */}
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
@@ -1260,7 +1265,7 @@ const PublicEventsPage: React.FC = () => {
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {filteredEvents.map((event) => {
               const isEnsayo = event.category === 'Ensayo';
               const isHighlighted = searchParams.get('eventId') === event.id;
@@ -1286,21 +1291,21 @@ const PublicEventsPage: React.FC = () => {
                     className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
                   />
                 ) : (
-                  <div className="w-full h-48 bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center group-hover:from-indigo-600 group-hover:to-purple-700 transition-all duration-300">
-                    <Music className="h-16 w-16 text-white opacity-80" />
+                  <div className="w-full h-32 sm:h-48 bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center group-hover:from-indigo-600 group-hover:to-purple-700 transition-all duration-300">
+                    <Music className="h-12 w-12 sm:h-16 sm:w-16 text-white opacity-80" />
                   </div>
                 )}
 
-                <div className="p-6 flex flex-col flex-1">
+                <div className="p-3 sm:p-6 flex flex-col flex-1">
                   {/* Fila 1: Título completo */}
-                  <div className="mb-3">
-                    <h3 className={`text-lg font-bold line-clamp-2 ${isEnsayo ? 'text-white' : 'text-gray-900'}`}>
+                  <div className="mb-2 sm:mb-3">
+                    <h3 className={`text-base sm:text-lg font-bold line-clamp-2 ${isEnsayo ? 'text-white' : 'text-gray-900'}`}>
                       {event.title}
                     </h3>
                   </div>
 
                   {/* Fila 2: Todas las etiquetas */}
-                  <div className="flex flex-wrap gap-2 mb-4">
+                  <div className="flex flex-wrap gap-1 sm:gap-2 mb-3 sm:mb-4">
                     {/* Etiqueta de categoría con icono */}
                     {event.category && (
                       <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold shadow-md ${
@@ -1352,25 +1357,27 @@ const PublicEventsPage: React.FC = () => {
                   </div>
 
                   {/* Fila 3: Fecha, Hora y Lugar */}
-                  <div className={`flex flex-col gap-2 mb-4 ${isEnsayo ? 'text-gray-400' : 'text-slate-600'}`}>
+                  <div className={`flex flex-col gap-1.5 sm:gap-2 mb-3 sm:mb-4 ${isEnsayo ? 'text-gray-400' : 'text-slate-600'}`}>
                     {/* Fecha y Hora */}
-                    <div className="flex items-center">
-                      <Calendar className={`h-4 w-4 mr-2 ${isEnsayo ? 'text-indigo-400' : 'text-indigo-500'}`} />
-                      <span className="text-sm font-medium">
-                        {formatDate(event.date)}
-                      </span>
+                    <div className="flex flex-col sm:flex-row sm:items-center">
+                      <div className="flex items-center mb-1 sm:mb-0">
+                        <Calendar className={`h-3 w-3 sm:h-4 sm:w-4 mr-1.5 sm:mr-2 flex-shrink-0 ${isEnsayo ? 'text-indigo-400' : 'text-indigo-500'}`} />
+                        <span className="text-xs sm:text-sm font-medium">
+                          {formatDate(event.date)}
+                        </span>
+                      </div>
                       {event.time && (
-                        <>
-                          <Clock className={`h-4 w-4 ml-4 mr-2 ${isEnsayo ? 'text-emerald-400' : 'text-emerald-500'}`} />
-                          <span className="text-sm font-medium">{formatTime(event.time)}</span>
-                        </>
+                        <div className="flex items-center sm:ml-4">
+                          <Clock className={`h-3 w-3 sm:h-4 sm:w-4 mr-1.5 sm:mr-2 flex-shrink-0 ${isEnsayo ? 'text-emerald-400' : 'text-emerald-500'}`} />
+                          <span className="text-xs sm:text-sm font-medium">{formatTime(event.time)}</span>
+                        </div>
                       )}
                     </div>
 
                     {/* Lugar */}
-                    <div className="flex items-center">
-                      <MapPin className={`h-4 w-4 mr-2 ${isEnsayo ? 'text-red-400' : 'text-red-500'}`} />
-                      <span className="text-sm font-medium line-clamp-1">
+                    <div className="flex items-start">
+                      <MapPin className={`h-3 w-3 sm:h-4 sm:w-4 mr-1.5 sm:mr-2 mt-0.5 flex-shrink-0 ${isEnsayo ? 'text-red-400' : 'text-red-500'}`} />
+                      <span className="text-xs sm:text-sm font-medium line-clamp-2">
                         {event.eventCity || event.location?.city || 'Ubicación por confirmar'}
                         {event.eventAddress && `, ${event.eventAddress}`}
                       </span>
@@ -1381,15 +1388,15 @@ const PublicEventsPage: React.FC = () => {
                   <div className="flex-1"></div>
 
                   {/* Stats */}
-                  <div className={`flex items-center justify-between pt-4 border-t ${isEnsayo ? 'border-gray-600' : 'border-gray-100'} mt-auto`}>
-                    <div className="flex items-center space-x-4">
-                      <div className={`flex items-center px-3 py-2 rounded-lg ${
+                  <div className={`flex flex-col sm:flex-row sm:items-center sm:justify-between pt-3 sm:pt-4 border-t ${isEnsayo ? 'border-gray-600' : 'border-gray-100'} mt-auto gap-3 sm:gap-0`}>
+                    <div className="flex items-center justify-between sm:justify-start sm:space-x-4">
+                      <div className={`flex items-center px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg ${
                         isEnsayo 
                           ? 'bg-gradient-to-r from-blue-700/40 to-indigo-700/40 border border-blue-600/30'
                           : 'bg-indigo-50'
                       }`}>
-                        <Users className={`h-5 w-5 mr-2 ${isEnsayo ? 'text-blue-300' : 'text-indigo-500'}`} />
-                        <span className={`text-sm font-bold ${isEnsayo ? 'text-blue-200' : 'text-indigo-700'}`}>
+                        <Users className={`h-4 w-4 sm:h-5 sm:w-5 mr-1.5 sm:mr-2 ${isEnsayo ? 'text-blue-300' : 'text-indigo-500'}`} />
+                        <span className={`text-xs sm:text-sm font-bold ${isEnsayo ? 'text-blue-200' : 'text-indigo-700'}`}>
                           {event._count?.attendees || 0} 
                         </span>
                       </div>
@@ -1467,7 +1474,7 @@ const PublicEventsPage: React.FC = () => {
                       })()}
                     </div>
                     
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center justify-end sm:justify-start space-x-2">
                       {/* Contador de canciones */}
                       {(event._count?.uniqueEventSongs ?? event._count?.eventSongs ?? 0) > 0 && (
                         <button
@@ -1483,10 +1490,10 @@ const PublicEventsPage: React.FC = () => {
                           }`}
                           title="Reproducir como playlist"
                         >
-                          <span className="text-sm font-medium mr-1">
+                          <span className="text-xs sm:text-sm font-medium mr-1">
                             {event._count?.uniqueEventSongs ?? event._count?.eventSongs ?? 0}
                           </span>
-                          <Play className="h-4 w-4" />
+                          <Play className="h-3 w-3 sm:h-4 sm:w-4" />
                         </button>
                       )}
                       
@@ -1495,14 +1502,14 @@ const PublicEventsPage: React.FC = () => {
                           e.stopPropagation();
                           setSelectedEvent(event);
                         }}
-                        className={`p-2 rounded-lg transition-all duration-200 ${
+                        className={`p-1.5 sm:p-2 rounded-lg transition-all duration-200 ${
                           isEnsayo 
                             ? 'text-blue-400 hover:text-blue-300 hover:bg-blue-900/30' 
                             : 'text-blue-500 hover:text-blue-700 hover:bg-blue-50'
                         }`}
                         title="Ver detalles"
                       >
-                        <Eye className="h-4 w-4" />
+                        <Eye className="h-3 w-3 sm:h-4 sm:w-4" />
                       </button>
                     </div>
                   </div>
@@ -1516,15 +1523,15 @@ const PublicEventsPage: React.FC = () => {
         {/* Modal de detalles del evento */}
         {selectedEvent && (
           <div 
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 sm:p-4 z-50"
             onMouseEnter={() => fetchEventSongs(selectedEvent.id)}
           >
-            <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] shadow-2xl flex flex-col">
+            <div className="bg-white rounded-xl max-w-4xl w-full max-h-[95vh] sm:max-h-[90vh] shadow-2xl flex flex-col">
               {/* Header fijo */}
-              <div className="p-6 border-b border-gray-200 flex-shrink-0">
+              <div className="p-4 sm:p-6 border-b border-gray-200 flex-shrink-0">
                 <div className="flex justify-between items-start">
-                  <div className="flex-1">
-                    <h2 className="text-3xl font-bold text-gray-900 mb-2">
+                  <div className="flex-1 min-w-0">
+                    <h2 className="text-xl sm:text-3xl font-bold text-gray-900 mb-2 pr-2">
                       {selectedEvent.title}
                     </h2>
                     <div className="flex items-center space-x-2">
