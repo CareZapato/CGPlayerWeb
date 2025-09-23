@@ -5,7 +5,7 @@ import { prisma } from '../utils/prisma';
 const router = express.Router();
 
 // Configuración de riesgo de asistencia (configurable)
-const RISK_ATTENDANCE_THRESHOLD = 0.9; // 30% - esto se podría mover a una tabla de configuración
+const RISK_ATTENDANCE_THRESHOLD = 0.3; // 30% - esto se podría mover a una tabla de configuración
 
 // Función para calcular cantantes en riesgo
 async function calculateRiskySingers(locationId?: string) {
