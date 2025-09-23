@@ -448,120 +448,129 @@ const DashboardPage: React.FC = () => {
         )}
       </div>
 
-      {/* Estadísticas principales */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 md:gap-6">
-        <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-4 sm:p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow border border-blue-200">
+      {/* Estadísticas principales - Mobile Optimized */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 md:gap-6">
+        <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-3 sm:p-4 lg:p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow border border-blue-200">
           <div className="text-center">
-            <div className="text-2xl sm:text-3xl font-bold text-blue-900 mb-2">
-              {data.users?.total || data.totalUsers}
-            </div>
-            <div className="text-xs sm:text-sm font-medium text-blue-700 mb-3">Cantantes</div>
-            <div className="flex justify-center mb-4">
-              <div className="p-3 bg-blue-500 rounded-full text-white">
-                <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+            <div className="flex items-center justify-center mb-2 sm:mb-3">
+              <div className="p-2 sm:p-3 bg-blue-500 rounded-full text-white">
+                <svg className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
                 </svg>
               </div>
             </div>
-            <div className="space-y-1">
+            <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-blue-900 mb-1">
+              {data.users?.total || data.totalUsers}
+            </div>
+            <div className="text-xs sm:text-sm font-medium text-blue-700 mb-2 sm:mb-3">Cantantes</div>
+            <div className="space-y-0.5 sm:space-y-1">
               <div className="flex items-center justify-center space-x-1 text-xs">
-                <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                <span className="text-green-700">{data.users?.active || data.activeUsers} activos</span>
+                <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-green-500 rounded-full"></span>
+                <span className="text-green-700 hidden sm:inline">{data.users?.active || data.activeUsers} activos</span>
+                <span className="text-green-700 sm:hidden">{data.users?.active || data.activeUsers}</span>
               </div>
               <div className="flex items-center justify-center space-x-1 text-xs">
-                <span className="w-2 h-2 bg-yellow-500 rounded-full"></span>
-                <span className="text-yellow-700">{data.users?.risky || data.riskyUsers} en riesgo</span>
+                <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-yellow-500 rounded-full"></span>
+                <span className="text-yellow-700 hidden sm:inline">{data.users?.risky || data.riskyUsers} en riesgo</span>
+                <span className="text-yellow-700 sm:hidden">{data.users?.risky || data.riskyUsers}</span>
               </div>
               <div className="flex items-center justify-center space-x-1 text-xs">
-                <span className="w-2 h-2 bg-red-500 rounded-full"></span>
-                <span className="text-red-700">{data.users?.inactive || data.inactiveUsers} inactivos</span>
+                <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-red-500 rounded-full"></span>
+                <span className="text-red-700 hidden sm:inline">{data.users?.inactive || data.inactiveUsers} inactivos</span>
+                <span className="text-red-700 sm:hidden">{data.users?.inactive || data.inactiveUsers}</span>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-green-50 to-green-100 p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow border border-green-200">
+        <div className="bg-gradient-to-br from-green-50 to-green-100 p-3 sm:p-4 lg:p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow border border-green-200">
           <div className="text-center">
-            <div className="text-3xl font-bold text-green-900 mb-2">
-              {data.songs?.total || data.totalSongs}
-            </div>
-            <div className="text-sm font-medium text-green-700 mb-3">Canciones</div>
-            <div className="flex justify-center mb-4">
-              <div className="p-3 bg-green-500 rounded-full text-white">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="flex items-center justify-center mb-2 sm:mb-3">
+              <div className="p-2 sm:p-3 bg-green-500 rounded-full text-white">
+                <svg className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
                 </svg>
               </div>
             </div>
-            <div className="space-y-1">
-              <div className="text-xs text-green-600">{data.songs?.variations || 0} variaciones</div>
+            <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-green-900 mb-1">
+              {data.songs?.total || data.totalSongs}
+            </div>
+            <div className="text-xs sm:text-sm font-medium text-green-700 mb-2 sm:mb-3">Canciones</div>
+            <div className="space-y-0.5 sm:space-y-1">
+              <div className="text-xs text-green-600">
+                <span className="hidden sm:inline">{data.songs?.variations || 0} variaciones</span>
+                <span className="sm:hidden">{data.songs?.variations || 0} var</span>
+              </div>
               <div className="text-xs text-green-800 font-medium">
-                {data.songs?.totalWithVariations || data.totalSongs} total
+                <span className="hidden sm:inline">{data.songs?.totalWithVariations || data.totalSongs} total</span>
+                <span className="sm:hidden">{data.songs?.totalWithVariations || data.totalSongs}</span>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow border border-purple-200">
+        <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-3 sm:p-4 lg:p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow border border-purple-200">
           <div className="text-center">
-            <div className="text-3xl font-bold text-purple-900 mb-2">
-              {data.events?.total || data.totalEvents}
-            </div>
-            <div className="text-sm font-medium text-purple-700 mb-3">Eventos</div>
-            <div className="flex justify-center mb-4">
-              <div className="p-3 bg-purple-500 rounded-full text-white">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="flex items-center justify-center mb-2 sm:mb-3">
+              <div className="p-2 sm:p-3 bg-purple-500 rounded-full text-white">
+                <svg className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
               </div>
             </div>
+            <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-purple-900 mb-1">
+              {data.events?.total || data.totalEvents}
+            </div>
+            <div className="text-xs sm:text-sm font-medium text-purple-700 mb-2 sm:mb-3">Eventos</div>
             <div className="text-xs text-purple-600">
               <div className="flex items-center justify-center space-x-1">
-                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                <svg className="w-2 h-2 sm:w-3 sm:h-3" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
                 </svg>
-                <span>{data.events?.pending || 0} pendientes</span>
+                <span className="hidden sm:inline">{data.events?.pending || 0} pendientes</span>
+                <span className="sm:hidden">{data.events?.pending || 0}</span>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-orange-50 to-orange-100 p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow border border-orange-200">
+        <div className="bg-gradient-to-br from-orange-50 to-orange-100 p-3 sm:p-4 lg:p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow border border-orange-200">
           <div className="text-center">
-            <div className="text-3xl font-bold text-orange-900 mb-2">
-              {data.locations?.total || data.totalLocations}
-            </div>
-            <div className="text-sm font-medium text-orange-700 mb-3">Sedes</div>
-            <div className="flex justify-center">
-              <div className="p-3 bg-orange-500 rounded-full text-white">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="flex items-center justify-center mb-2 sm:mb-3">
+              <div className="p-2 sm:p-3 bg-orange-500 rounded-full text-white">
+                <svg className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                 </svg>
               </div>
             </div>
+            <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-orange-900 mb-1">
+              {data.locations?.total || data.totalLocations}
+            </div>
+            <div className="text-xs sm:text-sm font-medium text-orange-700">Sedes</div>
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow border border-indigo-200">
+        <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 p-3 sm:p-4 lg:p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow border border-indigo-200">
           <div className="text-center">
-            <div className="text-3xl font-bold text-indigo-900 mb-2">
-              {data.rehearsals?.total || 0}
-            </div>
-            <div className="text-sm font-medium text-indigo-700 mb-3">Ensayos</div>
-            <div className="flex justify-center mb-4">
-              <div className="p-3 bg-indigo-500 rounded-full text-white">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="flex items-center justify-center mb-2 sm:mb-3">
+              <div className="p-2 sm:p-3 bg-indigo-500 rounded-full text-white">
+                <svg className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                 </svg>
               </div>
             </div>
+            <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-indigo-900 mb-1">
+              {data.rehearsals?.total || 0}
+            </div>
+            <div className="text-xs sm:text-sm font-medium text-indigo-700 mb-2 sm:mb-3">Ensayos</div>
             <div className="text-xs text-indigo-600">
               <div className="flex items-center justify-center space-x-1">
-                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                <svg className="w-2 h-2 sm:w-3 sm:h-3" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
                 </svg>
-                <span>{data.rehearsals?.pending || 0} pendientes</span>
+                <span className="hidden sm:inline">{data.rehearsals?.pending || 0} pendientes</span>
+                <span className="sm:hidden">{data.rehearsals?.pending || 0}</span>
               </div>
             </div>
           </div>
