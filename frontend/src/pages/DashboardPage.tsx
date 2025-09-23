@@ -58,6 +58,80 @@ interface LocationDetail {
 }
 
 interface DashboardData {
+  // Nuevas estructuras mejoradas
+  users: {
+    total: number;
+    active: number;
+    inactive: number;
+    risky: number;
+  };
+  songs: {
+    total: number;
+    variations: number;
+    totalWithVariations: number;
+  };
+  events: {
+    total: number;
+    pending: number;
+  };
+  rehearsals: {
+    total: number;
+    pending: number;
+  };
+  locations: {
+    total: number;
+    details: LocationDetail[];
+  };
+  voiceDistribution: {
+    global: {
+      voiceType: string;
+      count: number;
+      activeCount: number;
+      riskyCount: number;
+      inactiveCount: number;
+      users: {
+        id: string;
+        firstName: string;
+        lastName: string;
+        email: string;
+        isActive: boolean;
+        status: 'active' | 'risky' | 'inactive';
+        riskData?: {
+          total: number;
+          refused: number;
+          isRisky: boolean;
+        } | null;
+      }[];
+    }[];
+    primary: {
+      voiceType: string;
+      count: number;
+      activeCount: number;
+      riskyCount: number;
+      inactiveCount: number;
+      users: {
+        id: string;
+        firstName: string;
+        lastName: string;
+        email: string;
+        isActive: boolean;
+        status: 'active' | 'risky' | 'inactive';
+        riskData?: {
+          total: number;
+          refused: number;
+          isRisky: boolean;
+        } | null;
+      }[];
+    }[];
+  };
+  config: {
+    riskThreshold: number;
+    currentYear: number;
+    isFiltered: boolean;
+    filterLocation?: string;
+  };
+  
+  // Mantener compatibilidad (deprecated)
   totalUsers: number;
   activeUsers: number;
   inactiveUsers: number;
@@ -65,7 +139,6 @@ interface DashboardData {
   totalSongs: number;
   totalEvents: number;
   totalLocations: number;
-  locations: LocationDetail[];
   globalVoiceDistribution: {
     voiceType: string;
     count: number;
@@ -121,6 +194,47 @@ interface DashboardData {
   filterLocation?: string;
 }
 
+interface UserData {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  isActive: boolean;
+  status: 'active' | 'risky' | 'inactive';
+  riskData?: {
+    total: number;
+    refused: number;
+    isRisky: boolean;
+  } | null;
+}
+
+interface VoiceDistributionItem {
+  voiceType: string;
+  count: number;
+  users: UserData[];
+}
+
+interface VoiceDistribution {
+  voiceType: string;
+  count: number;
+  activeCount: number;
+  riskyCount: number;
+  inactiveCount: number;
+  users: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    isActive: boolean;
+    status: 'active' | 'risky' | 'inactive';
+    riskData?: {
+      total: number;
+      refused: number;
+      isRisky: boolean;
+    } | null;
+  }[];
+}
+
 const DashboardPage: React.FC = () => {
   const { user, token } = useAuthStore();
   const [data, setData] = useState<DashboardData | null>(null);
@@ -134,6 +248,12 @@ const DashboardPage: React.FC = () => {
   const [hoveredSlice, setHoveredSlice] = useState<string | null>(null);
   const [showPercentages, setShowPercentages] = useState(false);
   const [showPrimaryVoices, setShowPrimaryVoices] = useState(false); // false = todas las voces, true = voces primarias
+
+  // Helper para obtener la lista de ubicaciones de manera segura
+  const getLocationsList = (data: DashboardData | null): LocationDetail[] => {
+    if (!data) return [];
+    return data.locations?.details || (Array.isArray(data.locations) ? data.locations : []);
+  };
 
   const fetchDashboardData = useCallback(async () => {
     if (!token) return;
@@ -159,8 +279,9 @@ const DashboardPage: React.FC = () => {
       if (result.success && result.data) {
         setData(result.data);
         // Seleccionar la primera ubicación por defecto para el gráfico
-        if (result.data.locations && result.data.locations.length > 0) {
-          setSelectedLocation(result.data.locations[0]);
+        const locationsList = getLocationsList(result.data);
+        if (locationsList.length > 0) {
+          setSelectedLocation(locationsList[0]);
         }
       } else {
         throw new Error('Formato de respuesta inválido');
@@ -194,33 +315,34 @@ const DashboardPage: React.FC = () => {
   };
 
   // Get voice distribution data based on pinned/hovered location and voice view mode
-  const getVoiceDistribution = () => {
+  const getVoiceDistribution = (): VoiceDistribution[] => {
     const targetLocation = pinnedLocation || hoveredLocation?.locationId;
     
     if (targetLocation && data) {
-      const location = data.locations.find(loc => loc.locationId === targetLocation);
+      const locationsList = getLocationsList(data);
+      const location = locationsList.find(loc => loc.locationId === targetLocation);
       
       // Elegir la distribución según el modo
       const distribution = showPrimaryVoices 
         ? location?.primaryVoiceDistribution 
         : location?.voiceDistribution;
         
-      return distribution?.map(vd => ({
+      return distribution?.map((vd: VoiceDistributionItem): VoiceDistribution => ({
         voiceType: vd.voiceType,
         count: vd.count,
-        activeCount: vd.users.filter(u => u.status === 'active').length,
-        riskyCount: vd.users.filter(u => u.status === 'risky').length,
-        inactiveCount: vd.users.filter(u => u.status === 'inactive').length,
+        activeCount: vd.users.filter((u: UserData) => u.status === 'active').length,
+        riskyCount: vd.users.filter((u: UserData) => u.status === 'risky').length,
+        inactiveCount: vd.users.filter((u: UserData) => u.status === 'inactive').length,
         users: vd.users
       })) || [];
     }
     
     // Vista global - elegir distribución según el modo
     const globalDistribution = showPrimaryVoices 
-      ? data?.primaryVoiceDistribution 
-      : data?.globalVoiceDistribution;
+      ? (data?.voiceDistribution?.primary || data?.primaryVoiceDistribution)
+      : (data?.voiceDistribution?.global || data?.globalVoiceDistribution);
       
-    return globalDistribution?.map(gvd => ({
+    return globalDistribution?.map((gvd: VoiceDistribution): VoiceDistribution => ({
       voiceType: gvd.voiceType,
       count: gvd.count,
       activeCount: gvd.activeCount,
@@ -325,60 +447,120 @@ const DashboardPage: React.FC = () => {
       </div>
 
       {/* Estadísticas principales */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-6 rounded-lg shadow-md border border-blue-200">
-          <div className="flex items-center">
-            <div className="p-3 rounded-full bg-blue-500 text-white">
-              <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
-              </svg>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
+        <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow border border-blue-200">
+          <div className="text-center">
+            <div className="text-3xl font-bold text-blue-900 mb-2">
+              {data.users?.total || data.totalUsers}
             </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-blue-700">Usuarios Activos</p>
-              <p className="text-2xl font-semibold text-blue-900">{data.activeUsers}</p>
+            <div className="text-sm font-medium text-blue-700 mb-3">Cantantes</div>
+            <div className="flex justify-center mb-4">
+              <div className="p-3 bg-blue-500 rounded-full text-white">
+                <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                </svg>
+              </div>
             </div>
-          </div>
-        </div>
-
-        <div className="bg-gradient-to-br from-green-50 to-green-100 p-6 rounded-lg shadow-md border border-green-200">
-          <div className="flex items-center">
-            <div className="p-3 rounded-full bg-green-500 text-white">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
-              </svg>
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-green-700">Canciones</p>
-              <p className="text-2xl font-semibold text-green-900">{data.totalSongs}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-6 rounded-lg shadow-md border border-purple-200">
-          <div className="flex items-center">
-            <div className="p-3 rounded-full bg-purple-500 text-white">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-purple-700">Eventos</p>
-              <p className="text-2xl font-semibold text-purple-900">{data.totalEvents}</p>
+            <div className="space-y-1">
+              <div className="flex items-center justify-center space-x-1 text-xs">
+                <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                <span className="text-green-700">{data.users?.active || data.activeUsers} activos</span>
+              </div>
+              <div className="flex items-center justify-center space-x-1 text-xs">
+                <span className="w-2 h-2 bg-yellow-500 rounded-full"></span>
+                <span className="text-yellow-700">{data.users?.risky || data.riskyUsers} en riesgo</span>
+              </div>
+              <div className="flex items-center justify-center space-x-1 text-xs">
+                <span className="w-2 h-2 bg-red-500 rounded-full"></span>
+                <span className="text-red-700">{data.users?.inactive || data.inactiveUsers} inactivos</span>
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-orange-50 to-orange-100 p-6 rounded-lg shadow-md border border-orange-200">
-          <div className="flex items-center">
-            <div className="p-3 rounded-full bg-orange-500 text-white">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
+        <div className="bg-gradient-to-br from-green-50 to-green-100 p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow border border-green-200">
+          <div className="text-center">
+            <div className="text-3xl font-bold text-green-900 mb-2">
+              {data.songs?.total || data.totalSongs}
             </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-orange-700">Sedes</p>
-              <p className="text-2xl font-semibold text-orange-900">{data.totalLocations}</p>
+            <div className="text-sm font-medium text-green-700 mb-3">Canciones</div>
+            <div className="flex justify-center mb-4">
+              <div className="p-3 bg-green-500 rounded-full text-white">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+                </svg>
+              </div>
+            </div>
+            <div className="space-y-1">
+              <div className="text-xs text-green-600">{data.songs?.variations || 0} variaciones</div>
+              <div className="text-xs text-green-800 font-medium">
+                {data.songs?.totalWithVariations || data.totalSongs} total
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow border border-purple-200">
+          <div className="text-center">
+            <div className="text-3xl font-bold text-purple-900 mb-2">
+              {data.events?.total || data.totalEvents}
+            </div>
+            <div className="text-sm font-medium text-purple-700 mb-3">Eventos</div>
+            <div className="flex justify-center mb-4">
+              <div className="p-3 bg-purple-500 rounded-full text-white">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+              </div>
+            </div>
+            <div className="text-xs text-purple-600">
+              <div className="flex items-center justify-center space-x-1">
+                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
+                </svg>
+                <span>{data.events?.pending || 0} pendientes</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-gradient-to-br from-orange-50 to-orange-100 p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow border border-orange-200">
+          <div className="text-center">
+            <div className="text-3xl font-bold text-orange-900 mb-2">
+              {data.locations?.total || data.totalLocations}
+            </div>
+            <div className="text-sm font-medium text-orange-700 mb-3">Sedes</div>
+            <div className="flex justify-center">
+              <div className="p-3 bg-orange-500 rounded-full text-white">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow border border-indigo-200">
+          <div className="text-center">
+            <div className="text-3xl font-bold text-indigo-900 mb-2">
+              {data.rehearsals?.total || 0}
+            </div>
+            <div className="text-sm font-medium text-indigo-700 mb-3">Ensayos</div>
+            <div className="flex justify-center mb-4">
+              <div className="p-3 bg-indigo-500 rounded-full text-white">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                </svg>
+              </div>
+            </div>
+            <div className="text-xs text-indigo-600">
+              <div className="flex items-center justify-center space-x-1">
+                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
+                </svg>
+                <span>{data.rehearsals?.pending || 0} pendientes</span>
+              </div>
             </div>
           </div>
         </div>
@@ -402,7 +584,7 @@ const DashboardPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {data.locations.map((location) => (
+                {getLocationsList(data).map((location) => (
                   <tr 
                     key={location.locationId}
                     className="border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors"
@@ -540,7 +722,7 @@ const DashboardPage: React.FC = () => {
             <p className="text-sm text-gray-600">
               {pinnedLocation ? 
                 (() => {
-                  const loc = data.locations.find(l => l.locationId === pinnedLocation);
+                  const loc = getLocationsList(data).find(l => l.locationId === pinnedLocation);
                   return `${loc?.locationName} - ${loc?.city}`;
                 })() :
                 hoveredLocation ? 
@@ -570,11 +752,11 @@ const DashboardPage: React.FC = () => {
               {/* Gráfico principal más grande */}
               <div className="relative w-96 h-96">
                 <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
-                  {getVoiceDistribution().map((voice, index) => {
+                  {getVoiceDistribution().map((voice: VoiceDistribution, index: number) => {
                     const voiceData = getVoiceDistribution();
-                    const total = voiceData.reduce((sum, v) => sum + v.count, 0);
+                    const total = voiceData.reduce((sum: number, v: VoiceDistribution) => sum + v.count, 0);
                     const percentage = total > 0 ? (voice.count / total) * 100 : 0;
-                    const startAngle = voiceData.slice(0, index).reduce((sum, v) => sum + (v.count / total) * 360, 0);
+                    const startAngle = voiceData.slice(0, index).reduce((sum: number, v: VoiceDistribution) => sum + (v.count / total) * 360, 0);
                     const endAngle = startAngle + (percentage * 3.6);
                     
                     const x1 = 50 + 35 * Math.cos((startAngle * Math.PI) / 180);
@@ -608,11 +790,11 @@ const DashboardPage: React.FC = () => {
                 {/* Porcentajes flotantes */}
                 {showPercentages && (
                   <div className="absolute inset-0 pointer-events-none">
-                    {getVoiceDistribution().map((voice, index) => {
+                    {getVoiceDistribution().map((voice: VoiceDistribution, index: number) => {
                       const voiceData = getVoiceDistribution();
-                      const total = voiceData.reduce((sum, v) => sum + v.count, 0);
+                      const total = voiceData.reduce((sum: number, v: VoiceDistribution) => sum + v.count, 0);
                       const percentage = total > 0 ? (voice.count / total) * 100 : 0;
-                      const startAngle = voiceData.slice(0, index).reduce((sum, v) => sum + (v.count / total) * 360, 0);
+                      const startAngle = voiceData.slice(0, index).reduce((sum: number, v: VoiceDistribution) => sum + (v.count / total) * 360, 0);
                       const midAngle = startAngle + (percentage * 3.6) / 2;
                       
                       // Posición para el texto (más alejado del centro)
@@ -655,7 +837,7 @@ const DashboardPage: React.FC = () => {
 
           {/* Información del Director (si hay ubicación seleccionada) */}
           {(() => {
-            const currentLoc = pinnedLocation ? data.locations.find(l => l.locationId === pinnedLocation) : hoveredLocation;
+            const currentLoc = pinnedLocation ? getLocationsList(data).find(l => l.locationId === pinnedLocation) : hoveredLocation;
             if (currentLoc && currentLoc.director) {
               return (
                 <div className="mb-6 p-4 bg-blue-50 rounded-lg">
@@ -675,7 +857,7 @@ const DashboardPage: React.FC = () => {
 
           {/* Leyenda del gráfico */}
           <div className="space-y-2">
-            {getVoiceDistribution().map((voice) => (
+            {getVoiceDistribution().map((voice: VoiceDistribution) => (
               <React.Fragment key={voice.voiceType}>
                 <div 
                   className="flex items-center justify-between p-2 rounded hover:bg-gray-50 cursor-pointer"
@@ -724,12 +906,12 @@ const DashboardPage: React.FC = () => {
                 {expandedVoiceTypes.has(voice.voiceType) && voice.users && voice.users.length > 0 && (
                   <div className="ml-6 bg-gray-50 rounded p-3 space-y-1">
                     {voice.users
-                      .sort((a, b) => {
+                      .sort((a: UserData, b: UserData) => {
                         // Ordenar por estado: activos primero, luego riesgo, luego inactivos
-                        const statusOrder = { 'active': 0, 'risky': 1, 'inactive': 2 };
+                        const statusOrder: Record<string, number> = { 'active': 0, 'risky': 1, 'inactive': 2 };
                         return statusOrder[a.status] - statusOrder[b.status];
                       })
-                      .map((user) => (
+                      .map((user: UserData) => (
                       <div key={user.id} className="flex items-center justify-between text-xs">
                         <span className="text-gray-700">
                           {user.firstName} {user.lastName}

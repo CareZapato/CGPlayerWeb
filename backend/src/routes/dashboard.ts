@@ -96,27 +96,79 @@ router.get('/stats', authenticateToken, async (req: AuthRequest, res: Response) 
       isDirector && !isAdmin ? user?.locationId : undefined
     );
 
-    // Obtener datos básicos
-    const [totalUsers, activeUsers, totalSongs, totalEvents] = await Promise.all([
+    // Obtener datos básicos mejorados
+    const currentDate = new Date();
+    
+    const [
+      totalUsers, 
+      activeUsers, 
+      totalSongs, 
+      songVariations,
+      totalEvents,
+      pendingEvents,
+      totalRehearsals,
+      pendingRehearsals
+    ] = await Promise.all([
+      // Usuarios totales
+      prisma.user.count({
+        where: locationFilter
+      }),
+      // Usuarios activos
       prisma.user.count({
         where: {
           ...locationFilter,
           isActive: true
         }
       }),
-      prisma.user.count({
-        where: {
-          ...locationFilter,
-          isActive: true
-        }
-      }),
+      // Canciones principales
       prisma.song.count({
         where: {
           isActive: true,
           parentSongId: null // Solo canciones principales
         }
       }),
-      prisma.event.count()
+      // Variaciones de canciones (canciones derivadas)
+      prisma.song.count({
+        where: {
+          isActive: true,
+          parentSongId: { not: null } // Solo variaciones
+        }
+      }),
+      // Total de eventos
+      prisma.event.count({
+        where: isDirector && !isAdmin && user?.locationId 
+          ? { locationId: user.locationId }
+          : {}
+      }),
+      // Eventos pendientes (futuros)
+      prisma.event.count({
+        where: {
+          date: { gt: currentDate },
+          category: 'Evento',
+          ...(isDirector && !isAdmin && user?.locationId 
+            ? { locationId: user.locationId }
+            : {})
+        }
+      }),
+      // Total de ensayos
+      prisma.event.count({
+        where: {
+          category: 'Ensayo',
+          ...(isDirector && !isAdmin && user?.locationId 
+            ? { locationId: user.locationId }
+            : {})
+        }
+      }),
+      // Ensayos pendientes (futuros)
+      prisma.event.count({
+        where: {
+          date: { gt: currentDate },
+          category: 'Ensayo',
+          ...(isDirector && !isAdmin && user?.locationId 
+            ? { locationId: user.locationId }
+            : {})
+        }
+      })
     ]);
 
     // Obtener ubicaciones con datos detallados para el nuevo dashboard
@@ -402,16 +454,46 @@ router.get('/stats', authenticateToken, async (req: AuthRequest, res: Response) 
     res.json({
       success: true,
       data: {
-        totalUsers,
-        activeUsers,
-        inactiveUsers: totalUsers - activeUsers,
-        riskyUsers: Object.values(riskData).filter(r => r.isRisky).length,
-        totalSongs,
-        totalEvents,
-        totalLocations: processedLocations.length,
-        locations: processedLocations,
-        globalVoiceDistribution,
-        primaryVoiceDistribution,
+        // Estadísticas de usuarios mejoradas
+        users: {
+          total: totalUsers,
+          active: activeUsers,
+          inactive: totalUsers - activeUsers,
+          risky: Object.values(riskData).filter(r => r.isRisky).length
+        },
+        
+        // Estadísticas de canciones mejoradas
+        songs: {
+          total: totalSongs,
+          variations: songVariations,
+          totalWithVariations: totalSongs + songVariations
+        },
+        
+        // Estadísticas de eventos mejoradas
+        events: {
+          total: totalEvents,
+          pending: pendingEvents
+        },
+        
+        // Estadísticas de ensayos mejoradas
+        rehearsals: {
+          total: totalRehearsals,
+          pending: pendingRehearsals
+        },
+        
+        // Estadísticas de sedes
+        locations: {
+          total: processedLocations.length,
+          details: processedLocations
+        },
+        
+        // Distribuciones de voces
+        voiceDistribution: {
+          global: globalVoiceDistribution,
+          primary: primaryVoiceDistribution
+        },
+        
+        // Eventos recientes
         recentEvents: recentEvents.map(event => ({
           id: event.id,
           title: event.title,
@@ -419,12 +501,29 @@ router.get('/stats', authenticateToken, async (req: AuthRequest, res: Response) 
           dateTime: event.date,
           location: event.location
         })),
-        // Configuración de riesgo
+        
+        // Configuración y metadatos
+        config: {
+          riskThreshold: RISK_ATTENDANCE_THRESHOLD,
+          currentYear: new Date().getFullYear(),
+          isFiltered: isDirector && !isAdmin,
+          filterLocation: isDirector && !isAdmin ? user?.locationId : null
+        },
+        
+        // Mantener compatibilidad con versión anterior (deprecated)
+        totalUsers,
+        activeUsers,
+        inactiveUsers: totalUsers - activeUsers,
+        riskyUsers: Object.values(riskData).filter(r => r.isRisky).length,
+        totalSongs,
+        totalEvents,
+        totalLocations: processedLocations.length,
+        globalVoiceDistribution,
+        primaryVoiceDistribution,
         riskConfig: {
           attendanceThreshold: RISK_ATTENDANCE_THRESHOLD,
           currentYear: new Date().getFullYear()
         },
-        // Metadatos para el frontend
         isFiltered: isDirector && !isAdmin,
         filterLocation: isDirector && !isAdmin ? user?.locationId : null
       }
