@@ -1,1089 +1,1225 @@
-import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { useAuthStore } from '../../store/authStore';
-import UserAvatar from '../UserAvatar';
+import React, { useState, useEffect, useCallback } from 'react';
+import { 
+  Plus, 
+  Calendar, 
+  MapPin, 
+  Users, 
+  Music, 
+  Search, 
+  Clock,
+  Eye,
+  Globe,
+  Lock,
+  UserPlus,
+  Trash2,
+  Edit,
+  Play,
+  AlertCircle,
+  Star,
+  CheckCircle,
+  CalendarClock,
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight
+} from 'lucide-react';
+import CreateEventModal from '../CreateEventModal.tsx';
+import EventDetailsModal from '../EventDetailsModal.tsx';
+import { useEventPlaylist } from '../../hooks/useEventPlaylist.ts';
+import { usePlayerStore } from '../../store/playerStore.ts';
+import { usePlaylistStore } from '../../store/playlistStore.ts';
+import type { Song } from '../../types/index.ts';
+import { getSongFileUrl } from '../../config/api.ts';
+import { getApiUrl } from '../../config/api.ts';
 import './EventManagement.css';
 
 interface Location {
   id: string;
   name: string;
-  type: string;
   city: string;
-  region: string;
-  address?: string;
-  phone?: string;
+  region?: string;
+  country: string;
 }
 
-interface Song {
-  id: string;
-  title: string;
-  artist: string;
-  voiceType: string | null;
+interface VoiceProfile {
+  voiceType: string;
+  isPrimary: boolean;
 }
 
-interface User {
+interface EventSong {
   id: string;
-  firstName: string;
-  lastName: string;
-  email?: string;
-  profileImageUrl?: string | null;
-}
-
-interface LocationWithUsers {
-  id: string;
-  name: string;
-  city: string;
-  users: User[];
-}
-
-interface Playlist {
-  id: string;
-  name: string;
-  description?: string;
-  items?: Array<{ id: string; song: Song }>;
+  song: {
+    id: string;
+    title: string;
+    artist?: string;
+    voiceType?: string;
+    filePath?: string;
+    parentSongId?: string;
+  };
+  order: number;
 }
 
 interface Event {
   id: string;
   title: string;
-  description: string;
+  description?: string;
   date: string;
   time?: string;
-  category: string;
+  category?: string;
+  location?: Location;
+  creator?: {
+    firstName: string;
+    lastName: string;
+  };
   eventCity?: string;
   eventAddress?: string;
-  country?: string;
   mapLink?: string;
   imageUrl?: string;
   isPublic: boolean;
   allowExternalJoin: boolean;
-  location: Location | null;
+  _count?: {
+    attendees: number;
+    joinRequests: number;
+    eventSongs?: number;
+    uniqueEventSongs?: number;
+  };
   attendees?: Array<{
-    id: string;
-    userId: string;
     user: {
       id: string;
       firstName: string;
       lastName: string;
+      location?: { name: string };
+      assignedRoles: Array<{ role: string }>;
+      voiceProfiles?: VoiceProfile[];
     };
-  }>;
-  eventPlaylists?: Array<{
-    id: string;
-    playlistId: string;
-    playlist: {
-      id: string;
-      name: string;
-    };
-  }>;
-  eventSongs: Array<{
-    id: string;
-    order: number;
-    notes: string | null;
-    song: Song;
-  }>;
-  soloists: Array<{
-    id: string;
-    soloistType: string;
-    notes: string | null;
-    user: {
-      id: string;
+    addedByUser: {
       firstName: string;
       lastName: string;
     };
-    song: Song | null;
+    status: string;
   }>;
   joinRequests?: Array<{
     id: string;
-    userId: string;
-    status: string;
-    message?: string;
     user: {
+      id: string;
       firstName: string;
       lastName: string;
-      locationId?: string;
+      assignedRoles: Array<{ role: string }>;
     };
+    message?: string;
+    status: string;
+    createdAt: string;
   }>;
+  eventSongs?: EventSong[];
 }
 
 const EventManagement: React.FC = () => {
-  const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
-  const [showEditModal, setShowEditModal] = useState(false);
+  const [events, setEvents] = useState<Event[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [filter, setFilter] = useState({
-    category: '',
-    locationId: '',
-    upcoming: true
-  });
+  const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [initialModalTab, setInitialModalTab] = useState<'info' | 'attendees' | 'requests' | 'singers'>('info'); // Nueva estado
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [eventToEdit, setEventToEdit] = useState<Event | null>(null);
 
-  const { user, token } = useAuthStore();
+  // Estados para pestañas y filtros adicionales
+  const [activeTab, setActiveTab] = useState<'upcoming' | 'past' | 'calendar'>('upcoming');
+  const [selectedCity, setSelectedCity] = useState('');
+  const [selectedRegion, setSelectedRegion] = useState('');
+  
+  // Estados para la vista de calendario
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
-  // Fetch events for management
-  const { data: events, isLoading: eventsLoading, refetch: refetchEvents } = useQuery({
-    queryKey: ['events-management', filter],
-    queryFn: async () => {
-      const params = new URLSearchParams();
-      if (filter.category) params.append('category', filter.category);
-      if (filter.locationId) params.append('locationId', filter.locationId);
-      if (filter.upcoming) params.append('upcoming', 'true');
+  // Hooks para reproducir eventos como playlists
+  const { playEvent, loading: playLoading } = useEventPlaylist();
+  const { setCurrentSong } = usePlayerStore();
+  const { replaceQueueAndPlay } = usePlaylistStore();
 
-      const response = await fetch(`/api/events/management/all?${params}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      
-      if (!response.ok) throw new Error('Failed to fetch events');
-      const result = await response.json();
-      return result.data as Event[];
+  // Función para filtrar eventos
+  const getFilteredEvents = () => {
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+
+    let filteredEvents = events;
+
+    // Filtrar por pestaña (próximos/pasados)
+    if (activeTab === 'upcoming') {
+      filteredEvents = filteredEvents.filter(event => new Date(event.date) >= now);
+    } else {
+      filteredEvents = filteredEvents.filter(event => new Date(event.date) < now);
     }
-  });
 
-  // Fetch locations
-  const { data: locations } = useQuery({
-    queryKey: ['locations'],
-    queryFn: async () => {
-      const response = await fetch('/api/locations', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      
-      if (!response.ok) throw new Error('Failed to fetch locations');
-      const result = await response.json();
-      return result.data as Location[];
+    // Filtrar por término de búsqueda
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase();
+      filteredEvents = filteredEvents.filter(event =>
+        event.title.toLowerCase().includes(term) ||
+        event.description?.toLowerCase().includes(term) ||
+        event.eventCity?.toLowerCase().includes(term) ||
+        event.location?.name.toLowerCase().includes(term) ||
+        event.location?.city.toLowerCase().includes(term)
+      );
     }
-  });
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('es-ES', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
+    // Filtrar por ciudad
+    if (selectedCity) {
+      filteredEvents = filteredEvents.filter(event =>
+        event.eventCity === selectedCity || event.location?.city === selectedCity
+      );
+    }
+
+    // Filtrar por región
+    if (selectedRegion) {
+      filteredEvents = filteredEvents.filter(event =>
+        event.location?.region === selectedRegion
+      );
+    }
+
+    // Ordenar por fecha
+    return filteredEvents.sort((a, b) => {
+      const dateA = new Date(a.date).getTime();
+      const dateB = new Date(b.date).getTime();
+      return activeTab === 'upcoming' ? dateA - dateB : dateB - dateA;
     });
   };
 
-  const getCategoryColor = (category: string) => {
-    const colors = {
-      'Evento': 'bg-blue-100 text-blue-800',
-      'Ensayo': 'bg-gray-800 text-white'
-    };
-    return colors[category as keyof typeof colors] || 'bg-gray-100 text-gray-800';
+  // Obtener ciudades únicas para el filtro
+  const getUniqueCities = () => {
+    const cities = new Set<string>();
+    events.forEach(event => {
+      if (event.eventCity) cities.add(event.eventCity);
+      if (event.location?.city) cities.add(event.location.city);
+    });
+    return Array.from(cities).sort();
   };
 
-  const canManageEvents = user?.roles?.some(r => r.role === 'ADMIN') || false;
+  // Obtener regiones únicas para el filtro
+  const getUniqueRegions = () => {
+    const regions = new Set<string>();
+    events.forEach(event => {
+      if (event.location?.region) regions.add(event.location.region);
+    });
+    return Array.from(regions).sort();
+  };
 
-  if (eventsLoading) {
+  // Funciones auxiliares para el calendario
+  const getDaysInMonth = (date: Date) => {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const daysInMonth = lastDay.getDate();
+    const startDate = new Date(firstDay);
+    startDate.setDate(startDate.getDate() - firstDay.getDay()); // Empezar desde domingo
+    
+    const days = [];
+    for (let i = 0; i < 42; i++) { // 6 semanas x 7 días
+      days.push(new Date(startDate));
+      startDate.setDate(startDate.getDate() + 1);
+    }
+    return { days, daysInMonth, firstDay };
+  };
+
+  const getEventsForDate = (date: Date) => {
+    const dateStr = date.toISOString().split('T')[0];
+    return events.filter(event => event.date.startsWith(dateStr));
+  };
+
+  const isSameMonth = (date1: Date, date2: Date) => {
+    return date1.getFullYear() === date2.getFullYear() && date1.getMonth() === date2.getMonth();
+  };
+
+  const isSameDate = (date1: Date, date2: Date) => {
+    return date1.toDateString() === date2.toDateString();
+  };
+
+  const filteredEvents = getFilteredEvents();
+  const uniqueCities = getUniqueCities();
+  const uniqueRegions = getUniqueRegions();
+
+  const fetchEvents = useCallback(async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      
+      const response = await fetch(getApiUrl('/events/management/all'), {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Error al cargar eventos');
+      }
+
+      const data = await response.json();
+      
+      if (data.success) {
+        setEvents(data.data);
+      } else {
+        setError('Error al cargar eventos');
+      }
+    } catch (err) {
+      setError('Error de conexión');
+      console.error('Error fetching events:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Función para recargar un evento específico por ID
+  const reloadEventById = useCallback(async (eventId: string): Promise<Event | null> => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(getApiUrl(`/events/${eventId}`), {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.data) {
+          return data.data;
+        }
+      }
+    } catch (err) {
+      console.error('Error reloading event:', err);
+    }
+    return null;
+  }, []);
+
+  useEffect(() => {
+    fetchEvents();
+  }, [fetchEvents]);
+
+  const handleEventCreated = (newEventData: unknown) => {
+    // Extraer el evento de la respuesta del backend
+    const response = newEventData as { data?: Event } | Event;
+    const newEvent = 'data' in response && response.data ? response.data : response as Event;
+    
+    // Agregar el nuevo evento al principio de la lista
+    setEvents(prev => [newEvent, ...prev]);
+    setShowCreateModal(false);
+    
+    // También recargar la lista completa para asegurar sincronización
+    setTimeout(() => {
+      fetchEvents();
+    }, 1000);
+  };
+
+  const handleViewDetails = (event: Event) => {
+    setSelectedEvent(event);
+    setInitialModalTab('info'); // Por defecto a info
+    setShowDetailsModal(true);
+  };
+
+  const handleViewRequests = (event: Event) => {
+    setSelectedEvent(event);
+    setInitialModalTab('requests'); // Directamente a solicitudes
+    setShowDetailsModal(true);
+  };
+
+  const handleEditEvent = async (event: Event) => {
+    try {
+      // Cargar el evento completo con sus canciones
+      const token = localStorage.getItem('token');
+      const response = await fetch(getApiUrl(`/events/${event.id}`), {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        const completeEvent = result.data || result;
+        console.log('🔄 [EDIT] Complete event data loaded:', completeEvent);
+        console.log('🔄 [EDIT] Event has eventSongs:', !!completeEvent.eventSongs);
+        console.log('🔄 [EDIT] EventSongs:', completeEvent.eventSongs);
+        
+        setEventToEdit(completeEvent);
+        setShowEditModal(true);
+      } else {
+        console.error('Error loading complete event data:', response.status);
+        // Fallback to basic event data
+        setEventToEdit(event);
+        setShowEditModal(true);
+      }
+    } catch (error) {
+      console.error('Error loading complete event data:', error);
+      // Fallback to basic event data
+      setEventToEdit(event);
+      setShowEditModal(true);
+    }
+  };
+
+  const handleEventUpdated = () => {
+    // Actualizar la lista de eventos
+    fetchEvents();
+    setShowEditModal(false);
+    setEventToEdit(null);
+  };
+
+
+
+  // Función para reproducir evento como playlist
+  const handlePlayEvent = async (event: Event) => {
+    try {
+      const result = await playEvent(event.id);
+      if (result && result.songs.length > 0) {
+        console.log(`🎵 Playing event: ${result.eventTitle} with ${result.totalSongs} songs`);
+        
+        // Convertir las canciones a formato correcto con URLs
+        const songsWithUrls = result.songs.map(song => {
+          let songUrl = '';
+          
+          if (song.folderName && song.fileName) {
+            // Usar getSongFileUrl para archivos en carpetas dinámicas
+            songUrl = getSongFileUrl(song.folderName, song.fileName);
+          } else if (song.filePath) {
+            // Usar filePath directo si está disponible
+            songUrl = getApiUrl(`/uploads/${song.filePath}`);
+          } else if (song.fileName) {
+            // Archivo en carpeta raíz
+            songUrl = getApiUrl(`/uploads/${song.fileName}`);
+          }
+          
+          return {
+            ...song,
+            url: songUrl // Añadir URL para playerStore
+          };
+        });
+
+        console.log(`🎵 Songs with URLs:`, songsWithUrls);
+
+        // Agregar todas las canciones a la cola y empezar a reproducir la primera
+        replaceQueueAndPlay(songsWithUrls as unknown as Song[], 0);
+        
+        // También establecer en playerStore para reproducción inmediata
+        if (songsWithUrls[0]) {
+          setCurrentSong(songsWithUrls[0] as unknown as Song);
+        }
+        
+        console.log(`✅ Evento reproducido: ${result.eventTitle} con ${result.totalSongs} canciones`);
+      } else {
+        console.warn('⚠️ El evento no tiene canciones para reproducir');
+      }
+    } catch (error) {
+      console.error('Error al reproducir evento:', error);
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('es-ES', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+
+  const formatTime = (time?: string) => {
+    if (!time) return '';
+    return time;
+  };
+
+  if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
+        <div className="flex items-center justify-center h-96">
+          <div className="relative">
+            <div className="animate-spin rounded-full h-16 w-16 border-4 border-indigo-200 border-t-indigo-600"></div>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <Music className="h-6 w-6 text-indigo-600 animate-pulse" />
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-gray-900">Gestión de Programación</h1>
-        {canManageEvents && (
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Header - Mobile Responsive */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 sm:mb-8">
+          <div className="mb-4 sm:mb-0">
+            <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-2">
+              Gestión de Programación
+            </h1>
+            <p className="text-sm sm:text-base text-gray-600">
+              Crea y administra eventos y ensayos para el coro
+            </p>
+          </div>
           <button
             onClick={() => setShowCreateModal(true)}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center space-x-2"
+            className="w-full sm:w-auto inline-flex items-center justify-center px-4 sm:px-6 py-2 sm:py-3 border border-transparent text-sm sm:text-base font-medium rounded-xl text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transform hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            <span>Nueva Programación</span>
+            <Plus className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
+            Nueva Programación
           </button>
-        )}
-      </div>
-
-      {/* Filters */}
-      <div className="bg-white p-4 rounded-lg shadow">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Categoría
-            </label>
-            <select
-              value={filter.category}
-              onChange={(e) => setFilter(prev => ({ ...prev, category: e.target.value }))}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">Todas las categorías</option>
-              <option value="Evento">Evento</option>
-              <option value="Ensayo">Ensayo</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Ubicación
-            </label>
-            <select
-              value={filter.locationId}
-              onChange={(e) => setFilter(prev => ({ ...prev, locationId: e.target.value }))}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">Todas las ubicaciones</option>
-              {locations?.map(location => (
-                <option key={location.id} value={location.id}>
-                  {location.name} - {location.city}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="flex items-end">
-            <label className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                checked={filter.upcoming}
-                onChange={(e) => setFilter(prev => ({ ...prev, upcoming: e.target.checked }))}
-                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-              />
-              <span className="text-sm text-gray-700">Solo próximos eventos</span>
-            </label>
-          </div>
         </div>
-      </div>
 
-      {/* Events Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {events?.map(event => {
-          const isEnsayo = event.category === 'Ensayo';
-          const cardClass = isEnsayo 
-            ? "bg-gray-800 rounded-lg shadow hover:shadow-md transition-shadow border border-gray-700" 
-            : "bg-white rounded-lg shadow hover:shadow-md transition-shadow";
-          const textClass = isEnsayo ? "text-white" : "text-gray-900";
-          const secondaryTextClass = isEnsayo ? "text-gray-300" : "text-gray-600";
-          
-          return (
-            <div key={event.id} className={cardClass}>
-              <div className="p-6">
-                <div className="flex justify-between items-start mb-4">
-                  <div className="flex-1">
-                    <h3 className={`font-semibold text-lg ${textClass} mb-1`}>{event.title}</h3>
-                    <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${getCategoryColor(event.category)}`}>
-                      {event.category}
-                    </span>
-                  </div>
-                  {canManageEvents && (
-                    <button
-                      onClick={() => {
-                        setSelectedEvent(event);
-                        setShowEditModal(true);
-                      }}
-                      className={isEnsayo ? "text-gray-400 hover:text-gray-300" : "text-gray-400 hover:text-gray-600"}
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                      </svg>
-                    </button>
-                  )}
-                </div>
+        {/* Pestañas y Filtros - Mobile Responsive */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 mb-6 sm:mb-8">
+          <div className="flex flex-col sm:flex-row border-b border-gray-200">
+            <button
+              onClick={() => setActiveTab('upcoming')}
+              className={`flex-1 px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-medium border-b-2 sm:border-b-2 transition-colors ${
+                activeTab === 'upcoming'
+                  ? 'border-indigo-500 text-indigo-600 bg-indigo-50'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <Calendar className="w-4 h-4 sm:w-5 sm:h-5 inline mr-1 sm:mr-2" />
+              <span className="hidden sm:inline">Próxima Programación</span>
+              <span className="sm:hidden">Próxima</span>
+              <span className="ml-1">({events.filter(e => new Date(e.date) >= new Date()).length})</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('past')}
+              className={`flex-1 px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-medium border-b-2 sm:border-b-2 transition-colors ${
+                activeTab === 'past'
+                  ? 'border-indigo-500 text-indigo-600 bg-indigo-50'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <Clock className="w-4 h-4 sm:w-5 sm:h-5 inline mr-1 sm:mr-2" />
+              <span className="hidden sm:inline">Programación Pasada</span>
+              <span className="sm:hidden">Pasada</span>
+              <span className="ml-1">({events.filter(e => new Date(e.date) < new Date()).length})</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('calendar')}
+              className={`flex-1 px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-medium border-b-2 sm:border-b-2 transition-colors ${
+                activeTab === 'calendar'
+                  ? 'border-indigo-500 text-indigo-600 bg-indigo-50'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <CalendarDays className="w-4 h-4 sm:w-5 sm:h-5 inline mr-1 sm:mr-2" />
+              <span className="hidden sm:inline">Vista Calendario</span>
+              <span className="sm:hidden">Calendario</span>
+            </button>
+          </div>
 
-                <div className={`space-y-2 text-sm ${secondaryTextClass}`}>
-                <div className="flex items-center space-x-2">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                  <span>{formatDate(event.date)}</span>
-                </div>
-
-                {event.location && (
-                  <div className="flex items-center space-x-2">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                    <span>{event.location.name}</span>
-                  </div>
-                )}
-
-                <div className="flex items-center space-x-2">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
-                  </svg>
-                  <span>{event.eventSongs.length} canciones</span>
-                </div>
-
-                {event.soloists.length > 0 && (
-                  <div className="flex items-center space-x-2">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                    </svg>
-                    <span>{event.soloists.length} solista{event.soloists.length !== 1 ? 's' : ''}</span>
-                  </div>
-                )}
+          {/* Filtros - Mobile Responsive */}
+          <div className="p-3 sm:p-6 bg-gray-50 border-t border-gray-100">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+              {/* Búsqueda */}
+              <div className="relative sm:col-span-2 lg:col-span-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 sm:h-5 sm:w-5" />
+                <input
+                  type="text"
+                  placeholder="Buscar programación..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-9 sm:pl-10 pr-4 py-2 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                />
               </div>
 
-                {event.description && (
-                  <p className={`mt-3 text-sm ${secondaryTextClass} line-clamp-2`}>{event.description}</p>
-                )}
-
-                <button
-                  onClick={() => setSelectedEvent(event)}
-                  className={`mt-4 w-full py-2 px-4 rounded-md transition-colors text-sm font-medium ${
-                    isEnsayo 
-                      ? "bg-gray-700 hover:bg-gray-600 text-gray-200" 
-                      : "bg-gray-50 hover:bg-gray-100 text-gray-700"
-                  }`}
+              {/* Filtro por ciudad */}
+              <div className="relative">
+                <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 sm:h-5 sm:w-5" />
+                <select
+                  value={selectedCity}
+                  onChange={(e) => setSelectedCity(e.target.value)}
+                  className="w-full pl-9 sm:pl-10 pr-4 py-2 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent appearance-none bg-white"
                 >
-                  Ver Detalles
+                  <option value="">Todas las ciudades</option>
+                  {uniqueCities.map(city => (
+                    <option key={city} value={city}>{city}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Filtro por región */}
+              <div className="relative">
+                <Globe className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 sm:h-5 sm:w-5" />
+                <select
+                  value={selectedRegion}
+                  onChange={(e) => setSelectedRegion(e.target.value)}
+                  className="w-full pl-9 sm:pl-10 pr-4 py-2 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent appearance-none bg-white"
+                >
+                  <option value="">Todas las regiones</option>
+                  {uniqueRegions.map(region => (
+                    <option key={region} value={region}>{region}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Stats Cards - Mobile Responsive */}
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-6 sm:mb-8">
+          {/* Eventos Pendientes */}
+          <div className="bg-white/80 backdrop-blur-sm rounded-xl p-3 sm:p-6 border border-gray-100 shadow-lg hover:shadow-xl transition-all duration-200">
+            <div className="flex items-center">
+              <div className="p-2 sm:p-3 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600">
+                <Star className="h-4 w-4 sm:h-6 sm:w-6 text-white" />
+              </div>
+              <div className="ml-3 sm:ml-4">
+                <p className="text-xs sm:text-sm font-medium text-gray-600">Eventos Pendientes</p>
+                <p className="text-lg sm:text-2xl font-bold text-gray-900">
+                  {(() => {
+                    const now = new Date();
+                    now.setHours(0, 0, 0, 0);
+                    return events.filter(e => 
+                      e.category !== 'Ensayo' && 
+                      new Date(e.date) >= now
+                    ).length;
+                  })()}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Ensayos Pendientes */}
+          <div className="bg-white/80 backdrop-blur-sm rounded-xl p-3 sm:p-6 border border-gray-100 shadow-lg hover:shadow-xl transition-all duration-200">
+            <div className="flex items-center">
+              <div className="p-2 sm:p-3 rounded-xl bg-gradient-to-r from-purple-500 to-purple-600">
+                <Music className="h-4 w-4 sm:h-6 sm:w-6 text-white" />
+              </div>
+              <div className="ml-3 sm:ml-4">
+                <p className="text-xs sm:text-sm font-medium text-gray-600">Ensayos Pendientes</p>
+                <p className="text-lg sm:text-2xl font-bold text-gray-900">
+                  {(() => {
+                    const now = new Date();
+                    now.setHours(0, 0, 0, 0);
+                    return events.filter(e => 
+                      e.category === 'Ensayo' && 
+                      new Date(e.date) >= now
+                    ).length;
+                  })()}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Eventos Realizados */}
+          <div className="bg-white/80 backdrop-blur-sm rounded-xl p-3 sm:p-6 border border-gray-100 shadow-lg hover:shadow-xl transition-all duration-200">
+            <div className="flex items-center">
+              <div className="p-2 sm:p-3 rounded-xl bg-gradient-to-r from-green-500 to-green-600">
+                <CheckCircle className="h-4 w-4 sm:h-6 sm:w-6 text-white" />
+              </div>
+              <div className="ml-3 sm:ml-4">
+                <p className="text-xs sm:text-sm font-medium text-gray-600">Eventos Realizados</p>
+                <p className="text-lg sm:text-2xl font-bold text-gray-900">
+                  {(() => {
+                    const now = new Date();
+                    now.setHours(0, 0, 0, 0);
+                    return events.filter(e => 
+                      e.category !== 'Ensayo' && 
+                      new Date(e.date) < now
+                    ).length;
+                  })()}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Ensayos Realizados */}
+          <div className="bg-white/80 backdrop-blur-sm rounded-xl p-3 sm:p-6 border border-gray-100 shadow-lg hover:shadow-xl transition-all duration-200">
+            <div className="flex items-center">
+              <div className="p-2 sm:p-3 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600">
+                <CalendarClock className="h-4 w-4 sm:h-6 sm:w-6 text-white" />
+              </div>
+              <div className="ml-3 sm:ml-4">
+                <p className="text-xs sm:text-sm font-medium text-gray-600">Ensayos Realizados</p>
+                <p className="text-lg sm:text-2xl font-bold text-gray-900">
+                  {(() => {
+                    const now = new Date();
+                    now.setHours(0, 0, 0, 0);
+                    return events.filter(e => 
+                      e.category === 'Ensayo' && 
+                      new Date(e.date) < now
+                    ).length;
+                  })()}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Vista Calendario */}
+        {activeTab === 'calendar' ? (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 mb-8">
+            <div className="p-6">
+              {/* Header del calendario */}
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center space-x-4">
+                  <button
+                    onClick={() => {
+                      const newDate = new Date(currentMonth);
+                      newDate.setMonth(newDate.getMonth() - 1);
+                      setCurrentMonth(newDate);
+                    }}
+                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                  >
+                    <ChevronLeft className="h-5 w-5 text-gray-600" />
+                  </button>
+                  <h2 className="text-xl font-semibold text-gray-900">
+                    {currentMonth.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' }).charAt(0).toUpperCase() + currentMonth.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' }).slice(1)}
+                  </h2>
+                  <button
+                    onClick={() => {
+                      const newDate = new Date(currentMonth);
+                      newDate.setMonth(newDate.getMonth() + 1);
+                      setCurrentMonth(newDate);
+                    }}
+                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                  >
+                    <ChevronRight className="h-5 w-5 text-gray-600" />
+                  </button>
+                </div>
+                <button
+                  onClick={() => setCurrentMonth(new Date())}
+                  className="px-4 py-2 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition-colors text-sm font-medium"
+                >
+                  Hoy
                 </button>
               </div>
-            </div>
-          );
-        })}
-      </div>
 
-      {events?.length === 0 && (
-        <div className="text-center py-12">
-          <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-          </svg>
-          <h3 className="mt-2 text-sm font-medium text-gray-900">No hay eventos</h3>
-          <p className="mt-1 text-sm text-gray-500">
-            {canManageEvents ? 'Comienza creando tu primer evento.' : 'No hay eventos programados actualmente.'}
-          </p>
-        </div>
-      )}
-
-      {/* Event Detail Modal */}
-      {selectedEvent && !showEditModal && (
-        <EventDetailModal
-          event={selectedEvent}
-          onClose={() => setSelectedEvent(null)}
-          canManage={canManageEvents}
-          onEdit={() => setShowEditModal(true)}
-        />
-      )}
-
-      {/* Create Event Modal */}
-      {showCreateModal && (
-        <EventFormModal
-          isOpen={showCreateModal}
-          onClose={() => setShowCreateModal(false)}
-          locations={locations || []}
-          onSuccess={refetchEvents}
-        />
-      )}
-
-      {/* Edit Event Modal */}
-      {showEditModal && selectedEvent && (
-        <EventFormModal
-          isOpen={showEditModal}
-          onClose={() => {
-            setShowEditModal(false);
-            setSelectedEvent(null);
-          }}
-          event={selectedEvent}
-          locations={locations || []}
-          onSuccess={refetchEvents}
-        />
-      )}
-    </div>
-  );
-};
-
-// Event Detail Modal Component
-interface EventDetailModalProps {
-  event: Event;
-  onClose: () => void;
-  canManage: boolean;
-  onEdit: () => void;
-}
-
-const EventDetailModal: React.FC<EventDetailModalProps> = ({ event, onClose, canManage, onEdit }) => {
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('es-ES', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 lg:p-4 z-50">
-      <div className="bg-white rounded-lg max-w-full lg:max-w-4xl w-full max-h-[90vh] overflow-y-auto mx-2 lg:mx-auto">
-        <div className="p-4 lg:p-6">
-          <div className="flex justify-between items-start mb-4">
-            <h2 className="text-xl lg:text-2xl font-bold text-gray-900">{event.title}</h2>
-            <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-gray-600"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-
-          <div className="space-y-4">
-            <div>
-              <h3 className="font-semibold text-gray-900 mb-2">Información General</h3>
-              <div className="space-y-2 text-sm">
-                <p><span className="font-medium">Fecha:</span> {formatDate(event.date)}</p>
-                <p><span className="font-medium">Categoría:</span> {event.category}</p>
-                {event.location && (
-                  <p><span className="font-medium">Ubicación:</span> {event.location.name} - {event.location.city}</p>
-                )}
-                {event.description && (
-                  <p><span className="font-medium">Descripción:</span> {event.description}</p>
-                )}
-              </div>
-            </div>
-
-            {event.eventSongs.length > 0 && (
-              <div>
-                <h3 className="font-semibold text-gray-900 mb-2">Repertorio ({event.eventSongs.length} canciones)</h3>
-                <div className="space-y-2">
-                  {event.eventSongs.map((eventSong, index) => (
-                    <div key={eventSong.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                      <div>
-                        <span className="font-medium text-sm">{index + 1}. {eventSong.song.title}</span>
-                        {eventSong.song.artist && <span className="text-gray-600 text-sm"> - {eventSong.song.artist}</span>}
-                        {eventSong.notes && <p className="text-xs text-gray-500 mt-1">{eventSong.notes}</p>}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Calendario - 50% del ancho */}
+                <div className="lg:col-span-1">
+                  {/* Días de la semana */}
+                  <div className="grid grid-cols-7 gap-1 mb-2">
+                    {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map(day => (
+                      <div key={day} className="p-2 text-center text-sm font-medium text-gray-500">
+                        {day}
                       </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+                    ))}
+                  </div>
 
-            {event.soloists.length > 0 && (
-              <div>
-                <h3 className="font-semibold text-gray-900 mb-2">Solistas ({event.soloists.length})</h3>
-                <div className="space-y-2">
-                  {event.soloists.map(soloist => (
-                    <div key={soloist.id} className="p-2 bg-gray-50 rounded">
-                      <div className="flex justify-between items-start">
-                        <div className="flex items-start space-x-3">
-                          <UserAvatar
-                            user={soloist.user}
-                            size="sm"
-                            backgroundColor="#6b7280"
-                          />
-                          <div className="flex-1">
-                            <p className="font-medium text-sm">{soloist.user.firstName} {soloist.user.lastName}</p>
-                            <p className="text-xs text-gray-600">Tipo: {soloist.soloistType}</p>
-                            {soloist.song && (
-                              <p className="text-xs text-gray-600">Canción: {soloist.song.title}</p>
-                            )}
-                            {soloist.notes && (
-                              <p className="text-xs text-gray-500 mt-1">{soloist.notes}</p>
-                            )}
+                  {/* Días del mes */}
+                  <div className="grid grid-cols-7 gap-1">
+                    {getDaysInMonth(currentMonth).days.map((day, index) => {
+                      const dayEvents = getEventsForDate(day);
+                      const isCurrentMonth = isSameMonth(day, currentMonth);
+                      const isToday = isSameDate(day, new Date());
+                      const isSelected = selectedDate && isSameDate(day, selectedDate);
+                      const hasEvents = dayEvents.length > 0;
+
+                      return (
+                        <div
+                          key={index}
+                          onClick={() => hasEvents ? setSelectedDate(day) : null}
+                          className={`
+                            min-h-[72px] p-2 border border-gray-100 rounded-lg relative transition-all cursor-pointer
+                            ${!isCurrentMonth ? 'bg-gray-50 text-gray-400' : 'bg-white text-gray-900'}
+                            ${isToday ? 'ring-2 ring-indigo-500 bg-indigo-50' : ''}
+                            ${isSelected ? 'bg-indigo-100 border-indigo-300' : ''}
+                            ${hasEvents ? 'hover:bg-gray-50' : ''}
+                          `}
+                        >
+                          <div className="text-sm font-medium mb-1">
+                            {day.getDate()}
                           </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="flex justify-end space-x-3 mt-6">
-            <button
-              onClick={onClose}
-              className="px-4 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50"
-            >
-              Cerrar
-            </button>
-            {canManage && (
-              <button
-                onClick={onEdit}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-              >
-                Editar Evento
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// Modal para crear/editar eventos
-const EventFormModal: React.FC<{
-  isOpen: boolean;
-  onClose: () => void;
-  event?: Event | null;
-  locations: Location[];
-  onSuccess: () => void;
-}> = ({ isOpen, onClose, event, locations, onSuccess }) => {
-  const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    date: '',
-    time: '',
-    category: 'Evento',
-    locationId: '',
-    eventCity: '',
-    eventAddress: '',
-    country: 'Chile',
-    mapLink: '',
-    isPublic: true,
-    allowExternalJoin: false
-  });
-
-  const [selectedAttendees, setSelectedAttendees] = useState<string[]>([]);
-  const [selectedChoirs, setSelectedChoirs] = useState<string[]>([]);
-  const [selectedPlaylists, setSelectedPlaylists] = useState<string[]>([]);
-  const [selectedSongs, setSelectedSongs] = useState<string[]>([]);
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [activeTab, setActiveTab] = useState<'basic' | 'attendees' | 'content'>('basic');
-
-  const { token } = useAuthStore();
-
-  // Fetch data for the form
-  const { data: singers } = useQuery({
-    queryKey: ['singers-by-location'],
-    queryFn: async () => {
-      const response = await fetch('/api/events/locations/singers', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (!response.ok) throw new Error('Failed to fetch singers');
-      const result = await response.json();
-      return result.data;
-    },
-    enabled: isOpen
-  });
-
-  const { data: playlists } = useQuery({
-    queryKey: ['playlists'],
-    queryFn: async () => {
-      const response = await fetch('/api/playlists', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (!response.ok) throw new Error('Failed to fetch playlists');
-      const result = await response.json();
-      return result.data;
-    },
-    enabled: isOpen
-  });
-
-  const { data: songs } = useQuery({
-    queryKey: ['songs'],
-    queryFn: async () => {
-      const response = await fetch('/api/songs', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (!response.ok) throw new Error('Failed to fetch songs');
-      const result = await response.json();
-      return result.data;
-    },
-    enabled: isOpen
-  });
-
-  React.useEffect(() => {
-    if (event) {
-      const eventDate = new Date(event.date);
-      setFormData({
-        title: event.title,
-        description: event.description || '',
-        date: eventDate.toISOString().split('T')[0],
-        time: event.time || eventDate.toTimeString().slice(0, 5),
-        category: event.category || 'Evento',
-        locationId: event.location?.id || '',
-        eventCity: event.eventCity || '',
-        eventAddress: event.eventAddress || '',
-        country: event.country || 'Chile',
-        mapLink: event.mapLink || '',
-        isPublic: event.isPublic ?? true,
-        allowExternalJoin: event.allowExternalJoin ?? false
-      });
-      
-      // Cargar asistentes existentes
-      setSelectedAttendees(event.attendees?.map(a => a.userId) || []);
-      
-      // Cargar playlists y canciones existentes
-      setSelectedPlaylists(event.eventPlaylists?.map(ep => ep.playlistId) || []);
-      setSelectedSongs(event.eventSongs?.map(es => es.song.id) || []);
-    } else {
-      setFormData({
-        title: '',
-        description: '',
-        date: '',
-        time: '',
-        category: 'Evento',
-        locationId: '',
-        eventCity: '',
-        eventAddress: '',
-        country: 'Chile',
-        mapLink: '',
-        isPublic: true,
-        allowExternalJoin: false
-      });
-      setSelectedAttendees([]);
-      setSelectedChoirs([]);
-      setSelectedPlaylists([]);
-      setSelectedSongs([]);
-      setImageFile(null);
-    }
-  }, [event, isOpen]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    try {
-      const formDataToSend = new FormData();
-      
-      // Datos básicos del evento
-      formDataToSend.append('title', formData.title);
-      formDataToSend.append('description', formData.description);
-      formDataToSend.append('date', formData.date);
-      formDataToSend.append('time', formData.time);
-      formDataToSend.append('category', formData.category);
-      formDataToSend.append('eventCity', formData.eventCity);
-      formDataToSend.append('eventAddress', formData.eventAddress);
-      formDataToSend.append('country', formData.country);
-      formDataToSend.append('mapLink', formData.mapLink);
-      formDataToSend.append('isPublic', formData.isPublic.toString());
-      formDataToSend.append('allowExternalJoin', formData.allowExternalJoin.toString());
-      
-      if (formData.locationId) {
-        formDataToSend.append('locationId', formData.locationId);
-      }
-
-      // Imagen
-      if (imageFile) {
-        formDataToSend.append('image', imageFile);
-      }
-
-      // Asistentes
-      formDataToSend.append('attendeeUserIds', JSON.stringify(selectedAttendees));
-      formDataToSend.append('attendeeLocationIds', JSON.stringify(selectedChoirs));
-      
-      // Contenido musical
-      formDataToSend.append('playlistIds', JSON.stringify(selectedPlaylists));
-      formDataToSend.append('songIds', JSON.stringify(selectedSongs));
-
-      const url = event ? `/api/events/${event.id}` : '/api/events';
-      const method = event ? 'PUT' : 'POST';
-
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
-        body: formDataToSend
-      });
-
-      if (!response.ok) {
-        throw new Error('Error al guardar el evento');
-      }
-
-      onSuccess();
-      onClose();
-    } catch (error) {
-      console.error('Error:', error);
-      alert('Error al guardar el evento');
-    }
-  };
-
-  const handleAddEntireChoir = (locationId: string) => {
-    if (selectedChoirs.includes(locationId)) {
-      setSelectedChoirs(prev => prev.filter(id => id !== locationId));
-    } else {
-      setSelectedChoirs(prev => [...prev, locationId]);
-    }
-  };
-
-  const handleToggleAttendee = (userId: string) => {
-    if (selectedAttendees.includes(userId)) {
-      setSelectedAttendees(prev => prev.filter(id => id !== userId));
-    } else {
-      setSelectedAttendees(prev => [...prev, userId]);
-    }
-  };
-
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden">
-        <div className="p-6">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold text-gray-900">
-              {event ? 'Editar Evento' : 'Crear Nuevo Evento'}
-            </h2>
-            <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-gray-600"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-
-          {/* Tabs */}
-          <div className="border-b border-gray-200 mb-6">
-            <nav className="-mb-px flex space-x-8">
-              <button
-                onClick={() => setActiveTab('basic')}
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === 'basic'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                Información Básica
-              </button>
-              <button
-                onClick={() => setActiveTab('attendees')}
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === 'attendees'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                Asistentes ({selectedAttendees.length + selectedChoirs.reduce((total, choirId) => 
-                  total + (singers?.find((s: LocationWithUsers) => s.id === choirId)?.users?.length || 0), 0)})
-              </button>
-              <button
-                onClick={() => setActiveTab('content')}
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === 'content'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                Contenido Musical ({selectedPlaylists.length + selectedSongs.length})
-              </button>
-            </nav>
-          </div>
-
-          <form onSubmit={handleSubmit} className="overflow-y-auto max-h-[60vh]">
-            {/* Tab: Información Básica */}
-            {activeTab === 'basic' && (
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Título del Evento *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={formData.title}
-                      onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Nombre del evento"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Categoría *
-                    </label>
-                    <select
-                      required
-                      value={formData.category}
-                      onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="Evento">Evento</option>
-                      <option value="Ensayo">Ensayo</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Fecha *
-                    </label>
-                    <input
-                      type="date"
-                      required
-                      value={formData.date}
-                      onChange={(e) => setFormData(prev => ({ ...prev, date: e.target.value }))}
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Hora *
-                    </label>
-                    <input
-                      type="time"
-                      required
-                      value={formData.time}
-                      onChange={(e) => setFormData(prev => ({ ...prev, time: e.target.value }))}
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Ubicación Organizadora (Coro)
-                    </label>
-                    <select
-                      value={formData.locationId}
-                      onChange={(e) => setFormData(prev => ({ ...prev, locationId: e.target.value }))}
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="">Seleccionar coro organizador...</option>
-                      {locations?.map(location => (
-                        <option key={location.id} value={location.id}>
-                          {location.name} - {location.city}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Ciudad del Evento
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.eventCity}
-                      onChange={(e) => setFormData(prev => ({ ...prev, eventCity: e.target.value }))}
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Ciudad donde se realizará"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Dirección del Evento
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.eventAddress}
-                    onChange={(e) => setFormData(prev => ({ ...prev, eventAddress: e.target.value }))}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Dirección completa del evento"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Enlace de Google Maps
-                  </label>
-                  <input
-                    type="url"
-                    value={formData.mapLink}
-                    onChange={(e) => setFormData(prev => ({ ...prev, mapLink: e.target.value }))}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="https://maps.google.com/..."
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Descripción
-                  </label>
-                  <textarea
-                    value={formData.description}
-                    onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                    rows={4}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Descripción del evento..."
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Imagen del Evento
-                  </label>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => setImageFile(e.target.files?.[0] || null)}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        checked={formData.isPublic}
-                        onChange={(e) => setFormData(prev => ({ ...prev, isPublic: e.target.checked }))}
-                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                      />
-                      <span className="text-sm text-gray-700">Evento público (visible para todos los cantantes)</span>
-                    </label>
-                  </div>
-
-                  <div>
-                    <label className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        checked={formData.allowExternalJoin}
-                        onChange={(e) => setFormData(prev => ({ ...prev, allowExternalJoin: e.target.checked }))}
-                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                      />
-                      <span className="text-sm text-gray-700">Permitir solicitudes de unión externa</span>
-                    </label>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Tab: Asistentes */}
-            {activeTab === 'attendees' && (
-              <div className="space-y-6">
-                <div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">Seleccionar Asistentes</h3>
-                  
-                  <div className="space-y-6">
-                    {/* Agregar coros completos */}
-                    <div>
-                      <h4 className="text-md font-medium text-gray-800 mb-3">Agregar Coros Completos</h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {singers?.map((location: LocationWithUsers) => (
-                          <div key={location.id} className="border border-gray-200 rounded-lg p-4">
-                            <div className="flex items-center justify-between mb-2">
-                              <div>
-                                <h5 className="font-medium text-gray-900">{location.name}</h5>
-                                <p className="text-sm text-gray-600">{location.city} - {location.users.length} cantantes</p>
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() => handleAddEntireChoir(location.id)}
-                                className={`px-3 py-1 rounded text-xs font-medium ${
-                                  selectedChoirs.includes(location.id)
-                                    ? 'bg-blue-100 text-blue-800'
-                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                }`}
-                              >
-                                {selectedChoirs.includes(location.id) ? 'Agregado' : 'Agregar Coro'}
-                              </button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Agregar cantantes individuales */}
-                    <div>
-                      <h4 className="text-md font-medium text-gray-800 mb-3">Agregar Cantantes Individuales</h4>
-                      <div className="space-y-4">
-                        {singers?.map((location: LocationWithUsers) => (
-                          <div key={location.id} className="border border-gray-200 rounded-lg p-4">
-                            <h5 className="font-medium text-gray-900 mb-3">{location.name} - {location.city}</h5>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                              {location.users.map((user: User) => (
-                                <label key={user.id} className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-2 rounded">
-                                  <input
-                                    type="checkbox"
-                                    checked={selectedAttendees.includes(user.id)}
-                                    onChange={() => handleToggleAttendee(user.id)}
-                                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                                  />
-                                  <UserAvatar
-                                    user={user}
-                                    size="sm"
-                                    backgroundColor="#6b7280"
-                                  />
-                                  <span className="text-sm text-gray-700">
-                                    {user.firstName} {user.lastName}
-                                  </span>
-                                </label>
+                          
+                          {/* Franjas de eventos */}
+                          {hasEvents && (
+                            <div className="space-y-1">
+                              {dayEvents.slice(0, 3).map((event, eventIndex) => (
+                                <div
+                                  key={eventIndex}
+                                  className={`
+                                    h-1 rounded-full
+                                    ${event.category === 'Ensayo' ? 'bg-gray-400' : 'bg-purple-400'}
+                                  `}
+                                  title={event.title}
+                                />
                               ))}
+                              {dayEvents.length > 3 && (
+                                <div className="text-xs text-gray-500 mt-1">
+                                  +{dayEvents.length - 3} más
+                                </div>
+                              )}
                             </div>
-                          </div>
-                        ))}
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Panel lateral - Eventos del día seleccionado */}
+                <div className="lg:col-span-1">
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <h3 className="font-medium text-gray-900 mb-4">
+                      {selectedDate 
+                        ? `Eventos - ${selectedDate.toLocaleDateString('es-ES', { day: 'numeric', month: 'long' })}`
+                        : 'Selecciona un día'
+                      }
+                    </h3>
+                    
+                    {selectedDate ? (
+                      <div className="space-y-3">
+                        {getEventsForDate(selectedDate).map((event) => {
+                          const isEnsayo = event.category === 'Ensayo';
+                          return (
+                            <div
+                              key={event.id}
+                              className={`
+                                p-4 rounded-lg border transition-all duration-200 hover:shadow-md
+                                ${isEnsayo 
+                                  ? 'bg-gray-800 text-white border-gray-700' 
+                                  : 'bg-white text-gray-900 border-gray-200'
+                                }
+                              `}
+                            >
+                              {/* Encabezado con tipo de evento */}
+                              <div className="flex items-center space-x-2 mb-3">
+                                {isEnsayo ? (
+                                  <Music className="h-4 w-4" />
+                                ) : (
+                                  <Star className="h-4 w-4" />
+                                )}
+                                <span className="text-xs font-medium">
+                                  {isEnsayo ? 'Ensayo' : 'Evento'}
+                                </span>
+                                {event.time && (
+                                  <span className="text-xs opacity-75">
+                                    {event.time}
+                                  </span>
+                                )}
+                              </div>
+                              
+                              {/* Layout principal: título/lugar a la izquierda, botones a la derecha */}
+                              <div className="flex items-start justify-between">
+                                {/* Lado izquierdo: Título y lugar */}
+                                <div className="flex-1 min-w-0 mr-3">
+                                  <h4 className="font-medium text-sm line-clamp-1 mb-1">
+                                    {event.title}
+                                  </h4>
+                                  {event.eventCity && (
+                                    <p className="text-xs opacity-75">
+                                      {event.eventCity}
+                                    </p>
+                                  )}
+                                </div>
+                                
+                                {/* Lado derecho: Indicadores y botones horizontales */}
+                                <div className="flex items-center space-x-2">
+                                  {/* Indicadores de estado */}
+                                  {event.attendees && event.attendees.some(a => a.status === 'PENDING') && (
+                                    <div className="relative group">
+                                      <AlertCircle className="h-4 w-4 text-amber-500" />
+                                    </div>
+                                  )}
+                                  
+                                  {/* Solicitudes pendientes */}
+                                  {event.allowExternalJoin && (event._count?.joinRequests ?? 0) > 0 && (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleViewRequests(event);
+                                      }}
+                                      className="relative hover:bg-orange-50 rounded-full p-1"
+                                      title={`${event._count?.joinRequests ?? 0} solicitudes pendientes`}
+                                    >
+                                      <UserPlus className="h-4 w-4 text-orange-500" />
+                                      <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">
+                                        {event._count?.joinRequests ?? 0}
+                                      </span>
+                                    </button>
+                                  )}
+                                  
+                                  {/* Contador de canciones */}
+                                  {(event._count?.uniqueEventSongs ?? event._count?.eventSongs ?? 0) > 0 && (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handlePlayEvent(event);
+                                      }}
+                                      className={`flex items-center px-2 py-1 rounded-lg transition-all duration-200 ${
+                                        isEnsayo 
+                                          ? 'text-green-400 bg-green-900/30 hover:text-green-300 hover:bg-green-900/50' 
+                                          : 'text-green-600 bg-green-50 hover:text-green-700 hover:bg-green-100'
+                                      }`}
+                                      title="Reproducir como playlist"
+                                    >
+                                      <span className="text-sm font-medium mr-1">
+                                        {event._count?.uniqueEventSongs ?? event._count?.eventSongs ?? 0}
+                                      </span>
+                                      <Play className="h-4 w-4" />
+                                    </button>
+                                  )}
+                                  
+                                  {/* Botones de acción */}
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleViewDetails(event);
+                                    }}
+                                    className={`p-2 rounded-lg transition-all duration-200 ${
+                                      isEnsayo 
+                                        ? 'text-blue-400 hover:text-blue-300 hover:bg-blue-900/30' 
+                                        : 'text-blue-500 hover:text-blue-700 hover:bg-blue-50'
+                                    }`}
+                                    title="Ver detalles"
+                                  >
+                                    <Eye className="h-4 w-4" />
+                                  </button>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleEditEvent(event);
+                                    }}
+                                    className={`p-2 rounded-lg transition-all duration-200 ${
+                                      isEnsayo 
+                                        ? 'text-purple-400 hover:text-purple-300 hover:bg-purple-900/30' 
+                                        : 'text-purple-500 hover:text-purple-700 hover:bg-purple-50'
+                                    }`}
+                                    title="Editar evento"
+                                  >
+                                    <Edit className="h-4 w-4" />
+                                  </button>
+                                  <button
+                                    className={`p-2 rounded-lg transition-all duration-200 ${
+                                      isEnsayo 
+                                        ? 'text-red-400 hover:text-red-300 hover:bg-red-900/30' 
+                                        : 'text-red-500 hover:text-red-700 hover:bg-red-50'
+                                    }`}
+                                    title="Eliminar evento"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                        
+                        {getEventsForDate(selectedDate).length === 0 && (
+                          <p className="text-sm text-gray-500 text-center py-4">
+                            No hay eventos programados para este día
+                          </p>
+                        )}
                       </div>
-                    </div>
+                    ) : (
+                      <p className="text-sm text-gray-500 text-center py-8">
+                        Haz clic en un día con eventos para ver los detalles
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
-            )}
+            </div>
+          </div>
+        ) : (
+          /* Events Grid */
+          <div></div>
+        )}
 
-            {/* Tab: Contenido Musical */}
-            {activeTab === 'content' && (
-              <div className="space-y-6">
-                <div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">Contenido Musical del Evento</h3>
-                  
-                  {/* Playlists */}
-                  <div className="mb-6">
-                    <h4 className="text-md font-medium text-gray-800 mb-3">Playlists</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {playlists?.map((playlist: Playlist) => (
-                        <label key={playlist.id} className="flex items-start space-x-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50">
-                          <input
-                            type="checkbox"
-                            checked={selectedPlaylists.includes(playlist.id)}
-                            onChange={() => {
-                              if (selectedPlaylists.includes(playlist.id)) {
-                                setSelectedPlaylists(prev => prev.filter(id => id !== playlist.id));
-                              } else {
-                                setSelectedPlaylists(prev => [...prev, playlist.id]);
-                              }
-                            }}
-                            className="mt-1 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                          />
-                          <div>
-                            <p className="font-medium text-gray-900">{playlist.name}</p>
-                            {playlist.description && (
-                              <p className="text-sm text-gray-600">{playlist.description}</p>
-                            )}
-                            <p className="text-xs text-gray-500">{playlist.items?.length || 0} canciones</p>
-                          </div>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Canciones individuales */}
-                  <div>
-                    <h4 className="text-md font-medium text-gray-800 mb-3">Canciones Individuales</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-60 overflow-y-auto">
-                      {songs?.map((song: Song) => (
-                        <label key={song.id} className="flex items-center space-x-2 p-2 hover:bg-gray-50 rounded">
-                          <input
-                            type="checkbox"
-                            checked={selectedSongs.includes(song.id)}
-                            onChange={() => {
-                              if (selectedSongs.includes(song.id)) {
-                                setSelectedSongs(prev => prev.filter(id => id !== song.id));
-                              } else {
-                                setSelectedSongs(prev => [...prev, song.id]);
-                              }
-                            }}
-                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                          />
-                          <div>
-                            <p className="text-sm font-medium text-gray-900">{song.title}</p>
-                            {song.artist && (
-                              <p className="text-xs text-gray-600">{song.artist}</p>
-                            )}
-                          </div>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <div className="flex justify-end space-x-3 pt-6 mt-6 border-t">
+        {/* Events Grid - Solo para las pestañas upcoming y past */}
+        {activeTab !== 'calendar' && (
+          error ? (
+          <div className="text-center py-12">
+            <div className="bg-red-50 border border-red-200 rounded-xl p-6 max-w-md mx-auto">
+              <h3 className="text-lg font-medium text-red-800 mb-2">Error</h3>
+              <p className="text-red-600 mb-4">{error}</p>
               <button
-                type="button"
-                onClick={onClose}
-                className="px-4 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50"
+                onClick={fetchEvents}
+                className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
               >
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-              >
-                {event ? 'Actualizar Evento' : 'Crear Evento'}
+                Reintentar
               </button>
             </div>
-          </form>
-        </div>
+          </div>
+        ) : filteredEvents.length === 0 ? (
+          <div className="text-center py-12">
+            <div className="bg-white/80 backdrop-blur-sm rounded-xl p-8 border border-gray-100 shadow-lg max-w-md mx-auto">
+              <Calendar className="mx-auto h-16 w-16 text-gray-400 mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                {searchTerm ? 'No se encontró programación' : 'No hay programación creada'}
+              </h3>
+              <p className="text-gray-500 mb-4">
+                {searchTerm 
+                  ? 'Intenta con otros términos de búsqueda'
+                  : 'Crea tu primera programación para comenzar'
+                }
+              </p>
+              {!searchTerm && (
+                <button
+                  onClick={() => setShowCreateModal(true)}
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 transition-all duration-200"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Crear Primera Programación
+                </button>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+            {filteredEvents.map((event) => {
+              const isEnsayo = event.category === 'Ensayo';
+              const cardClass = isEnsayo 
+                ? "bg-gray-800/90 backdrop-blur-sm rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-700 overflow-hidden group" 
+                : "bg-white/80 backdrop-blur-sm rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100 overflow-hidden group";
+              
+              return (
+                <div
+                  key={event.id}
+                  className={`${cardClass} flex flex-col h-full`}
+                >
+                {/* Event Image - Mobile Responsive */}
+                {event.imageUrl ? (
+                  <img
+                    src={event.imageUrl}
+                    alt={event.title}
+                    className="w-full h-36 sm:h-48 object-cover group-hover:scale-105 transition-transform duration-300"
+                  />
+                ) : (
+                  <div className="w-full h-36 sm:h-48 bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center group-hover:from-indigo-600 group-hover:to-purple-700 transition-all duration-300">
+                    <Music className="h-12 w-12 sm:h-16 sm:w-16 text-white opacity-80" />
+                  </div>
+                )}
+
+                <div className="p-4 sm:p-6 flex flex-col flex-1">
+                  {/* Fila 1: Título completo - Mobile Responsive */}
+                  <div className="mb-2 sm:mb-3">
+                    <h3 className={`text-base sm:text-lg font-bold line-clamp-2 ${isEnsayo ? 'text-white' : 'text-gray-900'}`}>
+                      {event.title}
+                    </h3>
+                  </div>
+
+                  {/* Fila 2: Todas las etiquetas - Mobile Responsive */}
+                  <div className="flex flex-wrap gap-1 sm:gap-2 mb-3 sm:mb-4">
+                    {/* Etiqueta de categoría con icono - Mobile Responsive */}
+                    {event.category && (
+                      <span className={`inline-flex items-center px-2 sm:px-3 py-1 rounded-full text-xs font-bold shadow-md ${
+                        isEnsayo 
+                          ? 'bg-gradient-to-r from-orange-600 to-red-600 text-white border border-orange-500/50' 
+                          : 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white'
+                      }`}>
+                        {isEnsayo ? (
+                          <Music className="h-2 w-2 sm:h-3 sm:w-3 mr-1" />
+                        ) : (
+                          <Calendar className="h-2 w-2 sm:h-3 sm:w-3 mr-1" />
+                        )}
+                        <span className="text-xs">{event.category}</span>
+                      </span>
+                    )}
+
+                    {/* Etiqueta Público/Privado */}
+                    {event.isPublic ? (
+                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                        isEnsayo 
+                          ? 'bg-green-800 text-green-200' 
+                          : 'bg-green-100 text-green-800'
+                      }`}>
+                        <Globe className="h-3 w-3 mr-1" />
+                        Público
+                      </span>
+                    ) : (
+                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                        isEnsayo 
+                          ? 'bg-gray-700 text-gray-300' 
+                          : 'bg-gray-100 text-gray-800'
+                      }`}>
+                        <Lock className="h-3 w-3 mr-1" />
+                        Privado
+                      </span>
+                    )}
+                    
+                    {/* Etiqueta "Abierto a Postulaciones" */}
+                    {event.allowExternalJoin && (
+                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                        isEnsayo 
+                          ? 'bg-blue-800 text-blue-200' 
+                          : 'bg-blue-100 text-blue-800'
+                      }`}>
+                        <UserPlus className="h-3 w-3 mr-1" />
+                        Abierto a Postulaciones
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Fila 3: Fecha, Hora y Lugar - Mobile Responsive */}
+                  <div className={`flex flex-col gap-1 sm:gap-2 mb-3 sm:mb-4 ${isEnsayo ? 'text-gray-400' : 'text-slate-600'}`}>
+                    {/* Fecha y Hora */}
+                    <div className="flex items-center flex-wrap">
+                      <Calendar className={`h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2 ${isEnsayo ? 'text-indigo-400' : 'text-indigo-500'}`} />
+                      <span className="text-xs sm:text-sm font-medium">
+                        {formatDate(event.date)}
+                      </span>
+                      {event.time && (
+                        <>
+                          <Clock className={`h-3 w-3 sm:h-4 sm:w-4 ml-2 sm:ml-4 mr-1 sm:mr-2 ${isEnsayo ? 'text-emerald-400' : 'text-emerald-500'}`} />
+                          <span className="text-xs sm:text-sm font-medium">{formatTime(event.time)}</span>
+                        </>
+                      )}
+                    </div>
+
+                    {/* Lugar */}
+                    <div className="flex items-center">
+                      <MapPin className={`h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2 ${isEnsayo ? 'text-red-400' : 'text-red-500'}`} />
+                      <span className="text-xs sm:text-sm font-medium line-clamp-1">
+                        {event.eventCity || event.location?.city || 'Ubicación por confirmar'}
+                        {event.eventAddress && `, ${event.eventAddress}`}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Spacer para empujar los botones hacia abajo */}
+                  <div className="flex-1"></div>
+
+                  {/* Stats - Mobile Responsive */}
+                  <div className={`flex items-center justify-between pt-3 sm:pt-4 border-t ${isEnsayo ? 'border-gray-600' : 'border-gray-100'} mt-auto`}>
+                    <div className="flex items-center space-x-2 sm:space-x-4">
+                      <div className={`flex items-center px-2 sm:px-3 py-1 sm:py-2 rounded-lg ${
+                        isEnsayo 
+                          ? 'bg-gradient-to-r from-blue-700/40 to-indigo-700/40 border border-blue-600/30'
+                          : 'bg-indigo-50'
+                      }`}>
+                        <Users className={`h-3 w-3 sm:h-5 sm:w-5 mr-1 sm:mr-2 ${isEnsayo ? 'text-blue-300' : 'text-indigo-500'}`} />
+                        <span className={`text-xs sm:text-sm font-bold ${isEnsayo ? 'text-blue-200' : 'text-indigo-700'}`}>
+                          {event._count?.attendees || 0} 
+                        </span>
+                        {/* Indicador de asistentes pendientes */}
+                        {event.attendees && event.attendees.filter(a => a.status === 'PENDING').length > 0 && (
+                          <div className="ml-2 relative group">
+                            <AlertCircle className="h-4 w-4 text-amber-500 animate-pulse" />
+                            <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block z-10">
+                              <div className="bg-gray-800 text-white text-xs rounded py-1 px-2 whitespace-nowrap">
+                                {event.attendees.filter(a => a.status === 'PENDING').length} por confirmar
+                              </div>
+                              <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-2 border-r-2 border-t-2 border-transparent border-t-gray-800"></div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Mostrar solicitudes como badge solo si hay más de 0 y permite solicitudes externas */}
+                      {event.allowExternalJoin && (event._count?.joinRequests ?? 0) > 0 && (
+                        <div className="flex items-center">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation(); // Evitar que abra el modal normal
+                              handleViewRequests(event);
+                            }}
+                            className="relative hover:bg-orange-50 rounded-full p-1 transition-all duration-200"
+                            title={`${event._count?.joinRequests ?? 0} solicitudes pendientes - Clic para ver`}
+                          >
+                            <UserPlus className="h-4 w-4 text-orange-500" />
+                            <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                              {event._count?.joinRequests ?? 0}
+                            </span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="flex items-center space-x-2">
+                      {/* Contador de canciones */}
+                      {(event._count?.uniqueEventSongs ?? event._count?.eventSongs ?? 0) > 0 && (
+                        <button
+                          onClick={() => handlePlayEvent(event)}
+                          disabled={playLoading}
+                          className={`flex items-center px-2 py-1 rounded-lg transition-all duration-200 disabled:opacity-50 ${
+                            isEnsayo 
+                              ? 'text-green-400 bg-green-900/30 hover:text-green-300 hover:bg-green-900/50' 
+                              : 'text-green-600 bg-green-50 hover:text-green-700 hover:bg-green-100'
+                          }`}
+                          title="Reproducir como playlist"
+                        >
+                          <span className="text-sm font-medium mr-1">
+                            {event._count?.uniqueEventSongs ?? event._count?.eventSongs ?? 0}
+                          </span>
+                          <Play className="h-4 w-4" />
+                        </button>
+                      )}
+                      <button
+                        onClick={() => handleViewDetails(event)}
+                        className={`p-2 rounded-lg transition-all duration-200 ${
+                          isEnsayo 
+                            ? 'text-blue-400 hover:text-blue-300 hover:bg-blue-900/30' 
+                            : 'text-blue-500 hover:text-blue-700 hover:bg-blue-50'
+                        }`}
+                        title="Ver detalles"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => handleEditEvent(event)}
+                        className={`p-2 rounded-lg transition-all duration-200 ${
+                          isEnsayo 
+                            ? 'text-purple-400 hover:text-purple-300 hover:bg-purple-900/30' 
+                            : 'text-purple-500 hover:text-purple-700 hover:bg-purple-50'
+                        }`}
+                        title="Editar evento"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </button>
+                      <button
+                        className={`p-2 rounded-lg transition-all duration-200 ${
+                          isEnsayo 
+                            ? 'text-red-400 hover:text-red-300 hover:bg-red-900/30' 
+                            : 'text-red-500 hover:text-red-700 hover:bg-red-50'
+                        }`}
+                        title="Eliminar evento"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              );
+            })}
+          </div>
+        ))}
+
+        {/* Modals */}
+        {showCreateModal && (
+          <CreateEventModal
+            onClose={() => setShowCreateModal(false)}
+            onEventCreated={handleEventCreated}
+          />
+        )}
+
+        {showEditModal && eventToEdit && (
+          <CreateEventModal
+            onClose={() => {
+              setShowEditModal(false);
+              setEventToEdit(null);
+            }}
+            onEventCreated={handleEventUpdated}
+            editMode={true}
+            eventData={eventToEdit as Parameters<typeof CreateEventModal>[0]['eventData']}
+          />
+        )}
+
+        {showDetailsModal && selectedEvent && (
+          <EventDetailsModal
+            event={selectedEvent}
+            onClose={() => {
+              setShowDetailsModal(false);
+              setInitialModalTab('info'); // Reset a info por defecto
+            }}
+            onEventUpdated={async () => {
+              // Primero actualizar la lista completa
+              await fetchEvents();
+              
+              // Luego recargar el evento seleccionado con datos frescos
+              const updatedEvent = await reloadEventById(selectedEvent.id);
+              if (updatedEvent) {
+                console.log(`🔄 [EVENT UPDATE] Updated selectedEvent:`, updatedEvent);
+                setSelectedEvent(updatedEvent);
+              }
+            }}
+            initialTab={initialModalTab}
+          />
+        )}
       </div>
     </div>
   );

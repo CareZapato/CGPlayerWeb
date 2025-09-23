@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Calendar, Users, Music, Settings, BarChart3, Database } from 'lucide-react';
-import EventManagement from '../components/EventManagement';
+import EventManagement from '../components/Management/EventManagement';
 import BackupManagement from '../components/BackupManagement';
 
 const AdminPage: React.FC = () => {
