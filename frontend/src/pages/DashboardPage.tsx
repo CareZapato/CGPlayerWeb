@@ -856,55 +856,79 @@ const DashboardPage: React.FC = () => {
           })()}
 
           {/* Leyenda del gráfico */}
-          <div className="space-y-2">
+          <div className="space-y-3">
             {getVoiceDistribution().map((voice: VoiceDistribution) => (
               <React.Fragment key={voice.voiceType}>
                 <div 
-                  className="flex items-center justify-between p-2 rounded hover:bg-gray-50 cursor-pointer"
+                  className="group relative bg-gradient-to-r from-gray-50 to-gray-100 hover:from-gray-100 hover:to-gray-200 border border-gray-200 rounded-xl p-4 cursor-pointer transition-all duration-200 hover:shadow-md hover:scale-[1.01]"
                   onClick={() => toggleVoiceTypeExpansion(voice.voiceType)}
                 >
-                  <div className="flex items-center space-x-3">
-                    <div 
-                      className="w-3 h-3 rounded-full"
-                      style={{ backgroundColor: getVoiceTypeColor(voice.voiceType) }}
-                    ></div>
-                    <span className="text-sm font-medium text-gray-900">
-                      {getVoiceTypeLabel(voice.voiceType)}
-                    </span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <span className="text-sm text-gray-600">
-                      {voice.count} total
-                    </span>
-                    <div className="flex items-center space-x-1">
-                      {voice.activeCount > 0 && (
-                        <span className="text-xs text-green-600 flex items-center">
-                          <span className="w-1.5 h-1.5 bg-green-500 rounded-full mr-1"></span>
-                          {voice.activeCount}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-4">
+                      <div className="relative">
+                        <div 
+                          className="w-5 h-5 rounded-full shadow-lg"
+                          style={{ backgroundColor: getVoiceTypeColor(voice.voiceType) }}
+                        ></div>
+                        <div 
+                          className="absolute inset-0 w-5 h-5 rounded-full opacity-30 blur-sm"
+                          style={{ backgroundColor: getVoiceTypeColor(voice.voiceType) }}
+                        ></div>
+                      </div>
+                      <div>
+                        <span className="text-base font-semibold text-gray-900">
+                          {getVoiceTypeLabel(voice.voiceType)}
                         </span>
-                      )}
-                      {voice.riskyCount > 0 && (
-                        <span className="text-xs text-yellow-600 flex items-center">
-                          <span className="w-1.5 h-1.5 bg-yellow-500 rounded-full mr-1"></span>
-                          {voice.riskyCount}
-                        </span>
-                      )}
-                      {voice.inactiveCount > 0 && (
-                        <span className="text-xs text-red-600 flex items-center">
-                          <span className="w-1.5 h-1.5 bg-red-500 rounded-full mr-1"></span>
-                          {voice.inactiveCount}
-                        </span>
-                      )}
+                        <div className="text-sm text-gray-500 font-medium">
+                          {voice.count} cantante{voice.count !== 1 ? 's' : ''} total
+                        </div>
+                      </div>
                     </div>
-                    <span className="text-xs text-gray-400">
-                      {expandedVoiceTypes.has(voice.voiceType) ? '▲' : '▼'}
-                    </span>
+                    <div className="flex items-center space-x-3">
+                      <div className="flex items-center space-x-2">
+                        {voice.activeCount > 0 && (
+                          <div className="flex items-center bg-green-100 text-green-800 px-2 py-1 rounded-lg text-xs font-semibold">
+                            <div className="w-2 h-2 bg-green-500 rounded-full mr-1"></div>
+                            {voice.activeCount} activos
+                          </div>
+                        )}
+                        {voice.riskyCount > 0 && (
+                          <div className="flex items-center bg-yellow-100 text-yellow-800 px-2 py-1 rounded-lg text-xs font-semibold">
+                            <div className="w-2 h-2 bg-yellow-500 rounded-full mr-1"></div>
+                            {voice.riskyCount} en riesgo
+                          </div>
+                        )}
+                        {voice.inactiveCount > 0 && (
+                          <div className="flex items-center bg-red-100 text-red-800 px-2 py-1 rounded-lg text-xs font-semibold">
+                            <div className="w-2 h-2 bg-red-500 rounded-full mr-1"></div>
+                            {voice.inactiveCount} inactivos
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex items-center justify-center w-8 h-8 bg-white rounded-full shadow-sm group-hover:shadow-md transition-all duration-200">
+                        <span className={`text-sm font-bold transition-transform duration-200 ${
+                          expandedVoiceTypes.has(voice.voiceType) ? 'rotate-180 text-blue-600' : 'text-gray-400'
+                        }`}>
+                          ▼
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 </div>
                 
                 {/* Lista expandible de usuarios */}
                 {expandedVoiceTypes.has(voice.voiceType) && voice.users && voice.users.length > 0 && (
-                  <div className="ml-6 bg-gray-50 rounded p-3 space-y-1">
+                  <div className="mt-4 ml-2">
+                    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                      <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-4 py-2 border-b border-gray-200">
+                        <h4 className="text-sm font-semibold text-gray-700 flex items-center">
+                          <svg className="w-4 h-4 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.514 0a4 4 0 01-3.514-2.138M9 7h1m7 0h1" />
+                          </svg>
+                          Listado de Cantantes ({voice.users.length})
+                        </h4>
+                      </div>
+                      <div className="max-h-64 overflow-y-auto space-y-1 p-2">
                     {voice.users
                       .sort((a: UserData, b: UserData) => {
                         // Ordenar por estado: activos primero, luego riesgo, luego inactivos
@@ -912,39 +936,63 @@ const DashboardPage: React.FC = () => {
                         return statusOrder[a.status] - statusOrder[b.status];
                       })
                       .map((user: UserData) => (
-                      <div key={user.id} className="flex items-center justify-between text-xs">
-                        <span className="text-gray-700">
-                          {user.firstName} {user.lastName}
-                        </span>
-                        <div className="flex items-center space-x-2">
-                          <span className="text-gray-500">{user.email}</span>
-                          {user.status === 'risky' && user.riskData && (
-                            <span 
-                              className="text-xs text-yellow-600 cursor-help" 
-                              title={`Faltas sin excusa: ${user.riskData.refused}/${user.riskData.total} ensayos`}
-                            >
-                              ⚠️
+                      <div key={user.id} className={`flex items-center justify-between p-3 rounded-lg transition-colors duration-150 ${
+                        user.status === 'active' ? 'bg-green-50 hover:bg-green-100 border-l-4 border-l-green-500' :
+                        user.status === 'risky' ? 'bg-yellow-50 hover:bg-yellow-100 border-l-4 border-l-yellow-500' :
+                        'bg-red-50 hover:bg-red-100 border-l-4 border-l-red-500'
+                      }`}>
+                        <div className="flex items-center space-x-3">
+                          <div className="flex items-center justify-center w-8 h-8 bg-white rounded-full shadow-sm">
+                            <span className="text-sm font-bold text-gray-600">
+                              {user.firstName.charAt(0)}{user.lastName.charAt(0)}
                             </span>
-                          )}
-                          <span
-                            className={`w-2 h-2 rounded-full ${
-                              user.status === 'active' 
-                                ? 'bg-green-500' 
-                                : user.status === 'risky'
-                                ? 'bg-yellow-500'
-                                : 'bg-red-500'
+                          </div>
+                          <div>
+                            <div className="flex items-center space-x-2">
+                              <span className="text-sm font-semibold text-gray-900">
+                                {user.firstName} {user.lastName}
+                              </span>
+                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                                user.status === 'active' ? 'bg-green-100 text-green-800' :
+                                user.status === 'risky' ? 'bg-yellow-100 text-yellow-800' :
+                                'bg-red-100 text-red-800'
+                              }`}>
+                                {user.status === 'active' ? '✓ Activo' : user.status === 'risky' ? '⚠ En Riesgo' : '✗ Inactivo'}
+                              </span>
+                            </div>
+                            <div className="flex items-center space-x-2 text-xs text-gray-600 mt-1">
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
+                              </svg>
+                              <span className="text-gray-500">{user.email}</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <span 
+                            className={`text-xs font-medium px-2 py-1 rounded-lg bg-white bg-opacity-50 ${
+                              user.status === 'active' ? 'text-green-800' :
+                              user.status === 'risky' ? 'text-yellow-800' :
+                              'text-red-800'
                             }`}
                             title={
-                              user.status === 'active' 
-                                ? 'Activo' 
-                                : user.status === 'risky'
+                              user.status === 'active' ? 'Activo' :
+                              user.status === 'risky' && user.riskData
                                 ? `En riesgo - ${user.riskData ? Math.round((1 - user.riskData.refused / user.riskData.total) * 100) : 0}% asistencia`
                                 : 'Inactivo'
                             }
-                          ></span>
+                          >
+                            {user.status === 'active' ? 'Activo' :
+                            user.status === 'risky' && user.riskData
+                              ? `${Math.round((1 - user.riskData.refused / user.riskData.total) * 100)}%`
+                              : 'Inactivo'
+                            }
+                          </span>
                         </div>
                       </div>
                     ))}
+                      </div>
+                    </div>
                   </div>
                 )}
               </React.Fragment>
@@ -959,7 +1007,7 @@ const DashboardPage: React.FC = () => {
           <div className="bg-white rounded-lg p-6 max-w-lg w-full mx-4">
             <div className="flex justify-between items-start mb-4">
               <h3 className="text-lg font-semibold text-gray-900">
-                Información de {selectedLocation.locationName}
+                Información de {selectedLocation?.locationName}
               </h3>
               <button
                 onClick={() => setShowLocationModal(false)}
@@ -972,22 +1020,22 @@ const DashboardPage: React.FC = () => {
             <div className="space-y-4">
               <div>
                 <p className="text-sm font-medium text-gray-700">Dirección:</p>
-                <p className="text-sm text-gray-600">{selectedLocation.address}</p>
+                <p className="text-sm text-gray-600">{selectedLocation?.address}</p>
               </div>
               
               <div>
                 <p className="text-sm font-medium text-gray-700">Ciudad:</p>
-                <p className="text-sm text-gray-600">{selectedLocation.city}</p>
+                <p className="text-sm text-gray-600">{selectedLocation?.city}</p>
               </div>
               
-              {selectedLocation.phone && (
+              {selectedLocation?.phone && (
                 <div>
                   <p className="text-sm font-medium text-gray-700">Teléfono:</p>
                   <p className="text-sm text-gray-600">{selectedLocation.phone}</p>
                 </div>
               )}
               
-              {selectedLocation.director && (
+              {selectedLocation?.director && (
                 <div>
                   <p className="text-sm font-medium text-gray-700">Director:</p>
                   <p className="text-sm text-gray-600">
@@ -1003,7 +1051,7 @@ const DashboardPage: React.FC = () => {
               <div>
                 <p className="text-sm font-medium text-gray-700">Estadísticas:</p>
                 <p className="text-sm text-gray-600">
-                  {selectedLocation.totalUsers} cantantes totales, {selectedLocation.activeUsers} activos
+                  {selectedLocation?.totalUsers} cantantes totales, {selectedLocation?.activeUsers} activos
                 </p>
               </div>
             </div>
