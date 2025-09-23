@@ -131,7 +131,8 @@ router.get('/stats', authenticateToken, async (req: AuthRequest, res: Response) 
           include: {
             voiceProfiles: {
               select: {
-                voiceType: true
+                voiceType: true,
+                isPrimary: true
               }
             },
             roles: {
@@ -165,8 +166,10 @@ router.get('/stats', authenticateToken, async (req: AuthRequest, res: Response) 
 
     // Procesar datos de ubicaciones para el formato del dashboard
     const processedLocations = locations.map(location => {
-      // Distribuir usuarios por tipo de voz
+      // Distribuir usuarios por tipo de voz (TODAS LAS VOCES)
       const voiceDistribution: Record<string, { count: number; users: any[] }> = {};
+      // Distribuir usuarios por voz primaria únicamente
+      const primaryVoiceDistribution: Record<string, { count: number; users: any[] }> = {};
       
       // Filtrar solo ubicaciones que tienen usuarios
       const allUsers = location.users;
@@ -177,6 +180,7 @@ router.get('/stats', authenticateToken, async (req: AuthRequest, res: Response) 
       if (allUsers.length === 0) return null; // Excluir ubicaciones sin usuarios
       
       allUsers.forEach(user => {
+        // Procesar TODAS las voces
         user.voiceProfiles.forEach(vp => {
           if (!voiceDistribution[vp.voiceType]) {
             voiceDistribution[vp.voiceType] = { count: 0, users: [] };
@@ -198,9 +202,38 @@ router.get('/stats', authenticateToken, async (req: AuthRequest, res: Response) 
             email: user.email,
             isActive: user.isActive,
             status: userStatus,
-            riskData: riskData[user.id] || null
+            riskData: riskData[user.id] || null,
+            isPrimary: vp.isPrimary
           });
         });
+
+        // Procesar solo VOZ PRIMARIA
+        const primaryVoice = user.voiceProfiles.find(vp => vp.isPrimary);
+        if (primaryVoice) {
+          if (!primaryVoiceDistribution[primaryVoice.voiceType]) {
+            primaryVoiceDistribution[primaryVoice.voiceType] = { count: 0, users: [] };
+          }
+          primaryVoiceDistribution[primaryVoice.voiceType].count++;
+          
+          // Determinar el estado del usuario
+          let userStatus = 'active';
+          if (!user.isActive) {
+            userStatus = 'inactive';
+          } else if (riskData[user.id]?.isRisky) {
+            userStatus = 'risky';
+          }
+          
+          primaryVoiceDistribution[primaryVoice.voiceType].users.push({
+            id: user.id,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            email: user.email,
+            isActive: user.isActive,
+            status: userStatus,
+            riskData: riskData[user.id] || null,
+            isPrimary: true
+          });
+        }
       });
 
       const directorInfo = directorsData.find(d => d.locationId === location.id)?.director;
@@ -227,11 +260,16 @@ router.get('/stats', authenticateToken, async (req: AuthRequest, res: Response) 
           voiceType,
           count: data.count,
           users: data.users
+        })),
+        primaryVoiceDistribution: Object.entries(primaryVoiceDistribution).map(([voiceType, data]) => ({
+          voiceType,
+          count: data.count,
+          users: data.users
         }))
       };
     }).filter(Boolean); // Eliminar ubicaciones null (sin usuarios)
 
-    // Obtener distribución global de tipos de voz con usuarios incluidos
+    // Obtener distribución global de tipos de voz con usuarios incluidos (TODAS LAS VOCES)
     const allUsersDetailed = await prisma.user.findMany({
       where: locationFilter,
       select: {
@@ -242,12 +280,14 @@ router.get('/stats', authenticateToken, async (req: AuthRequest, res: Response) 
         isActive: true,
         voiceProfiles: {
           select: {
-            voiceType: true
+            voiceType: true,
+            isPrimary: true
           }
         }
       }
     });
 
+    // Distribución de TODAS las voces (puede incluir duplicados)
     const globalVoiceStats: Record<string, { count: number; activeCount: number; riskyCount: number; inactiveCount: number; users: any[] }> = {};
     allUsersDetailed.forEach(user => {
       user.voiceProfiles.forEach(vp => {
@@ -275,12 +315,58 @@ router.get('/stats', authenticateToken, async (req: AuthRequest, res: Response) 
           email: user.email,
           isActive: user.isActive,
           status: userStatus,
-          riskData: riskData[user.id] || null
+          riskData: riskData[user.id] || null,
+          isPrimary: vp.isPrimary
         });
       });
     });
 
     const globalVoiceDistribution = Object.entries(globalVoiceStats).map(([voiceType, data]) => ({
+      voiceType,
+      count: data.count,
+      activeCount: data.activeCount,
+      riskyCount: data.riskyCount,
+      inactiveCount: data.inactiveCount,
+      users: data.users
+    }));
+
+    // Distribución de VOCES PRIMARIAS únicamente (sin duplicados)
+    const primaryVoiceStats: Record<string, { count: number; activeCount: number; riskyCount: number; inactiveCount: number; users: any[] }> = {};
+    allUsersDetailed.forEach(user => {
+      // Solo considerar voces primarias
+      const primaryVoice = user.voiceProfiles.find(vp => vp.isPrimary);
+      if (primaryVoice) {
+        if (!primaryVoiceStats[primaryVoice.voiceType]) {
+          primaryVoiceStats[primaryVoice.voiceType] = { count: 0, activeCount: 0, riskyCount: 0, inactiveCount: 0, users: [] };
+        }
+        primaryVoiceStats[primaryVoice.voiceType].count++;
+        
+        // Determinar el estado del usuario
+        let userStatus = 'active';
+        if (!user.isActive) {
+          userStatus = 'inactive';
+          primaryVoiceStats[primaryVoice.voiceType].inactiveCount++;
+        } else if (riskData[user.id]?.isRisky) {
+          userStatus = 'risky';
+          primaryVoiceStats[primaryVoice.voiceType].riskyCount++;
+        } else {
+          primaryVoiceStats[primaryVoice.voiceType].activeCount++;
+        }
+        
+        primaryVoiceStats[primaryVoice.voiceType].users.push({
+          id: user.id,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          email: user.email,
+          isActive: user.isActive,
+          status: userStatus,
+          riskData: riskData[user.id] || null,
+          isPrimary: true
+        });
+      }
+    });
+
+    const primaryVoiceDistribution = Object.entries(primaryVoiceStats).map(([voiceType, data]) => ({
       voiceType,
       count: data.count,
       activeCount: data.activeCount,
@@ -325,6 +411,7 @@ router.get('/stats', authenticateToken, async (req: AuthRequest, res: Response) 
         totalLocations: processedLocations.length,
         locations: processedLocations,
         globalVoiceDistribution,
+        primaryVoiceDistribution,
         recentEvents: recentEvents.map(event => ({
           id: event.id,
           title: event.title,

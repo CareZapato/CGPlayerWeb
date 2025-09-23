@@ -38,6 +38,23 @@ interface LocationDetail {
       } | null;
     }[];
   }[];
+  primaryVoiceDistribution: {
+    voiceType: string;
+    count: number;
+    users: {
+      id: string;
+      firstName: string;
+      lastName: string;
+      email: string;
+      isActive: boolean;
+      status: 'active' | 'risky' | 'inactive';
+      riskData?: {
+        total: number;
+        refused: number;
+        isRisky: boolean;
+      } | null;
+    }[];
+  }[];
 }
 
 interface DashboardData {
@@ -50,6 +67,26 @@ interface DashboardData {
   totalLocations: number;
   locations: LocationDetail[];
   globalVoiceDistribution: {
+    voiceType: string;
+    count: number;
+    activeCount: number;
+    riskyCount: number;
+    inactiveCount: number;
+    users: {
+      id: string;
+      firstName: string;
+      lastName: string;
+      email: string;
+      isActive: boolean;
+      status: 'active' | 'risky' | 'inactive';
+      riskData?: {
+        total: number;
+        refused: number;
+        isRisky: boolean;
+      } | null;
+    }[];
+  }[];
+  primaryVoiceDistribution: {
     voiceType: string;
     count: number;
     activeCount: number;
@@ -96,6 +133,7 @@ const DashboardPage: React.FC = () => {
   const [pinnedLocation, setPinnedLocation] = useState<string | null>(null);
   const [hoveredSlice, setHoveredSlice] = useState<string | null>(null);
   const [showPercentages, setShowPercentages] = useState(false);
+  const [showPrimaryVoices, setShowPrimaryVoices] = useState(false); // false = todas las voces, true = voces primarias
 
   const fetchDashboardData = useCallback(async () => {
     if (!token) return;
@@ -155,13 +193,19 @@ const DashboardPage: React.FC = () => {
     setPinnedLocation(prev => prev === locationId ? null : locationId);
   };
 
-  // Get voice distribution data based on pinned/hovered location
+  // Get voice distribution data based on pinned/hovered location and voice view mode
   const getVoiceDistribution = () => {
     const targetLocation = pinnedLocation || hoveredLocation?.locationId;
     
     if (targetLocation && data) {
       const location = data.locations.find(loc => loc.locationId === targetLocation);
-      return location?.voiceDistribution.map(vd => ({
+      
+      // Elegir la distribución según el modo
+      const distribution = showPrimaryVoices 
+        ? location?.primaryVoiceDistribution 
+        : location?.voiceDistribution;
+        
+      return distribution?.map(vd => ({
         voiceType: vd.voiceType,
         count: vd.count,
         activeCount: vd.users.filter(u => u.status === 'active').length,
@@ -170,8 +214,13 @@ const DashboardPage: React.FC = () => {
         users: vd.users
       })) || [];
     }
-    // Vista global con nuevos campos
-    return data?.globalVoiceDistribution.map(gvd => ({
+    
+    // Vista global - elegir distribución según el modo
+    const globalDistribution = showPrimaryVoices 
+      ? data?.primaryVoiceDistribution 
+      : data?.globalVoiceDistribution;
+      
+    return globalDistribution?.map(gvd => ({
       voiceType: gvd.voiceType,
       count: gvd.count,
       activeCount: gvd.activeCount,
@@ -461,9 +510,32 @@ const DashboardPage: React.FC = () => {
 
         {/* Gráfico de Torta Interactivo */}
         <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">
-            🎵 Distribución de Tipos de Voz
-          </h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold text-gray-900">
+              🎵 Distribución de Tipos de Voz
+            </h2>
+            <div className="flex items-center space-x-3">
+              <span className="text-sm text-gray-600">
+                {showPrimaryVoices ? 'Voces Principales' : 'Todas las Voces'}
+              </span>
+              <button
+                onClick={() => setShowPrimaryVoices(!showPrimaryVoices)}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                  showPrimaryVoices ? 'bg-blue-600' : 'bg-gray-200'
+                }`}
+                title={showPrimaryVoices 
+                  ? 'Cambiar a: Todas las voces (puede incluir duplicados)' 
+                  : 'Cambiar a: Solo voces principales (sin duplicados)'
+                }
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    showPrimaryVoices ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
+          </div>
           <div className="text-center mb-4">
             <p className="text-sm text-gray-600">
               {pinnedLocation ? 
@@ -484,6 +556,12 @@ const DashboardPage: React.FC = () => {
                 🔄 Volver a vista global
               </button>
             )}
+            <p className="text-xs text-gray-500 mt-2">
+              {showPrimaryVoices 
+                ? '📌 Mostrando solo la voz principal de cada cantante (sin duplicados)'
+                : '🎵 Mostrando todas las voces que puede cantar cada cantante (puede incluir duplicados)'
+              }
+            </p>
           </div>
           
           {/* Gráfico de torta SVG más grande con porcentajes */}
