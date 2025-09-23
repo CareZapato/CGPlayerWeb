@@ -1077,8 +1077,8 @@ const DashboardPage: React.FC = () => {
 
       {/* Eventos recientes */}
       {data.recentEvents.length > 0 && (
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">
+        <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
+          <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4">
             📅 Eventos Recientes
           </h2>
           <div className="space-y-3">
@@ -1094,13 +1094,13 @@ const DashboardPage: React.FC = () => {
               return (
                 <div
                   key={event.id}
-                  className={`rounded-lg p-4 flex items-center justify-between transition-all hover:shadow-md ${
+                  className={`rounded-lg p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0 transition-all hover:shadow-md ${
                     isRehearsal
                       ? 'bg-gray-800 text-white border border-gray-700'
                       : 'bg-gray-50 text-gray-900 border border-gray-200'
                   }`}
                 >
-                  <div className="flex items-center space-x-3">
+                  <div className="flex items-center space-x-3 min-w-0 flex-1">
                     <div className={`p-2 rounded-lg ${
                       isRehearsal 
                         ? 'bg-gray-700' 
@@ -1116,13 +1116,13 @@ const DashboardPage: React.FC = () => {
                         </svg>
                       )}
                     </div>
-                    <div>
-                      <h3 className={`font-semibold text-lg ${
+                    <div className="min-w-0 flex-1">
+                      <h3 className={`font-semibold text-base sm:text-lg truncate ${
                         isRehearsal ? 'text-white' : 'text-gray-900'
                       }`}>
                         {event.title}
                       </h3>
-                      <div className="flex items-center space-x-4 text-sm">
+                      <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-sm mt-1">
                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                           isRehearsal 
                             ? 'bg-gray-700 text-gray-300' 
@@ -1130,20 +1130,20 @@ const DashboardPage: React.FC = () => {
                         }`}>
                           {event.category}
                         </span>
-                        <span className={isRehearsal ? 'text-gray-300' : 'text-gray-600'}>
-                          {event.location?.name || 'Sin ubicación'}
+                        <span className={`truncate ${isRehearsal ? 'text-gray-300' : 'text-gray-600'}`}>
+                          📍 {event.location?.name || 'Sin ubicación'}
                         </span>
                         <span className={`font-medium ${
                           isRehearsal ? 'text-gray-200' : 'text-gray-700'
                         }`}>
-                          {timeStr}
+                          🕒 {timeStr}
                         </span>
                       </div>
                     </div>
                   </div>
                   <button
                     onClick={() => window.location.href = `/events?eventId=${event.id}`}
-                    className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
+                    className={`px-3 sm:px-4 py-2 rounded-lg font-medium text-xs sm:text-sm transition-colors flex-shrink-0 w-full sm:w-auto text-center ${
                       isRehearsal
                         ? 'bg-gray-700 hover:bg-gray-600 text-white border border-gray-600'
                         : 'bg-white hover:bg-gray-50 text-gray-700 border border-gray-300'
