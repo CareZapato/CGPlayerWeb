@@ -1071,8 +1071,8 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-1 sm:p-2">
-      <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl w-full max-w-[98vw] sm:max-w-[95vw] max-h-[99vh] sm:max-h-[98vh] overflow-hidden">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-0 sm:p-2">
+      <div className="bg-white rounded-none sm:rounded-2xl shadow-2xl w-full h-full sm:w-auto sm:h-auto sm:max-w-[95vw] sm:max-h-[98vh] overflow-hidden flex flex-col">
         <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-3 sm:px-6 py-3 sm:py-4 text-white">
           <div className="flex items-center justify-between">
             <h2 className="text-lg sm:text-xl font-bold">
@@ -1142,7 +1142,7 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({
           </nav>
         </div>
 
-        <div className="p-3 sm:p-6 overflow-y-auto max-h-[75vh] sm:max-h-[75vh]">
+        <div className="p-3 sm:p-6 overflow-y-auto flex-1 min-h-0">
           {error && (
             <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center">
               <AlertCircle className="h-5 w-5 text-red-600 mr-2" />
@@ -1940,64 +1940,128 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({
           )}
         </div>
 
-        <div className="bg-gray-50 px-3 sm:px-6 py-3 sm:py-4 flex flex-col sm:flex-row sm:justify-between sm:items-center space-y-3 sm:space-y-0">
-          <div className="flex space-x-2 sm:space-x-3 order-2 sm:order-1">
-            {activeTab !== 'basic' && (
+        <div className="bg-gray-50 px-2 sm:px-6 py-2 sm:py-4 flex-shrink-0">
+          {/* Mobile Layout - Single Row */}
+          <div className="sm:hidden">
+            <div className="flex space-x-1 mb-2">
+              {activeTab !== 'basic' && (
+                <button
+                  onClick={() => {
+                    const tabs = ['basic', 'attendees', 'music'];
+                    const currentIndex = tabs.indexOf(activeTab);
+                    handleTabChange(tabs[currentIndex - 1] as 'basic' | 'attendees' | 'music');
+                  }}
+                  className="flex-1 px-2 py-2 text-xs text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  ← Anterior
+                </button>
+              )}
+              {activeTab !== 'music' && (
+                <button
+                  onClick={() => {
+                    const tabs = ['basic', 'attendees', 'music'];
+                    const currentIndex = tabs.indexOf(activeTab);
+                    handleTabChange(tabs[currentIndex + 1] as 'basic' | 'attendees' | 'music');
+                  }}
+                  className="flex-1 px-2 py-2 text-xs bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                >
+                  Siguiente →
+                </button>
+              )}
+            </div>
+            <div className="flex space-x-1">
               <button
-                onClick={() => {
-                  const tabs = ['basic', 'attendees', 'music'];
-                  const currentIndex = tabs.indexOf(activeTab);
-                  handleTabChange(tabs[currentIndex - 1] as 'basic' | 'attendees' | 'music');
-                }}
-                className="px-3 sm:px-4 py-2 text-sm sm:text-base text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors"
+                onClick={handleClose}
+                className="flex-1 px-3 py-2 text-xs text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
               >
-                Anterior
+                Cancelar
               </button>
-            )}
-            {activeTab !== 'music' && (
               <button
-                onClick={() => {
-                  const tabs = ['basic', 'attendees', 'music'];
-                  const currentIndex = tabs.indexOf(activeTab);
-                  handleTabChange(tabs[currentIndex + 1] as 'basic' | 'attendees' | 'music');
-                }}
-                className="px-3 sm:px-4 py-2 text-sm sm:text-base bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors"
+                onClick={handleSubmit}
+                disabled={
+                  !title || 
+                  !date || 
+                  isLoading || 
+                  selectedAttendees.length === 0 || 
+                  selectedSongs.filter(song => song.voiceType).length === 0
+                }
+                className="flex-1 px-3 py-2 text-xs bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium flex items-center justify-center"
               >
-                Siguiente
+                {isLoading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white mr-1"></div>
+                    Creando...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="h-3 w-3 mr-1" />
+                    {editMode ? 'Actualizar' : 'Crear'}
+                  </>
+                )}
               </button>
-            )}
+            </div>
           </div>
 
-          <div className="flex space-x-2 sm:space-x-3 order-1 sm:order-2">
-            <button
-              onClick={handleClose}
-              className="flex-1 sm:flex-none px-4 sm:px-6 py-2 text-sm sm:text-base text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors"
-            >
-              Cancelar
-            </button>
-            <button
-              onClick={handleSubmit}
-              disabled={
-                !title || 
-                !date || 
-                isLoading || 
-                selectedAttendees.length === 0 || 
-                selectedSongs.filter(song => song.voiceType).length === 0
-              }
-              className="flex-1 sm:flex-none px-4 sm:px-6 py-2 text-sm sm:text-base bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium flex items-center justify-center"
-            >
-              {isLoading ? (
-                <>
-                  <div className="animate-spin rounded-full h-3 w-3 sm:h-4 sm:w-4 border-b-2 border-white mr-2"></div>
-                  <span className="text-sm sm:text-base">Creando...</span>
-                </>
-              ) : (
-                <>
-                  <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
-                  <span className="text-sm sm:text-base">{editMode ? 'Actualizar Programa' : 'Crear Programa'}</span>
-                </>
+          {/* Desktop Layout */}
+          <div className="hidden sm:flex sm:justify-between sm:items-center">
+            <div className="flex space-x-3">
+              {activeTab !== 'basic' && (
+                <button
+                  onClick={() => {
+                    const tabs = ['basic', 'attendees', 'music'];
+                    const currentIndex = tabs.indexOf(activeTab);
+                    handleTabChange(tabs[currentIndex - 1] as 'basic' | 'attendees' | 'music');
+                  }}
+                  className="px-4 py-2 text-sm text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors"
+                >
+                  Anterior
+                </button>
               )}
-            </button>
+              {activeTab !== 'music' && (
+                <button
+                  onClick={() => {
+                    const tabs = ['basic', 'attendees', 'music'];
+                    const currentIndex = tabs.indexOf(activeTab);
+                    handleTabChange(tabs[currentIndex + 1] as 'basic' | 'attendees' | 'music');
+                  }}
+                  className="px-4 py-2 text-sm bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors"
+                >
+                  Siguiente
+                </button>
+              )}
+            </div>
+
+            <div className="flex space-x-3">
+              <button
+                onClick={handleClose}
+                className="px-6 py-2 text-sm text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSubmit}
+                disabled={
+                  !title || 
+                  !date || 
+                  isLoading || 
+                  selectedAttendees.length === 0 || 
+                  selectedSongs.filter(song => song.voiceType).length === 0
+                }
+                className="px-6 py-2 text-sm bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium flex items-center"
+              >
+                {isLoading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Creando...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    {editMode ? 'Actualizar Programa' : 'Crear Programa'}
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       </div>
