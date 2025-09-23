@@ -6,11 +6,52 @@ interface MinimizedPlayerProps {
   onExpand: () => void;
 }
 
+// Componente del basurero para drag-to-delete
+interface TrashZoneProps {
+  isVisible: boolean;
+  isActive: boolean;
+}
+
+const TrashZone: React.FC<TrashZoneProps> = ({ isVisible, isActive }) => {
+  if (!isVisible) {
+    console.log('🗑️ TrashZone: OCULTO');
+    return null;
+  }
+
+  const isMobile = window.innerWidth <= 768;
+  console.log('🗑️ TrashZone: VISIBLE -', { isActive, isMobile });
+
+  return (
+    <div className={`trash-zone ${isActive ? 'trash-zone--active' : ''} ${isMobile ? 'trash-zone--mobile' : ''}`}>
+      <div className="trash-zone__icon">
+        <svg 
+          className="trash-icon" 
+          viewBox="0 0 24 24" 
+          fill="none" 
+          stroke="currentColor"
+          strokeWidth={isMobile ? "2.5" : "2"}
+        >
+          <path d="M3 6h18" />
+          <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+          <path d="M8 6V4c0-1 1-2 2-2h4c0 1 1 2 2 2v2" />
+          <line x1="10" y1="11" x2="10" y2="17" />
+          <line x1="14" y1="11" x2="14" y2="17" />
+        </svg>
+      </div>
+      {!isMobile && (
+        <p className="trash-zone__text">
+          {isActive ? 'Suelta para cerrar' : 'Arrastra aquí para cerrar'}
+        </p>
+      )}
+    </div>
+  );
+};
+
 /**
  * MinimizedPlayer - Versión minimizada del reproductor como esfera que se llena
  */
 const MinimizedPlayer: React.FC<MinimizedPlayerProps> = ({ onExpand }) => {
-  const { currentSong, isPlaying, currentTime, duration } = usePlayerStore();
+  const { currentSong, isPlaying, currentTime, duration, closePlayer } = usePlayerStore();
   
   // Estados solo para arrastre
   const [position, setPosition] = useState({ x: 0, y: 0 });
@@ -19,20 +60,43 @@ const MinimizedPlayer: React.FC<MinimizedPlayerProps> = ({ onExpand }) => {
   const [hasMoved, setHasMoved] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
   
+  // Estados para drag-to-delete
+  const [showTrashZone, setShowTrashZone] = useState(false);
+  const [isOverTrashZone, setIsOverTrashZone] = useState(false);
+  
   // Refs
   const playerRef = useRef<HTMLDivElement>(null);
 
-  // Funciones de arrastre corregidas
+  // Funciones de arrastre corregidas con drag-to-delete
   const handleDragStart = useCallback((clientX: number, clientY: number) => {
+    console.log('🎯 Iniciando drag del reproductor minimizado');
     if (!playerRef.current) return;
     const rect = playerRef.current.getBoundingClientRect();
     setIsDragging(true);
     setHasMoved(false);
+    setShowTrashZone(false);
+    setIsOverTrashZone(false);
+    
     // Guardar el offset del mouse/touch respecto al elemento
     setDragStart({
       x: clientX - rect.left,
       y: clientY - rect.top
     });
+    
+    // En móvil, mostrar el basurero después de un breve delay para asegurar consistencia
+    const isMobile = window.innerWidth <= 768;
+    if (isMobile) {
+      setTimeout(() => {
+        // Solo mostrar si todavía se está arrastrando
+        setShowTrashZone(prev => {
+          if (prev === false) {
+            console.log('📱 Forzando aparición del basurero en móvil');
+            return true;
+          }
+          return prev;
+        });
+      }, 150); // 150ms de delay
+    }
   }, []);
 
   const handleDragMove = useCallback((clientX: number, clientY: number) => {
@@ -43,8 +107,51 @@ const MinimizedPlayer: React.FC<MinimizedPlayerProps> = ({ onExpand }) => {
     const newX = clientX - dragStart.x;
     const newY = clientY - dragStart.y;
     
-    // Obtener dimensiones del elemento según el dispositivo
+    // Calcular distancia desde la posición inicial para mostrar zona de eliminación
+    const initialX = position.x;
+    const initialY = position.y;
+    const distance = Math.sqrt(Math.pow(newX - initialX, 2) + Math.pow(newY - initialY, 2));
+    
+    // Lógica mejorada: mostrar basurero con diferentes criterios para móvil y desktop
     const isMobile = window.innerWidth <= 768;
+    
+    if (isMobile) {
+      // En móvil: mostrar basurero inmediatamente al detectar movimiento
+      if (distance > 15 && !showTrashZone) {
+        console.log('📱 Mostrando basurero en móvil - movimiento detectado:', distance);
+        setShowTrashZone(true);
+      }
+    } else {
+      // En desktop: usar lógica tradicional con distancia mayor
+      const minDistance = 50;
+      const shouldShowTrash = distance > minDistance;
+      if (shouldShowTrash !== showTrashZone) {
+        console.log('�️ Cambiando estado del basurero desktop:', shouldShowTrash ? 'MOSTRAR' : 'OCULTAR', 'distancia:', distance);
+        setShowTrashZone(shouldShowTrash);
+      }
+    }
+    
+    // Verificar si está sobre la zona de eliminación (optimizado para móvil)
+    const trashZoneX = window.innerWidth / 2;
+    const trashZoneY = isMobile ? window.innerHeight - 140 : window.innerHeight - 120;
+    const distanceToTrash = Math.sqrt(Math.pow(clientX - trashZoneX, 2) + Math.pow(clientY - trashZoneY, 2));
+    
+    // Radio más grande en móvil para mejor usabilidad táctil
+    const activationRadius = isMobile ? 80 : 60;
+    const isOverTrash = distanceToTrash < activationRadius;
+    
+    if (isOverTrash !== isOverTrashZone) {
+      console.log('🎯 Estado del basurero cambió:', isOverTrash ? 'SOBRE BASURERO' : 'FUERA DEL BASURERO', 'distancia:', distanceToTrash);
+      
+      // Retroalimentación háptica en móvil cuando entra en la zona
+      if (isOverTrash && isMobile && 'vibrate' in navigator) {
+        navigator.vibrate(50); // Vibración corta de 50ms
+      }
+    }
+    
+    setIsOverTrashZone(isOverTrash);
+    
+    // Obtener dimensiones del elemento según el dispositivo
     const elementSize = isMobile ? 56 : 64; // 3.5rem en móvil, 4rem en desktop
     const maxX = window.innerWidth - elementSize;
     const maxY = window.innerHeight - elementSize;
@@ -54,17 +161,30 @@ const MinimizedPlayer: React.FC<MinimizedPlayerProps> = ({ onExpand }) => {
       x: Math.max(0, Math.min(newX, maxX)),
       y: Math.max(0, Math.min(newY, maxY))
     });
-  }, [isDragging, dragStart.x, dragStart.y]);
+  }, [isDragging, dragStart.x, dragStart.y, position.x, position.y, showTrashZone, isOverTrashZone]);
 
   const handleDragEnd = useCallback(() => {
+    const wasOverTrash = isOverTrashZone;
+    const hadMoved = hasMoved;
+    
     setIsDragging(false);
-    // Solo expandir si no hubo arrastre
-    setTimeout(() => {
-      if (!hasMoved && !isDragging) {
+    setShowTrashZone(false);
+    setIsOverTrashZone(false);
+    
+    // Si se soltó sobre la zona de eliminación, cerrar el reproductor
+    if (wasOverTrash) {
+      console.log('🗑️ Cerrando reproductor por drag-to-delete');
+      closePlayer();
+      return;
+    }
+    
+    // Solo expandir si no hubo arrastre significativo
+    if (!hadMoved) {
+      setTimeout(() => {
         onExpand();
-      }
-    }, 0);
-  }, [hasMoved, isDragging, onExpand]);
+      }, 0);
+    }
+  }, [hasMoved, isOverTrashZone, closePlayer, onExpand]);
 
   // Eventos de mouse
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -85,20 +205,25 @@ const MinimizedPlayer: React.FC<MinimizedPlayerProps> = ({ onExpand }) => {
 
   // Eventos touch para móvil
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    // No prevenir el default inicialmente para permitir el tap
+    console.log('📱 Touch start detectado en reproductor minimizado');
     e.stopPropagation();
-    const touch = e.touches[0];
-    handleDragStart(touch.clientX, touch.clientY);
+    if (e.touches.length > 0) {
+      const touch = e.touches[0];
+      handleDragStart(touch.clientX, touch.clientY);
+    }
   }, [handleDragStart]);
 
   const handleTouchMove = useCallback((e: TouchEvent) => {
-    // Solo prevenir el scroll si se está moviendo significativamente
-    if (isDragging || hasMoved) {
+    // Siempre prevenir el scroll cuando se está arrastrando
+    if (isDragging) {
       e.preventDefault();
+      e.stopPropagation();
     }
-    const touch = e.touches[0];
-    handleDragMove(touch.clientX, touch.clientY);
-  }, [handleDragMove, isDragging, hasMoved]);
+    if (e.touches.length > 0) {
+      const touch = e.touches[0];
+      handleDragMove(touch.clientX, touch.clientY);
+    }
+  }, [handleDragMove, isDragging]);
 
   const handleTouchEnd = useCallback((e: TouchEvent) => {
     // Solo prevenir el default si realmente se arrastró
@@ -163,21 +288,27 @@ const MinimizedPlayer: React.FC<MinimizedPlayerProps> = ({ onExpand }) => {
   };
 
   return (
-    <div 
-      ref={playerRef}
-      className={`minimized-player ${isDragging ? 'minimized-player--dragging' : ''}`}
-      style={{
-        transform: `translate(${position.x}px, ${position.y}px)`,
-        cursor: isDragging ? 'grabbing' : 'grab'
-      }}
-      onMouseDown={handleMouseDown}
-      onTouchStart={handleTouchStart}
-      onClick={() => {
-        if (!hasMoved) {
-          onExpand();
-        }
-      }}
-    >
+    <>
+      {/* Zona de eliminación */}
+      <TrashZone isVisible={showTrashZone} isActive={isOverTrashZone} />
+      
+      <div 
+        ref={playerRef}
+        className={`minimized-player ${isDragging ? 'minimized-player--dragging' : ''} ${isOverTrashZone ? 'minimized-player--over-trash' : ''}`}
+        style={{
+          transform: `translate(${position.x}px, ${position.y}px)`,
+          cursor: isDragging ? 'grabbing' : 'grab',
+          opacity: isOverTrashZone ? 0.7 : 1,
+          scale: isOverTrashZone ? '1.1' : '1'
+        }}
+        onMouseDown={handleMouseDown}
+        onTouchStart={handleTouchStart}
+        onClick={() => {
+          if (!hasMoved) {
+            onExpand();
+          }
+        }}
+      >
       <div className="minimized-player__container">
         {/* Agua que se llena desde abajo */}
         <div 
@@ -241,6 +372,7 @@ const MinimizedPlayer: React.FC<MinimizedPlayerProps> = ({ onExpand }) => {
         </div>
       </div>
     </div>
+    </>
   );
 };
 

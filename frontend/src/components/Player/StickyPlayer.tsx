@@ -28,6 +28,7 @@ import {
 import type { Song } from '../../types';
 import configService from '../../services/configService';
 import './StickyPlayer.css';
+import '../BottomPlayer/BottomPlayer.css';
 
 // Interfaces para tipado
 interface LyricLine {
