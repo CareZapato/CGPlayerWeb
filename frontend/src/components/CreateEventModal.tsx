@@ -1324,40 +1324,45 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({
           )}
 
           {activeTab === 'attendees' && (
-            <div className="space-y-6">
-              <div className="flex items-center justify-between mb-6">
-                <h4 className="text-lg font-medium text-gray-900">
-                  Gestión de Cantantes del Evento
+            <div className="space-y-4 sm:space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-6 space-y-3 sm:space-y-0">
+                <h4 className="text-base sm:text-lg font-medium text-gray-900">
+                  Gestión de Cantantes del Programa
                 </h4>
-                <div className="flex space-x-2">
+                <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
                   <button
                     onClick={() => setShowGroupSelection(!showGroupSelection)}
-                    className={`px-3 py-1 text-sm rounded-lg transition-colors ${
+                    className={`px-2 sm:px-3 py-1 text-xs sm:text-sm rounded-lg transition-colors ${
                       showGroupSelection 
                         ? 'bg-purple-100 text-purple-700 border border-purple-300' 
                         : 'bg-gray-100 text-gray-700 border border-gray-300'
                     }`}
                   >
-                    {showGroupSelection ? 'Selección Individual' : 'Selección por Ubicación'}
+                    <span className="hidden sm:inline">
+                      {showGroupSelection ? 'Selección Individual' : 'Selección por Ubicación'}
+                    </span>
+                    <span className="sm:hidden">
+                      {showGroupSelection ? 'Individual' : 'Por Ubicación'}
+                    </span>
                   </button>
-                  <span className="text-sm text-gray-500 px-2 py-1 bg-blue-50 rounded-lg border border-blue-200">
+                  <span className="text-xs sm:text-sm text-gray-500 px-2 py-1 bg-blue-50 rounded-lg border border-blue-200 text-center">
                     {selectedAttendees.length} seleccionados
                   </span>
                 </div>
               </div>
 
-              {/* Diseño de dos columnas */}
-              <div className="grid grid-cols-2 gap-6 h-[600px]">
+              {/* Diseño responsive: una columna en móvil, dos en desktop */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 h-auto lg:h-[600px]">
                 {/* Columna izquierda: Filtros y búsqueda */}
-                <div className="space-y-4 border-r border-gray-200 pr-6">
+                <div className="space-y-3 sm:space-y-4 lg:border-r border-gray-200 lg:pr-6">
                   <div className="sticky top-0 bg-white">
-                    <h5 className="text-lg font-medium text-gray-900 mb-4">Filtros de Búsqueda</h5>
+                    <h5 className="text-base sm:text-lg font-medium text-gray-900 mb-3 sm:mb-4">Filtros de Búsqueda</h5>
                     
                     {/* Search and Filters - Solo mostrar si no está activa la selección por grupo */}
                     {!showGroupSelection && (
-                      <div className="space-y-3">
-                        {/* Filtros en una sola fila */}
-                        <div className="grid grid-cols-3 gap-2">
+                      <div className="space-y-2 sm:space-y-3">
+                        {/* Filtros adaptables */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                           <div className="relative">
                             <div className="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
                               <Search className="h-3 w-3 text-gray-400" />
@@ -1367,14 +1372,14 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({
                               placeholder="Buscar nombre..."
                               value={singerSearchTerm}
                               onChange={(e) => setSingerSearchTerm(e.target.value)}
-                              className="w-full pl-7 pr-2 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-1 focus:ring-indigo-500 focus:border-transparent"
+                              className="w-full pl-7 pr-2 py-1.5 text-xs sm:text-sm border border-gray-300 rounded-md focus:ring-1 focus:ring-indigo-500 focus:border-transparent"
                             />
                           </div>
 
                           <select
                             value={selectedLocation}
                             onChange={(e) => setSelectedLocation(e.target.value)}
-                            className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-1 focus:ring-indigo-500 focus:border-transparent"
+                            className="w-full px-2 py-1.5 text-xs sm:text-sm border border-gray-300 rounded-md focus:ring-1 focus:ring-indigo-500 focus:border-transparent"
                           >
                             <option value="">Todas las ubicaciones</option>
                             {singerLocations.map(location => (
@@ -1387,7 +1392,7 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({
                           <select
                             value={selectedRole}
                             onChange={(e) => setSelectedRole(e.target.value)}
-                            className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-1 focus:ring-indigo-500 focus:border-transparent"
+                            className="w-full px-2 py-1.5 text-xs sm:text-sm border border-gray-300 rounded-md focus:ring-1 focus:ring-indigo-500 focus:border-transparent"
                           >
                             <option value="">Todos los roles</option>
                             <option value="cantante">Cantante</option>
@@ -1397,12 +1402,12 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({
 
                         {/* Lista de cantantes encontrados */}
                         <div className="border border-gray-200 rounded-lg">
-                          <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
-                            <h6 className="font-medium text-gray-900 flex items-center">
-                              <Users className="h-4 w-4 mr-2" />
+                          <div className="bg-gray-50 px-3 sm:px-4 py-2 sm:py-3 border-b border-gray-200">
+                            <h6 className="text-sm sm:text-base font-medium text-gray-900 flex items-center">
+                              <Users className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
                               Cantantes Encontrados
                               {loadingSingers && (
-                                <div className="ml-2 animate-spin h-4 w-4 border-2 border-indigo-500 border-t-transparent rounded-full"></div>
+                                <div className="ml-2 animate-spin h-3 w-3 sm:h-4 sm:w-4 border-2 border-indigo-500 border-t-transparent rounded-full"></div>
                               )}
                             </h6>
                           </div>
@@ -1520,9 +1525,9 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({
                 </div>
 
                 {/* Columna derecha: Lista de cantantes seleccionados */}
-                <div className="pl-6">
+                <div className="lg:pl-6 mt-6 lg:mt-0">
                   <div className="h-full flex flex-col">
-                    <h5 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                    <h5 className="text-base sm:text-lg font-medium text-gray-900 mb-3 sm:mb-4 flex items-center">
                       <CheckCircle className="h-4 w-4 mr-2" />
                       Cantantes Seleccionados ({selectedAttendees.length})
                     </h5>
@@ -1613,26 +1618,26 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({
           )}
 
           {activeTab === 'music' && (
-            <div className="space-y-6">
-              <div className="flex items-center justify-between mb-6">
-                <h4 className="text-lg font-medium text-gray-900">
-                  Gestión de Música del Evento
+            <div className="space-y-4 sm:space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-6 space-y-3 sm:space-y-0">
+                <h4 className="text-base sm:text-lg font-medium text-gray-900">
+                  Gestión de Música del Programa
                 </h4>
-                <span className="text-sm text-gray-500 px-2 py-1 bg-blue-50 rounded-lg border border-blue-200">
+                <span className="text-xs sm:text-sm text-gray-500 px-2 py-1 bg-blue-50 rounded-lg border border-blue-200 text-center">
                   {selectedSongs.filter(song => song.voiceType).length} canciones seleccionadas
                 </span>
               </div>
 
-              {/* Diseño de dos columnas para música */}
-              <div className="grid grid-cols-2 gap-6 h-[600px]">
+              {/* Diseño responsive: una columna en móvil, dos en desktop */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 h-auto lg:h-[600px]">
                 {/* Columna izquierda: Filtros y búsqueda de música */}
-                <div className="space-y-4 border-r border-gray-200 pr-6">
+                <div className="space-y-3 sm:space-y-4 lg:border-r border-gray-200 lg:pr-6">
                   <div className="sticky top-0 bg-white">
-                    <h5 className="text-lg font-medium text-gray-900 mb-4">Búsqueda de Música</h5>
+                    <h5 className="text-base sm:text-lg font-medium text-gray-900 mb-3 sm:mb-4">Búsqueda de Música</h5>
                     
                     {/* Song Search */}
-                    <div className="space-y-3">
-                      <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-2 sm:space-y-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         <div className="relative">
                           <div className="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
                             <Search className="h-3 w-3 text-gray-400" />
@@ -1642,7 +1647,7 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({
                             placeholder="Buscar canciones..."
                             value={songSearchTerm}
                             onChange={(e) => setSongSearchTerm(e.target.value)}
-                            className="w-full pl-7 pr-2 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-1 focus:ring-indigo-500 focus:border-transparent"
+                            className="w-full pl-7 pr-2 py-1.5 text-xs sm:text-sm border border-gray-300 rounded-md focus:ring-1 focus:ring-indigo-500 focus:border-transparent"
                           />
                         </div>
 
@@ -1655,7 +1660,7 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({
                             placeholder="Buscar playlists..."
                             value={playlistSearchTerm}
                             onChange={(e) => setPlaylistSearchTerm(e.target.value)}
-                            className="w-full pl-7 pr-2 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-1 focus:ring-indigo-500 focus:border-transparent"
+                            className="w-full pl-7 pr-2 py-1.5 text-xs sm:text-sm border border-gray-300 rounded-md focus:ring-1 focus:ring-indigo-500 focus:border-transparent"
                           />
                         </div>
                       </div>
@@ -1835,33 +1840,34 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({
                 </div>
 
                 {/* Columna derecha: Lista de canciones seleccionadas */}
-                <div className="pl-6">
+                <div className="lg:pl-6 mt-6 lg:mt-0">
                   <div className="h-full flex flex-col">
-                    <h5 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-                      <CheckCircle className="h-4 w-4 mr-2" />
-                      Canciones Seleccionadas ({selectedSongs.filter(song => song.voiceType).length})
+                    <h5 className="text-base sm:text-lg font-medium text-gray-900 mb-3 sm:mb-4 flex items-center">
+                      <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
+                      <span className="text-sm sm:text-base">Canciones Seleccionadas ({selectedSongs.filter(song => song.voiceType).length})</span>
                     </h5>
 
                     {selectedSongs.filter(song => song.voiceType).length === 0 ? (
-                      <div className="flex-1 border border-gray-200 rounded-lg bg-gray-50 flex items-center justify-center">
+                      <div className="flex-1 border border-gray-200 rounded-lg bg-gray-50 flex items-center justify-center p-4">
                         <div className="text-center text-gray-500">
-                          <Music className="mx-auto h-12 w-12 text-gray-300 mb-4" />
-                          <p className="text-lg font-medium">No hay canciones seleccionadas</p>
-                          <p className="text-sm">Selecciona canciones de la lista de la izquierda</p>
+                          <Music className="mx-auto h-8 w-8 sm:h-12 sm:w-12 text-gray-300 mb-3 sm:mb-4" />
+                          <p className="text-base sm:text-lg font-medium">No hay canciones seleccionadas</p>
+                          <p className="text-xs sm:text-sm">Selecciona canciones de la lista de arriba</p>
                         </div>
                       </div>
                     ) : (
                       <div className="flex-1 border border-gray-200 rounded-lg overflow-hidden">
-                        <div className="bg-green-50 px-4 py-3 border-b border-green-200 flex items-center justify-between">
-                          <span className="text-sm font-medium text-green-900">
-                            Lista de Reproducción del Evento
+                        <div className="bg-green-50 px-3 sm:px-4 py-2 sm:py-3 border-b border-green-200 flex items-center justify-between">
+                          <span className="text-xs sm:text-sm font-medium text-green-900">
+                            Lista de Reproducción del Programa
                           </span>
                           <button
                             onClick={() => setSelectedSongs([])}
-                            className="text-red-600 hover:text-red-800 text-sm font-medium flex items-center"
+                            className="text-red-600 hover:text-red-800 text-xs sm:text-sm font-medium flex items-center"
                           >
                             <Trash className="h-3 w-3 mr-1" />
-                            Limpiar Todo
+                            <span className="hidden sm:inline">Limpiar Todo</span>
+                            <span className="sm:hidden">Limpiar</span>
                           </button>
                         </div>
                         
