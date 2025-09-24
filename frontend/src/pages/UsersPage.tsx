@@ -200,6 +200,9 @@ const UsersPage: React.FC = () => {
     page: 1,
     limit: 10
   });
+  
+  // Estado separado para el input de búsqueda (para debounce)
+  const [searchInput, setSearchInput] = useState('');
 
   // Estado del formulario de edición
   const [editForm, setEditForm] = useState({
@@ -300,6 +303,19 @@ const UsersPage: React.FC = () => {
     fetchUsers();
     fetchLocations();
   }, [fetchUsers]);
+
+  // Debounce para búsqueda por texto
+  useEffect(() => {
+    const debounceTimer = setTimeout(() => {
+      setFilters(prev => ({
+        ...prev,
+        search: searchInput,
+        page: 1 // Reset a página 1 cuando cambia la búsqueda
+      }));
+    }, 500); // 500ms de delay
+
+    return () => clearTimeout(debounceTimer);
+  }, [searchInput]);
 
   // Manejar cambios en filtros
   const handleFilterChange = (key: string, value: string | number) => {
@@ -838,8 +854,8 @@ const UsersPage: React.FC = () => {
                         type="text"
                         placeholder="Buscar por nombre, email o usuario..."
                         className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        value={filters.search}
-                        onChange={(e) => handleFilterChange('search', e.target.value)}
+                        value={searchInput}
+                        onChange={(e) => setSearchInput(e.target.value)}
                       />
                     </div>
                   </div>
