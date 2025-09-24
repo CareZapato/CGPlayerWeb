@@ -410,4 +410,162 @@ router.delete('/me/image', authenticateToken, async (req: AuthRequest, res: Resp
   }
 });
 
+// Obtener estadísticas reales del usuario por temporadas
+router.get('/stats', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    
+    if (!userId) {
+      return res.status(401).json({ error: 'No autorizado' });
+    }
+
+    console.log('📊 [BACKEND] Obteniendo estadísticas para usuario:', userId);
+
+    // Obtener todas las solicitudes de unión a eventos del usuario (EventJoinRequest)
+    // Estas representan las solicitudes a ensayos/eventos 
+    const eventJoinRequests = await prisma.eventJoinRequest.findMany({
+      where: { userId },
+      include: {
+        event: {
+          select: {
+            date: true,
+            title: true,
+            category: true
+          }
+        }
+      }
+    });
+
+    // Obtener asistencias confirmadas a eventos (EventAttendee)
+    const eventAttendees = await prisma.eventAttendee.findMany({
+      where: { userId },
+      include: {
+        event: {
+          select: {
+            date: true,
+            title: true,
+            category: true
+          }
+        }
+      }
+    });
+
+    console.log('📊 [BACKEND] Solicitudes encontradas:', {
+      joinRequests: eventJoinRequests.length,
+      attendees: eventAttendees.length
+    });
+
+    // Agrupar por año y calcular estadísticas
+    const statsByYear = new Map<number, any>();
+
+    // Procesar solicitudes de unión (EventJoinRequest)
+    eventJoinRequests.forEach((request: any) => {
+      const year = new Date(request.event.date).getFullYear();
+      const category = request.event.category || 'Culto';
+      
+      if (!statsByYear.has(year)) {
+        statsByYear.set(year, {
+          year,
+          ensayosAsistidos: 0,
+          ensayosFaltas: 0,
+          ensayosInasistencias: 0,
+          totalEnsayos: 0,
+          eventosAsistidos: 0,
+          totalEventos: 0,
+          porcentajeAsistencia: 0
+        });
+      }
+
+      const yearStats = statsByYear.get(year);
+
+      // Considerar "Ensayo" y "Culto" como ensayos para las estadísticas
+      if (category === 'Ensayo' || category === 'Culto') {
+        yearStats.totalEnsayos++;
+        
+        switch (request.status) {
+          case 'APPROVED':
+            yearStats.ensayosAsistidos++;
+            break;
+          case 'REJECTED':
+            // Si hay mensaje en response podríamos considerarlo justificado
+            if (request.message) {
+              yearStats.ensayosInasistencias++; // Con justificación
+            } else {
+              yearStats.ensayosFaltas++; // Sin justificación
+            }
+            break;
+        }
+      } else {
+        // Otros tipos de eventos
+        yearStats.totalEventos++;
+        if (request.status === 'APPROVED') {
+          yearStats.eventosAsistidos++;
+        }
+      }
+    });
+
+    // Procesar asistentes agregados directamente (EventAttendee)
+    eventAttendees.forEach((attendee: any) => {
+      const year = new Date(attendee.event.date).getFullYear();
+      const category = attendee.event.category || 'Culto';
+      
+      if (!statsByYear.has(year)) {
+        statsByYear.set(year, {
+          year,
+          ensayosAsistidos: 0,
+          ensayosFaltas: 0,
+          ensayosInasistencias: 0,
+          totalEnsayos: 0,
+          eventosAsistidos: 0,
+          totalEventos: 0,
+          porcentajeAsistencia: 0
+        });
+      }
+
+      const yearStats = statsByYear.get(year);
+
+      // Considerar "Ensayo" y "Culto" como ensayos
+      if (category === 'Ensayo' || category === 'Culto') {
+        yearStats.totalEnsayos++;
+        
+        switch (attendee.status) {
+          case 'CONFIRMED':
+            yearStats.ensayosAsistidos++;
+            break;
+          case 'REFUSED':
+            // Revisar si hay comentario de no asistencia
+            if (attendee.nonAttendanceComment) {
+              yearStats.ensayosInasistencias++; // Con justificación
+            } else {
+              yearStats.ensayosFaltas++; // Sin justificación
+            }
+            break;
+        }
+      } else {
+        // Otros tipos de eventos
+        yearStats.totalEventos++;
+        if (attendee.status === 'CONFIRMED') {
+          yearStats.eventosAsistidos++;
+        }
+      }
+    });
+
+    // Calcular porcentajes de asistencia y convertir a array
+    const seasonStats = Array.from(statsByYear.values()).map(stats => ({
+      ...stats,
+      porcentajeAsistencia: stats.totalEnsayos > 0 
+        ? (stats.ensayosAsistidos / stats.totalEnsayos) * 100 
+        : 0
+    })).sort((a, b) => b.year - a.year); // Ordenar de más reciente a más antiguo
+
+    console.log('📊 [BACKEND] Estadísticas calculadas:', seasonStats);
+
+    res.json(seasonStats);
+
+  } catch (error) {
+    console.error('Error al obtener estadísticas del usuario:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
 export default router;
