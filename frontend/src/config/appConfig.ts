@@ -25,7 +25,7 @@ const getApiBaseUrl = (): string => {
 
 // Obtener versión desde package.json en tiempo de build
 const packageInfo = {
-  version: import.meta.env.VITE_APP_VERSION || '0.11.0'
+  version: import.meta.env.VITE_APP_VERSION || '0.12.18'
 };
 
 export const APP_CONFIG = {

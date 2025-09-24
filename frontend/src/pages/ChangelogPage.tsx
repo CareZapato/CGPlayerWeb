@@ -15,6 +15,58 @@ interface ChangelogEntry {
 
 const changelogData: ChangelogEntry[] = [
   {
+    version: '0.12.18',
+    date: '2025-09-23',
+    type: 'minor',
+    title: 'Sistema de Estadísticas Reales y Perfil Rediseñado - Real Statistics System & Profile Redesign',
+    highlights: [
+      'Sistema de estadísticas con datos 100% reales basados en participación del usuario',
+      'Cálculos automáticos desde EventJoinRequest y EventAttendee por temporadas',
+      'Sistema de logros separado con progreso real y barras visuales mejoradas',
+      'Perfil completamente rediseñado con menú lateral inteligente responsive',
+      'API optimizada con endpoint /profile/stats para estadísticas en tiempo real'
+    ],
+    changes: [
+      {
+        category: 'added',
+        items: [
+          'Endpoint /profile/stats con datos reales de EventJoinRequest y EventAttendee',
+          'Cálculos de estadísticas por temporada desde la fecha actual hacia atrás',
+          'Métricas detalladas: ensayos asistidos, faltas, inasistencias, eventos',
+          'Clasificación inteligente entre faltas (sin justificación) e inasistencias (con justificación)',
+          'Sección independiente para sistema de logros separada de estadísticas',
+          'Menú lateral inteligente: horizontal scroll en móvil, vertical en desktop',
+          'Tarjetas de resumen modernas con iconos y métricas principales',
+          'Barras de progreso con límites visuales y colores dinámicos según rendimiento'
+        ]
+      },
+      {
+        category: 'improved',
+        items: [
+          'Perfil completamente rediseñado con interfaz moderna y responsive',
+          'Sistema de logros ahora calcula progreso basado en participación real confirmada',
+          'Estadísticas reales mostradas en lugar de datos mock de ejemplo',
+          'Performance mejorado en carga de estadísticas complejas con queries optimizadas',
+          'Consultas eficientes a base de datos con joins optimizados para mejor rendimiento',
+          'Responsive perfecto con adaptación completa a todos los tamaños de pantalla',
+          'TypeScript interfaces actualizadas con SeasonStats completo para tipado robusto',
+          'React Query optimizado para carga eficiente de datos estadísticos'
+        ]
+      },
+      {
+        category: 'fixed',
+        items: [
+          'Errores de sintaxis JSX en ProfilePage.tsx completamente resueltos',
+          'Variables no utilizadas removidas de interfaces TypeScript',
+          'Duplicación de secciones en componentes de perfil eliminada',
+          'Progress bars que se salían de límites visuales corregidas con Math.min/Math.max',
+          'Problemas de responsive en navegación móvil del perfil solucionados',
+          'Estados de carga y fallbacks inteligentes para usuarios sin datos implementados'
+        ]
+      }
+    ]
+  },
+  {
     version: '0.11.0',
     date: '2025-09-22',
     type: 'minor',
@@ -709,7 +761,7 @@ const ChangelogPage: React.FC = () => {
               <p><strong>Versión actual:</strong> {changelogData[0].version}</p>
               <p><strong>Última actualización:</strong> {new Date(changelogData[0].date).toLocaleDateString('es-ES')}</p>
               <p><strong>Tecnologías:</strong> React, TypeScript, Node.js, PostgreSQL, Prisma</p>
-              <p><strong>Nuevo en v0.10.27:</strong> Actualización de la sección Profile, con más información al respecto de la cuenta y voice type.</p>
+              <p><strong>Nuevo en v0.12.18:</strong> Sistema de estadísticas con datos reales, logros mejorado y perfil completamente rediseñado con menú lateral inteligente.</p>
             </div>
           </div>
           <div className="text-6xl">
