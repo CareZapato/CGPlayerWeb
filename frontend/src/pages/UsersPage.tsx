@@ -1349,234 +1349,338 @@ const UsersPage: React.FC = () => {
       {/* Modal de crear usuario */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-semibold text-gray-900">
-                  {currentUser?.roles?.some(role => role.role === 'ADMIN') 
-                    ? 'Crear Nuevo Usuario' 
-                    : 'Crear Nuevo Cantante'
-                  }
-                </h3>
+          <div className="bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[95vh] overflow-hidden">
+            {/* Header del modal */}
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-white bg-opacity-20 rounded-lg">
+                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-white">
+                      {currentUser?.roles?.some(role => role.role === 'ADMIN') 
+                        ? 'Crear Nuevo Usuario' 
+                        : 'Crear Nuevo Cantante'
+                      }
+                    </h3>
+                    <p className="text-blue-100 text-sm">
+                      {currentUser?.roles?.some(role => role.role === 'ADMIN') 
+                        ? 'Complete los datos para crear un nuevo usuario en el sistema' 
+                        : 'Complete los datos para agregar un nuevo cantante a su delegación'
+                      }
+                    </p>
+                  </div>
+                </div>
                 <button
                   onClick={() => setShowCreateModal(false)}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="text-white hover:bg-white hover:bg-opacity-20 p-2 rounded-lg transition-colors"
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
               </div>
+            </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Nombre *
-                  </label>
-                  <input
-                    type="text"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    value={createForm.firstName}
-                    onChange={(e) => setCreateForm(prev => ({ ...prev, firstName: e.target.value }))}
-                  />
+            {/* Contenido del formulario */}
+            <div className="p-6 max-h-[calc(95vh-120px)] overflow-y-auto">
+              
+              {/* Sección: Información Personal */}
+              <div className="mb-8">
+                <div className="flex items-center mb-4">
+                  <div className="p-2 bg-blue-100 rounded-lg mr-3">
+                    <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                  </div>
+                  <h4 className="text-lg font-semibold text-gray-900">Información Personal</h4>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Apellido *
-                  </label>
-                  <input
-                    type="text"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    value={createForm.lastName}
-                    onChange={(e) => setCreateForm(prev => ({ ...prev, lastName: e.target.value }))}
-                  />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Nombre <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                      value={createForm.firstName}
+                      onChange={(e) => setCreateForm(prev => ({ ...prev, firstName: e.target.value }))}
+                      placeholder="Ingrese el nombre"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Apellido <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                      value={createForm.lastName}
+                      onChange={(e) => setCreateForm(prev => ({ ...prev, lastName: e.target.value }))}
+                      placeholder="Ingrese el apellido"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Teléfono
+                    </label>
+                    <input
+                      type="tel"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                      value={createForm.phone}
+                      onChange={(e) => setCreateForm(prev => ({ ...prev, phone: e.target.value }))}
+                      placeholder="+56 9 1234 5678"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Sección: Cuenta y Acceso */}
+              <div className="mb-8">
+                <div className="flex items-center mb-4">
+                  <div className="p-2 bg-green-100 rounded-lg mr-3">
+                    <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                    </svg>
+                  </div>
+                  <h4 className="text-lg font-semibold text-gray-900">Cuenta y Acceso</h4>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Email *
-                  </label>
-                  <input
-                    type="email"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    value={createForm.email}
-                    onChange={(e) => setCreateForm(prev => ({ ...prev, email: e.target.value }))}
-                  />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Email <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="email"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                      value={createForm.email}
+                      onChange={(e) => setCreateForm(prev => ({ ...prev, email: e.target.value }))}
+                      placeholder="ejemplo@correo.com"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Usuario <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                      value={createForm.username}
+                      onChange={(e) => setCreateForm(prev => ({ ...prev, username: e.target.value }))}
+                      placeholder="nombre_usuario"
+                    />
+                  </div>
+
+                  <div className="space-y-1 md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Contraseña <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="password"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                      value={createForm.password}
+                      onChange={(e) => setCreateForm(prev => ({ ...prev, password: e.target.value }))}
+                      placeholder="Mínimo 6 caracteres"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Sección: Rol y Ubicación */}
+              <div className="mb-8">
+                <div className="flex items-center mb-4">
+                  <div className="p-2 bg-purple-100 rounded-lg mr-3">
+                    <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                  </div>
+                  <h4 className="text-lg font-semibold text-gray-900">Rol y Ubicación</h4>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Usuario *
-                  </label>
-                  <input
-                    type="text"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    value={createForm.username}
-                    onChange={(e) => setCreateForm(prev => ({ ...prev, username: e.target.value }))}
-                  />
-                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Rol <span className="text-red-500">*</span>
+                    </label>
+                    {currentUser?.roles?.some(role => role.role === 'ADMIN') ? (
+                      <select
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                        value={createForm.selectedRole}
+                        onChange={(e) => setCreateForm(prev => ({ ...prev, selectedRole: e.target.value }))}
+                      >
+                        {ROLES.map(role => (
+                          <option key={role} value={role}>
+                            {formatRole(role)}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <div className="w-full px-4 py-3 border border-gray-200 rounded-lg bg-gray-50 text-gray-700 font-medium">
+                        🎤 Cantante
+                      </div>
+                    )}
+                  </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Teléfono
-                  </label>
-                  <input
-                    type="tel"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    value={createForm.phone}
-                    onChange={(e) => setCreateForm(prev => ({ ...prev, phone: e.target.value }))}
-                    placeholder="+56 9 1234 5678"
-                  />
-                </div>
+                  {/* Solo mostrar selector de ubicación para ADMINs */}
+                  {currentUser?.roles?.some(role => role.role === 'ADMIN') && (
+                    <div className="space-y-1">
+                      <label className="block text-sm font-medium text-gray-700">
+                        Ubicación
+                      </label>
+                      <select
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                        value={createForm.locationId}
+                        onChange={(e) => setCreateForm(prev => ({ ...prev, locationId: e.target.value }))}
+                      >
+                        <option value="">Sin ubicación</option>
+                        {locations.length === 0 && (
+                          <option value="" disabled>Cargando ubicaciones...</option>
+                        )}
+                        {locations.map(location => (
+                          <option key={location.id} value={location.id}>
+                            {location.name} - {location.city}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Contraseña *
-                  </label>
-                  <input
-                    type="password"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    value={createForm.password}
-                    onChange={(e) => setCreateForm(prev => ({ ...prev, password: e.target.value }))}
-                    placeholder="Mínimo 6 caracteres"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Rol *
-                  </label>
-                  {currentUser?.roles?.some(role => role.role === 'ADMIN') ? (
-                    <select
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      value={createForm.selectedRole}
-                      onChange={(e) => setCreateForm(prev => ({ ...prev, selectedRole: e.target.value }))}
-                    >
-                      {ROLES.map(role => (
-                        <option key={role} value={role}>
-                          {formatRole(role)}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <div className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-700">
-                      Cantante
+                  {/* Para Directors, mostrar información de la ubicación asignada automáticamente */}
+                  {currentUser?.roles?.some(role => role.role === 'DIRECTOR') && !currentUser?.roles?.some(role => role.role === 'ADMIN') && (
+                    <div className="space-y-1">
+                      <label className="block text-sm font-medium text-gray-700">
+                        Ubicación
+                      </label>
+                      <div className="w-full px-4 py-3 border border-blue-200 rounded-lg bg-blue-50 text-blue-700 font-medium flex items-center">
+                        <svg className="w-5 h-5 text-blue-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                        </svg>
+                        Se asignará automáticamente a tu ubicación
+                      </div>
                     </div>
                   )}
                 </div>
-
-                {/* Solo mostrar selector de ubicación para ADMINs */}
-                {currentUser?.roles?.some(role => role.role === 'ADMIN') && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Ubicación
-                    </label>
-                    <select
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      value={createForm.locationId}
-                      onChange={(e) => setCreateForm(prev => ({ ...prev, locationId: e.target.value }))}
-                    >
-                      <option value="">Sin ubicación</option>
-                      {locations.length === 0 && (
-                        <option value="" disabled>Cargando ubicaciones...</option>
-                      )}
-                      {locations.map(location => (
-                        <option key={location.id} value={location.id}>
-                          {location.name} - {location.city}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
-                {/* Para Directors, mostrar información de la ubicación asignada automáticamente */}
-                {currentUser?.roles?.some(role => role.role === 'DIRECTOR') && !currentUser?.roles?.some(role => role.role === 'ADMIN') && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Ubicación
-                    </label>
-                    <div className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-700">
-                      Se asignará automáticamente a tu ubicación
-                    </div>
-                  </div>
-                )}
               </div>
 
-              <div className="mt-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Tipos de Voz
-                </label>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                  {VOICE_TYPES.map(voice => (
-                    <label key={voice} className="flex items-center">
-                      <input
-                        type="checkbox"
-                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                        checked={createForm.selectedVoices.includes(voice)}
-                        onChange={() => handleCreateVoiceToggle(voice)}
-                      />
-                      <span className="ml-2 text-sm text-gray-700">{formatVoiceType(voice)}</span>
-                    </label>
-                  ))}
+              {/* Sección: Tipos de Voz */}
+              <div className="mb-8">
+                <div className="flex items-center mb-4">
+                  <div className="p-2 bg-pink-100 rounded-lg mr-3">
+                    <svg className="w-5 h-5 text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                    </svg>
+                  </div>
+                  <h4 className="text-lg font-semibold text-gray-900">Tipos de Voz</h4>
                 </div>
-                
-                {/* Selector de Voz Primaria */}
-                {createForm.selectedVoices.length > 1 && (
-                  <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                    <label className="block text-sm font-medium text-blue-800 mb-2">
-                      <span className="flex items-center">
-                        <span className="text-blue-600 mr-1">⭐</span>
-                        Voz Primaria
-                      </span>
-                    </label>
-                    <div className="grid grid-cols-1 gap-2">
-                      {createForm.selectedVoices.map(voice => (
-                        <label key={voice} className="flex items-center">
-                          <input
-                            type="radio"
-                            name="createPrimaryVoice"
-                            className="border-blue-300 text-blue-600 focus:ring-blue-500"
-                            checked={createForm.primaryVoice === voice}
-                            onChange={() => handleCreatePrimaryVoiceChange(voice)}
-                          />
-                          <span className="ml-2 text-sm text-blue-700">{formatVoiceType(voice)}</span>
-                        </label>
-                      ))}
-                    </div>
-                    <p className="text-xs text-blue-600 mt-1">
-                      Esta será la voz principal mostrada en el perfil
-                    </p>
+
+                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    {VOICE_TYPES.map(voice => (
+                      <label key={voice} className="flex items-center p-3 bg-white rounded-lg border border-gray-200 hover:border-blue-300 transition-colors cursor-pointer">
+                        <input
+                          type="checkbox"
+                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-3"
+                          checked={createForm.selectedVoices.includes(voice)}
+                          onChange={() => handleCreateVoiceToggle(voice)}
+                        />
+                        <span className="text-sm text-gray-700 font-medium">{formatVoiceType(voice)}</span>
+                      </label>
+                    ))}
                   </div>
-                )}
+                  
+                  {/* Selector de Voz Primaria */}
+                  {createForm.selectedVoices.length > 1 && (
+                    <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                      <div className="flex items-center mb-3">
+                        <span className="text-blue-600 mr-2 text-lg">⭐</span>
+                        <label className="block text-sm font-medium text-blue-800">
+                          Voz Primaria
+                        </label>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        {createForm.selectedVoices.map(voice => (
+                          <label key={voice} className="flex items-center p-2 bg-white bg-opacity-60 rounded-lg">
+                            <input
+                              type="radio"
+                              name="createPrimaryVoice"
+                              className="border-blue-300 text-blue-600 focus:ring-blue-500 mr-2"
+                              checked={createForm.primaryVoice === voice}
+                              onChange={() => handleCreatePrimaryVoiceChange(voice)}
+                            />
+                            <span className="text-sm text-blue-700 font-medium">{formatVoiceType(voice)}</span>
+                          </label>
+                        ))}
+                      </div>
+                      <p className="text-xs text-blue-600 mt-2">
+                        Esta será la voz principal mostrada en el perfil del cantante
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
 
-              <div className="mt-6 flex items-center">
-                <input
-                  type="checkbox"
-                  id="createIsActive"
-                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  checked={createForm.isActive}
-                  onChange={(e) => setCreateForm(prev => ({ ...prev, isActive: e.target.checked }))}
-                />
-                <label htmlFor="createIsActive" className="ml-2 text-sm text-gray-700">
-                  Usuario activo
-                </label>
-              </div>
+              {/* Solo mostrar checkbox de activo para ADMINs */}
+              {currentUser?.roles?.some(role => role.role === 'ADMIN') && (
+                <div className="mt-6 flex items-center">
+                  <input
+                    type="checkbox"
+                    id="createIsActive"
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    checked={createForm.isActive}
+                    onChange={(e) => setCreateForm(prev => ({ ...prev, isActive: e.target.checked }))}
+                  />
+                  <label htmlFor="createIsActive" className="ml-2 text-sm text-gray-700">
+                    Usuario activo
+                  </label>
+                </div>
+              )}
 
-              <div className="mt-6 flex space-x-3">
+              {/* Para Directors, mostrar info de que el usuario será activo por defecto */}
+              {currentUser?.roles?.some(role => role.role === 'DIRECTOR') && !currentUser?.roles?.some(role => role.role === 'ADMIN') && (
+                <div className="mt-6 p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <div className="flex items-center">
+                    <svg className="w-5 h-5 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span className="text-sm text-green-800 font-medium">
+                      El usuario será creado como activo y en estado pendiente de aprobación
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Botones de acción */}
+              <div className="flex flex-col sm:flex-row gap-3 pt-6 border-t border-gray-200">
                 <button
                   onClick={() => setShowCreateModal(false)}
-                  className="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-400 transition-colors"
+                  className="flex-1 px-6 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium flex items-center justify-center"
                 >
+                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
                   Cancelar
                 </button>
                 <button
                   onClick={handleCreateUser}
                   disabled={!createForm.firstName || !createForm.lastName || !createForm.email || !createForm.username || !createForm.password}
-                  className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+                  className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-200 disabled:from-gray-400 disabled:to-gray-400 disabled:cursor-not-allowed font-medium flex items-center justify-center"
                 >
-                  Crear Usuario
+                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                  </svg>
+                  {currentUser?.roles?.some(role => role.role === 'ADMIN') 
+                    ? 'Crear Usuario' 
+                    : 'Crear Cantante'
+                  }
                 </button>
               </div>
             </div>
