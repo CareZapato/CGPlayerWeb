@@ -147,7 +147,8 @@ router.get('/', authenticateToken, requireRole(['DIRECTOR', 'ADMIN']), async (re
       location = '',
       voiceType = '',
       role = '',
-      isActive = ''
+      isActive = '',
+      status = '' // Agregar filtro de status
     } = req.query;
 
     const pageNum = parseInt(page as string);
@@ -192,6 +193,18 @@ router.get('/', authenticateToken, requireRole(['DIRECTOR', 'ADMIN']), async (re
       where.isActive = isActive === 'true';
     }
 
+    if (status) {
+      where.status = status as string;
+    }
+
+    // Si el usuario actual es Director, filtrar solo por su ubicación
+    const currentUserRoles = req.user?.roles || [];
+    const isDirectorUser = currentUserRoles.includes('DIRECTOR');
+    
+    if (isDirectorUser && req.user?.locationId) {
+      where.locationId = req.user.locationId;
+    }
+
     // Obtener usuarios con paginación
     const [users, totalCount] = await Promise.all([
       prisma.user.findMany({
@@ -204,6 +217,7 @@ router.get('/', authenticateToken, requireRole(['DIRECTOR', 'ADMIN']), async (re
           lastName: true,
           phone: true,
           isActive: true,
+          status: true, // Agregar campo status
           createdAt: true,
           updatedAt: true,
           profileImage: true,
@@ -236,7 +250,7 @@ router.get('/', authenticateToken, requireRole(['DIRECTOR', 'ADMIN']), async (re
               createdAt: true
             }
           }
-        },
+        } as any,
         orderBy: {
           firstName: 'asc'
         },
@@ -249,7 +263,7 @@ router.get('/', authenticateToken, requireRole(['DIRECTOR', 'ADMIN']), async (re
     const totalPages = Math.ceil(totalCount / limitNum);
 
     // Transformar usuarios para agregar profileImageUrl
-    const transformedUsers = users.map(user => ({
+    const transformedUsers = users.map((user: any) => ({
       ...user,
       profileImageUrl: generateProfileImageUrl(user.profileImage)
     }));
@@ -758,8 +772,8 @@ router.get('/data/locations', authenticateToken, requireRole(['DIRECTOR', 'ADMIN
   }
 });
 
-// Crear usuario manualmente (solo admins)
-router.post('/create', authenticateToken, requireRole(['ADMIN']), async (req: AuthRequest, res: Response) => {
+// Crear usuario manualmente (admins y directores)
+router.post('/create', authenticateToken, requireRole(['ADMIN', 'DIRECTOR']), async (req: AuthRequest, res: Response) => {
   try {
     const { 
       firstName, 
@@ -770,6 +784,7 @@ router.post('/create', authenticateToken, requireRole(['ADMIN']), async (req: Au
       password, 
       locationId, 
       isActive, 
+      status, // Nuevo campo de estado
       voiceTypes, 
       primaryVoice,  // Agregar primaryVoice del frontend
       role 
@@ -783,6 +798,7 @@ router.post('/create', authenticateToken, requireRole(['ADMIN']), async (req: Au
       phone,
       locationId: locationId || 'NULL',
       isActive,
+      status: status || 'CONFIRMED',
       voiceTypes,
       primaryVoice,
       role
@@ -838,8 +854,9 @@ router.post('/create', authenticateToken, requireRole(['ADMIN']), async (req: Au
         phone: phone || null,
         password: hashedPassword,
         locationId: validLocationId,
-        isActive: isActive !== undefined ? isActive : true
-      }
+        isActive: isActive !== undefined ? isActive : true,
+        status: (status || 'CONFIRMED')
+      } as any
     });
 
     // Asignar rol único
@@ -1078,6 +1095,48 @@ router.post('/import-csv', authenticateToken, requireRole(['ADMIN']), async (req
   } catch (error) {
     console.error('Error importing users:', error);
     res.status(500).json({ message: 'Failed to import users' });
+  }
+});
+
+// Aprobar usuario (solo admins)
+router.patch('/:userId/approve', authenticateToken, requireRole(['ADMIN']), async (req: AuthRequest, res: Response) => {
+  try {
+    const { userId } = req.params;
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: { status: 'CONFIRMED' } as any
+    });
+
+    res.json({
+      success: true,
+      message: 'Usuario aprobado correctamente',
+      user: updatedUser
+    });
+  } catch (error) {
+    console.error('Error approving user:', error);
+    res.status(500).json({ message: 'Error al aprobar usuario' });
+  }
+});
+
+// Rechazar usuario (solo admins)
+router.patch('/:userId/reject', authenticateToken, requireRole(['ADMIN']), async (req: AuthRequest, res: Response) => {
+  try {
+    const { userId } = req.params;
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: { status: 'REFUSED' } as any
+    });
+
+    res.json({
+      success: true,
+      message: 'Usuario rechazado',
+      user: updatedUser
+    });
+  } catch (error) {
+    console.error('Error rejecting user:', error);
+    res.status(500).json({ message: 'Error al rechazar usuario' });
   }
 });
 

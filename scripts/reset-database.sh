@@ -25,6 +25,41 @@ if [ ! -f "package.json" ]; then
     exit 1
 fi
 
+echo "🧹 Limpiando archivos de uploads (preservando READMEs)..."
+# Limpiar imágenes de perfiles
+if [ -d "backend/uploads/images/profiles" ]; then
+    find backend/uploads/images/profiles -type f ! -name "README.md" -delete
+    echo "   ✅ Perfiles limpiados"
+fi
+
+# Limpiar imágenes de playlists
+if [ -d "backend/uploads/images/playlists" ]; then
+    find backend/uploads/images/playlists -type f ! -name "README.md" -delete
+    echo "   ✅ Playlists limpiados"
+fi
+
+# Limpiar archivos de canciones
+if [ -d "backend/uploads/songs" ]; then
+    find backend/uploads/songs -type f ! -name "README.md" -delete
+    echo "   ✅ Canciones limpiadas"
+fi
+
+# Limpiar también uploads del directorio principal si existe
+if [ -d "uploads/images/profiles" ]; then
+    find uploads/images/profiles -type f ! -name "README.md" -delete
+    echo "   ✅ Uploads/profiles limpiados"
+fi
+
+if [ -d "uploads/images/playlists" ]; then
+    find uploads/images/playlists -type f ! -name "README.md" -delete
+    echo "   ✅ Uploads/playlists limpiados"
+fi
+
+if [ -d "uploads/songs" ]; then
+    find uploads/songs -type f ! -name "README.md" -delete
+    echo "   ✅ Uploads/songs limpiados"
+fi
+
 cd backend
 
 echo "🗑️  Reseteando migraciones de Prisma..."

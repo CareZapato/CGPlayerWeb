@@ -15,6 +15,7 @@ model User {
   firstName             String
   lastName              String
   isActive              Boolean            @default(true)
+  status                UserStatus         @default(CONFIRMED)
   createdAt             DateTime           @default(now())
   updatedAt             DateTime           @updatedAt
   locationId            String?
@@ -360,6 +361,12 @@ enum UserRole {
   ADMIN
   CANTANTE
   DIRECTOR
+}
+
+enum UserStatus {
+  PENDING
+  CONFIRMED
+  REFUSED
 }
 
 enum VoiceType {

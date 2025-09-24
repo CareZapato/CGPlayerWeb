@@ -1,36 +1,71 @@
 const bcrypt = require('bcrypt');
 const { PrismaClient } = require('@prisma/client');
+const fs = require('fs');
+const path = require('path');
 
 const prisma = new PrismaClient();
+
+// Función para limpiar directorios de uploads (preservando READMEs)
+const cleanUploadsDirectories = async () => {
+  const projectRoot = process.cwd();
+  const uploadsBase = path.join(projectRoot, 'uploads');
+  
+  const directoriesToClean = [
+    path.join(uploadsBase, 'images', 'profiles'),
+    path.join(uploadsBase, 'images', 'playlists'),
+    path.join(uploadsBase, 'songs')
+  ];
+
+  for (const dir of directoriesToClean) {
+    if (fs.existsSync(dir)) {
+      const files = fs.readdirSync(dir);
+      
+      for (const file of files) {
+        if (file.toUpperCase() !== 'README.MD') {
+          const filePath = path.join(dir, file);
+          fs.unlinkSync(filePath);
+        }
+      }
+      
+      const remainingFiles = fs.readdirSync(dir).filter(f => f.toUpperCase() !== 'README.MD');
+      console.log(`🧹 ${dir}: ${files.length - remainingFiles.length - 1} archivos eliminados, README preservado`);
+    }
+  }
+};
 
 async function main() {
   try {
     console.log('🌱 Iniciando seed definitivo para CGPlayerWeb...');
 
+    // 0. Limpiar directorios de uploads antes de comenzar
+    console.log('🧹 Limpiando directorios de uploads...');
+    await cleanUploadsDirectories();
+    console.log('✅ Uploads limpiados correctamente');
+
     // 1. Crear ubicaciones
     console.log('📍 Creando ubicaciones...');
     const locations = await Promise.all([
-      prisma.location.upsert({
-        where: { name: 'Santiago Centro' },
-        update: {},
-        create: {
+      prisma.location.create({
+        data: {
           name: 'Santiago Centro',
+          type: 'SANTIAGO',
+          city: 'Santiago',
           address: 'Santiago, Región Metropolitana, Chile'
         }
       }),
-      prisma.location.upsert({
-        where: { name: 'Providencia' },
-        update: {},
-        create: {
+      prisma.location.create({
+        data: {
           name: 'Providencia',
+          type: 'SANTIAGO',
+          city: 'Santiago',
           address: 'Providencia, Región Metropolitana, Chile'
         }
       }),
-      prisma.location.upsert({
-        where: { name: 'Las Condes' },
-        update: {},
-        create: {
+      prisma.location.create({
+        data: {
           name: 'Las Condes',
+          type: 'SANTIAGO',
+          city: 'Santiago',
           address: 'Las Condes, Región Metropolitana, Chile'
         }
       })

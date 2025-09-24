@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   MagnifyingGlassIcon, 
   TrashIcon,
@@ -20,6 +20,7 @@ interface User {
   lastName: string;
   phone?: string;
   isActive: boolean;
+  status?: 'PENDING' | 'CONFIRMED' | 'REFUSED';
   createdAt: string;
   profileImage?: string | null;
   profileImageUrl?: string | null;
@@ -156,6 +157,7 @@ const UsersPage: React.FC = () => {
     voiceType: '',
     role: '',
     isActive: '',
+    status: '',
     page: 1,
     limit: 10
   });
@@ -195,10 +197,16 @@ const UsersPage: React.FC = () => {
   const [isImporting, setIsImporting] = useState(false);
 
   // Cargar usuarios
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     try {
       setLoading(true);
       const queryParams = new URLSearchParams();
+      
+      // Si el usuario actual es Director, filtrar por su ubicación
+      const isUserDirector = currentUser?.roles?.some(role => role.role === 'DIRECTOR');
+      if (isUserDirector && currentUser?.locationId) {
+        queryParams.append('location', currentUser.locationId);
+      }
       
       Object.entries(filters).forEach(([key, value]) => {
         if (value !== '' && value !== 0) {
@@ -225,7 +233,7 @@ const UsersPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters, currentUser]);
 
   // Cargar ubicaciones
   const fetchLocations = async () => {
@@ -252,7 +260,7 @@ const UsersPage: React.FC = () => {
   useEffect(() => {
     fetchUsers();
     fetchLocations();
-  }, [filters]);
+  }, [fetchUsers]);
 
   // Manejar cambios en filtros
   const handleFilterChange = (key: string, value: string | number) => {
@@ -464,6 +472,8 @@ const UsersPage: React.FC = () => {
   // Crear usuario manual
   const handleCreateUser = async () => {
     try {
+      const isUserDirector = currentUser?.roles?.some(role => role.role === 'DIRECTOR');
+      
       const response = await fetch(getApiUrl('/api/users/create'), {
         method: 'POST',
         headers: {
@@ -477,10 +487,13 @@ const UsersPage: React.FC = () => {
           username: createForm.username,
           phone: createForm.phone || null,
           password: createForm.password,
-          locationId: createForm.locationId || null, // Convertir cadena vacía a null
+          // Si es Director, usar su ubicación, de lo contrario usar la seleccionada
+          locationId: isUserDirector ? currentUser?.locationId : (createForm.locationId || null),
           isActive: createForm.isActive,
+          // Si es Director, el usuario queda PENDING, de lo contrario CONFIRMED
+          status: isUserDirector ? 'PENDING' : 'CONFIRMED',
           voiceTypes: createForm.selectedVoices,
-          primaryVoice: createForm.primaryVoice || null, // Convertir cadena vacía a null
+          primaryVoice: createForm.primaryVoice || null,
           role: createForm.selectedRole
         })
       });
@@ -491,7 +504,12 @@ const UsersPage: React.FC = () => {
         throw new Error(errorData.message || 'Error al crear usuario');
       }
 
-      toast.success('Usuario creado correctamente');
+      if (isUserDirector) {
+        toast.success('Usuario creado y enviado para aprobación por administrador');
+      } else {
+        toast.success('Usuario creado correctamente');
+      }
+      
       fetchUsers();
       setShowCreateModal(false);
       setCreateForm({
@@ -510,6 +528,56 @@ const UsersPage: React.FC = () => {
     } catch (error) {
       console.error('Error creating user:', error);
       const errorMessage = error instanceof Error ? error.message : 'Error al crear usuario';
+      toast.error(errorMessage);
+    }
+  };
+
+  // Aprobar usuario (solo admins)
+  const handleApproveUser = async (userId: string) => {
+    try {
+      const response = await fetch(getApiUrl(`/api/users/${userId}/approve`), {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Error al aprobar usuario');
+      }
+
+      toast.success('Usuario aprobado correctamente');
+      fetchUsers();
+    } catch (error) {
+      console.error('Error approving user:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Error al aprobar usuario';
+      toast.error(errorMessage);
+    }
+  };
+
+  // Rechazar usuario (solo admins)
+  const handleRejectUser = async (userId: string) => {
+    try {
+      const response = await fetch(getApiUrl(`/api/users/${userId}/reject`), {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Error al rechazar usuario');
+      }
+
+      toast.success('Usuario rechazado');
+      fetchUsers();
+    } catch (error) {
+      console.error('Error rejecting user:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Error al rechazar usuario';
       toast.error(errorMessage);
     }
   };
@@ -747,6 +815,20 @@ const UsersPage: React.FC = () => {
                       <option value="false">Inactivos</option>
                     </select>
 
+                    {/* Solo mostrar filtro de estado para admins */}
+                    {currentUser?.roles?.some(role => role.role === 'ADMIN') && (
+                      <select
+                        className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                        value={filters.status}
+                        onChange={(e) => handleFilterChange('status', e.target.value)}
+                      >
+                        <option value="">Todos los estados</option>
+                        <option value="CONFIRMED">Confirmados</option>
+                        <option value="PENDING">Pendientes</option>
+                        <option value="REFUSED">Rechazados</option>
+                      </select>
+                    )}
+
                     <select
                       className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
                       value={filters.limit}
@@ -781,6 +863,12 @@ const UsersPage: React.FC = () => {
                       <th className="px-3 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Estado
                       </th>
+                      {/* Solo mostrar columna de aprobación para admins */}
+                      {currentUser?.roles?.some(role => role.role === 'ADMIN') && (
+                        <th className="px-3 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Aprobación
+                        </th>
+                      )}
                       <th className="px-3 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Acciones
                       </th>
@@ -848,6 +936,47 @@ const UsersPage: React.FC = () => {
                             {user.isActive ? 'Activo' : 'Inactivo'}
                           </span>
                         </td>
+                        {/* Solo mostrar columna de aprobación para admins */}
+                        {currentUser?.roles?.some(role => role.role === 'ADMIN') && (
+                          <td className="px-3 lg:px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center space-x-2">
+                              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                user.status === 'CONFIRMED' 
+                                  ? 'bg-green-100 text-green-800'
+                                  : user.status === 'PENDING'
+                                  ? 'bg-yellow-100 text-yellow-800'
+                                  : 'bg-red-100 text-red-800'
+                              }`}>
+                                {user.status === 'CONFIRMED' ? 'Confirmado' : 
+                                 user.status === 'PENDING' ? 'Pendiente' : 'Rechazado'}
+                              </span>
+                              {user.status === 'PENDING' && (
+                                <div className="flex space-x-1">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleApproveUser(user.id);
+                                    }}
+                                    className="text-green-600 hover:text-green-900 text-xs px-2 py-1 bg-green-50 rounded"
+                                    title="Aprobar"
+                                  >
+                                    ✓
+                                  </button>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleRejectUser(user.id);
+                                    }}
+                                    className="text-red-600 hover:text-red-900 text-xs px-2 py-1 bg-red-50 rounded"
+                                    title="Rechazar"
+                                  >
+                                    ✗
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                        )}
                         <td className="px-3 lg:px-6 py-4 whitespace-nowrap text-sm font-medium">
                           <div className="flex space-x-2">
                             <button
