@@ -23,6 +23,7 @@ export interface User {
   lastName: string;
   isActive: boolean;
   createdAt: string;
+  profileImage?: string;  // URL de la imagen de perfil
   locationId?: string;  // ID de la ubicación asignada
   roles?: UserRole_DB[];  // Roles del usuario desde user_roles
   voiceProfiles?: UserVoiceProfile[];  // Voces desde user_voices_profile
@@ -145,7 +146,7 @@ export interface AuthResponse {
   token: string;
 }
 
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   message?: string;
   data?: T;
   error?: string;

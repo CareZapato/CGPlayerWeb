@@ -37,6 +37,7 @@ interface PlayerState {
   nextSong: () => void;
   previousSong: () => void;
   seekTo: (time: number) => void;
+  closePlayer: () => void;
 }
 
 export const usePlayerStore = create<PlayerState>((set, get) => ({
@@ -280,7 +281,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
           isActive: song.isActive ?? true,
           createdAt: song.createdAt || new Date().toISOString(),
           updatedAt: song.updatedAt || new Date().toISOString(),
-          uploader: song.uploader || { id: 'system', firstName: 'Sistema', lastName: 'CGPlayer' },
+          uploader: song.uploader || { firstName: 'Sistema', lastName: 'CGPlayer' },
           url: songUrl // URL final para reproducción
         };
         
@@ -400,5 +401,30 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       
       audioRef.addEventListener('seeked', handleSeeked, { once: true });
     }
+  },
+
+  closePlayer: () => {
+    console.log(`🎵 [PLAYER-STORE] Closing player completely`);
+    const { audioRef } = get();
+    
+    if (audioRef) {
+      // Pausar y limpiar el audio
+      audioRef.pause();
+      audioRef.currentTime = 0;
+      audioRef.src = '';
+      audioRef.load();
+    }
+    
+    // Resetear todo el estado del reproductor
+    set({
+      isPlaying: false,
+      currentSong: null,
+      currentTime: 0,
+      duration: 0,
+      currentPlaylist: null,
+      currentIndex: 0
+    });
+    
+    console.log(`✅ [PLAYER-STORE] Player closed successfully`);
   },
 }));

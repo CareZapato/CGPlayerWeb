@@ -122,15 +122,20 @@ const EventManagementEnhanced: React.FC = () => {
   const [singerSearchTerm, setSingerSearchTerm] = useState('');
 
   // Consultas de datos
-  const { data: events, isLoading: eventsLoading } = useQuery({
+  const { data: events, isLoading: eventsLoading, error: eventsError } = useQuery({
     queryKey: ['events', 'management'],
     queryFn: async () => {
       const response = await fetch('/api/events/management/all', {
         headers: { Authorization: `Bearer ${token}` }
       });
+      if (!response.ok) {
+        throw new Error(`Error fetching events: ${response.statusText}`);
+      }
       const result = await response.json();
       return result.data;
-    }
+    },
+    retry: 2,
+    staleTime: 5 * 60 * 1000 // 5 minutos
   });
 
   const { data: locations } = useQuery({
@@ -168,8 +173,18 @@ const EventManagementEnhanced: React.FC = () => {
     enabled: singerSearchTerm.length > 2
   });
 
+  // Interfaces para canciones
+interface Song {
+  id: string;
+  title: string;
+  artist?: string;
+  key?: string;
+  tempo?: string;
+  genre?: string;
+}
+
   // Consulta para canciones
-  const { data: songs } = useQuery({
+  const { data: songs } = useQuery<Song[]>({
     queryKey: ['songs'],
     queryFn: async () => {
       const response = await fetch('/api/songs', {
@@ -180,11 +195,11 @@ const EventManagementEnhanced: React.FC = () => {
     }
   });
 
-  const { data: songSearchResults } = useQuery({
+  const { data: songSearchResults } = useQuery<Song[]>({
     queryKey: ['songs', 'search', songSearchTerm],
     queryFn: async () => {
       if (!songSearchTerm.trim()) return songs || [];
-      const filtered = (songs || []).filter((song: any) => 
+      const filtered = (songs || []).filter((song: Song) => 
         song.title.toLowerCase().includes(songSearchTerm.toLowerCase()) ||
         song.artist?.toLowerCase().includes(songSearchTerm.toLowerCase())
       );
@@ -275,8 +290,14 @@ const EventManagementEnhanced: React.FC = () => {
     setActiveTab('basic');
   };
 
-  const handleCreateEvent = async (e: React.FormEvent) => {
+  const handleCreateEvent = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    
+    // Validación básica
+    if (!formData.title.trim() || !formData.date) {
+      alert('Por favor completa los campos obligatorios: Título y Fecha');
+      return;
+    }
     
     const formDataToSend = new FormData();
     Object.entries(formData).forEach(([key, value]) => {
@@ -297,7 +318,12 @@ const EventManagementEnhanced: React.FC = () => {
     }
     formDataToSend.append('playlistSongs', JSON.stringify(selectedSongs));
 
-    createEventMutation.mutate(formDataToSend);
+    try {
+      await createEventMutation.mutateAsync(formDataToSend);
+    } catch (error) {
+      console.error('Error creating event:', error);
+      alert('Error al crear el evento. Por favor intenta nuevamente.');
+    }
   };
 
   const handleAddAttendees = () => {
@@ -385,6 +411,11 @@ const EventManagementEnhanced: React.FC = () => {
       <div className="events-grid">
         {eventsLoading ? (
           <div className="loading">Cargando eventos...</div>
+        ) : eventsError ? (
+          <div className="error-message">
+            <p>❌ Error al cargar eventos</p>
+            <p className="error-details">Por favor recarga la página o contacta al administrador</p>
+          </div>
         ) : filteredEvents.length === 0 ? (
           <div className="no-events">No se encontraron eventos</div>
         ) : (
@@ -664,11 +695,11 @@ const EventManagementEnhanced: React.FC = () => {
                         <div className="songs-section">
                           <div className="songs-header">
                             <h4>Canciones Disponibles ({songSearchResults?.length || 0})</h4>
-                            {songSearchResults?.length > 0 && (
+                            {songSearchResults && songSearchResults.length > 0 && (
                               <button 
                                 className="btn btn-secondary btn-sm"
                                 onClick={() => {
-                                  const allSongIds = songSearchResults.map((song: any) => song.id);
+                                  const allSongIds = songSearchResults.map((song: Song) => song.id);
                                   const newSelection = [...new Set([...selectedSongs, ...allSongIds])];
                                   setSelectedSongs(newSelection);
                                 }}
@@ -679,8 +710,8 @@ const EventManagementEnhanced: React.FC = () => {
                           </div>
                           
                           <div className="songs-list">
-                            {songSearchResults?.length > 0 ? (
-                              songSearchResults.map((song: any) => (
+                            {songSearchResults && songSearchResults.length > 0 ? (
+                              songSearchResults.map((song: Song) => (
                                 <div key={song.id} className="song-item">
                                   <label className="checkbox-item">
                                     <input
@@ -729,7 +760,7 @@ const EventManagementEnhanced: React.FC = () => {
                             </div>
                             <div className="playlist-preview">
                               {selectedSongs.slice(0, 5).map(songId => {
-                                const song = songs?.find((s: any) => s.id === songId);
+                                const song = songs?.find((s: Song) => s.id === songId);
                                 return song ? (
                                   <div key={songId} className="playlist-item">
                                     <span>{song.title}</span>
@@ -999,6 +1030,8 @@ const EventCard: React.FC<{
 }> = ({ event, onManageAttendees }) => {
   const eventDate = new Date(event.date);
   const isUpcoming = eventDate >= new Date();
+  const now = new Date();
+  now.setHours(0, 0, 0, 0); // Reset time to start of day for accurate comparison
   
   return (
     <div className="event-card">
@@ -1039,7 +1072,12 @@ const EventCard: React.FC<{
       <div className="event-details">
         <div className="event-detail">
           <span className="icon">📅</span>
-          <span>{eventDate.toLocaleDateString()}</span>
+          <span>{eventDate.toLocaleDateString('es-CL', { 
+            weekday: 'long', 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric' 
+          })}</span>
         </div>
         
         {event.time && (
@@ -1069,10 +1107,13 @@ const EventCard: React.FC<{
   );
 };
 
+// Tipos para el selector de asistentes
+type SelectorTab = 'individual' | 'choir';
+
 // Componente para seleccionar asistentes
 const AttendeeSelector: React.FC<{
-  singersData: Location[];
-  searchResults: User[];
+  singersData?: Location[];
+  searchResults?: User[];
   selectedSingers: string[];
   selectedChoirs: string[];
   singerSearchTerm: string;
@@ -1080,8 +1121,8 @@ const AttendeeSelector: React.FC<{
   onChoirsChange: (choirs: string[]) => void;
   onSearchChange: (term: string) => void;
 }> = ({
-  singersData,
-  searchResults,
+  singersData = [],
+  searchResults = [],
   selectedSingers,
   selectedChoirs,
   singerSearchTerm,
@@ -1089,7 +1130,7 @@ const AttendeeSelector: React.FC<{
   onChoirsChange,
   onSearchChange
 }) => {
-  const [selectorTab, setSelectorTab] = useState('individual');
+  const [selectorTab, setSelectorTab] = useState<SelectorTab>('individual');
 
   return (
     <div className="attendee-selector">

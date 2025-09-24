@@ -30,6 +30,7 @@ import { usePlaylistStore } from '../store/playlistStore';
 import type { Song } from '../types';
 import { getSongFileUrl } from '../config/api';
 import { getApiUrl } from '../config/api';
+import './EventManagement.css';
 
 interface Location {
   id: string;
@@ -446,85 +447,90 @@ const EventManagement: React.FC = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-2">
+        {/* Header - Mobile Responsive */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 sm:mb-8">
+          <div className="mb-4 sm:mb-0">
+            <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-2">
               Gestión de Programación
             </h1>
-            <p className="text-gray-600">
+            <p className="text-sm sm:text-base text-gray-600">
               Crea y administra eventos y ensayos para el coro
             </p>
           </div>
           <button
             onClick={() => setShowCreateModal(true)}
-            className="mt-4 md:mt-0 inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-xl text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transform hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl"
+            className="w-full sm:w-auto inline-flex items-center justify-center px-4 sm:px-6 py-2 sm:py-3 border border-transparent text-sm sm:text-base font-medium rounded-xl text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transform hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl"
           >
-            <Plus className="h-5 w-5 mr-2" />
+            <Plus className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
             Nueva Programación
           </button>
         </div>
 
-        {/* Pestañas y Filtros */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 mb-8">
-          <div className="flex border-b border-gray-200">
+        {/* Pestañas y Filtros - Mobile Responsive */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 mb-6 sm:mb-8">
+          <div className="flex flex-col sm:flex-row border-b border-gray-200">
             <button
               onClick={() => setActiveTab('upcoming')}
-              className={`flex-1 px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+              className={`flex-1 px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-medium border-b-2 sm:border-b-2 transition-colors ${
                 activeTab === 'upcoming'
                   ? 'border-indigo-500 text-indigo-600 bg-indigo-50'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
-              <Calendar className="w-5 h-5 inline mr-2" />
-              Próxima Programación ({events.filter(e => new Date(e.date) >= new Date()).length})
+              <Calendar className="w-4 h-4 sm:w-5 sm:h-5 inline mr-1 sm:mr-2" />
+              <span className="hidden sm:inline">Próxima Programación</span>
+              <span className="sm:hidden">Próxima</span>
+              <span className="ml-1">({events.filter(e => new Date(e.date) >= new Date()).length})</span>
             </button>
             <button
               onClick={() => setActiveTab('past')}
-              className={`flex-1 px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+              className={`flex-1 px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-medium border-b-2 sm:border-b-2 transition-colors ${
                 activeTab === 'past'
                   ? 'border-indigo-500 text-indigo-600 bg-indigo-50'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
-              <Clock className="w-5 h-5 inline mr-2" />
-              Programación Pasada ({events.filter(e => new Date(e.date) < new Date()).length})
+              <Clock className="w-4 h-4 sm:w-5 sm:h-5 inline mr-1 sm:mr-2" />
+              <span className="hidden sm:inline">Programación Pasada</span>
+              <span className="sm:hidden">Pasada</span>
+              <span className="ml-1">({events.filter(e => new Date(e.date) < new Date()).length})</span>
             </button>
             <button
               onClick={() => setActiveTab('calendar')}
-              className={`flex-1 px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+              className={`flex-1 px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-medium border-b-2 sm:border-b-2 transition-colors ${
                 activeTab === 'calendar'
                   ? 'border-indigo-500 text-indigo-600 bg-indigo-50'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
-              <CalendarDays className="w-5 h-5 inline mr-2" />
-              Vista Calendario
+              <CalendarDays className="w-4 h-4 sm:w-5 sm:h-5 inline mr-1 sm:mr-2" />
+              <span className="hidden sm:inline">Vista Calendario</span>
+              <span className="sm:hidden">Calendario</span>
             </button>
           </div>
 
-          {/* Filtros */}
-          <div className="p-6 bg-gray-50 border-t border-gray-100">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Filtros - Mobile Responsive */}
+          <div className="p-3 sm:p-6 bg-gray-50 border-t border-gray-100">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
               {/* Búsqueda */}
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+              <div className="relative sm:col-span-2 lg:col-span-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 sm:h-5 sm:w-5" />
                 <input
                   type="text"
                   placeholder="Buscar programación..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  className="w-full pl-9 sm:pl-10 pr-4 py-2 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 />
               </div>
 
               {/* Filtro por ciudad */}
               <div className="relative">
-                <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+                <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 sm:h-5 sm:w-5" />
                 <select
                   value={selectedCity}
                   onChange={(e) => setSelectedCity(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent appearance-none bg-white"
+                  className="w-full pl-9 sm:pl-10 pr-4 py-2 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent appearance-none bg-white"
                 >
                   <option value="">Todas las ciudades</option>
                   {uniqueCities.map(city => (
@@ -535,11 +541,11 @@ const EventManagement: React.FC = () => {
 
               {/* Filtro por región */}
               <div className="relative">
-                <Globe className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+                <Globe className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 sm:h-5 sm:w-5" />
                 <select
                   value={selectedRegion}
                   onChange={(e) => setSelectedRegion(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent appearance-none bg-white"
+                  className="w-full pl-9 sm:pl-10 pr-4 py-2 sm:py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent appearance-none bg-white"
                 >
                   <option value="">Todas las regiones</option>
                   {uniqueRegions.map(region => (
@@ -551,17 +557,17 @@ const EventManagement: React.FC = () => {
           </div>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        {/* Stats Cards - Mobile Responsive */}
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-6 sm:mb-8">
           {/* Eventos Pendientes */}
-          <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 border border-gray-100 shadow-lg hover:shadow-xl transition-all duration-200">
+          <div className="bg-white/80 backdrop-blur-sm rounded-xl p-3 sm:p-6 border border-gray-100 shadow-lg hover:shadow-xl transition-all duration-200">
             <div className="flex items-center">
-              <div className="p-3 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600">
-                <Star className="h-6 w-6 text-white" />
+              <div className="p-2 sm:p-3 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600">
+                <Star className="h-4 w-4 sm:h-6 sm:w-6 text-white" />
               </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Eventos Pendientes</p>
-                <p className="text-2xl font-bold text-gray-900">
+              <div className="ml-3 sm:ml-4">
+                <p className="text-xs sm:text-sm font-medium text-gray-600">Eventos Pendientes</p>
+                <p className="text-lg sm:text-2xl font-bold text-gray-900">
                   {(() => {
                     const now = new Date();
                     now.setHours(0, 0, 0, 0);
@@ -576,14 +582,14 @@ const EventManagement: React.FC = () => {
           </div>
 
           {/* Ensayos Pendientes */}
-          <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 border border-gray-100 shadow-lg hover:shadow-xl transition-all duration-200">
+          <div className="bg-white/80 backdrop-blur-sm rounded-xl p-3 sm:p-6 border border-gray-100 shadow-lg hover:shadow-xl transition-all duration-200">
             <div className="flex items-center">
-              <div className="p-3 rounded-xl bg-gradient-to-r from-purple-500 to-purple-600">
-                <Music className="h-6 w-6 text-white" />
+              <div className="p-2 sm:p-3 rounded-xl bg-gradient-to-r from-purple-500 to-purple-600">
+                <Music className="h-4 w-4 sm:h-6 sm:w-6 text-white" />
               </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Ensayos Pendientes</p>
-                <p className="text-2xl font-bold text-gray-900">
+              <div className="ml-3 sm:ml-4">
+                <p className="text-xs sm:text-sm font-medium text-gray-600">Ensayos Pendientes</p>
+                <p className="text-lg sm:text-2xl font-bold text-gray-900">
                   {(() => {
                     const now = new Date();
                     now.setHours(0, 0, 0, 0);
@@ -598,14 +604,14 @@ const EventManagement: React.FC = () => {
           </div>
 
           {/* Eventos Realizados */}
-          <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 border border-gray-100 shadow-lg hover:shadow-xl transition-all duration-200">
+          <div className="bg-white/80 backdrop-blur-sm rounded-xl p-3 sm:p-6 border border-gray-100 shadow-lg hover:shadow-xl transition-all duration-200">
             <div className="flex items-center">
-              <div className="p-3 rounded-xl bg-gradient-to-r from-green-500 to-green-600">
-                <CheckCircle className="h-6 w-6 text-white" />
+              <div className="p-2 sm:p-3 rounded-xl bg-gradient-to-r from-green-500 to-green-600">
+                <CheckCircle className="h-4 w-4 sm:h-6 sm:w-6 text-white" />
               </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Eventos Realizados</p>
-                <p className="text-2xl font-bold text-gray-900">
+              <div className="ml-3 sm:ml-4">
+                <p className="text-xs sm:text-sm font-medium text-gray-600">Eventos Realizados</p>
+                <p className="text-lg sm:text-2xl font-bold text-gray-900">
                   {(() => {
                     const now = new Date();
                     now.setHours(0, 0, 0, 0);
@@ -620,14 +626,14 @@ const EventManagement: React.FC = () => {
           </div>
 
           {/* Ensayos Realizados */}
-          <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 border border-gray-100 shadow-lg hover:shadow-xl transition-all duration-200">
+          <div className="bg-white/80 backdrop-blur-sm rounded-xl p-3 sm:p-6 border border-gray-100 shadow-lg hover:shadow-xl transition-all duration-200">
             <div className="flex items-center">
-              <div className="p-3 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600">
-                <CalendarClock className="h-6 w-6 text-white" />
+              <div className="p-2 sm:p-3 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600">
+                <CalendarClock className="h-4 w-4 sm:h-6 sm:w-6 text-white" />
               </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Ensayos Realizados</p>
-                <p className="text-2xl font-bold text-gray-900">
+              <div className="ml-3 sm:ml-4">
+                <p className="text-xs sm:text-sm font-medium text-gray-600">Ensayos Realizados</p>
+                <p className="text-lg sm:text-2xl font-bold text-gray-900">
                   {(() => {
                     const now = new Date();
                     now.setHours(0, 0, 0, 0);
@@ -953,7 +959,7 @@ const EventManagement: React.FC = () => {
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {filteredEvents.map((event) => {
               const isEnsayo = event.category === 'Ensayo';
               const cardClass = isEnsayo 
@@ -965,42 +971,42 @@ const EventManagement: React.FC = () => {
                   key={event.id}
                   className={`${cardClass} flex flex-col h-full`}
                 >
-                {/* Event Image */}
+                {/* Event Image - Mobile Responsive */}
                 {event.imageUrl ? (
                   <img
                     src={event.imageUrl}
                     alt={event.title}
-                    className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
+                    className="w-full h-36 sm:h-48 object-cover group-hover:scale-105 transition-transform duration-300"
                   />
                 ) : (
-                  <div className="w-full h-48 bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center group-hover:from-indigo-600 group-hover:to-purple-700 transition-all duration-300">
-                    <Music className="h-16 w-16 text-white opacity-80" />
+                  <div className="w-full h-36 sm:h-48 bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center group-hover:from-indigo-600 group-hover:to-purple-700 transition-all duration-300">
+                    <Music className="h-12 w-12 sm:h-16 sm:w-16 text-white opacity-80" />
                   </div>
                 )}
 
-                <div className="p-6 flex flex-col flex-1">
-                  {/* Fila 1: Título completo */}
-                  <div className="mb-3">
-                    <h3 className={`text-lg font-bold line-clamp-2 ${isEnsayo ? 'text-white' : 'text-gray-900'}`}>
+                <div className="p-4 sm:p-6 flex flex-col flex-1">
+                  {/* Fila 1: Título completo - Mobile Responsive */}
+                  <div className="mb-2 sm:mb-3">
+                    <h3 className={`text-base sm:text-lg font-bold line-clamp-2 ${isEnsayo ? 'text-white' : 'text-gray-900'}`}>
                       {event.title}
                     </h3>
                   </div>
 
-                  {/* Fila 2: Todas las etiquetas */}
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    {/* Etiqueta de categoría con icono */}
+                  {/* Fila 2: Todas las etiquetas - Mobile Responsive */}
+                  <div className="flex flex-wrap gap-1 sm:gap-2 mb-3 sm:mb-4">
+                    {/* Etiqueta de categoría con icono - Mobile Responsive */}
                     {event.category && (
-                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold shadow-md ${
+                      <span className={`inline-flex items-center px-2 sm:px-3 py-1 rounded-full text-xs font-bold shadow-md ${
                         isEnsayo 
                           ? 'bg-gradient-to-r from-orange-600 to-red-600 text-white border border-orange-500/50' 
                           : 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white'
                       }`}>
                         {isEnsayo ? (
-                          <Music className="h-3 w-3 mr-1" />
+                          <Music className="h-2 w-2 sm:h-3 sm:w-3 mr-1" />
                         ) : (
-                          <Calendar className="h-3 w-3 mr-1" />
+                          <Calendar className="h-2 w-2 sm:h-3 sm:w-3 mr-1" />
                         )}
-                        {event.category}
+                        <span className="text-xs">{event.category}</span>
                       </span>
                     )}
 
@@ -1038,26 +1044,26 @@ const EventManagement: React.FC = () => {
                     )}
                   </div>
 
-                  {/* Fila 3: Fecha, Hora y Lugar */}
-                  <div className={`flex flex-col gap-2 mb-4 ${isEnsayo ? 'text-gray-400' : 'text-slate-600'}`}>
+                  {/* Fila 3: Fecha, Hora y Lugar - Mobile Responsive */}
+                  <div className={`flex flex-col gap-1 sm:gap-2 mb-3 sm:mb-4 ${isEnsayo ? 'text-gray-400' : 'text-slate-600'}`}>
                     {/* Fecha y Hora */}
-                    <div className="flex items-center">
-                      <Calendar className={`h-4 w-4 mr-2 ${isEnsayo ? 'text-indigo-400' : 'text-indigo-500'}`} />
-                      <span className="text-sm font-medium">
+                    <div className="flex items-center flex-wrap">
+                      <Calendar className={`h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2 ${isEnsayo ? 'text-indigo-400' : 'text-indigo-500'}`} />
+                      <span className="text-xs sm:text-sm font-medium">
                         {formatDate(event.date)}
                       </span>
                       {event.time && (
                         <>
-                          <Clock className={`h-4 w-4 ml-4 mr-2 ${isEnsayo ? 'text-emerald-400' : 'text-emerald-500'}`} />
-                          <span className="text-sm font-medium">{formatTime(event.time)}</span>
+                          <Clock className={`h-3 w-3 sm:h-4 sm:w-4 ml-2 sm:ml-4 mr-1 sm:mr-2 ${isEnsayo ? 'text-emerald-400' : 'text-emerald-500'}`} />
+                          <span className="text-xs sm:text-sm font-medium">{formatTime(event.time)}</span>
                         </>
                       )}
                     </div>
 
                     {/* Lugar */}
                     <div className="flex items-center">
-                      <MapPin className={`h-4 w-4 mr-2 ${isEnsayo ? 'text-red-400' : 'text-red-500'}`} />
-                      <span className="text-sm font-medium line-clamp-1">
+                      <MapPin className={`h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2 ${isEnsayo ? 'text-red-400' : 'text-red-500'}`} />
+                      <span className="text-xs sm:text-sm font-medium line-clamp-1">
                         {event.eventCity || event.location?.city || 'Ubicación por confirmar'}
                         {event.eventAddress && `, ${event.eventAddress}`}
                       </span>
@@ -1067,16 +1073,16 @@ const EventManagement: React.FC = () => {
                   {/* Spacer para empujar los botones hacia abajo */}
                   <div className="flex-1"></div>
 
-                  {/* Stats */}
-                  <div className={`flex items-center justify-between pt-4 border-t ${isEnsayo ? 'border-gray-600' : 'border-gray-100'} mt-auto`}>
-                    <div className="flex items-center space-x-4">
-                      <div className={`flex items-center px-3 py-2 rounded-lg ${
+                  {/* Stats - Mobile Responsive */}
+                  <div className={`flex items-center justify-between pt-3 sm:pt-4 border-t ${isEnsayo ? 'border-gray-600' : 'border-gray-100'} mt-auto`}>
+                    <div className="flex items-center space-x-2 sm:space-x-4">
+                      <div className={`flex items-center px-2 sm:px-3 py-1 sm:py-2 rounded-lg ${
                         isEnsayo 
                           ? 'bg-gradient-to-r from-blue-700/40 to-indigo-700/40 border border-blue-600/30'
                           : 'bg-indigo-50'
                       }`}>
-                        <Users className={`h-5 w-5 mr-2 ${isEnsayo ? 'text-blue-300' : 'text-indigo-500'}`} />
-                        <span className={`text-sm font-bold ${isEnsayo ? 'text-blue-200' : 'text-indigo-700'}`}>
+                        <Users className={`h-3 w-3 sm:h-5 sm:w-5 mr-1 sm:mr-2 ${isEnsayo ? 'text-blue-300' : 'text-indigo-500'}`} />
+                        <span className={`text-xs sm:text-sm font-bold ${isEnsayo ? 'text-blue-200' : 'text-indigo-700'}`}>
                           {event._count?.attendees || 0} 
                         </span>
                         {/* Indicador de asistentes pendientes */}

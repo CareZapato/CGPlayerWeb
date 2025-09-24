@@ -1,6 +1,6 @@
 # CGPlayerWeb 🎵
 
-[![Version](https://img.shields.io/badge/version-0.11.0-blue.svg)](https://github.com/CareZapato/CGPlayerWeb/releases/tag/v0.11.0)
+[![Version](https://img.shields.io/badge/version-0.12.18-blue.svg)](https://github.com/CareZapato/CGPlayerWeb/releases/tag/v0.12.18)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
 [![React](https://img.shields.io/badge/React-19+-blue.svg)](https://reactjs.org/)
@@ -208,7 +208,7 @@ Para reportes, incluye:
 
 # CGPlayerWeb 🎵
 
-[![Version](https://img.shields.io/badge/version-0.11.0-blue.svg)](https://github.com/CareZapato/CGPlayerWeb/releases/tag/v0.11.0)
+[![Version](https://img.shields.io/badge/version-0.12.18-blue.svg)](https://github.com/CareZapato/CGPlayerWeb/releases/tag/v0.12.18)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
 [![React](https://img.shields.io/badge/React-19+-blue.svg)](https://reactjs.org/)
@@ -260,25 +260,26 @@ CGPlayerWeb es una aplicación web integral diseñada para coros y grupos musica
 
 ---
 
-## 🆕 **Novedades v0.11.0**
+## 🆕 **Novedades v0.12.18**
 
-### **🔧 Corrección Crítica de Errores de Compilación**
-- **ProfilePage.tsx reparado** - Archivo corrupto reemplazado por versión limpia y funcional
-- **Errores TypeScript eliminados** - Todos los errores de compilación corregidos
-- **Build exitoso** - Proyecto compila correctamente en desarrollo y producción
-- **Layout reorganizado** - Perfil reestructurado: personal, vocal, roles
-- **Estados informativos** - Mensajes útiles para datos faltantes implementados
+### **� Sistema de Estadísticas con Datos Reales**
+- **Estadísticas reales implementadas** - Datos basados en participación real del usuario
+- **Cálculos por temporada** - Estadísticas agrupadas por año desde la fecha actual
+- **Métricas de participación** - Ensayos asistidos, faltas, inasistencias y eventos
+- **API de estadísticas** - Endpoint `/profile/stats` con datos reales de EventJoinRequest y EventAttendee
+- **Clasificación inteligente** - Distingue entre faltas (sin justificación) e inasistencias (con justificación)
 
-### **� Mejoras en Organización del Perfil**
-- **Información personal superior** - Datos y foto en la parte superior
-- **Tipos de voz removidos** - Eliminados de la sección de cambio de foto
-- **Información vocal centralizada** - Nueva sección específica con guías
-- **SimplePlayer validado** - Componente verificado y funcionando correctamente
+### **🎯 Sistema de Logros Mejorado** 
+- **Sección separada de logros** - Interfaz independiente para el sistema de achievements
+- **Cálculos basados en datos reales** - Progreso real basado en participación confirmada
+- **Progreso visual mejorado** - Barras de progreso con límites y colores dinámicos
+- **Logros por categorías** - Ensayos, eventos, asistencia y participación
 
-### **🎨 Mejoras Visuales Heredadas (v0.10.24)**
-- **StickyPlayer móvil optimizado** - Tamaño aumentado 10% para mejor usabilidad
-- **Marquee universal** - Animaciones de texto en TODOS los títulos
-- **Reproductor minimizado arrastrable** - Funcionalidad de drag & drop completa
+### **📱 Perfil Rediseñado y Responsive**
+- **Menú lateral inteligente** - Navegación horizontal en móvil, vertical en desktop  
+- **Interfaz moderna** - Tarjetas de resumen con iconos y métricas clave
+- **Datos reales mostrados** - Estadísticas reales en lugar de datos mock
+- **Responsive perfecto** - Adaptación completa a todos los tamaños de pantalla
 
 ---
 
@@ -295,7 +296,7 @@ CGPlayerWeb es una aplicación web integral diseñada para coros y grupos musica
 ## 📄 **Documentación**
 
 - **[Changelog](CHANGELOG.md)** - Historial de versiones
-- **[Release Notes](RELEASE_NOTES_v0.11.0.md)** - Notas de la versión actual
+- **[Release Notes](RELEASE_NOTES_v0.12.18.md)** - Notas de la versión actual
 - **[Docker Guide](docker/README.md)** - Guía completa de despliegue con Docker
 - **API Documentation** - Disponible en `/api-docs` cuando el servidor esté ejecutándose
 
@@ -306,7 +307,7 @@ CGPlayerWeb es una aplicación web integral diseñada para coros y grupos musica
 ¿Encontraste un bug? [Crear un issue](https://github.com/CareZapato/CGPlayerWeb/issues/new)
 
 Para reportes, incluye:
-- **Versión** de CGPlayerWeb (v0.11.0)
+- **Versión** de CGPlayerWeb (v0.12.18)
 - **Navegador** y versión
 - **Pasos** para reproducir
 - **Comportamiento esperado** vs **real**
@@ -326,7 +327,7 @@ Para reportes, incluye:
 
 - **GitHub Issues:** [Reportar problemas](https://github.com/CareZapato/CGPlayerWeb/issues)
 - **Desarrollador:** CareZapato
-- **Versión Actual:** v0.11.0
+- **Versión Actual:** v0.12.18
 - **Última Actualización:** Septiembre 2025
 
 ---

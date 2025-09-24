@@ -19,7 +19,7 @@ import BackupPage from './pages/BackupPage';
 
 // Components
 import { Layout, ProtectedRoute } from './components';
-import EventManagement from './components/EventManagement';
+import EventManagement from './components/Management/EventManagement';
 
 const queryClient = new QueryClient({
   defaultOptions: {

@@ -1071,55 +1071,59 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[95vw] max-h-[98vh] overflow-hidden">
-        <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-4 text-white">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-0 sm:p-2">
+      <div className="bg-white rounded-none sm:rounded-2xl shadow-2xl w-full h-full sm:w-auto sm:h-auto sm:max-w-[95vw] sm:max-h-[98vh] overflow-hidden flex flex-col">
+        <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-3 sm:px-6 py-3 sm:py-4 text-white">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold">
-              {editMode ? 'Editar Evento' : 'Crear Nuevo Evento'}
+            <h2 className="text-lg sm:text-xl font-bold">
+              {editMode ? 'Editar Programa' : 'Crear Nuevo Programa'}
             </h2>
             <button 
               onClick={handleClose} 
-              className="p-2 hover:bg-white hover:bg-opacity-20 rounded-lg transition-colors"
+              className="p-1 sm:p-2 hover:bg-white hover:bg-opacity-20 rounded-lg transition-colors"
             >
-              <X className="h-5 w-5" />
+              <X className="h-4 w-4 sm:h-5 sm:w-5" />
             </button>
           </div>
         </div>
 
         <div className="border-b border-gray-200">
-          <nav className="flex space-x-8 px-6">
+          <nav className="flex space-x-2 sm:space-x-8 px-3 sm:px-6 overflow-x-auto scrollbar-hide">
             {[
               { 
                 id: 'basic', 
-                label: 'Información Básica', 
+                label: 'Información Básica',
+                shortLabel: 'Info',
                 icon: Calendar, 
                 hasData: title && date 
               },
               { 
                 id: 'attendees', 
-                label: 'Asistentes', 
+                label: 'Asistentes',
+                shortLabel: 'Asistentes', 
                 icon: Users, 
                 hasData: selectedAttendees.length > 0 
               },
               { 
                 id: 'music', 
-                label: 'Música', 
+                label: 'Música',
+                shortLabel: 'Música',
                 icon: Music, 
                 hasData: selectedSongs.filter(song => song.voiceType).length > 0 
               },
-            ].map(({ id, label, icon: Icon, hasData }) => (
+            ].map(({ id, label, shortLabel, icon: Icon, hasData }) => (
               <button
                 key={id}
                 onClick={() => handleTabChange(id as 'basic' | 'attendees' | 'music')}
-                className={`py-4 px-2 border-b-2 font-medium text-sm flex items-center space-x-2 transition-colors relative ${
+                className={`py-3 sm:py-4 px-2 sm:px-2 border-b-2 font-medium text-xs sm:text-sm flex items-center space-x-1 sm:space-x-2 transition-colors relative flex-shrink-0 ${
                   activeTab === id
                     ? 'border-indigo-500 text-indigo-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700'
                 }`}
               >
-                <Icon className="h-4 w-4" />
-                <span>{label}</span>
+                <Icon className="h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">{label}</span>
+                <span className="sm:hidden">{shortLabel}</span>
                 {hasData && (
                   <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
                 )}
@@ -1138,7 +1142,7 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({
           </nav>
         </div>
 
-        <div className="p-6 overflow-y-auto max-h-[75vh]">
+        <div className="p-3 sm:p-6 overflow-y-auto flex-1 min-h-0">
           {error && (
             <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center">
               <AlertCircle className="h-5 w-5 text-red-600 mr-2" />
@@ -1147,76 +1151,76 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({
           )}
 
           {activeTab === 'basic' && (
-            <div className="space-y-6">
+            <div className="space-y-4 sm:space-y-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Título del Evento *
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
+                  Título del Programa *
                 </label>
                 <input
                   type="text"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                  className="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
                   placeholder="Ej: Culto de Adoración - Domingo"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
                   Descripción
                 </label>
                 <textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   rows={3}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all resize-none"
-                  placeholder="Describe el evento..."
+                  className="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all resize-none"
+                  placeholder="Describe el programa..."
                 />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
                     Fecha *
                   </label>
                   <input
                     type="date"
                     value={date}
                     onChange={(e) => setDate(e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                    className="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
                     Hora
                   </label>
                   <input
                     type="time"
                     value={time}
                     onChange={(e) => setTime(e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                    className="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
                   Categoría
                 </label>
                 <select
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                  className="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
                 >
                   <option value="Evento">Evento</option>
                   <option value="Ensayo">Ensayo</option>
                 </select>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div className="relative">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Ciudad del Evento
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
+                    Ciudad del Programa
                   </label>
                   <input
                     type="text"
@@ -1226,7 +1230,7 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({
                       setShowCityDropdown(true);
                     }}
                     onFocus={() => setShowCityDropdown(true)}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                    className="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
                     placeholder="Buscar ciudad..."
                   />
                   {showCityDropdown && filteredCities.length > 0 && (
@@ -1248,43 +1252,43 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({
                   )}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
                     Dirección
                   </label>
                   <input
                     type="text"
                     value={eventAddress}
                     onChange={(e) => setEventAddress(e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
-                    placeholder="Dirección del evento"
+                    className="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                    placeholder="Dirección del programa"
                   />
                 </div>
               </div>
 
               {/* Visibility Settings */}
-              <div className="space-y-4 p-4 bg-gray-50 rounded-xl">
-                <h4 className="font-medium text-gray-900 flex items-center">
-                  <Globe className="h-4 w-4 mr-2" />
+              <div className="space-y-3 sm:space-y-4 p-3 sm:p-4 bg-gray-50 rounded-xl">
+                <h4 className="text-sm sm:text-base font-medium text-gray-900 flex items-center">
+                  <Globe className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
                   Configuración de Visibilidad
                 </h4>
                 
-                <div className="space-y-3">
-                  <div className="flex items-center space-x-3">
+                <div className="space-y-2 sm:space-y-3">
+                  <div className="flex items-center space-x-2 sm:space-x-3">
                     <button
                       onClick={() => setIsPublic(!isPublic)}
-                      className={`p-2 rounded-lg transition-colors ${
+                      className={`p-1 sm:p-2 rounded-lg transition-colors ${
                         isPublic 
                           ? 'bg-green-100 text-green-700 border border-green-300' 
                           : 'bg-gray-100 text-gray-700 border border-gray-300'
                       }`}
                     >
-                      {isPublic ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                      {isPublic ? <Eye className="h-3 w-3 sm:h-4 sm:w-4" /> : <EyeOff className="h-3 w-3 sm:h-4 sm:w-4" />}
                     </button>
                     <div>
-                      <label className="font-medium text-gray-900">
-                        Evento Público
+                      <label className="text-sm sm:text-base font-medium text-gray-900">
+                        Programa Público
                       </label>
-                      <p className="text-sm text-gray-500">
+                      <p className="text-xs sm:text-sm text-gray-500">
                         {isPublic 
                           ? 'Visible para todos los cantantes' 
                           : 'Solo visible para cantantes seleccionados'}
@@ -1293,22 +1297,22 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({
                   </div>
 
                   {isPublic && (
-                    <div className="flex items-center space-x-3 pl-11">
+                    <div className="flex items-center space-x-2 sm:space-x-3 pl-8 sm:pl-11">
                       <button
                         onClick={() => setAllowExternalJoin(!allowExternalJoin)}
-                        className={`p-2 rounded-lg transition-colors ${
+                        className={`p-1 sm:p-2 rounded-lg transition-colors ${
                           allowExternalJoin 
                             ? 'bg-blue-100 text-blue-700 border border-blue-300' 
                             : 'bg-gray-100 text-gray-700 border border-gray-300'
                         }`}
                       >
-                        <UserPlus className="h-4 w-4" />
+                        <UserPlus className="h-3 w-3 sm:h-4 sm:w-4" />
                       </button>
                       <div>
-                        <label className="font-medium text-gray-900">
+                        <label className="text-sm sm:text-base font-medium text-gray-900">
                           Abierto a Postulaciones
                         </label>
-                        <p className="text-sm text-gray-500">
+                        <p className="text-xs sm:text-sm text-gray-500">
                           Los cantantes pueden solicitar unirse al evento
                         </p>
                       </div>
@@ -1320,40 +1324,45 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({
           )}
 
           {activeTab === 'attendees' && (
-            <div className="space-y-6">
-              <div className="flex items-center justify-between mb-6">
-                <h4 className="text-lg font-medium text-gray-900">
-                  Gestión de Cantantes del Evento
+            <div className="space-y-4 sm:space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-6 space-y-3 sm:space-y-0">
+                <h4 className="text-base sm:text-lg font-medium text-gray-900">
+                  Gestión de Cantantes del Programa
                 </h4>
-                <div className="flex space-x-2">
+                <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
                   <button
                     onClick={() => setShowGroupSelection(!showGroupSelection)}
-                    className={`px-3 py-1 text-sm rounded-lg transition-colors ${
+                    className={`px-2 sm:px-3 py-1 text-xs sm:text-sm rounded-lg transition-colors ${
                       showGroupSelection 
                         ? 'bg-purple-100 text-purple-700 border border-purple-300' 
                         : 'bg-gray-100 text-gray-700 border border-gray-300'
                     }`}
                   >
-                    {showGroupSelection ? 'Selección Individual' : 'Selección por Ubicación'}
+                    <span className="hidden sm:inline">
+                      {showGroupSelection ? 'Selección Individual' : 'Selección por Ubicación'}
+                    </span>
+                    <span className="sm:hidden">
+                      {showGroupSelection ? 'Individual' : 'Por Ubicación'}
+                    </span>
                   </button>
-                  <span className="text-sm text-gray-500 px-2 py-1 bg-blue-50 rounded-lg border border-blue-200">
+                  <span className="text-xs sm:text-sm text-gray-500 px-2 py-1 bg-blue-50 rounded-lg border border-blue-200 text-center">
                     {selectedAttendees.length} seleccionados
                   </span>
                 </div>
               </div>
 
-              {/* Diseño de dos columnas */}
-              <div className="grid grid-cols-2 gap-6 h-[600px]">
+              {/* Diseño responsive: una columna en móvil, dos en desktop */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 h-auto lg:h-[600px]">
                 {/* Columna izquierda: Filtros y búsqueda */}
-                <div className="space-y-4 border-r border-gray-200 pr-6">
+                <div className="space-y-3 sm:space-y-4 lg:border-r border-gray-200 lg:pr-6">
                   <div className="sticky top-0 bg-white">
-                    <h5 className="text-lg font-medium text-gray-900 mb-4">Filtros de Búsqueda</h5>
+                    <h5 className="text-base sm:text-lg font-medium text-gray-900 mb-3 sm:mb-4">Filtros de Búsqueda</h5>
                     
                     {/* Search and Filters - Solo mostrar si no está activa la selección por grupo */}
                     {!showGroupSelection && (
-                      <div className="space-y-3">
-                        {/* Filtros en una sola fila */}
-                        <div className="grid grid-cols-3 gap-2">
+                      <div className="space-y-2 sm:space-y-3">
+                        {/* Filtros adaptables */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                           <div className="relative">
                             <div className="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
                               <Search className="h-3 w-3 text-gray-400" />
@@ -1363,14 +1372,14 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({
                               placeholder="Buscar nombre..."
                               value={singerSearchTerm}
                               onChange={(e) => setSingerSearchTerm(e.target.value)}
-                              className="w-full pl-7 pr-2 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-1 focus:ring-indigo-500 focus:border-transparent"
+                              className="w-full pl-7 pr-2 py-1.5 text-xs sm:text-sm border border-gray-300 rounded-md focus:ring-1 focus:ring-indigo-500 focus:border-transparent"
                             />
                           </div>
 
                           <select
                             value={selectedLocation}
                             onChange={(e) => setSelectedLocation(e.target.value)}
-                            className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-1 focus:ring-indigo-500 focus:border-transparent"
+                            className="w-full px-2 py-1.5 text-xs sm:text-sm border border-gray-300 rounded-md focus:ring-1 focus:ring-indigo-500 focus:border-transparent"
                           >
                             <option value="">Todas las ubicaciones</option>
                             {singerLocations.map(location => (
@@ -1383,7 +1392,7 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({
                           <select
                             value={selectedRole}
                             onChange={(e) => setSelectedRole(e.target.value)}
-                            className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-1 focus:ring-indigo-500 focus:border-transparent"
+                            className="w-full px-2 py-1.5 text-xs sm:text-sm border border-gray-300 rounded-md focus:ring-1 focus:ring-indigo-500 focus:border-transparent"
                           >
                             <option value="">Todos los roles</option>
                             <option value="cantante">Cantante</option>
@@ -1393,12 +1402,12 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({
 
                         {/* Lista de cantantes encontrados */}
                         <div className="border border-gray-200 rounded-lg">
-                          <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
-                            <h6 className="font-medium text-gray-900 flex items-center">
-                              <Users className="h-4 w-4 mr-2" />
+                          <div className="bg-gray-50 px-3 sm:px-4 py-2 sm:py-3 border-b border-gray-200">
+                            <h6 className="text-sm sm:text-base font-medium text-gray-900 flex items-center">
+                              <Users className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
                               Cantantes Encontrados
                               {loadingSingers && (
-                                <div className="ml-2 animate-spin h-4 w-4 border-2 border-indigo-500 border-t-transparent rounded-full"></div>
+                                <div className="ml-2 animate-spin h-3 w-3 sm:h-4 sm:w-4 border-2 border-indigo-500 border-t-transparent rounded-full"></div>
                               )}
                             </h6>
                           </div>
@@ -1516,9 +1525,9 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({
                 </div>
 
                 {/* Columna derecha: Lista de cantantes seleccionados */}
-                <div className="pl-6">
+                <div className="lg:pl-6 mt-6 lg:mt-0">
                   <div className="h-full flex flex-col">
-                    <h5 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                    <h5 className="text-base sm:text-lg font-medium text-gray-900 mb-3 sm:mb-4 flex items-center">
                       <CheckCircle className="h-4 w-4 mr-2" />
                       Cantantes Seleccionados ({selectedAttendees.length})
                     </h5>
@@ -1609,26 +1618,26 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({
           )}
 
           {activeTab === 'music' && (
-            <div className="space-y-6">
-              <div className="flex items-center justify-between mb-6">
-                <h4 className="text-lg font-medium text-gray-900">
-                  Gestión de Música del Evento
+            <div className="space-y-4 sm:space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-6 space-y-3 sm:space-y-0">
+                <h4 className="text-base sm:text-lg font-medium text-gray-900">
+                  Gestión de Música del Programa
                 </h4>
-                <span className="text-sm text-gray-500 px-2 py-1 bg-blue-50 rounded-lg border border-blue-200">
+                <span className="text-xs sm:text-sm text-gray-500 px-2 py-1 bg-blue-50 rounded-lg border border-blue-200 text-center">
                   {selectedSongs.filter(song => song.voiceType).length} canciones seleccionadas
                 </span>
               </div>
 
-              {/* Diseño de dos columnas para música */}
-              <div className="grid grid-cols-2 gap-6 h-[600px]">
+              {/* Diseño responsive: una columna en móvil, dos en desktop */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 h-auto lg:h-[600px]">
                 {/* Columna izquierda: Filtros y búsqueda de música */}
-                <div className="space-y-4 border-r border-gray-200 pr-6">
+                <div className="space-y-3 sm:space-y-4 lg:border-r border-gray-200 lg:pr-6">
                   <div className="sticky top-0 bg-white">
-                    <h5 className="text-lg font-medium text-gray-900 mb-4">Búsqueda de Música</h5>
+                    <h5 className="text-base sm:text-lg font-medium text-gray-900 mb-3 sm:mb-4">Búsqueda de Música</h5>
                     
                     {/* Song Search */}
-                    <div className="space-y-3">
-                      <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-2 sm:space-y-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         <div className="relative">
                           <div className="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
                             <Search className="h-3 w-3 text-gray-400" />
@@ -1638,7 +1647,7 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({
                             placeholder="Buscar canciones..."
                             value={songSearchTerm}
                             onChange={(e) => setSongSearchTerm(e.target.value)}
-                            className="w-full pl-7 pr-2 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-1 focus:ring-indigo-500 focus:border-transparent"
+                            className="w-full pl-7 pr-2 py-1.5 text-xs sm:text-sm border border-gray-300 rounded-md focus:ring-1 focus:ring-indigo-500 focus:border-transparent"
                           />
                         </div>
 
@@ -1651,7 +1660,7 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({
                             placeholder="Buscar playlists..."
                             value={playlistSearchTerm}
                             onChange={(e) => setPlaylistSearchTerm(e.target.value)}
-                            className="w-full pl-7 pr-2 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-1 focus:ring-indigo-500 focus:border-transparent"
+                            className="w-full pl-7 pr-2 py-1.5 text-xs sm:text-sm border border-gray-300 rounded-md focus:ring-1 focus:ring-indigo-500 focus:border-transparent"
                           />
                         </div>
                       </div>
@@ -1831,33 +1840,34 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({
                 </div>
 
                 {/* Columna derecha: Lista de canciones seleccionadas */}
-                <div className="pl-6">
+                <div className="lg:pl-6 mt-6 lg:mt-0">
                   <div className="h-full flex flex-col">
-                    <h5 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-                      <CheckCircle className="h-4 w-4 mr-2" />
-                      Canciones Seleccionadas ({selectedSongs.filter(song => song.voiceType).length})
+                    <h5 className="text-base sm:text-lg font-medium text-gray-900 mb-3 sm:mb-4 flex items-center">
+                      <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
+                      <span className="text-sm sm:text-base">Canciones Seleccionadas ({selectedSongs.filter(song => song.voiceType).length})</span>
                     </h5>
 
                     {selectedSongs.filter(song => song.voiceType).length === 0 ? (
-                      <div className="flex-1 border border-gray-200 rounded-lg bg-gray-50 flex items-center justify-center">
+                      <div className="flex-1 border border-gray-200 rounded-lg bg-gray-50 flex items-center justify-center p-4">
                         <div className="text-center text-gray-500">
-                          <Music className="mx-auto h-12 w-12 text-gray-300 mb-4" />
-                          <p className="text-lg font-medium">No hay canciones seleccionadas</p>
-                          <p className="text-sm">Selecciona canciones de la lista de la izquierda</p>
+                          <Music className="mx-auto h-8 w-8 sm:h-12 sm:w-12 text-gray-300 mb-3 sm:mb-4" />
+                          <p className="text-base sm:text-lg font-medium">No hay canciones seleccionadas</p>
+                          <p className="text-xs sm:text-sm">Selecciona canciones de la lista de arriba</p>
                         </div>
                       </div>
                     ) : (
                       <div className="flex-1 border border-gray-200 rounded-lg overflow-hidden">
-                        <div className="bg-green-50 px-4 py-3 border-b border-green-200 flex items-center justify-between">
-                          <span className="text-sm font-medium text-green-900">
-                            Lista de Reproducción del Evento
+                        <div className="bg-green-50 px-3 sm:px-4 py-2 sm:py-3 border-b border-green-200 flex items-center justify-between">
+                          <span className="text-xs sm:text-sm font-medium text-green-900">
+                            Lista de Reproducción del Programa
                           </span>
                           <button
                             onClick={() => setSelectedSongs([])}
-                            className="text-red-600 hover:text-red-800 text-sm font-medium flex items-center"
+                            className="text-red-600 hover:text-red-800 text-xs sm:text-sm font-medium flex items-center"
                           >
                             <Trash className="h-3 w-3 mr-1" />
-                            Limpiar Todo
+                            <span className="hidden sm:inline">Limpiar Todo</span>
+                            <span className="sm:hidden">Limpiar</span>
                           </button>
                         </div>
                         
@@ -1930,64 +1940,128 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({
           )}
         </div>
 
-        <div className="bg-gray-50 px-6 py-4 flex justify-between items-center">
-          <div className="flex space-x-3">
-            {activeTab !== 'basic' && (
+        <div className="bg-gray-50 px-2 sm:px-6 py-2 sm:py-4 flex-shrink-0">
+          {/* Mobile Layout - Single Row */}
+          <div className="sm:hidden">
+            <div className="flex space-x-1 mb-2">
+              {activeTab !== 'basic' && (
+                <button
+                  onClick={() => {
+                    const tabs = ['basic', 'attendees', 'music'];
+                    const currentIndex = tabs.indexOf(activeTab);
+                    handleTabChange(tabs[currentIndex - 1] as 'basic' | 'attendees' | 'music');
+                  }}
+                  className="flex-1 px-2 py-2 text-xs text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  ← Anterior
+                </button>
+              )}
+              {activeTab !== 'music' && (
+                <button
+                  onClick={() => {
+                    const tabs = ['basic', 'attendees', 'music'];
+                    const currentIndex = tabs.indexOf(activeTab);
+                    handleTabChange(tabs[currentIndex + 1] as 'basic' | 'attendees' | 'music');
+                  }}
+                  className="flex-1 px-2 py-2 text-xs bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                >
+                  Siguiente →
+                </button>
+              )}
+            </div>
+            <div className="flex space-x-1">
               <button
-                onClick={() => {
-                  const tabs = ['basic', 'attendees', 'music'];
-                  const currentIndex = tabs.indexOf(activeTab);
-                  handleTabChange(tabs[currentIndex - 1] as 'basic' | 'attendees' | 'music');
-                }}
-                className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors"
+                onClick={handleClose}
+                className="flex-1 px-3 py-2 text-xs text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
               >
-                Anterior
+                Cancelar
               </button>
-            )}
-            {activeTab !== 'music' && (
               <button
-                onClick={() => {
-                  const tabs = ['basic', 'attendees', 'music'];
-                  const currentIndex = tabs.indexOf(activeTab);
-                  handleTabChange(tabs[currentIndex + 1] as 'basic' | 'attendees' | 'music');
-                }}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors"
+                onClick={handleSubmit}
+                disabled={
+                  !title || 
+                  !date || 
+                  isLoading || 
+                  selectedAttendees.length === 0 || 
+                  selectedSongs.filter(song => song.voiceType).length === 0
+                }
+                className="flex-1 px-3 py-2 text-xs bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium flex items-center justify-center"
               >
-                Siguiente
+                {isLoading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white mr-1"></div>
+                    Creando...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="h-3 w-3 mr-1" />
+                    {editMode ? 'Actualizar' : 'Crear'}
+                  </>
+                )}
               </button>
-            )}
+            </div>
           </div>
 
-          <div className="flex space-x-3">
-            <button
-              onClick={handleClose}
-              className="px-6 py-2 text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors"
-            >
-              Cancelar
-            </button>
-            <button
-              onClick={handleSubmit}
-              disabled={
-                !title || 
-                !date || 
-                isLoading || 
-                selectedAttendees.length === 0 || 
-                selectedSongs.filter(song => song.voiceType).length === 0
-              }
-              className="px-6 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium flex items-center"
-            >
-              {isLoading ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Creando...
-                </>
-              ) : (
-                <>
-                  <CheckCircle className="h-4 w-4 mr-2" />
-                  {editMode ? 'Actualizar Evento' : 'Crear Evento'}
-                </>
+          {/* Desktop Layout */}
+          <div className="hidden sm:flex sm:justify-between sm:items-center">
+            <div className="flex space-x-3">
+              {activeTab !== 'basic' && (
+                <button
+                  onClick={() => {
+                    const tabs = ['basic', 'attendees', 'music'];
+                    const currentIndex = tabs.indexOf(activeTab);
+                    handleTabChange(tabs[currentIndex - 1] as 'basic' | 'attendees' | 'music');
+                  }}
+                  className="px-4 py-2 text-sm text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors"
+                >
+                  Anterior
+                </button>
               )}
-            </button>
+              {activeTab !== 'music' && (
+                <button
+                  onClick={() => {
+                    const tabs = ['basic', 'attendees', 'music'];
+                    const currentIndex = tabs.indexOf(activeTab);
+                    handleTabChange(tabs[currentIndex + 1] as 'basic' | 'attendees' | 'music');
+                  }}
+                  className="px-4 py-2 text-sm bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors"
+                >
+                  Siguiente
+                </button>
+              )}
+            </div>
+
+            <div className="flex space-x-3">
+              <button
+                onClick={handleClose}
+                className="px-6 py-2 text-sm text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSubmit}
+                disabled={
+                  !title || 
+                  !date || 
+                  isLoading || 
+                  selectedAttendees.length === 0 || 
+                  selectedSongs.filter(song => song.voiceType).length === 0
+                }
+                className="px-6 py-2 text-sm bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium flex items-center"
+              >
+                {isLoading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Creando...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    {editMode ? 'Actualizar Programa' : 'Crear Programa'}
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       </div>
