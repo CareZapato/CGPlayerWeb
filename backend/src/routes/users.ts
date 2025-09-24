@@ -222,7 +222,7 @@ router.get('/', authenticateToken, requireRole(['DIRECTOR', 'ADMIN']), async (re
           lastName: true,
           phone: true,
           isActive: true,
-          status: true, // Agregar campo status
+          status: true, // Test: should work after TypeScript restart
           createdAt: true,
           updatedAt: true,
           profileImage: true,
@@ -572,11 +572,40 @@ router.put('/:userId', authenticateToken, requireRole(['DIRECTOR', 'ADMIN']), as
 
     // Verificar que el usuario existe
     const existingUser = await prisma.user.findUnique({
-      where: { id: userId }
+      where: { id: userId },
+      include: {
+        roles: {
+          select: {
+            role: true
+          }
+        }
+      }
     });
 
     if (!existingUser) {
       return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Validaciones para cambio de estado activo
+    const currentUserRoles = req.user?.roles || [];
+    const isCurrentUserDirector = currentUserRoles.includes('DIRECTOR');
+    const isCurrentUserAdmin = currentUserRoles.includes('ADMIN');
+
+    // Si se está intentando cambiar el estado activo, validar permisos
+    if (isActive !== existingUser.isActive) {
+      // No permitir cambio de estado si el usuario está PENDING
+      if ((existingUser as any).status === 'PENDING') {
+        return res.status(403).json({ 
+          message: 'No se puede cambiar el estado de un usuario pendiente de aprobación' 
+        });
+      }
+
+      // Si el usuario actual es Director (y no Admin) y el usuario está REFUSED, no puede activarlo
+      if (isCurrentUserDirector && !isCurrentUserAdmin && (existingUser as any).status === 'REFUSED' && isActive) {
+        return res.status(403).json({ 
+          message: 'Los directores no pueden reactivar usuarios rechazados' 
+        });
+      }
     }
 
     // Validar locationId si se proporciona
@@ -613,6 +642,7 @@ router.put('/:userId', authenticateToken, requireRole(['DIRECTOR', 'ADMIN']), as
         lastName: true,
         phone: true,
         isActive: true,
+        status: true, // Now working after TypeScript restart
         location: {
           select: {
             id: true,
@@ -1280,7 +1310,7 @@ router.get('/pending-approval', authenticateToken, requireRole(['ADMIN']), async
         lastName: true,
         phone: true,
         isActive: true,
-        status: true,
+        status: true, // Now working after TypeScript restart
         createdAt: true,
         updatedAt: true,
         profileImage: true,

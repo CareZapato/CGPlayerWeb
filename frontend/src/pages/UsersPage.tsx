@@ -385,7 +385,8 @@ const UsersPage: React.FC = () => {
       });
 
       if (!userResponse.ok) {
-        throw new Error('Failed to update user');
+        const errorData = await userResponse.json();
+        throw new Error(errorData.message || 'Failed to update user');
       }
 
       // Actualizar voces
@@ -439,7 +440,8 @@ const UsersPage: React.FC = () => {
       }
     } catch (error) {
       console.error('Error updating user:', error);
-      toast.error('Error al actualizar usuario');
+      const errorMessage = error instanceof Error ? error.message : 'Error al actualizar usuario';
+      toast.error(errorMessage);
     }
   };
 
@@ -580,6 +582,41 @@ const UsersPage: React.FC = () => {
       const errorMessage = error instanceof Error ? error.message : 'Error al rechazar usuario';
       toast.error(errorMessage);
     }
+  };
+
+  // Validaciones para edición de usuarios
+  const canEditUserActiveStatus = (user: User | null): boolean => {
+    if (!user) return false;
+    
+    // Si el usuario está PENDING, no se puede cambiar el estado
+    if (user.status === 'PENDING') return false;
+    
+    // Si el usuario actual es Director y el usuario está REFUSED, no puede activarlo
+    const isCurrentUserDirector = currentUser?.roles?.some(role => role.role === 'DIRECTOR');
+    const isCurrentUserAdmin = currentUser?.roles?.some(role => role.role === 'ADMIN');
+    
+    if (isCurrentUserDirector && !isCurrentUserAdmin && user.status === 'REFUSED') {
+      return false;
+    }
+    
+    return true;
+  };
+
+  const getActiveStatusMessage = (user: User | null): string => {
+    if (!user) return '';
+    
+    if (user.status === 'PENDING') {
+      return 'No se puede cambiar el estado mientras esté pendiente de aprobación';
+    }
+    
+    const isCurrentUserDirector = currentUser?.roles?.some(role => role.role === 'DIRECTOR');
+    const isCurrentUserAdmin = currentUser?.roles?.some(role => role.role === 'ADMIN');
+    
+    if (isCurrentUserDirector && !isCurrentUserAdmin && user.status === 'REFUSED') {
+      return 'Los directores no pueden reactivar usuarios rechazados';
+    }
+    
+    return '';
   };
 
   // Procesar archivo CSV
@@ -1236,17 +1273,29 @@ const UsersPage: React.FC = () => {
                       )}
                     </div>
 
-                    <div className="flex items-center">
-                      <input
-                        type="checkbox"
-                        id="isActive"
-                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                        checked={editForm.isActive}
-                        onChange={(e) => setEditForm(prev => ({ ...prev, isActive: e.target.checked }))}
-                      />
-                      <label htmlFor="isActive" className="ml-2 text-sm text-gray-700">
-                        Usuario activo
-                      </label>
+                    <div className="flex flex-col">
+                      <div className="flex items-center">
+                        <input
+                          type="checkbox"
+                          id="isActive"
+                          className={`rounded border-gray-300 text-blue-600 focus:ring-blue-500 ${
+                            !canEditUserActiveStatus(selectedUser) ? 'opacity-50 cursor-not-allowed' : ''
+                          }`}
+                          checked={editForm.isActive}
+                          disabled={!canEditUserActiveStatus(selectedUser)}
+                          onChange={(e) => setEditForm(prev => ({ ...prev, isActive: e.target.checked }))}
+                        />
+                        <label htmlFor="isActive" className={`ml-2 text-sm ${
+                          !canEditUserActiveStatus(selectedUser) ? 'text-gray-400' : 'text-gray-700'
+                        }`}>
+                          Usuario activo
+                        </label>
+                      </div>
+                      {!canEditUserActiveStatus(selectedUser) && (
+                        <p className="text-xs text-amber-600 mt-1 ml-6">
+                          {getActiveStatusMessage(selectedUser)}
+                        </p>
+                      )}
                     </div>
 
                     {/* Botones de acción */}
