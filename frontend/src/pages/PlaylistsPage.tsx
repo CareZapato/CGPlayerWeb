@@ -662,12 +662,216 @@ const PlaylistsPage: React.FC = () => {
           <div className="bg-white w-full h-full sm:rounded-2xl sm:w-full sm:max-w-7xl sm:max-h-[95vh] overflow-hidden shadow-2xl">
             <div className="flex flex-col lg:flex-row h-full max-h-full">
               
-              {/* Panel izquierdo - Buscador de canciones */}
-              <div className="w-full lg:w-1/2 p-4 sm:p-6 border-b lg:border-b-0 lg:border-r border-gray-200 bg-gradient-to-br from-blue-50 to-white flex flex-col overflow-hidden max-h-[50vh] sm:max-h-[45vh] lg:max-h-none">
-                <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-4 sm:mb-6 flex items-center">
-                  <PlusIcon className="w-5 h-5 sm:w-6 sm:h-6 mr-2 sm:mr-3 text-blue-600" />
-                  Buscar Canciones
-                </h3>
+              {/* Panel izquierdo - Información de la playlist */}
+              <div className="w-full lg:w-1/2 p-4 sm:p-6 border-b lg:border-b-0 lg:border-r border-gray-200 bg-gradient-to-br from-gray-50 to-white flex flex-col overflow-hidden max-h-[50vh] sm:max-h-[45vh] lg:max-h-none">
+                <div className="flex items-center justify-between mb-4 sm:mb-6">
+                  <h2 className="text-lg sm:text-2xl font-bold text-gray-900 flex items-center">
+                    <MusicalNoteIcon className="w-5 h-5 sm:w-6 sm:h-6 mr-2 sm:mr-3 text-blue-600" />
+                    {selectedPlaylist ? 'Editar Playlist' : 'Nueva Playlist'}
+                  </h2>
+                  <button 
+                    onClick={forceCloseModal}
+                    className="text-gray-400 hover:text-gray-600 p-1 sm:p-2 rounded-full hover:bg-gray-100 transition-all lg:hidden"
+                  >
+                    <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                
+                {/* Formulario de información de la playlist */}
+                <div className="flex-1 overflow-y-auto">
+                  <div className="space-y-4 sm:space-y-6">
+                    <div>
+                      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2 sm:mb-3">
+                        Nombre de la playlist *
+                      </label>
+                      <input
+                        type="text"
+                        value={newPlaylist.name}
+                        onChange={(e) => setNewPlaylist({ ...newPlaylist, name: e.target.value })}
+                        className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white shadow-sm text-sm sm:text-base"
+                        placeholder="Mi playlist favorita"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2 sm:mb-3">
+                        Descripción (opcional)
+                      </label>
+                      <textarea
+                        value={newPlaylist.description}
+                        onChange={(e) => setNewPlaylist({ ...newPlaylist, description: e.target.value })}
+                        className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white shadow-sm resize-none text-sm sm:text-base"
+                        rows={2}
+                        placeholder="Describe tu playlist..."
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2 sm:mb-3">
+                        Imagen de portada (opcional)
+                      </label>
+                      
+                      {/* Mostrar imagen actual si existe */}
+                      {currentImageUrl && !newPlaylist.image && (
+                        <div className="mb-2 sm:mb-3 p-2 sm:p-3 border border-gray-200 rounded-lg bg-gray-50">
+                          <p className="text-xs sm:text-sm text-gray-600 mb-2">Imagen actual:</p>
+                          <div className="flex items-center space-x-2 sm:space-x-3">
+                            <img 
+                              src={`${import.meta.env.VITE_API_BASE_URL}${currentImageUrl}`}
+                              alt="Imagen actual"
+                              className="w-12 h-12 sm:w-16 sm:h-16 object-cover rounded-lg border border-gray-300"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setCurrentImageUrl(null)}
+                              className="px-2 sm:px-3 py-1 text-xs sm:text-sm text-red-600 hover:text-red-800 border border-red-200 hover:border-red-300 rounded-md transition-colors"
+                            >
+                              Eliminar
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Preview de nueva imagen seleccionada */}
+                      {newPlaylist.image && (
+                        <div className="mb-2 sm:mb-3 p-2 sm:p-3 border border-blue-200 rounded-lg bg-blue-50">
+                          <p className="text-xs sm:text-sm text-gray-600 mb-2">Nueva imagen:</p>
+                          <div className="flex items-center space-x-2 sm:space-x-3">
+                            <img 
+                              src={URL.createObjectURL(newPlaylist.image)}
+                              alt="Nueva imagen"
+                              className="w-12 h-12 sm:w-16 sm:h-16 object-cover rounded-lg border border-gray-300"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setNewPlaylist({ ...newPlaylist, image: null })}
+                              className="px-2 sm:px-3 py-1 text-xs sm:text-sm text-red-600 hover:text-red-800 border border-red-200 hover:border-red-300 rounded-md transition-colors"
+                            >
+                              Quitar
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                      
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => setNewPlaylist({ ...newPlaylist, image: e.target.files?.[0] || null })}
+                        className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white shadow-sm text-xs sm:text-base"
+                      />
+                      
+                      <p className="text-[10px] sm:text-xs text-gray-500 mt-1 sm:mt-2">
+                        Máximo 5MB
+                      </p>
+                    </div>
+
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        id="isPublic"
+                        checked={newPlaylist.isPublic}
+                        onChange={(e) => setNewPlaylist({ ...newPlaylist, isPublic: e.target.checked })}
+                        className="h-3 w-3 sm:h-4 sm:w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      />
+                      <label htmlFor="isPublic" className="ml-2 sm:ml-3 block text-xs sm:text-sm font-medium text-gray-700">
+                        Hacer playlist pública
+                      </label>
+                    </div>
+                  </div>
+                  
+                  {/* Canciones en la playlist */}
+                  <div className="mt-4 sm:mt-6">
+                    <h4 className="text-sm sm:text-base font-semibold text-gray-900 mb-3 flex items-center">
+                      <MusicalNoteIcon className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2 text-green-600" />
+                      Canciones en la Playlist ({selectedSongsForNewPlaylist.length})
+                    </h4>
+                    
+                    <div className="max-h-32 sm:max-h-40 overflow-y-auto border border-gray-200 rounded-lg bg-white shadow-inner">
+                      {selectedSongsForNewPlaylist.length > 0 ? (
+                        <div className="space-y-1 p-2 sm:p-3">
+                          {selectedSongsForNewPlaylist.map((song) => (
+                            <div key={song.id} className="flex items-center justify-between p-1.5 sm:p-2 bg-green-50 rounded-md border border-green-200">
+                              <div className="flex-1 min-w-0 pr-2">
+                                <p className="font-medium text-gray-900 text-xs sm:text-sm truncate">{song.title}</p>
+                                <p className="text-[10px] sm:text-xs text-gray-500 truncate">{song.artist || 'Desconocido'}</p>
+                              </div>
+                              <button
+                                onClick={() => removeSongFromNewPlaylist(song.id)}
+                                className="text-red-600 hover:text-red-800 p-1 rounded hover:bg-red-50 transition-all flex-shrink-0"
+                                title="Eliminar canción"
+                              >
+                                <TrashIcon className="w-3 h-3 sm:w-4 sm:h-4" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="p-3 sm:p-4 text-center text-gray-500">
+                          <MusicalNoteIcon className="w-6 h-6 sm:w-8 sm:h-8 mx-auto mb-2 text-gray-300" />
+                          <p className="text-xs sm:text-sm">{selectedPlaylist ? 'Esta playlist está vacía' : 'No hay canciones seleccionadas'}</p>
+                          <p className="text-[10px] sm:text-xs">Las canciones aparecerán aquí cuando las agregues</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Botones de acción - Solo móvil */}
+                  <div className="flex flex-col space-y-2 mt-4 pt-4 border-t border-gray-200 lg:hidden">
+                    <button
+                      onClick={createPlaylist}
+                      disabled={!newPlaylist.name.trim() || savingPlaylist}
+                      className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg transition-all font-medium shadow-lg hover:shadow-xl disabled:shadow-none text-sm"
+                    >
+                      {savingPlaylist ? (
+                        <span className="flex items-center justify-center">
+                          <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          Guardando...
+                        </span>
+                      ) : (
+                        selectedPlaylist ? 'Actualizar' : 'Crear Playlist'
+                      )}
+                    </button>
+                    
+                    <button
+                      onClick={forceCloseModal}
+                      className="w-full px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-all font-medium text-sm"
+                    >
+                      Cancelar
+                    </button>
+                    
+                    {selectedPlaylist && (
+                      <button
+                        onClick={() => handleDeletePlaylist(selectedPlaylist.id)}
+                        className="w-full px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-all font-medium shadow-lg hover:shadow-xl text-sm"
+                      >
+                        Eliminar
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Panel derecho - Buscador de canciones */}
+              <div className="w-full lg:w-1/2 p-4 sm:p-6 bg-gradient-to-br from-blue-50 to-white flex flex-col overflow-hidden max-h-[50vh] sm:max-h-[55vh] lg:max-h-none">
+                <div className="flex items-center justify-between mb-4 sm:mb-6">
+                  <h3 className="text-lg sm:text-xl font-bold text-gray-900 flex items-center">
+                    <PlusIcon className="w-5 h-5 sm:w-6 sm:h-6 mr-2 sm:mr-3 text-blue-600" />
+                    Buscar Canciones
+                  </h3>
+                  <button 
+                    onClick={forceCloseModal}
+                    className="text-gray-400 hover:text-gray-600 p-1 sm:p-2 rounded-full hover:bg-gray-100 transition-all hidden lg:block"
+                  >
+                    <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
                 
                 {/* Buscador */}
                 <div className="relative mb-4 sm:mb-6">
@@ -682,215 +886,99 @@ const PlaylistsPage: React.FC = () => {
                 </div>
 
                 {/* Lista de canciones disponibles */}
-                <div className="flex-1 space-y-1 sm:space-y-2 overflow-y-auto">
-                  {loadingSongs ? (
-                    <div className="text-center py-6 sm:py-8">
-                      <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-blue-600 mx-auto mb-3 sm:mb-4"></div>
-                      <p className="text-xs sm:text-sm text-gray-600">Cargando canciones...</p>
-                    </div>
-                  ) : filteredSongsInModal.length === 0 ? (
-                    <div className="text-center py-6 sm:py-8 text-gray-500">
-                      <MusicalNoteIcon className="w-8 h-8 sm:w-12 sm:h-12 mx-auto mb-3 sm:mb-4 text-gray-300" />
-                      <p className="text-xs sm:text-sm font-medium">No hay canciones disponibles</p>
-                    </div>
-                  ) : (
-                    filteredSongsInModal
-                      .filter(song => !selectedSongsForNewPlaylist.some(s => s.id === song.id))
-                      .map((song) => (
-                        <div key={song.id} className="flex items-center justify-between p-2 sm:p-3 bg-white rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-all">
-                          <div className="flex-1 min-w-0 pr-2">
-                            <p className="font-medium text-gray-900 text-xs sm:text-sm truncate">{song.title}</p>
-                            <p className="text-[10px] sm:text-xs text-gray-500 truncate">{song.artist || 'Desconocido'}</p>
-                          </div>
-                          <button
-                            onClick={() => addSongToNewPlaylist(song)}
-                            className="px-2 sm:px-3 py-1 sm:py-1.5 rounded-md sm:rounded-lg text-[10px] sm:text-xs bg-blue-600 hover:bg-blue-700 text-white transition-all font-medium min-w-0 flex-shrink-0"
-                          >
-                            +
-                          </button>
-                        </div>
-                      ))
-                  )}
-                </div>
-              </div>
-
-              {/* Panel derecho - Información de la playlist */}
-              <div className="w-full lg:w-1/2 p-4 sm:p-6 bg-gradient-to-br from-gray-50 to-white overflow-y-auto flex-1">
-                <div className="flex items-center justify-between mb-4 sm:mb-6">
-                  <h2 className="text-lg sm:text-2xl font-bold text-gray-900">
-                    {selectedPlaylist ? 'Editar Playlist' : 'Nueva Playlist'}
-                  </h2>
-                  <button 
-                    onClick={forceCloseModal}
-                    className="text-gray-400 hover:text-gray-600 p-1 sm:p-2 rounded-full hover:bg-gray-100 transition-all"
-                  >
-                    <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
-                
-                {/* Formulario de información */}
-                <div className="space-y-4 sm:space-y-6">
-                  <div>
-                    <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2 sm:mb-3">
-                      Nombre de la playlist *
-                    </label>
-                    <input
-                      type="text"
-                      value={newPlaylist.name}
-                      onChange={(e) => setNewPlaylist({ ...newPlaylist, name: e.target.value })}
-                      className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white shadow-sm text-sm sm:text-base"
-                      placeholder="Mi playlist favorita"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2 sm:mb-3">
-                      Descripción (opcional)
-                    </label>
-                    <textarea
-                      value={newPlaylist.description}
-                      onChange={(e) => setNewPlaylist({ ...newPlaylist, description: e.target.value })}
-                      className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white shadow-sm resize-none text-sm sm:text-base"
-                      rows={2}
-                      placeholder="Describe tu playlist..."
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2 sm:mb-3">
-                      Imagen de portada (opcional)
-                    </label>
-                    
-                    {/* Mostrar imagen actual si existe */}
-                    {currentImageUrl && !newPlaylist.image && (
-                      <div className="mb-2 sm:mb-3 p-2 sm:p-3 border border-gray-200 rounded-lg bg-gray-50">
-                        <p className="text-xs sm:text-sm text-gray-600 mb-2">Imagen actual:</p>
-                        <div className="flex items-center space-x-2 sm:space-x-3">
-                          <img 
-                            src={`${import.meta.env.VITE_API_BASE_URL}${currentImageUrl}`}
-                            alt="Imagen actual"
-                            className="w-12 h-12 sm:w-16 sm:h-16 object-cover rounded-lg border border-gray-300"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setCurrentImageUrl(null)}
-                            className="px-2 sm:px-3 py-1 text-xs sm:text-sm text-red-600 hover:text-red-800 border border-red-200 hover:border-red-300 rounded-md transition-colors"
-                          >
-                            Eliminar
-                          </button>
-                        </div>
+                <div className="flex-1 overflow-y-auto">
+                  <div className="space-y-1 sm:space-y-2 mb-4">
+                    {loadingSongs ? (
+                      <div className="text-center py-6 sm:py-8">
+                        <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-blue-600 mx-auto mb-3 sm:mb-4"></div>
+                        <p className="text-xs sm:text-sm text-gray-600">Cargando canciones...</p>
                       </div>
-                    )}
-                    
-                    {/* Preview de nueva imagen seleccionada */}
-                    {newPlaylist.image && (
-                      <div className="mb-2 sm:mb-3 p-2 sm:p-3 border border-blue-200 rounded-lg bg-blue-50">
-                        <p className="text-xs sm:text-sm text-gray-600 mb-2">Nueva imagen:</p>
-                        <div className="flex items-center space-x-2 sm:space-x-3">
-                          <img 
-                            src={URL.createObjectURL(newPlaylist.image)}
-                            alt="Nueva imagen"
-                            className="w-12 h-12 sm:w-16 sm:h-16 object-cover rounded-lg border border-gray-300"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setNewPlaylist({ ...newPlaylist, image: null })}
-                            className="px-2 sm:px-3 py-1 text-xs sm:text-sm text-red-600 hover:text-red-800 border border-red-200 hover:border-red-300 rounded-md transition-colors"
-                          >
-                            Quitar
-                          </button>
-                        </div>
+                    ) : filteredSongsInModal.length === 0 ? (
+                      <div className="text-center py-6 sm:py-8 text-gray-500">
+                        <MusicalNoteIcon className="w-8 h-8 sm:w-12 sm:h-12 mx-auto mb-3 sm:mb-4 text-gray-300" />
+                        <p className="text-xs sm:text-sm font-medium">No hay canciones disponibles</p>
                       </div>
-                    )}
-                    
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => setNewPlaylist({ ...newPlaylist, image: e.target.files?.[0] || null })}
-                      className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white shadow-sm text-xs sm:text-base"
-                    />
-                    
-                    <p className="text-[10px] sm:text-xs text-gray-500 mt-1 sm:mt-2">
-                      Máximo 5MB
-                    </p>
-                  </div>
-
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      id="isPublic"
-                      checked={newPlaylist.isPublic}
-                      onChange={(e) => setNewPlaylist({ ...newPlaylist, isPublic: e.target.checked })}
-                      className="h-3 w-3 sm:h-4 sm:w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                    />
-                    <label htmlFor="isPublic" className="ml-2 sm:ml-3 block text-xs sm:text-sm font-medium text-gray-700">
-                      Hacer playlist pública
-                    </label>
-                  </div>
-                </div>
-
-                {/* Canciones en la playlist */}
-                <div className="mt-4 sm:mt-8">
-                  <h3 className="text-sm sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4 flex items-center">
-                    <MusicalNoteIcon className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2 text-green-600" />
-                    Canciones ({selectedSongsForNewPlaylist.length})
-                  </h3>
-                  
-                  <div className="max-h-32 sm:max-h-48 overflow-y-auto border border-gray-200 rounded-lg sm:rounded-xl bg-white shadow-inner">
-                    {selectedSongsForNewPlaylist.length > 0 ? (
-                      <div className="space-y-1 p-2 sm:p-3">
-                        {selectedSongsForNewPlaylist.map((song) => (
-                          <div key={song.id} className="flex items-center justify-between p-1.5 sm:p-2 bg-blue-50 rounded-md sm:rounded-lg border border-blue-200">
+                    ) : (
+                      filteredSongsInModal
+                        .filter(song => !selectedSongsForNewPlaylist.some(s => s.id === song.id))
+                        .map((song) => (
+                          <div key={song.id} className="flex items-center justify-between p-2 sm:p-3 bg-white rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-all">
                             <div className="flex-1 min-w-0 pr-2">
                               <p className="font-medium text-gray-900 text-xs sm:text-sm truncate">{song.title}</p>
                               <p className="text-[10px] sm:text-xs text-gray-500 truncate">{song.artist || 'Desconocido'}</p>
                             </div>
                             <button
-                              onClick={() => removeSongFromNewPlaylist(song.id)}
-                              className="text-red-600 hover:text-red-800 p-1 rounded hover:bg-red-50 transition-all flex-shrink-0"
-                              title="Eliminar canción"
+                              onClick={() => addSongToNewPlaylist(song)}
+                              className="px-2 sm:px-3 py-1 sm:py-1.5 rounded-md sm:rounded-lg text-[10px] sm:text-xs bg-blue-600 hover:bg-blue-700 text-white transition-all font-medium min-w-0 flex-shrink-0"
                             >
-                              <TrashIcon className="w-3 h-3 sm:w-4 sm:h-4" />
+                              +
                             </button>
                           </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="p-4 sm:p-6 text-center text-gray-500">
-                        <MusicalNoteIcon className="w-8 h-8 sm:w-12 sm:h-12 mx-auto mb-2 sm:mb-3 text-gray-300" />
-                        <p className="text-xs sm:text-sm">{selectedPlaylist ? 'Esta playlist está vacía' : 'No hay canciones seleccionadas'}</p>
-                        <p className="text-[10px] sm:text-xs">Busca y agrega canciones arriba</p>
-                      </div>
+                        ))
                     )}
                   </div>
+                  
+                  {/* Canciones seleccionadas */}
+                  <div className="border-t border-gray-200 pt-4">
+                    <h4 className="text-sm sm:text-base font-semibold text-gray-900 mb-3 flex items-center">
+                      <MusicalNoteIcon className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2 text-green-600" />
+                      Canciones Seleccionadas ({selectedSongsForNewPlaylist.length})
+                    </h4>
+                    
+                    <div className="max-h-32 sm:max-h-48 overflow-y-auto border border-gray-200 rounded-lg bg-white shadow-inner">
+                      {selectedSongsForNewPlaylist.length > 0 ? (
+                        <div className="space-y-1 p-2 sm:p-3">
+                          {selectedSongsForNewPlaylist.map((song) => (
+                            <div key={song.id} className="flex items-center justify-between p-1.5 sm:p-2 bg-green-50 rounded-md sm:rounded-lg border border-green-200">
+                              <div className="flex-1 min-w-0 pr-2">
+                                <p className="font-medium text-gray-900 text-xs sm:text-sm truncate">{song.title}</p>
+                                <p className="text-[10px] sm:text-xs text-gray-500 truncate">{song.artist || 'Desconocido'}</p>
+                              </div>
+                              <button
+                                onClick={() => removeSongFromNewPlaylist(song.id)}
+                                className="text-red-600 hover:text-red-800 p-1 rounded hover:bg-red-50 transition-all flex-shrink-0"
+                                title="Eliminar canción"
+                              >
+                                <TrashIcon className="w-3 h-3 sm:w-4 sm:h-4" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="p-4 sm:p-6 text-center text-gray-500">
+                          <MusicalNoteIcon className="w-8 h-8 sm:w-12 sm:h-12 mx-auto mb-2 sm:mb-3 text-gray-300" />
+                          <p className="text-xs sm:text-sm">No hay canciones seleccionadas</p>
+                          <p className="text-[10px] sm:text-xs">Busca y agrega canciones arriba</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
-
-                {/* Botones de acción */}
-                <div className="flex flex-col sm:flex-row sm:justify-end space-y-2 sm:space-y-0 sm:space-x-4 mt-4 sm:mt-8 pt-4 sm:pt-6 border-t border-gray-200">
+                
+                {/* Botones de acción - Solo Desktop */}
+                <div className="hidden lg:flex justify-end space-x-4 mt-6 pt-4 border-t border-gray-200">
                   {selectedPlaylist && (
                     <button
                       onClick={() => handleDeletePlaylist(selectedPlaylist.id)}
-                      className="w-full sm:w-auto px-4 sm:px-6 py-2 sm:py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg sm:rounded-xl transition-all font-medium shadow-lg hover:shadow-xl text-sm sm:text-base sm:mr-auto order-last sm:order-first"
+                      className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl transition-all font-medium shadow-lg hover:shadow-xl mr-auto"
                     >
                       Eliminar
                     </button>
                   )}
                   <button
                     onClick={forceCloseModal}
-                    className="w-full sm:w-auto px-4 sm:px-6 py-2 sm:py-3 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg sm:rounded-xl transition-all font-medium text-sm sm:text-base"
+                    className="px-6 py-3 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl transition-all font-medium"
                   >
                     Cancelar
                   </button>
                   <button
                     onClick={createPlaylist}
                     disabled={!newPlaylist.name.trim() || savingPlaylist}
-                    className="w-full sm:w-auto px-4 sm:px-6 py-2 sm:py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg sm:rounded-xl transition-all font-medium shadow-lg hover:shadow-xl disabled:shadow-none text-sm sm:text-base"
+                    className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-xl transition-all font-medium shadow-lg hover:shadow-xl disabled:shadow-none"
                   >
                     {savingPlaylist ? (
-                      <span className="flex items-center justify-center">
-                        <svg className="animate-spin -ml-1 mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <span className="flex items-center">
+                        <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                         </svg>
@@ -906,6 +994,8 @@ const PlaylistsPage: React.FC = () => {
           </div>
         </div>
       )}
+
+
 
       {/* Estado vacío */}
       {playlists.length === 0 && !loading && (
