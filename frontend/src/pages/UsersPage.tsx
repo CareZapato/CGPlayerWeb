@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef, memo } from 'react';
 import { 
   MagnifyingGlassIcon, 
   TrashIcon,
@@ -170,9 +170,82 @@ const getUserDisplayStatus = (user: User) => {
   }
 };
 
+// Componente memoizado para el input de búsqueda (evita re-renders)
+const SearchInput = memo(({ 
+  value, 
+  onChange, 
+  placeholder = "Buscar por nombre, email o usuario..." 
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+}) => {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [internalValue, setInternalValue] = useState(value);
+  
+  // Sincronizar valor interno cuando cambia el prop
+  useEffect(() => {
+    setInternalValue(value);
+  }, [value]);
+  
+  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = e.target.value;
+    setInternalValue(newValue);
+    onChange(newValue);
+  }, [onChange]);
+  
+  return (
+    <div className="w-full" key="search-container">
+      <div className="relative">
+        <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+        <input
+          ref={inputRef}
+          type="text"
+          placeholder={placeholder}
+          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          value={internalValue}
+          onChange={handleChange}
+          autoComplete="off"
+          spellCheck="false"
+        />
+      </div>
+    </div>
+  );
+});
+
+SearchInput.displayName = 'SearchInput';
+
+// Hook personalizado para debounce más estable
+const useStableDebounce = (value: string, delay: number) => {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+  const timeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
+
+  useEffect(() => {
+    // Limpiar timeout previo
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+
+    // Crear nuevo timeout
+    timeoutRef.current = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    // Cleanup
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+};
+
 const UsersPage: React.FC = () => {
   const { user: currentUser } = useAuthStore();
-  const [users, setUsers] = useState<User[]>([]);
+  const [allUsers, setAllUsers] = useState<User[]>([]); // Todos los usuarios cargados
+  const [filteredUsers, setFilteredUsers] = useState<User[]>([]); // Usuarios filtrados en frontend
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [locations, setLocations] = useState<Location[]>([]);
   const [loading, setLoading] = useState(true);
@@ -184,6 +257,9 @@ const UsersPage: React.FC = () => {
     hasNext: false,
     hasPrev: false
   });
+
+  // Estado para preservar paginación previa cuando no hay datos (evita re-renders)
+  const [stablePagination, setStablePagination] = useState<Pagination>(pagination);
 
   // Estados para modales
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -203,6 +279,13 @@ const UsersPage: React.FC = () => {
   
   // Estado separado para el input de búsqueda (para debounce)
   const [searchInput, setSearchInput] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
+  
+  // Debounce estable para la búsqueda
+  const debouncedSearch = useStableDebounce(
+    searchInput, 
+    isDeleting ? 200 : 500
+  );
 
   // Estado del formulario de edición
   const [editForm, setEditForm] = useState({
@@ -238,23 +321,24 @@ const UsersPage: React.FC = () => {
   const [importProgress, setImportProgress] = useState(0);
   const [isImporting, setIsImporting] = useState(false);
 
-  // Cargar usuarios
-  const fetchUsers = useCallback(async () => {
+  // Cargar todos los usuarios una sola vez
+  const fetchAllUsers = useCallback(async () => {
     try {
-      setLoading(true);
+      // Solo cambiar loading si no hay usuarios cargados
+      if (allUsers.length === 0) {
+        setLoading(true);
+      }
+      
       const queryParams = new URLSearchParams();
       
-      // Si el usuario actual es Director, filtrar por su ubicación
+      // Si el usuario actual es Director, filtrar por su ubicación en el backend
       const isUserDirector = currentUser?.roles?.some(role => role.role === 'DIRECTOR');
       if (isUserDirector && currentUser?.locationId) {
         queryParams.append('location', currentUser.locationId);
       }
       
-      Object.entries(filters).forEach(([key, value]) => {
-        if (value !== '' && value !== 0) {
-          queryParams.append(key, value.toString());
-        }
-      });
+      // Cargar todos los usuarios sin filtros de búsqueda (solo filtros básicos)
+      queryParams.append('limit', '1000'); // Cargar muchos usuarios de una vez
 
       const response = await fetch(getApiUrl(`/api/users?${queryParams}`), {
         headers: {
@@ -267,15 +351,94 @@ const UsersPage: React.FC = () => {
       }
 
       const data = await response.json();
-      setUsers(data.data.users);
+      setAllUsers(data.data.users);
+      setFilteredUsers(data.data.users); // Inicialmente mostrar todos
       setPagination(data.data.pagination);
+      
+      // Solo actualizar paginación estable si hay datos válidos
+      if (data.data.pagination.totalCount > 0 || data.data.users.length > 0) {
+        setStablePagination(data.data.pagination);
+      }
     } catch (error) {
       console.error('Error fetching users:', error);
       toast.error('Error al cargar usuarios');
     } finally {
       setLoading(false);
     }
-  }, [filters, currentUser]);
+  }, [currentUser, allUsers.length]);
+
+  // Filtrar usuarios en el frontend
+  const filterUsersInFrontend = useCallback(() => {
+    let filtered = [...allUsers];
+
+    // Filtro de búsqueda por texto
+    if (filters.search) {
+      const searchTerm = filters.search.toLowerCase();
+      filtered = filtered.filter(user => 
+        user.firstName.toLowerCase().includes(searchTerm) ||
+        user.lastName.toLowerCase().includes(searchTerm) ||
+        user.email.toLowerCase().includes(searchTerm) ||
+        user.username.toLowerCase().includes(searchTerm)
+      );
+    }
+
+    // Filtro por ubicación (solo para ADMINs)
+    if (filters.location && currentUser?.roles?.some(r => r.role === 'ADMIN')) {
+      filtered = filtered.filter(user => user.location?.id === filters.location);
+    }
+
+    // Filtro por tipo de voz
+    if (filters.voiceType) {
+      filtered = filtered.filter(user => 
+        user.voiceProfiles.some(voice => voice.voiceType === filters.voiceType)
+      );
+    }
+
+    // Filtro por rol
+    if (filters.role) {
+      filtered = filtered.filter(user => 
+        user.roles.some(role => role.role === filters.role)
+      );
+    }
+
+    // Filtro por estado
+    if (filters.status) {
+      if (filters.status === 'active') {
+        filtered = filtered.filter(user => user.status === 'CONFIRMED' && user.isActive);
+      } else if (filters.status === 'inactive') {
+        filtered = filtered.filter(user => user.status === 'CONFIRMED' && !user.isActive);
+      } else if (filters.status === 'pending') {
+        filtered = filtered.filter(user => user.status === 'PENDING');
+      } else if (filters.status === 'refused') {
+        filtered = filtered.filter(user => user.status === 'REFUSED');
+      }
+    }
+
+    setFilteredUsers(filtered);
+    
+    // Actualizar paginación basada en resultados filtrados
+    const totalCount = filtered.length;
+    const totalPages = Math.ceil(totalCount / filters.limit);
+    const currentPage = Math.min(filters.page, totalPages || 1);
+    
+    setPagination({
+      currentPage,
+      totalPages: totalPages || 1,
+      totalCount,
+      limit: filters.limit,
+      hasNext: currentPage < totalPages,
+      hasPrev: currentPage > 1
+    });
+    
+    setStablePagination({
+      currentPage,
+      totalPages: totalPages || 1,
+      totalCount,
+      limit: filters.limit,
+      hasNext: currentPage < totalPages,
+      hasPrev: currentPage > 1
+    });
+  }, [allUsers, filters, currentUser]);
 
   // Cargar ubicaciones
   const fetchLocations = async () => {
@@ -300,22 +463,45 @@ const UsersPage: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchUsers();
     fetchLocations();
-  }, [fetchUsers]);
+  }, []);
 
-  // Debounce para búsqueda por texto
+  // Cargar usuarios al montar el componente
   useEffect(() => {
-    const debounceTimer = setTimeout(() => {
-      setFilters(prev => ({
-        ...prev,
-        search: searchInput,
-        page: 1 // Reset a página 1 cuando cambia la búsqueda
-      }));
-    }, 500); // 500ms de delay
+    fetchAllUsers();
+  }, [fetchAllUsers]);
 
-    return () => clearTimeout(debounceTimer);
+  // Filtrar usuarios cuando cambien los filtros o los datos
+  useEffect(() => {
+    if (allUsers.length > 0) {
+      filterUsersInFrontend();
+    }
+  }, [allUsers, filters, filterUsersInFrontend]);
+
+  // Obtener usuarios para la página actual
+  const getUsersForCurrentPage = useCallback(() => {
+    const startIndex = (filters.page - 1) * filters.limit;
+    const endIndex = startIndex + filters.limit;
+    return filteredUsers.slice(startIndex, endIndex);
+  }, [filteredUsers, filters.page, filters.limit]);
+
+  const displayedUsers = getUsersForCurrentPage();
+
+  // Función simplificada para manejar cambios en el input de búsqueda
+  const handleSearchInputChange = useCallback((newValue: string) => {
+    const wasDeleting = newValue.length < searchInput.length;
+    setIsDeleting(wasDeleting);
+    setSearchInput(newValue);
   }, [searchInput]);
+
+  // Efecto para aplicar el debounce de búsqueda
+  useEffect(() => {
+    setFilters(prev => ({
+      ...prev,
+      search: debouncedSearch,
+      page: 1 // Reset a página 1 cuando cambia la búsqueda
+    }));
+  }, [debouncedSearch]);
 
   // Manejar cambios en filtros
   const handleFilterChange = (key: string, value: string | number) => {
@@ -480,7 +666,7 @@ const UsersPage: React.FC = () => {
       }
 
       toast.success('Usuario actualizado correctamente');
-      fetchUsers();
+      fetchAllUsers();
       
       // Actualizar usuario seleccionado
       const updatedUser = await fetch(getApiUrl(`/api/users/${selectedUser.id}`), {
@@ -515,7 +701,7 @@ const UsersPage: React.FC = () => {
       }
 
       toast.success('Usuario eliminado correctamente');
-      fetchUsers();
+      fetchAllUsers();
       if (selectedUser?.id === userId) {
         setSelectedUser(null);
       }
@@ -567,7 +753,7 @@ const UsersPage: React.FC = () => {
         toast.success('Usuario creado correctamente');
       }
       
-      fetchUsers();
+      fetchAllUsers();
       setShowCreateModal(false);
       setCreateForm({
         firstName: '',
@@ -606,7 +792,7 @@ const UsersPage: React.FC = () => {
       }
 
       toast.success('Usuario aprobado correctamente');
-      fetchUsers();
+      fetchAllUsers();
     } catch (error) {
       console.error('Error approving user:', error);
       const errorMessage = error instanceof Error ? error.message : 'Error al aprobar usuario';
@@ -631,7 +817,7 @@ const UsersPage: React.FC = () => {
       }
 
       toast.success('Usuario rechazado');
-      fetchUsers();
+      fetchAllUsers();
     } catch (error) {
       console.error('Error rejecting user:', error);
       const errorMessage = error instanceof Error ? error.message : 'Error al rechazar usuario';
@@ -754,7 +940,7 @@ const UsersPage: React.FC = () => {
         toast.error(`${result.errors.length} usuarios tuvieron errores`);
       }
 
-      fetchUsers();
+      fetchAllUsers();
       setShowImportModal(false);
       setCsvPreview([]);
     } catch (error) {
@@ -767,7 +953,7 @@ const UsersPage: React.FC = () => {
     }
   };
 
-  if (loading && users.length === 0) {
+  if (loading && allUsers.length === 0) {
     return (
       <div className="min-h-screen bg-gray-50 p-2 sm:p-4 lg:p-6">
         <div className="animate-pulse max-w-full mx-auto">
@@ -846,19 +1032,12 @@ const UsersPage: React.FC = () => {
               {/* Filtros y búsqueda */}
               <div className="p-4 lg:p-6 border-b border-gray-200">
                 <div className="flex flex-col gap-4">
-                  {/* Búsqueda */}
-                  <div className="w-full">
-                    <div className="relative">
-                      <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                      <input
-                        type="text"
-                        placeholder="Buscar por nombre, email o usuario..."
-                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        value={searchInput}
-                        onChange={(e) => setSearchInput(e.target.value)}
-                      />
-                    </div>
-                  </div>
+                  {/* Búsqueda - Componente memoizado */}
+                  <SearchInput 
+                    value={searchInput}
+                    onChange={handleSearchInputChange}
+                    placeholder="Buscar por nombre, email o usuario..."
+                  />
 
                   {/* Filtros dinámicos - Grid se adapta según el rol */}
                   <div className={`grid gap-3 ${
@@ -969,7 +1148,7 @@ const UsersPage: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {users.map((user) => (
+                    {displayedUsers.map((user) => (
                       <tr 
                         key={user.id}
                         className={`hover:bg-gray-50 cursor-pointer ${selectedUser?.id === user.id ? 'bg-blue-50' : ''}`}
@@ -1100,36 +1279,71 @@ const UsersPage: React.FC = () => {
                         </td>
                       </tr>
                     ))}
+                    {/* Mensaje cuando no hay usuarios (evita micro-flash) */}
+                    {!loading && displayedUsers.length === 0 && (
+                      <tr>
+                        <td 
+                          colSpan={currentUser?.roles?.some(r => r.role === 'ADMIN') ? 6 : 5} 
+                          className="px-6 py-12 text-center"
+                        >
+                          <div className="text-gray-500">
+                            <MagnifyingGlassIcon className="mx-auto h-12 w-12 text-gray-300 mb-4" />
+                            <p className="text-lg font-medium">No se encontraron usuarios</p>
+                            <p className="text-sm">
+                              {filters.search ? 
+                                'Intenta ajustar los filtros de búsqueda' : 
+                                'No hay usuarios registrados'
+                              }
+                            </p>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
 
-              {/* Paginación */}
-              <div className="px-3 lg:px-6 py-4 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-3">
-                <div className="text-xs lg:text-sm text-gray-700 text-center sm:text-left">
-                  Mostrando {((pagination.currentPage - 1) * pagination.limit) + 1} a{' '}
-                  {Math.min(pagination.currentPage * pagination.limit, pagination.totalCount)} de{' '}
-                  {pagination.totalCount} usuarios
-                </div>
-                <div className="flex items-center space-x-2">
-                  <button
-                    onClick={() => handleFilterChange('page', pagination.currentPage - 1)}
-                    disabled={!pagination.hasPrev}
-                    className="p-2 rounded-lg border border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-                  >
-                    <ChevronLeftIcon className="w-4 h-4" />
-                  </button>
-                  <span className="px-3 py-1 text-xs lg:text-sm text-gray-700">
-                    Página {pagination.currentPage} de {pagination.totalPages}
-                  </span>
-                  <button
-                    onClick={() => handleFilterChange('page', pagination.currentPage + 1)}
-                    disabled={!pagination.hasNext}
-                    className="p-2 rounded-lg border border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-                  >
-                    <ChevronRightIcon className="w-4 h-4" />
-                  </button>
-                </div>
+              {/* Paginación - Contenedor estable que siempre mantiene la altura */}
+              <div className="px-3 lg:px-6 py-4 border-t border-gray-200 min-h-[60px] flex flex-col sm:flex-row items-center justify-between gap-3">
+                {(pagination.totalCount > 0 || displayedUsers.length > 0) ? (
+                  <>
+                    <div className="text-xs lg:text-sm text-gray-700 text-center sm:text-left">
+                      {pagination.totalCount > 0 ? (
+                        <>
+                          Mostrando {((stablePagination.currentPage - 1) * stablePagination.limit) + 1} a{' '}
+                          {Math.min(stablePagination.currentPage * stablePagination.limit, stablePagination.totalCount)} de{' '}
+                          {stablePagination.totalCount} usuarios
+                        </>
+                      ) : (
+                        `${displayedUsers.length} usuarios en esta página`
+                      )}
+                    </div>
+                    {stablePagination.totalPages > 1 && (
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={() => handleFilterChange('page', stablePagination.currentPage - 1)}
+                          disabled={!stablePagination.hasPrev}
+                          className="p-2 rounded-lg border border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                        >
+                          <ChevronLeftIcon className="w-4 h-4" />
+                        </button>
+                        <span className="px-3 py-1 text-xs lg:text-sm text-gray-700">
+                          Página {stablePagination.currentPage} de {stablePagination.totalPages}
+                        </span>
+                        <button
+                          onClick={() => handleFilterChange('page', stablePagination.currentPage + 1)}
+                          disabled={!stablePagination.hasNext}
+                          className="p-2 rounded-lg border border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                        >
+                          <ChevronRightIcon className="w-4 h-4" />
+                        </button>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  // Espacio reservado para mantener altura consistente
+                  <div className="h-6"></div>
+                )}
               </div>
             </div>
           </div>
