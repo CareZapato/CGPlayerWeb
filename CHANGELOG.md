@@ -5,6 +5,36 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto se adhiere al [Versionado Semántico](https://semver.org/lang/es/).
 
+## [0.12.18] - 2025-09-23
+
+### 📊 **NUEVA FUNCIONALIDAD: ESTADÍSTICAS REALES**
+- **Sistema de estadísticas con datos reales**: Implementación completa de estadísticas basadas en la participación real del usuario
+- **Endpoint API `/profile/stats`**: Nuevo endpoint que calcula estadísticas desde EventJoinRequest y EventAttendee
+- **Cálculos por temporada**: Estadísticas agrupadas por año desde la fecha actual hacia atrás
+- **Métricas de participación detalladas**: 
+  - Ensayos asistidos (status APPROVED/CONFIRMED)
+  - Faltas (status REJECTED sin justificación)
+  - Inasistencias (status REJECTED con justificación)
+  - Eventos confirmados por categoría
+
+### 🎯 **SISTEMA DE LOGROS MEJORADO**
+- **Sección independiente de logros**: Separación completa del sistema de achievements de las estadísticas
+- **Cálculos basados en datos reales**: Progreso real calculado desde la participación confirmada del usuario
+- **Barras de progreso mejoradas**: Implementación de límites visuales y colores dinámicos según rendimiento
+- **Categorías de logros**: Ensayos, eventos, asistencia y participación general
+
+### 📱 **REDISEÑO COMPLETO DEL PERFIL**
+- **Menú lateral inteligente**: Navegación horizontal scroll en móvil, sidebar vertical en desktop
+- **Interfaz moderna con tarjetas**: Tarjetas de resumen con iconos y métricas clave de participación
+- **Responsive perfecto**: Adaptación completa a todos los tamaños de pantalla
+- **Datos reales mostrados**: Reemplazo completo de datos mock por estadísticas reales del usuario
+
+### 🔧 **MEJORAS TÉCNICAS**
+- **Optimización de consultas**: Queries eficientes para estadísticas con relaciones complejas
+- **Manejo de errores mejorado**: Fallback a datos vacíos cuando no hay estadísticas disponibles
+- **TypeScript interfaces actualizadas**: SeasonStats con propiedades completas para estadísticas detalladas
+- **API consistency**: Endpoints consistentes con la estructura de datos del frontend
+
 ## [0.11.0] - 2025-09-22
 
 ### 🎭 **FUNCIONALIDAD PRINCIPAL: SISTEMA DE ENSAYOS**
