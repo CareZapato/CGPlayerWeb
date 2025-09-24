@@ -200,9 +200,14 @@ router.get('/', authenticateToken, requireRole(['DIRECTOR', 'ADMIN']), async (re
     // Si el usuario actual es Director, filtrar solo por su ubicación
     const currentUserRoles = req.user?.roles || [];
     const isDirectorUser = currentUserRoles.includes('DIRECTOR');
+    const isAdminUser = currentUserRoles.includes('ADMIN');
     
-    if (isDirectorUser && req.user?.locationId) {
+    // Para Directors que no son Admin, sobrescribir cualquier filtro de location
+    if (isDirectorUser && !isAdminUser && req.user?.locationId) {
+      // Limpiar cualquier filtro de location previo
+      delete where.location;
       where.locationId = req.user.locationId;
+      console.log('🎯 Director filter: locationId =', req.user.locationId);
     }
 
     // Obtener usuarios con paginación
@@ -260,12 +265,16 @@ router.get('/', authenticateToken, requireRole(['DIRECTOR', 'ADMIN']), async (re
       prisma.user.count({ where })
     ]);
 
+    console.log('📊 Query results: Found', users.length, 'users of', totalCount, 'total');
+
     const totalPages = Math.ceil(totalCount / limitNum);
 
-    // Transformar usuarios para agregar profileImageUrl
+    // Transformar usuarios para agregar profileImageUrl y marca de pendiente
     const transformedUsers = users.map((user: any) => ({
       ...user,
-      profileImageUrl: generateProfileImageUrl(user.profileImage)
+      profileImageUrl: generateProfileImageUrl(user.profileImage),
+      isPending: user.status === 'PENDING', // Agregar flag para el frontend
+      needsApproval: user.status === 'PENDING' && user.isActive === false // Más específico
     }));
 
     res.json({
@@ -790,6 +799,11 @@ router.post('/create', authenticateToken, requireRole(['ADMIN', 'DIRECTOR']), as
       role 
     } = req.body;
 
+    // Determinar roles del usuario que está creando
+    const creatorRoles = req.user?.roles || [];
+    const isCreatedByAdmin = creatorRoles.includes('ADMIN');
+    const isCreatedByDirector = creatorRoles.includes('DIRECTOR');
+
     console.log('Creating user with data:', {
       firstName,
       lastName,
@@ -809,6 +823,13 @@ router.post('/create', authenticateToken, requireRole(['ADMIN', 'DIRECTOR']), as
       return res.status(400).json({ message: 'Missing required fields' });
     }
 
+    // Validar que Directors solo puedan crear usuarios con rol CANTANTE
+    if (isCreatedByDirector && !isCreatedByAdmin && role !== 'CANTANTE') {
+      return res.status(403).json({ 
+        message: 'Los directores solo pueden crear usuarios con rol CANTANTE' 
+      });
+    }
+
     // Verificar que el usuario no exista
     const existingUser = await prisma.user.findFirst({
       where: {
@@ -825,6 +846,7 @@ router.post('/create', authenticateToken, requireRole(['ADMIN', 'DIRECTOR']), as
 
     // Validar locationId si se proporciona
     let validLocationId = null;
+    
     if (locationId && locationId !== 'null' && locationId.trim() !== '') {
       const locationExists = await prisma.location.findUnique({
         where: { id: locationId }
@@ -834,15 +856,44 @@ router.post('/create', authenticateToken, requireRole(['ADMIN', 'DIRECTOR']), as
         console.log('Location ID not found:', locationId);
         return res.status(400).json({ message: 'Invalid location ID provided' });
       }
+      
+      // Si es Director (y no Admin), solo puede crear usuarios en su ubicación
+      if (isCreatedByDirector && !isCreatedByAdmin) {
+        if (locationId !== req.user?.locationId) {
+          return res.status(403).json({ 
+            message: 'Los directores solo pueden crear usuarios en su propia ubicación' 
+          });
+        }
+      }
+      
       validLocationId = locationId;
       console.log('Valid location ID set:', validLocationId);
     } else {
       console.log('No location ID provided, setting to null');
+      
+      // Si es Director, automáticamente asignar su ubicación
+      if (isCreatedByDirector && !isCreatedByAdmin && req.user?.locationId) {
+        validLocationId = req.user.locationId;
+        console.log('Director creating user - auto-assigned location:', validLocationId);
+      }
     }
 
     // Hash de la contraseña
     const bcrypt = require('bcryptjs');
     const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Determinar el estado inicial y isActive según quién crea el usuario
+    let finalStatus = status || 'CONFIRMED';
+    let finalIsActive = isActive !== undefined ? isActive : true;
+    
+    // Si es creado por un Director (y no es Admin), el usuario necesita aprobación
+    if (isCreatedByDirector && !isCreatedByAdmin) {
+      finalStatus = 'PENDING';
+      finalIsActive = false; // Usuario inactivo hasta que sea aprobado
+      console.log('🔶 Usuario creado por Director - Estado: PENDING, Activo: false, Requiere aprobación de Admin');
+    } else if (isCreatedByAdmin) {
+      console.log('✅ Usuario creado por Admin - Estado: CONFIRMED, Activo inmediatamente');
+    }
 
     // Crear usuario
     const newUser = await prisma.user.create({
@@ -854,9 +905,21 @@ router.post('/create', authenticateToken, requireRole(['ADMIN', 'DIRECTOR']), as
         phone: phone || null,
         password: hashedPassword,
         locationId: validLocationId,
-        isActive: isActive !== undefined ? isActive : true,
-        status: (status || 'CONFIRMED')
+        isActive: finalIsActive,
+        status: finalStatus
       } as any
+    });
+
+    console.log('📝 Usuario creado exitosamente:', {
+      id: newUser.id,
+      nombre: `${newUser.firstName} ${newUser.lastName}`,
+      email: newUser.email,
+      status: finalStatus,
+      isActive: finalIsActive,
+      locationId: validLocationId,
+      createdBy: req.user?.id,
+      creatorRoles,
+      needsApproval: isCreatedByDirector && !isCreatedByAdmin
     });
 
     // Asignar rol único
@@ -883,15 +946,23 @@ router.post('/create', authenticateToken, requireRole(['ADMIN', 'DIRECTOR']), as
       });
     }
 
+    // Determinar mensaje apropiado según quien creó el usuario
+    const successMessage = isCreatedByDirector && !isCreatedByAdmin 
+      ? 'Usuario creado exitosamente. Pendiente de aprobación por un administrador.'
+      : 'User created successfully';
+
     res.status(201).json({
       success: true,
-      message: 'User created successfully',
+      message: successMessage,
+      needsApproval: isCreatedByDirector && !isCreatedByAdmin,
       user: {
         id: newUser.id,
         firstName: newUser.firstName,
         lastName: newUser.lastName,
         email: newUser.email,
-        username: newUser.username
+        username: newUser.username,
+        status: finalStatus,
+        isActive: finalIsActive
       }
     });
 
@@ -1103,14 +1174,41 @@ router.patch('/:userId/approve', authenticateToken, requireRole(['ADMIN']), asyn
   try {
     const { userId } = req.params;
 
+    // Verificar que el usuario existe y está pendiente
+    const existingUser = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, status: true, firstName: true, lastName: true, isActive: true } as any
+    });
+
+    if (!existingUser) {
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
+
+    if ((existingUser as any).status !== 'PENDING') {
+      return res.status(400).json({ 
+        message: `El usuario ya tiene estado: ${(existingUser as any).status}` 
+      });
+    }
+
     const updatedUser = await prisma.user.update({
       where: { id: userId },
-      data: { status: 'CONFIRMED' } as any
+      data: { 
+        status: 'CONFIRMED',
+        isActive: true // Activar usuario al aprobar
+      } as any
+    });
+
+    console.log('Usuario aprobado:', {
+      userId,
+      name: `${existingUser.firstName} ${existingUser.lastName}`,
+      previousStatus: (existingUser as any).status,
+      newStatus: 'CONFIRMED',
+      approvedBy: req.user?.id
     });
 
     res.json({
       success: true,
-      message: 'Usuario aprobado correctamente',
+      message: 'Usuario aprobado y activado correctamente',
       user: updatedUser
     });
   } catch (error) {
@@ -1124,9 +1222,36 @@ router.patch('/:userId/reject', authenticateToken, requireRole(['ADMIN']), async
   try {
     const { userId } = req.params;
 
+    // Verificar que el usuario existe y está pendiente
+    const existingUser = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, status: true, firstName: true, lastName: true, isActive: true } as any
+    });
+
+    if (!existingUser) {
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
+
+    if ((existingUser as any).status !== 'PENDING') {
+      return res.status(400).json({ 
+        message: `El usuario ya tiene estado: ${(existingUser as any).status}` 
+      });
+    }
+
     const updatedUser = await prisma.user.update({
       where: { id: userId },
-      data: { status: 'REFUSED' } as any
+      data: { 
+        status: 'REFUSED',
+        isActive: false // Mantener usuario inactivo al rechazar
+      } as any
+    });
+
+    console.log('Usuario rechazado:', {
+      userId,
+      name: `${existingUser.firstName} ${existingUser.lastName}`,
+      previousStatus: (existingUser as any).status,
+      newStatus: 'REFUSED',
+      rejectedBy: req.user?.id
     });
 
     res.json({
@@ -1137,6 +1262,112 @@ router.patch('/:userId/reject', authenticateToken, requireRole(['ADMIN']), async
   } catch (error) {
     console.error('Error rejecting user:', error);
     res.status(500).json({ message: 'Error al rechazar usuario' });
+  }
+});
+
+// Obtener usuarios pendientes de aprobación (solo admins)
+router.get('/pending-approval', authenticateToken, requireRole(['ADMIN']), async (req: AuthRequest, res: Response) => {
+  try {
+    const pendingUsers = await prisma.user.findMany({
+      where: {
+        status: 'PENDING'
+      } as any,
+      select: {
+        id: true,
+        email: true,
+        username: true,
+        firstName: true,
+        lastName: true,
+        phone: true,
+        isActive: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+        profileImage: true,
+        location: {
+          select: {
+            id: true,
+            name: true,
+            city: true,
+            color: true
+          }
+        },
+        voiceProfiles: {
+          select: {
+            id: true,
+            voiceType: true,
+            isPrimary: true,
+            createdAt: true,
+            assignedByUser: {
+              select: {
+                firstName: true,
+                lastName: true
+              }
+            }
+          } as any
+        },
+        roles: {
+          select: {
+            id: true,
+            role: true,
+            createdAt: true,
+            assignedByUser: {
+              select: {
+                firstName: true,
+                lastName: true,
+                roles: {
+                  select: {
+                    role: true
+                  }
+                }
+              }
+            }
+          } as any
+        }
+      } as any,
+      orderBy: {
+        createdAt: 'desc'
+      }
+    });
+
+    // Transformar usuarios para agregar profileImageUrl
+    const transformedUsers = pendingUsers.map((user: any) => ({
+      ...user,
+      profileImageUrl: generateProfileImageUrl(user.profileImage),
+      needsApproval: true // Indicador para el frontend
+    }));
+
+    res.json({
+      success: true,
+      data: {
+        users: transformedUsers,
+        count: transformedUsers.length
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching pending users:', error);
+    res.status(500).json({ message: 'Failed to fetch pending users' });
+  }
+});
+
+// Obtener conteo de usuarios pendientes (para badge de notificación)
+router.get('/pending-count', authenticateToken, requireRole(['ADMIN']), async (req: AuthRequest, res: Response) => {
+  try {
+    const pendingCount = await prisma.user.count({
+      where: {
+        status: 'PENDING'
+      } as any
+    });
+
+    console.log('📊 Usuarios pendientes de aprobación:', pendingCount);
+
+    res.json({
+      success: true,
+      count: pendingCount
+    });
+  } catch (error) {
+    console.error('Error fetching pending count:', error);
+    res.status(500).json({ message: 'Failed to fetch pending count' });
   }
 });
 

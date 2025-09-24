@@ -720,24 +720,28 @@ const UsersPage: React.FC = () => {
               </p>
             </div>
             
-            {currentUser?.roles && currentUser.roles.some(r => r.role === 'ADMIN') && (
+            {currentUser?.roles && (currentUser.roles.some(r => r.role === 'ADMIN') || currentUser.roles.some(r => r.role === 'DIRECTOR')) && (
               <div className="flex flex-col sm:flex-row gap-2">
                 <button
                   onClick={() => setShowCreateModal(true)}
                   className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center justify-center space-x-2 transition-colors"
                 >
                   <UserPlusIcon className="w-5 h-5" />
-                  <span>Crear Usuario</span>
+                  <span>
+                    {currentUser.roles.some(r => r.role === 'ADMIN') ? 'Crear Usuario' : 'Crear Cantante'}
+                  </span>
                 </button>
-                <button
-                  onClick={() => setShowImportModal(true)}
-                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center justify-center space-x-2 transition-colors"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
-                  </svg>
-                  <span>Importar CSV</span>
-                </button>
+                {currentUser.roles.some(r => r.role === 'ADMIN') && (
+                  <button
+                    onClick={() => setShowImportModal(true)}
+                    className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center justify-center space-x-2 transition-colors"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
+                    </svg>
+                    <span>Importar CSV</span>
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -764,20 +768,27 @@ const UsersPage: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Filtros en una sola fila en desktop, columna en móvil */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                    <select
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                      value={filters.location}
-                      onChange={(e) => handleFilterChange('location', e.target.value)}
-                    >
-                      <option value="">Todas las ubicaciones</option>
-                      {locations.map(location => (
-                        <option key={location.id} value={location.id}>
-                          {location.name} - {location.city}
-                        </option>
-                      ))}
-                    </select>
+                  {/* Filtros dinámicos - Grid se adapta según el rol */}
+                  <div className={`grid gap-3 ${
+                    currentUser?.roles?.some(role => role.role === 'ADMIN') 
+                      ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3' 
+                      : 'grid-cols-1 sm:grid-cols-2'
+                  }`}>
+                    {/* Filtro de ubicación - Solo para ADMINs */}
+                    {currentUser?.roles?.some(role => role.role === 'ADMIN') && (
+                      <select
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                        value={filters.location}
+                        onChange={(e) => handleFilterChange('location', e.target.value)}
+                      >
+                        <option value="">Todas las ubicaciones</option>
+                        {locations.map(location => (
+                          <option key={location.id} value={location.id}>
+                            {location.name} - {location.city}
+                          </option>
+                        ))}
+                      </select>
+                    )}
 
                     <select
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
@@ -792,18 +803,21 @@ const UsersPage: React.FC = () => {
                       ))}
                     </select>
 
-                    <select
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                      value={filters.role}
-                      onChange={(e) => handleFilterChange('role', e.target.value)}
-                    >
-                      <option value="">Todos los roles</option>
-                      {ROLES.map(role => (
-                        <option key={role} value={role}>
-                          {role}
-                        </option>
-                      ))}
-                    </select>
+                    {/* Filtro de roles - Solo para ADMINs */}
+                    {currentUser?.roles?.some(role => role.role === 'ADMIN') && (
+                      <select
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                        value={filters.role}
+                        onChange={(e) => handleFilterChange('role', e.target.value)}
+                      >
+                        <option value="">Todos los roles</option>
+                        {ROLES.map(role => (
+                          <option key={role} value={role}>
+                            {role}
+                          </option>
+                        ))}
+                      </select>
+                    )}
 
                     <select
                       className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
@@ -1290,7 +1304,10 @@ const UsersPage: React.FC = () => {
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-lg font-semibold text-gray-900">
-                  Crear Nuevo Usuario
+                  {currentUser?.roles?.some(role => role.role === 'ADMIN') 
+                    ? 'Crear Nuevo Usuario' 
+                    : 'Crear Nuevo Cantante'
+                  }
                 </h3>
                 <button
                   onClick={() => setShowCreateModal(false)}
@@ -1381,42 +1398,60 @@ const UsersPage: React.FC = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Rol *
                   </label>
-                  <select
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    value={createForm.selectedRole}
-                    onChange={(e) => setCreateForm(prev => ({ ...prev, selectedRole: e.target.value }))}
-                  >
-                    {ROLES.map(role => (
-                      <option key={role} value={role}>
-                        {formatRole(role)}
-                      </option>
-                    ))}
-                  </select>
+                  {currentUser?.roles?.some(role => role.role === 'ADMIN') ? (
+                    <select
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      value={createForm.selectedRole}
+                      onChange={(e) => setCreateForm(prev => ({ ...prev, selectedRole: e.target.value }))}
+                    >
+                      {ROLES.map(role => (
+                        <option key={role} value={role}>
+                          {formatRole(role)}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <div className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-700">
+                      Cantante
+                    </div>
+                  )}
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Ubicación
-                  </label>
-                  <select
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    value={createForm.locationId}
-                    onChange={(e) => setCreateForm(prev => ({ ...prev, locationId: e.target.value }))}
-                  >
-                    <option value="">Sin ubicación</option>
-                    {locations.length === 0 && (
-                      <option value="" disabled>Cargando ubicaciones...</option>
-                    )}
-                    {locations.map(location => {
-                      console.log('Rendering location option:', location); // Debug log
-                      return (
+                {/* Solo mostrar selector de ubicación para ADMINs */}
+                {currentUser?.roles?.some(role => role.role === 'ADMIN') && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Ubicación
+                    </label>
+                    <select
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      value={createForm.locationId}
+                      onChange={(e) => setCreateForm(prev => ({ ...prev, locationId: e.target.value }))}
+                    >
+                      <option value="">Sin ubicación</option>
+                      {locations.length === 0 && (
+                        <option value="" disabled>Cargando ubicaciones...</option>
+                      )}
+                      {locations.map(location => (
                         <option key={location.id} value={location.id}>
                           {location.name} - {location.city}
                         </option>
-                      );
-                    })}
-                  </select>
-                </div>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {/* Para Directors, mostrar información de la ubicación asignada automáticamente */}
+                {currentUser?.roles?.some(role => role.role === 'DIRECTOR') && !currentUser?.roles?.some(role => role.role === 'ADMIN') && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Ubicación
+                    </label>
+                    <div className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-700">
+                      Se asignará automáticamente a tu ubicación
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="mt-6">
