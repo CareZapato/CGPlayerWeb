@@ -202,9 +202,20 @@ router.get('/', authenticateToken, requireRole(['DIRECTOR', 'ADMIN']), async (re
     }
 
     if (location) {
-      where.location = {
-        city: { equals: location as string, mode: 'insensitive' }
-      };
+      const locationStr = location as string;
+      // Si location es un ID (para filtros de admin), usar locationId
+      // Si location es texto (para búsqueda por ciudad), usar location.city
+      if (locationStr.length > 10 && locationStr.includes('c')) {
+        // Parece un ID de Prisma (cuid), filtrar por locationId
+        where.locationId = locationStr;
+        console.log('🔍 Admin filter by locationId:', locationStr);
+      } else {
+        // Es texto, filtrar por ciudad
+        where.location = {
+          city: { equals: locationStr, mode: 'insensitive' }
+        };
+        console.log('🔍 Admin filter by city:', locationStr);
+      }
     }
 
     if (voiceType) {
