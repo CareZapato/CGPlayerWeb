@@ -69,8 +69,8 @@ api.interceptors.request.use((config) => {
 
 // Interceptor para manejar errores de autenticación
 api.interceptors.response.use(
-  (response: any) => response,
-  (error: any) => {
+  (response) => response,
+  (error) => {
     if (error.response?.status === 401) {
       // Limpiar almacenamiento local
       localStorage.removeItem('token');
@@ -106,10 +106,10 @@ export const usersAPI = {
   getProfile: (): Promise<{ data: User }> =>
     api.get('/users/profile'),
   
-  assignVoiceProfile: (userId: string, voiceType: VoiceType): Promise<{ data: any }> =>
+  assignVoiceProfile: (userId: string, voiceType: VoiceType): Promise<{ data: { message: string } }> =>
     api.post(`/users/${userId}/voice-profiles`, { voiceType }),
   
-  removeVoiceProfile: (userId: string, voiceType: VoiceType): Promise<{ data: any }> =>
+  removeVoiceProfile: (userId: string, voiceType: VoiceType): Promise<{ data: { message: string } }> =>
     api.delete(`/users/${userId}/voice-profiles/${voiceType}`),
 };
 
@@ -128,10 +128,10 @@ export const songsAPI = {
       },
     }),
   
-  assign: (songId: string, userId: string, voiceType: VoiceType): Promise<{ data: any }> =>
+  assign: (songId: string, userId: string, voiceType: VoiceType): Promise<{ data: { message: string } }> =>
     api.post(`/songs/${songId}/assign`, { userId, voiceType }),
   
-  delete: (id: string): Promise<{ data: any }> =>
+  delete: (id: string): Promise<{ data: { message: string } }> =>
     api.delete(`/songs/${id}`),
 };
 
@@ -149,13 +149,13 @@ export const playlistsAPI = {
   update: (id: string, data: Partial<CreatePlaylistData>): Promise<{ data: { playlist: Playlist } }> =>
     api.put(`/playlists/${id}`, data),
   
-  delete: (id: string): Promise<{ data: any }> =>
+  delete: (id: string): Promise<{ data: { message: string } }> =>
     api.delete(`/playlists/${id}`),
   
-  addSong: (playlistId: string, songId: string): Promise<{ data: any }> =>
+  addSong: (playlistId: string, songId: string): Promise<{ data: { message: string } }> =>
     api.post(`/playlists/${playlistId}/songs`, { songId }),
   
-  removeSong: (playlistId: string, songId: string): Promise<{ data: any }> =>
+  removeSong: (playlistId: string, songId: string): Promise<{ data: { message: string } }> =>
     api.delete(`/playlists/${playlistId}/songs/${songId}`),
 };
 
@@ -170,7 +170,7 @@ export const lyricsAPI = {
   update: (id: string, data: Partial<CreateLyricData>): Promise<{ data: { lyric: Lyric } }> =>
     api.put(`/lyrics/${id}`, data),
   
-  delete: (id: string): Promise<{ data: any }> =>
+  delete: (id: string): Promise<{ data: { message: string } }> =>
     api.delete(`/lyrics/${id}`),
 };
 
