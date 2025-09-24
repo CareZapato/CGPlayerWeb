@@ -5,6 +5,41 @@ import os from 'os';
 
 const router = express.Router();
 
+// Función para generar un username único basado en email
+const generateUniqueUsername = async (email: string, excludeUserId?: string): Promise<string> => {
+  const baseUsername = email.split('@')[0].toLowerCase();
+  let username = baseUsername;
+  let counter = 1;
+
+  while (true) {
+    const existingUser = await prisma.user.findUnique({
+      where: { username },
+      select: { id: true }
+    });
+
+    // Si no existe o es el mismo usuario que estamos editando, está disponible
+    if (!existingUser || (excludeUserId && existingUser.id === excludeUserId)) {
+      break;
+    }
+
+    // Si existe, probar con el siguiente número
+    username = `${baseUsername}.${counter}`;
+    counter++;
+  }
+
+  return username;
+};
+
+// Función para validar si un username está disponible
+const isUsernameAvailable = async (username: string, excludeUserId?: string): Promise<boolean> => {
+  const existingUser = await prisma.user.findUnique({
+    where: { username },
+    select: { id: true }
+  });
+
+  return !existingUser || (excludeUserId !== undefined && existingUser.id === excludeUserId);
+};
+
 // Función para obtener la IP del servidor de forma consistente
 const getServerIP = (): string => {
   // Usar IP desde variables de entorno si está disponible (ip-config.env)
@@ -192,14 +227,18 @@ router.get('/', authenticateToken, requireRole(['DIRECTOR', 'ADMIN']), async (re
       // Manejar el filtro de estado visual del frontend
       if (status === 'pending') {
         where.status = 'PENDING';
+      } else if (status === 'refused') {
+        where.status = 'REFUSED';
       } else if (status === 'active') {
         where.AND = [
           { status: { not: 'PENDING' } },
+          { status: { not: 'REFUSED' } },
           { isActive: true }
         ];
       } else if (status === 'inactive') {
         where.AND = [
           { status: { not: 'PENDING' } },
+          { status: { not: 'REFUSED' } },
           { isActive: false }
         ];
       } else {
@@ -602,6 +641,31 @@ router.put('/:userId', authenticateToken, requireRole(['DIRECTOR', 'ADMIN']), as
     const isCurrentUserDirector = currentUserRoles.includes('DIRECTOR');
     const isCurrentUserAdmin = currentUserRoles.includes('ADMIN');
 
+    // Validar username si se proporciona
+    let finalUsername = username;
+    if (username) {
+      // Verificar si el username está disponible
+      if (!await isUsernameAvailable(username, userId)) {
+        return res.status(400).json({ 
+          message: 'El nombre de usuario ya está en uso' 
+        });
+      }
+    } else if (email && email !== existingUser.email) {
+      // Si no se proporciona username pero cambia el email, generar uno nuevo
+      finalUsername = await generateUniqueUsername(email, userId);
+    }
+
+    // Solo admins pueden editar ciertos campos como username, email, etc.
+    if (!isCurrentUserAdmin) {
+      // Directors solo pueden editar campos básicos, no username ni email
+      if ((username && username !== existingUser.username) || 
+          (email && email !== existingUser.email)) {
+        return res.status(403).json({ 
+          message: 'Solo los administradores pueden cambiar el username o email' 
+        });
+      }
+    }
+
     // Si se está intentando cambiar el estado activo, validar permisos
     if (isActive !== existingUser.isActive) {
       // No permitir cambio de estado si el usuario está PENDING
@@ -633,18 +697,31 @@ router.put('/:userId', authenticateToken, requireRole(['DIRECTOR', 'ADMIN']), as
       validLocationId = locationId;
     }
 
+    // Preparar los datos de actualización
+    const updateData: any = {
+      firstName,
+      lastName,
+      phone: phone || null,
+      locationId: validLocationId,
+      isActive
+    };
+
+    // Solo admins pueden cambiar email y username
+    if (isCurrentUserAdmin) {
+      if (email) updateData.email = email;
+      if (finalUsername) updateData.username = finalUsername;
+    }
+
+    // Si un admin activa un usuario rechazado, cambiar status a CONFIRMED
+    if (isCurrentUserAdmin && isActive && (existingUser as any).status === 'REFUSED') {
+      updateData.status = 'CONFIRMED';
+      console.log('🔄 Admin activating refused user - changing status to CONFIRMED');
+    }
+
     // Actualizar usuario
     const updatedUser = await prisma.user.update({
       where: { id: userId },
-      data: {
-        firstName,
-        lastName,
-        email,
-        username,
-        phone: phone || null,
-        locationId: validLocationId,
-        isActive
-      },
+      data: updateData,
       select: {
         id: true,
         email: true,
@@ -822,6 +899,53 @@ router.get('/data/locations', authenticateToken, requireRole(['DIRECTOR', 'ADMIN
   }
 });
 
+// Endpoint para que un usuario cambie su propio username
+router.put('/profile/username', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const { username } = req.body;
+    const currentUserId = req.user?.id;
+
+    if (!currentUserId) {
+      return res.status(401).json({ message: 'Usuario no autenticado' });
+    }
+
+    if (!username || username.trim().length === 0) {
+      return res.status(400).json({ message: 'Username es requerido' });
+    }
+
+    const trimmedUsername = username.trim();
+
+    // Verificar si el username está disponible
+    if (!await isUsernameAvailable(trimmedUsername, currentUserId)) {
+      return res.status(400).json({ 
+        message: 'El nombre de usuario ya está en uso' 
+      });
+    }
+
+    // Actualizar el username del usuario actual
+    const updatedUser = await prisma.user.update({
+      where: { id: currentUserId },
+      data: { username: trimmedUsername },
+      select: {
+        id: true,
+        username: true,
+        firstName: true,
+        lastName: true,
+        email: true
+      }
+    });
+
+    res.json({
+      message: 'Username actualizado exitosamente',
+      user: updatedUser
+    });
+
+  } catch (error) {
+    console.error('Error updating username:', error);
+    res.status(500).json({ message: 'Error interno del servidor' });
+  }
+});
+
 // Crear usuario manualmente (admins y directores)
 router.post('/create', authenticateToken, requireRole(['ADMIN', 'DIRECTOR']), async (req: AuthRequest, res: Response) => {
   try {
@@ -860,8 +984,23 @@ router.post('/create', authenticateToken, requireRole(['ADMIN', 'DIRECTOR']), as
     });
 
     // Validar campos requeridos
-    if (!firstName || !lastName || !email || !username || !password || !role) {
+    if (!firstName || !lastName || !email || !password || !role) {
       return res.status(400).json({ message: 'Missing required fields' });
+    }
+
+    // Generar username si no se proporciona
+    let finalUsername = username;
+    if (!username || username.trim().length === 0) {
+      finalUsername = await generateUniqueUsername(email);
+      console.log(`Generated username: ${finalUsername} from email: ${email}`);
+    } else {
+      // Verificar que el username proporcionado esté disponible
+      if (!await isUsernameAvailable(username)) {
+        return res.status(400).json({ 
+          message: 'El nombre de usuario ya está en uso' 
+        });
+      }
+      finalUsername = username.trim();
     }
 
     // Validar que Directors solo puedan crear usuarios con rol CANTANTE
@@ -876,7 +1015,7 @@ router.post('/create', authenticateToken, requireRole(['ADMIN', 'DIRECTOR']), as
       where: {
         OR: [
           { email },
-          { username }
+          { username: finalUsername }
         ]
       }
     });
@@ -942,7 +1081,7 @@ router.post('/create', authenticateToken, requireRole(['ADMIN', 'DIRECTOR']), as
         firstName,
         lastName,
         email,
-        username,
+        username: finalUsername,
         phone: phone || null,
         password: hashedPassword,
         locationId: validLocationId,

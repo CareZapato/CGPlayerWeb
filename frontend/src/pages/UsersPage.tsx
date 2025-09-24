@@ -142,7 +142,17 @@ const getUserDisplayStatus = (user: User) => {
     };
   }
   
-  // Para usuarios CONFIRMED o REFUSED, mostrar el estado isActive
+  // Si el status es REFUSED, mostrar "Rechazado" independientemente de isActive
+  if (user.status === 'REFUSED') {
+    return {
+      text: 'Rechazado',
+      color: 'text-gray-600',
+      bgColor: 'bg-gray-100',
+      value: 'refused'
+    };
+  }
+  
+  // Para usuarios CONFIRMED, mostrar el estado isActive
   if (user.isActive) {
     return {
       text: 'Activo',
@@ -894,6 +904,7 @@ const UsersPage: React.FC = () => {
                       <option value="active">Activos</option>
                       <option value="inactive">Inactivos</option>
                       <option value="pending">Pendientes</option>
+                      <option value="refused">Rechazados</option>
                     </select>
 
                     <select

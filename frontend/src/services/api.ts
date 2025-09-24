@@ -174,4 +174,10 @@ export const lyricsAPI = {
     api.delete(`/lyrics/${id}`),
 };
 
+// API para cambio de username propio
+export const userProfileAPI = {
+  updateUsername: (username: string): Promise<{ data: { message: string; user: User } }> =>
+    api.put('/users/profile/username', { username }),
+};
+
 export default api;
