@@ -147,8 +147,7 @@ router.get('/', authenticateToken, requireRole(['DIRECTOR', 'ADMIN']), async (re
       location = '',
       voiceType = '',
       role = '',
-      isActive = '',
-      status = '' // Agregar filtro de status
+      status = '' // Filtro de estado (pending, active, inactive, PENDING, CONFIRMED, REFUSED)
     } = req.query;
 
     const pageNum = parseInt(page as string);
@@ -189,12 +188,24 @@ router.get('/', authenticateToken, requireRole(['DIRECTOR', 'ADMIN']), async (re
       };
     }
 
-    if (isActive !== '') {
-      where.isActive = isActive === 'true';
-    }
-
     if (status) {
-      where.status = status as string;
+      // Manejar el filtro de estado visual del frontend
+      if (status === 'pending') {
+        where.status = 'PENDING';
+      } else if (status === 'active') {
+        where.AND = [
+          { status: { not: 'PENDING' } },
+          { isActive: true }
+        ];
+      } else if (status === 'inactive') {
+        where.AND = [
+          { status: { not: 'PENDING' } },
+          { isActive: false }
+        ];
+      } else {
+        // Para valores directos como PENDING, CONFIRMED, REFUSED
+        where.status = status as string;
+      }
     }
 
     // Si el usuario actual es Director, filtrar solo por su ubicación

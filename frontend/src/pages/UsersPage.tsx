@@ -130,6 +130,36 @@ const formatRole = (role: string): string => {
   return labels[role] || role;
 };
 
+// Función para obtener el estado visual del usuario
+const getUserDisplayStatus = (user: User) => {
+  // Si el status es PENDING, mostrar "Pendiente" independientemente de isActive
+  if (user.status === 'PENDING') {
+    return {
+      text: 'Pendiente',
+      color: 'text-amber-600',
+      bgColor: 'bg-amber-100',
+      value: 'pending'
+    };
+  }
+  
+  // Para usuarios CONFIRMED o REFUSED, mostrar el estado isActive
+  if (user.isActive) {
+    return {
+      text: 'Activo',
+      color: 'text-green-600',
+      bgColor: 'bg-green-100',
+      value: 'active'
+    };
+  } else {
+    return {
+      text: 'Inactivo',
+      color: 'text-red-600',
+      bgColor: 'bg-red-100',
+      value: 'inactive'
+    };
+  }
+};
+
 const UsersPage: React.FC = () => {
   const { user: currentUser } = useAuthStore();
   const [users, setUsers] = useState<User[]>([]);
@@ -156,7 +186,6 @@ const UsersPage: React.FC = () => {
     location: '',
     voiceType: '',
     role: '',
-    isActive: '',
     status: '',
     page: 1,
     limit: 10
@@ -858,27 +887,14 @@ const UsersPage: React.FC = () => {
 
                     <select
                       className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                      value={filters.isActive}
-                      onChange={(e) => handleFilterChange('isActive', e.target.value)}
+                      value={filters.status}
+                      onChange={(e) => handleFilterChange('status', e.target.value)}
                     >
                       <option value="">Todos los estados</option>
-                      <option value="true">Activos</option>
-                      <option value="false">Inactivos</option>
+                      <option value="active">Activos</option>
+                      <option value="inactive">Inactivos</option>
+                      <option value="pending">Pendientes</option>
                     </select>
-
-                    {/* Solo mostrar filtro de estado para admins */}
-                    {currentUser?.roles?.some(role => role.role === 'ADMIN') && (
-                      <select
-                        className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                        value={filters.status}
-                        onChange={(e) => handleFilterChange('status', e.target.value)}
-                      >
-                        <option value="">Todos los estados</option>
-                        <option value="CONFIRMED">Confirmados</option>
-                        <option value="PENDING">Pendientes</option>
-                        <option value="REFUSED">Rechazados</option>
-                      </select>
-                    )}
 
                     <select
                       className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
@@ -979,13 +995,14 @@ const UsersPage: React.FC = () => {
                           </div>
                         </td>
                         <td className="px-3 lg:px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                            user.isActive 
-                              ? 'bg-green-100 text-green-800' 
-                              : 'bg-red-100 text-red-800'
-                          }`}>
-                            {user.isActive ? 'Activo' : 'Inactivo'}
-                          </span>
+                          {(() => {
+                            const status = getUserDisplayStatus(user);
+                            return (
+                              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${status.bgColor} ${status.color}`}>
+                                {status.text}
+                              </span>
+                            );
+                          })()}
                         </td>
                         {/* Solo mostrar columna de aprobación para admins */}
                         {currentUser?.roles?.some(role => role.role === 'ADMIN') && (
@@ -1110,13 +1127,14 @@ const UsersPage: React.FC = () => {
                     </h3>
                     <p className="text-gray-600 text-sm lg:text-base">@{selectedUser.username}</p>
                     <div className="mt-2">
-                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                        selectedUser.isActive 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-red-100 text-red-800'
-                      }`}>
-                        {selectedUser.isActive ? 'Activo' : 'Inactivo'}
-                      </span>
+                      {(() => {
+                        const status = getUserDisplayStatus(selectedUser);
+                        return (
+                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${status.bgColor} ${status.color}`}>
+                            {status.text}
+                          </span>
+                        );
+                      })()}
                     </div>
                   </div>
 
@@ -1644,15 +1662,15 @@ const UsersPage: React.FC = () => {
                 </div>
               )}
 
-              {/* Para Directors, mostrar info de que el usuario será activo por defecto */}
+              {/* Para Directors, mostrar info de que el usuario quedará pendiente */}
               {currentUser?.roles?.some(role => role.role === 'DIRECTOR') && !currentUser?.roles?.some(role => role.role === 'ADMIN') && (
-                <div className="mt-6 p-3 bg-green-50 border border-green-200 rounded-lg">
+                <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
                   <div className="flex items-center">
-                    <svg className="w-5 h-5 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    <svg className="w-5 h-5 text-amber-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    <span className="text-sm text-green-800 font-medium">
-                      El usuario será creado como activo y en estado pendiente de aprobación
+                    <span className="text-sm text-amber-800 font-medium">
+                      El usuario será creado en estado <strong>PENDIENTE</strong> hasta que un administrador lo apruebe
                     </span>
                   </div>
                 </div>
