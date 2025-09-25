@@ -1,6 +1,6 @@
 {
   "name": "cgplayerweb-backend",
-  "version": "0.12.18",
+  "version": "0.12.36",
   "description": "Backend API para CGPlayerWeb con sistema de roles, ubicaciones y playlists",
   "main": "dist/index.js",
   "scripts": {

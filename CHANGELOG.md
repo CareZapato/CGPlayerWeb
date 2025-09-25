@@ -5,6 +5,37 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto se adhiere al [Versionado Semántico](https://semver.org/lang/es/).
 
+## [0.12.36] - 2025-09-24
+
+### 🎨 **MEJORAS VISUALES Y UX**
+- **HomePage minimalista**: Optimización completa para dispositivos móviles con elementos más compactos
+  - Header de bienvenida reducido con padding y márgenes optimizados
+  - Tarjetas de acciones rápidas más pequeñas y eficientes
+  - Footer minimalista con textos reducidos
+  - Todos los elementos visibles sin scroll en móviles
+- **Dashboard móvil mejorado**: Información más clara en las métricas principales
+  - Agregadas descripciones junto a cada número estadístico
+  - Mejor comprensión de datos en "Cantantes", "Canciones", "Eventos" y "Ensayos"
+  - Eliminada confusión de números sin contexto
+
+### 📱 **NAVEGACIÓN MÓVIL CORREGIDA**
+- **Submenú de Gestión funcional**: Solucionado problema crítico en navegación móvil
+  - Acceso completo a secciones del submenú desde dispositivos móviles
+  - Mejorado manejo de eventos táctiles con `touchstart`
+  - Event handling optimizado para evitar conflictos de propagación
+- **Submenú visual mejorado**: Eliminación de sangría innecesaria en móvil
+  - Submenú alineado con el resto del menú principal
+  - Línea azul lateral como indicador visual de jerarquía
+  - Iconos y espaciado consistentes con el menú principal
+
+### 🔧 **CORRECCIONES TÉCNICAS**
+- **Errores TypeScript resueltos**: 
+  - HomePage: Eliminados tipos `any` con interfaz `ExtendedUserVoiceProfile`
+  - NewsCard: Corregidas dependencias de useEffect y tipos de metadata
+  - Mejor type safety en toda la aplicación
+- **Responsive design refinado**: Breakpoints mejorados para tablet y móvil
+- **Event listeners optimizados**: Soporte completo para dispositivos táctiles
+
 ## [0.12.18] - 2025-09-23
 
 ### 📊 **NUEVA FUNCIONALIDAD: ESTADÍSTICAS REALES**

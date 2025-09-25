@@ -15,6 +15,54 @@ interface ChangelogEntry {
 
 const changelogData: ChangelogEntry[] = [
   {
+    version: '0.12.36',
+    date: '2025-09-24',
+    type: 'patch',
+    title: 'Experiencia Móvil Optimizada y Navegación Mejorada - Mobile Experience & Navigation Enhanced',
+    highlights: [
+      'Navegación móvil completamente funcional con submenú de gestión operativo',
+      'HomePage minimalista optimizada para visualización completa en móviles',
+      'Dashboard mejorado con descripciones claras de métricas estadísticas',
+      'Código TypeScript libre de errores con tipado seguro implementado',
+      'Submenú de gestión rediseñado sin sangría innecesaria en móvil'
+    ],
+    changes: [
+      {
+        category: 'fixed',
+        items: [
+          'Navegación móvil: submenú de gestión ahora funcional en todos los dispositivos táctiles',
+          'Event handling mejorado con soporte touchstart para dispositivos móviles',
+          'Propagación de eventos corregida para evitar cierre prematuro de submenús',
+          'TypeScript: eliminados todos los warnings de tipos `any` en HomePage',
+          'NewsCard: corregidas dependencias de React useEffect',
+          'ResponsiveNavigation: mejorado sistema de click outside detection'
+        ]
+      },
+      {
+        category: 'improved',
+        items: [
+          'HomePage rediseñada con enfoque minimalista para móviles',
+          'Todos los elementos del HomePage visibles sin scroll en dispositivos móviles',
+          'Dashboard: métricas con descripciones claras ("activos", "pendientes", "variaciones")',
+          'Submenú de gestión con alineación mejorada sin sangría innecesaria',
+          'Línea azul lateral como indicador visual de jerarquía en submenú',
+          'Responsive design refinado con breakpoints optimizados para tablets',
+          'Transiciones suaves en elementos interactivos mejoradas'
+        ]
+      },
+      {
+        category: 'added',
+        items: [
+          'ExtendedUserVoiceProfile interface para tipado seguro de perfiles de voz',
+          'Soporte completo para eventos touchstart en navegación móvil',
+          'Sistema de detección de clicks fuera del menú mejorado',
+          'Iconos y espaciado consistentes en todos los elementos de navegación',
+          'Metadata tipado correctamente en componentes de noticias'
+        ]
+      }
+    ]
+  },
+  {
     version: '0.12.18',
     date: '2025-09-23',
     type: 'minor',
@@ -761,7 +809,7 @@ const ChangelogPage: React.FC = () => {
               <p><strong>Versión actual:</strong> {changelogData[0].version}</p>
               <p><strong>Última actualización:</strong> {new Date(changelogData[0].date).toLocaleDateString('es-ES')}</p>
               <p><strong>Tecnologías:</strong> React, TypeScript, Node.js, PostgreSQL, Prisma</p>
-              <p><strong>Nuevo en v0.12.18:</strong> Sistema de estadísticas con datos reales, logros mejorado y perfil completamente rediseñado con menú lateral inteligente.</p>
+              <p><strong>Nuevo en v0.12.36:</strong> Experiencia móvil completamente optimizada, navegación funcional, HomePage minimalista y código TypeScript libre de errores.</p>
             </div>
           </div>
           <div className="text-6xl">

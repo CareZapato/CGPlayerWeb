@@ -1,6 +1,6 @@
 # CGPlayerWeb 🎵
 
-[![Version](https://img.shields.io/badge/version-0.12.18-blue.svg)](https://github.com/CareZapato/CGPlayerWeb/releases/tag/v0.12.18)
+[![Version](https://img.shields.io/badge/version-0.12.36-blue.svg)](https://github.com/CareZapato/CGPlayerWeb/releases/tag/v0.12.36)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
 [![React](https://img.shields.io/badge/React-19+-blue.svg)](https://reactjs.org/)
@@ -208,7 +208,7 @@ Para reportes, incluye:
 
 # CGPlayerWeb 🎵
 
-[![Version](https://img.shields.io/badge/version-0.12.18-blue.svg)](https://github.com/CareZapato/CGPlayerWeb/releases/tag/v0.12.18)
+[![Version](https://img.shields.io/badge/version-0.12.36-blue.svg)](https://github.com/CareZapato/CGPlayerWeb/releases/tag/v0.12.36)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
 [![React](https://img.shields.io/badge/React-19+-blue.svg)](https://reactjs.org/)
@@ -260,7 +260,7 @@ CGPlayerWeb es una aplicación web integral diseñada para coros y grupos musica
 
 ---
 
-## 🆕 **Novedades v0.12.18**
+## 🆕 **Novedades v0.12.36**
 
 ### **� Sistema de Estadísticas con Datos Reales**
 - **Estadísticas reales implementadas** - Datos basados en participación real del usuario
@@ -296,7 +296,7 @@ CGPlayerWeb es una aplicación web integral diseñada para coros y grupos musica
 ## 📄 **Documentación**
 
 - **[Changelog](CHANGELOG.md)** - Historial de versiones
-- **[Release Notes](RELEASE_NOTES_v0.12.18.md)** - Notas de la versión actual
+- **[Release Notes](RELEASE_NOTES_v0.12.36.md)** - Notas de la versión actual
 - **[Docker Guide](docker/README.md)** - Guía completa de despliegue con Docker
 - **API Documentation** - Disponible en `/api-docs` cuando el servidor esté ejecutándose
 
@@ -307,7 +307,7 @@ CGPlayerWeb es una aplicación web integral diseñada para coros y grupos musica
 ¿Encontraste un bug? [Crear un issue](https://github.com/CareZapato/CGPlayerWeb/issues/new)
 
 Para reportes, incluye:
-- **Versión** de CGPlayerWeb (v0.12.18)
+- **Versión** de CGPlayerWeb (v0.12.36)
 - **Navegador** y versión
 - **Pasos** para reproducir
 - **Comportamiento esperado** vs **real**
@@ -327,7 +327,7 @@ Para reportes, incluye:
 
 - **GitHub Issues:** [Reportar problemas](https://github.com/CareZapato/CGPlayerWeb/issues)
 - **Desarrollador:** CareZapato
-- **Versión Actual:** v0.12.18
+- **Versión Actual:** v0.12.36
 - **Última Actualización:** Septiembre 2025
 
 ---
