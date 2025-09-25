@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import { usePermissions } from '../../utils/permissions';
@@ -61,6 +61,25 @@ const ResponsiveNavigation: React.FC = () => {
   const location = useLocation();
   const { user, logout } = useAuthStore();
   const { getMenuItems } = usePermissions();
+  const navRef = useRef<HTMLDivElement>(null);
+
+  // Cerrar dropdown cuando se hace clic fuera
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (navRef.current && !navRef.current.contains(event.target as Node) && openDropdown) {
+        console.log('🚪 [DROPDOWN] Cerrando dropdown por click fuera');
+        setOpenDropdown(null);
+      }
+    };
+
+    if (openDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [openDropdown]);
 
   // Obtener perfil del usuario para la imagen
   const { data: profile } = useQuery({
@@ -88,7 +107,12 @@ const ResponsiveNavigation: React.FC = () => {
     setOpenDropdown(null);
   };
 
-  const toggleDropdown = (key: string) => {
+  const toggleDropdown = (key: string, event?: React.MouseEvent) => {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    console.log('🔽 [DROPDOWN] Toggle dropdown:', key, 'Current:', openDropdown);
     setOpenDropdown(openDropdown === key ? null : key);
   };
 
@@ -97,6 +121,16 @@ const ResponsiveNavigation: React.FC = () => {
     const isActive = location.pathname === item.path;
     const isDropdownOpen = openDropdown === item.key;
 
+    // Debug log para el item de Gestión
+    if (item.key === 'MANAGEMENT') {
+      console.log('🛠️ [RENDER] Renderizando Gestión:', { 
+        isMobile, 
+        isDropdownOpen, 
+        hasChildren: !!item.children,
+        openDropdown
+      });
+    }
+
     if (item.type === 'dropdown' && item.children && item.children.length > 0) {
       return (
         <div key={item.key} className={isMobile ? 'block' : 'relative group'}>
@@ -104,7 +138,7 @@ const ResponsiveNavigation: React.FC = () => {
             // Mobile dropdown
             <div>
               <button
-                onClick={() => toggleDropdown(item.key)}
+                onClick={(e) => toggleDropdown(item.key, e)}
                 className="w-full flex items-center justify-between px-3 py-3 rounded-lg text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50"
               >
                 <div className="flex items-center">
@@ -147,7 +181,7 @@ const ResponsiveNavigation: React.FC = () => {
             // Desktop dropdown
             <div className="relative">
               <button
-                onClick={() => toggleDropdown(item.key)}
+                onClick={(e) => toggleDropdown(item.key, e)}
                 className={`inline-flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                   isActive || (item.children && item.children.some((child: MenuChild) => location.pathname === child.path))
                     ? 'bg-blue-100 text-blue-700'
@@ -160,7 +194,10 @@ const ResponsiveNavigation: React.FC = () => {
               </button>
               
               {isDropdownOpen && (
-                <div className="absolute top-full left-0 mt-1 w-56 bg-white rounded-md shadow-lg border border-gray-200 z-50">
+                <div 
+                  className="absolute top-full left-0 mt-1 w-56 bg-white rounded-md shadow-lg border border-gray-200 z-[9999]"
+                  onClick={(e) => e.stopPropagation()}
+                >
                   <div className="py-1">
                     {item.children && item.children.map((child: MenuChild) => {
                       const ChildIcon = iconMap[child.icon as keyof typeof iconMap];
@@ -170,7 +207,10 @@ const ResponsiveNavigation: React.FC = () => {
                         <Link
                           key={child.key}
                           to={child.path}
-                          onClick={() => setOpenDropdown(null)}
+                          onClick={() => {
+                            console.log('🚪 [DROPDOWN] Cerrando dropdown por click en opción:', child.label);
+                            setOpenDropdown(null);
+                          }}
                           className={`flex items-center px-4 py-2 text-sm transition-colors ${
                             isChildActive
                               ? 'bg-blue-50 text-blue-700'
@@ -215,11 +255,11 @@ const ResponsiveNavigation: React.FC = () => {
   };
 
   return (
-    <>
+    <div ref={navRef}>
       {/* Desktop Navigation - Mejorado para responsive */}
-      <nav className="hidden lg:flex bg-white shadow-sm border-b border-gray-200">
-        <div className="w-full mx-auto px-2 sm:px-4 lg:px-6">
-          <div className="flex justify-between h-16">
+      <nav className="hidden lg:flex bg-white shadow-sm border-b border-gray-200" style={{ overflow: 'visible' }}>
+        <div className="w-full mx-auto px-2 sm:px-4 lg:px-6" style={{ overflow: 'visible' }}>
+          <div className="flex justify-between h-16" style={{ overflow: 'visible' }}>
             {/* Logo y título a la izquierda */}
             <div className="flex items-center flex-shrink-0">
               <div className="flex items-center">
@@ -234,8 +274,8 @@ const ResponsiveNavigation: React.FC = () => {
             </div>
 
             {/* Menú centrado con scroll horizontal si es necesario */}
-            <div className="flex-1 flex items-center justify-center min-w-0 mx-4">
-              <div className="flex space-x-2 xl:space-x-6 overflow-x-auto scrollbar-none max-w-full">
+            <div className="flex-1 flex items-center justify-center min-w-0 mx-4" style={{ overflow: 'visible' }}>
+              <div className="flex space-x-2 xl:space-x-6 overflow-x-auto scrollbar-none max-w-full" style={{ overflow: 'visible' }}>
                 {menuItems.map((item) => renderMenuItem(item, false))}
               </div>
             </div>
@@ -515,7 +555,7 @@ const ResponsiveNavigation: React.FC = () => {
           </div>
         </div>
       </div>
-    </>
+    </div>
   );
 };
 
