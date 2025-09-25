@@ -218,7 +218,7 @@ function HomePage() {
   }
 
   return (
-    <div className="homepage-container fixed bg-gradient-to-br from-slate-50 via-white to-blue-50/30 flex flex-col" style={{ top: '64px', left: 0, right: 0, bottom: 0 }}>
+    <div className="homepage-container fixed bg-gradient-to-br from-slate-100 via-blue-50 to-indigo-100 flex flex-col" style={{ top: '64px', left: 0, right: 0, bottom: 0 }}>
       {/* Contenido principal */}
       <div className="flex-1 max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-3 sm:py-6 flex flex-col overflow-hidden">
         
@@ -227,12 +227,12 @@ function HomePage() {
           {/* Columna Izquierda: Saludo + Botones */}
           <div className="flex flex-col">
             {/* Saludo */}
-            <div className="bg-gradient-to-br from-slate-50 to-blue-50 rounded-2xl border border-slate-200/50 p-6 mb-6 shadow-sm">
+            <div className="bg-white/90 backdrop-blur-sm rounded-2xl border border-slate-300/60 p-6 mb-6 shadow-lg">
               <div className="mb-4">
                 <h1 className="text-3xl font-light text-slate-800 mb-2">
-                  Hola, <span className="font-medium text-blue-600">{user.firstName}</span>
+                  Hola, <span className="font-medium text-indigo-600">{user.firstName}</span>
                 </h1>
-                <p className="text-base text-slate-600 font-light">
+                <p className="text-base text-slate-700 font-light">
                   Bienvenido de vuelta a CGPlayer
                 </p>
               </div>
@@ -283,28 +283,28 @@ function HomePage() {
               </div>
               
               <div className="grid grid-cols-2 gap-4">
-                <Link to="/dashboard" className="group bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-slate-200/50 hover:border-slate-300/70 hover:bg-white/90 transition-all duration-300 hover:shadow-md hover:shadow-slate-200/50 hover:-translate-y-1">
+                <Link to="/dashboard" className="group bg-white/85 backdrop-blur-sm rounded-2xl p-6 border border-slate-300/60 hover:border-indigo-300/70 hover:bg-white/95 transition-all duration-300 hover:shadow-lg hover:shadow-indigo-200/30 hover:-translate-y-1">
                   <div className="text-3xl mb-4 group-hover:scale-110 transition-transform duration-300">📊</div>
-                  <h3 className="text-base font-medium text-slate-800 mb-2 group-hover:text-blue-600 transition-colors">Dashboard</h3>
-                  <p className="text-sm text-slate-500 leading-relaxed">Ver métricas</p>
+                  <h3 className="text-base font-medium text-slate-800 mb-2 group-hover:text-indigo-600 transition-colors">Dashboard</h3>
+                  <p className="text-sm text-slate-600 leading-relaxed">Ver métricas</p>
                 </Link>
 
-                <Link to="/albums" className="group bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-slate-200/50 hover:border-slate-300/70 hover:bg-white/90 transition-all duration-300 hover:shadow-md hover:shadow-slate-200/50 hover:-translate-y-1">
+                <Link to="/albums" className="group bg-white/85 backdrop-blur-sm rounded-2xl p-6 border border-slate-300/60 hover:border-emerald-300/70 hover:bg-white/95 transition-all duration-300 hover:shadow-lg hover:shadow-emerald-200/30 hover:-translate-y-1">
                   <div className="text-3xl mb-4 group-hover:scale-110 transition-transform duration-300">🎵</div>
-                  <h3 className="text-base font-medium text-slate-800 mb-2 group-hover:text-blue-600 transition-colors">Canciones</h3>
-                  <p className="text-sm text-slate-500 leading-relaxed">Catálogo musical</p>
+                  <h3 className="text-base font-medium text-slate-800 mb-2 group-hover:text-emerald-600 transition-colors">Canciones</h3>
+                  <p className="text-sm text-slate-600 leading-relaxed">Catálogo musical</p>
                 </Link>
 
-                <Link to="/playlists" className="group bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-slate-200/50 hover:border-slate-300/70 hover:bg-white/90 transition-all duration-300 hover:shadow-md hover:shadow-slate-200/50 hover:-translate-y-1">
+                <Link to="/playlists" className="group bg-white/85 backdrop-blur-sm rounded-2xl p-6 border border-slate-300/60 hover:border-purple-300/70 hover:bg-white/95 transition-all duration-300 hover:shadow-lg hover:shadow-purple-200/30 hover:-translate-y-1">
                   <div className="text-3xl mb-4 group-hover:scale-110 transition-transform duration-300">📋</div>
-                  <h3 className="text-base font-medium text-slate-800 mb-2 group-hover:text-blue-600 transition-colors">Listas</h3>
-                  <p className="text-sm text-slate-500 leading-relaxed">Gestionar playlists</p>
+                  <h3 className="text-base font-medium text-slate-800 mb-2 group-hover:text-purple-600 transition-colors">Listas</h3>
+                  <p className="text-sm text-slate-600 leading-relaxed">Gestionar playlists</p>
                 </Link>
 
-                <Link to="/events" className="group bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-slate-200/50 hover:border-slate-300/70 hover:bg-white/90 transition-all duration-300 hover:shadow-md hover:shadow-slate-200/50 hover:-translate-y-1">
+                <Link to="/events" className="group bg-white/85 backdrop-blur-sm rounded-2xl p-6 border border-slate-300/60 hover:border-orange-300/70 hover:bg-white/95 transition-all duration-300 hover:shadow-lg hover:shadow-orange-200/30 hover:-translate-y-1">
                   <div className="text-3xl mb-4 group-hover:scale-110 transition-transform duration-300">📅</div>
-                  <h3 className="text-base font-medium text-slate-800 mb-2 group-hover:text-blue-600 transition-colors">Eventos</h3>
-                  <p className="text-sm text-slate-500 leading-relaxed">Actividades programadas</p>
+                  <h3 className="text-base font-medium text-slate-800 mb-2 group-hover:text-orange-600 transition-colors">Eventos</h3>
+                  <p className="text-sm text-slate-600 leading-relaxed">Actividades programadas</p>
                 </Link>
               </div>
             </div>
@@ -329,12 +329,12 @@ function HomePage() {
               {/* Slide 1: Saludo + Botones */}
               <div className="w-full flex-shrink-0 flex flex-col p-3">
                 {/* Saludo móvil */}
-                <div className="bg-gradient-to-br from-slate-50 to-blue-50 rounded-2xl border border-slate-200/50 p-3 mb-3 shadow-sm">
+                <div className="bg-white/90 backdrop-blur-sm rounded-2xl border border-slate-300/60 p-3 mb-3 shadow-lg">
                   <div className="mb-2">
                     <h1 className="text-lg font-light text-slate-800 mb-1">
-                      Hola, <span className="font-medium text-blue-600">{user.firstName}</span>
+                      Hola, <span className="font-medium text-indigo-600">{user.firstName}</span>
                     </h1>
-                    <p className="text-sm text-slate-600 font-light">
+                    <p className="text-sm text-slate-700 font-light">
                       Bienvenido de vuelta a CGPlayer
                     </p>
                   </div>
@@ -380,28 +380,28 @@ function HomePage() {
                 <div className="flex-1 px-1">
                   <h2 className="text-lg font-light text-slate-800 mb-2">Acciones Rápidas</h2>
                   <div className="grid grid-cols-2 gap-2 max-w-xs mx-auto">
-                    <Link to="/dashboard" className="group bg-white/70 backdrop-blur-sm rounded-xl p-3 border border-slate-200/50 hover:border-slate-300/70 transition-all duration-300">
+                    <Link to="/dashboard" className="group bg-white/85 backdrop-blur-sm rounded-xl p-3 border border-slate-300/60 hover:border-indigo-300/70 transition-all duration-300 hover:shadow-md">
                       <div className="text-2xl mb-2 group-hover:scale-110 transition-transform duration-300">📊</div>
-                      <h3 className="text-sm font-medium text-slate-800 mb-1">Dashboard</h3>
-                      <p className="text-xs text-slate-500">Ver métricas</p>
+                      <h3 className="text-sm font-medium text-slate-800 mb-1 group-hover:text-indigo-600">Dashboard</h3>
+                      <p className="text-xs text-slate-600">Ver métricas</p>
                     </Link>
 
-                    <Link to="/albums" className="group bg-white/70 backdrop-blur-sm rounded-xl p-3 border border-slate-200/50 hover:border-slate-300/70 transition-all duration-300">
+                    <Link to="/albums" className="group bg-white/85 backdrop-blur-sm rounded-xl p-3 border border-slate-300/60 hover:border-emerald-300/70 transition-all duration-300 hover:shadow-md">
                       <div className="text-2xl mb-2 group-hover:scale-110 transition-transform duration-300">🎵</div>
-                      <h3 className="text-sm font-medium text-slate-800 mb-1">Canciones</h3>
-                      <p className="text-xs text-slate-500">Catálogo musical</p>
+                      <h3 className="text-sm font-medium text-slate-800 mb-1 group-hover:text-emerald-600">Canciones</h3>
+                      <p className="text-xs text-slate-600">Catálogo musical</p>
                     </Link>
 
-                    <Link to="/playlists" className="group bg-white/70 backdrop-blur-sm rounded-xl p-3 border border-slate-200/50 hover:border-slate-300/70 transition-all duration-300">
+                    <Link to="/playlists" className="group bg-white/85 backdrop-blur-sm rounded-xl p-3 border border-slate-300/60 hover:border-purple-300/70 transition-all duration-300 hover:shadow-md">
                       <div className="text-2xl mb-2 group-hover:scale-110 transition-transform duration-300">📋</div>
-                      <h3 className="text-sm font-medium text-slate-800 mb-1">Listas</h3>
-                      <p className="text-xs text-slate-500">Gestionar playlists</p>
+                      <h3 className="text-sm font-medium text-slate-800 mb-1 group-hover:text-purple-600">Listas</h3>
+                      <p className="text-xs text-slate-600">Gestionar playlists</p>
                     </Link>
 
-                    <Link to="/events" className="group bg-white/70 backdrop-blur-sm rounded-xl p-3 border border-slate-200/50 hover:border-slate-300/70 transition-all duration-300">
+                    <Link to="/events" className="group bg-white/85 backdrop-blur-sm rounded-xl p-3 border border-slate-300/60 hover:border-orange-300/70 transition-all duration-300 hover:shadow-md">
                       <div className="text-2xl mb-2 group-hover:scale-110 transition-transform duration-300">📅</div>
-                      <h3 className="text-sm font-medium text-slate-800 mb-1">Eventos</h3>
-                      <p className="text-xs text-slate-500">Actividades programadas</p>
+                      <h3 className="text-sm font-medium text-slate-800 mb-1 group-hover:text-orange-600">Eventos</h3>
+                      <p className="text-xs text-slate-600">Actividades programadas</p>
                     </Link>
                   </div>
                 </div>
