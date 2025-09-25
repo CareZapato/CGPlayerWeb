@@ -19,7 +19,24 @@ const NewsCard: React.FC<NewsCardProps> = ({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    loadNews();
+    const loadNewsData = async () => {
+      try {
+        setLoading(true);
+        const response = await newsAPI.getNews(limit);
+        if (response.success) {
+          setNews(response.data);
+        } else {
+          setError('Error al cargar las noticias');
+        }
+      } catch (err) {
+        console.error('Error loading news:', err);
+        setError('Error al conectar con el servidor');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadNewsData();
   }, [limit]);
 
   const loadNews = async () => {
@@ -70,9 +87,9 @@ const NewsCard: React.FC<NewsCardProps> = ({
     }
   };
 
-  const getEventDate = (metadata: any) => {
+  const getEventDate = (metadata: Record<string, string | number | boolean> | null | undefined) => {
     if (metadata?.date) {
-      const eventDate = new Date(metadata.date);
+      const eventDate = new Date(metadata.date as string);
       const day = eventDate.getDate();
       const month = eventDate.toLocaleDateString('es-ES', { month: 'short' }).toUpperCase();
       return { day, month };
