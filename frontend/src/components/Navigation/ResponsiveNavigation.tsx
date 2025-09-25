@@ -63,21 +63,35 @@ const ResponsiveNavigation: React.FC = () => {
   const { getMenuItems } = usePermissions();
   const navRef = useRef<HTMLDivElement>(null);
 
-  // Cerrar dropdown cuando se hace clic fuera
+  // Cerrar dropdown cuando se hace clic fuera o en otros elementos
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (navRef.current && !navRef.current.contains(event.target as Node) && openDropdown) {
-        console.log('🚪 [DROPDOWN] Cerrando dropdown por click fuera');
+      if (!openDropdown) return; // No hacer nada si no hay dropdown abierto
+      
+      const target = event.target as Element;
+      
+      // Buscar si el click fue dentro de un dropdown abierto
+      const clickedInsideDropdown = target.closest('.absolute.top-full') || 
+                                   target.closest('[data-dropdown-content]');
+      
+      // Buscar si el click fue en el botón del dropdown actual
+      const clickedDropdownButton = target.closest(`[data-dropdown-key="${openDropdown}"]`);
+      
+      if (!clickedInsideDropdown && !clickedDropdownButton) {
+        console.log('🚪 [DROPDOWN] Cerrando dropdown por click fuera:', {
+          openDropdown,
+          clickedElement: target.tagName,
+          clickedClass: target.className
+        });
         setOpenDropdown(null);
       }
     };
 
-    if (openDropdown) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
+    // Siempre escuchar clicks cuando hay dropdown abierto
+    document.addEventListener('mousedown', handleClickOutside, true);
 
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('mousedown', handleClickOutside, true);
     };
   }, [openDropdown]);
 
@@ -139,6 +153,7 @@ const ResponsiveNavigation: React.FC = () => {
             <div>
               <button
                 onClick={(e) => toggleDropdown(item.key, e)}
+                data-dropdown-key={item.key}
                 className="w-full flex items-center justify-between px-3 py-3 rounded-lg text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50"
               >
                 <div className="flex items-center">
@@ -182,6 +197,7 @@ const ResponsiveNavigation: React.FC = () => {
             <div className="relative">
               <button
                 onClick={(e) => toggleDropdown(item.key, e)}
+                data-dropdown-key={item.key}
                 className={`inline-flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                   isActive || (item.children && item.children.some((child: MenuChild) => location.pathname === child.path))
                     ? 'bg-blue-100 text-blue-700'
@@ -196,6 +212,7 @@ const ResponsiveNavigation: React.FC = () => {
               {isDropdownOpen && (
                 <div 
                   className="absolute top-full left-0 mt-1 w-56 bg-white rounded-md shadow-lg border border-gray-200 z-[9999]"
+                  data-dropdown-content={item.key}
                   onClick={(e) => e.stopPropagation()}
                 >
                   <div className="py-1">
@@ -355,6 +372,7 @@ const ResponsiveNavigation: React.FC = () => {
                       <div key={item.key} className="relative">
                         <button
                           onClick={(e) => toggleDropdown(item.key, e)}
+                          data-dropdown-key={item.key}
                           className={`inline-flex items-center px-2 py-2 rounded-md text-xs font-medium transition-colors ${
                             isActive || (item.children && item.children.some((child: MenuChild) => location.pathname === child.path))
                               ? 'bg-blue-100 text-blue-700'
@@ -369,6 +387,7 @@ const ResponsiveNavigation: React.FC = () => {
                         {openDropdown === item.key && (
                           <div 
                             className="absolute top-full left-0 mt-1 w-48 bg-white rounded-md shadow-lg border border-gray-200 z-[9999]"
+                            data-dropdown-content={item.key}
                             onClick={(e) => e.stopPropagation()}
                           >
                             <div className="py-1">
