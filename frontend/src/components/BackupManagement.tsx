@@ -69,6 +69,12 @@ const BackupManagement: React.FC = () => {
     storageUsed: '0 MB'
   });
 
+  // Helper function para añadir logs con timestamp fijo
+  const addLog = useCallback((message: string) => {
+    const timestampedMessage = `[${new Date().toLocaleTimeString()}] ${message}`;
+    setRestoreLogs(prev => [...prev, timestampedMessage]);
+  }, []);
+
   const loadSystemInfo = useCallback(async () => {
     try {
       const token = localStorage.getItem('token');
@@ -217,8 +223,8 @@ const BackupManagement: React.FC = () => {
       setShowLogs(true);
       
       // Log inicial
-      setRestoreLogs(prev => [...prev, `🔄 Iniciando restauración de backup: ${selectedFile.name}`]);
-      setRestoreLogs(prev => [...prev, `📦 Tamaño del archivo: ${(selectedFile.size / (1024 * 1024)).toFixed(2)} MB`]);
+      addLog('🔄 Iniciando restauración de backup: ' + selectedFile.name);
+      addLog(`📦 Tamaño del archivo: ${(selectedFile.size / (1024 * 1024)).toFixed(2)} MB`);
       setRestoreProgress(2);
 
       const formData = new FormData();
@@ -226,7 +232,7 @@ const BackupManagement: React.FC = () => {
 
       const token = localStorage.getItem('token');
       
-      setRestoreLogs(prev => [...prev, '� Iniciando subida del archivo...']);
+      addLog('📤 Iniciando subida del archivo...');
       setRestoreProgress(3);
 
       // Crear XMLHttpRequest para monitorear el progreso de subida
@@ -241,7 +247,7 @@ const BackupManagement: React.FC = () => {
             setRestoreProgress(adjustedProgress);
             
             if (uploadPercentage % 10 === 0 || uploadPercentage === 100) {
-              setRestoreLogs(prev => [...prev, `📤 Subiendo archivo: ${uploadPercentage}% (${formatFileSize(event.loaded)} / ${formatFileSize(event.total)})`]);
+              addLog(`📤 Subiendo archivo: ${uploadPercentage}% (${formatFileSize(event.loaded)} / ${formatFileSize(event.total)})`);
             }
           }
         });
@@ -249,7 +255,7 @@ const BackupManagement: React.FC = () => {
         // Manejar respuesta
         xhr.addEventListener('load', () => {
           if (xhr.status >= 200 && xhr.status < 300) {
-            setRestoreLogs(prev => [...prev, '✅ Archivo subido completamente al servidor']);
+            addLog('✅ Archivo subido completamente al servidor');
             setRestoreProgress(30);
             resolve(new Response(xhr.responseText, {
               status: xhr.status,
@@ -284,34 +290,37 @@ const BackupManagement: React.FC = () => {
       
       if (response.ok) {
         setRestoreProgress(50);
-        setRestoreLogs(prev => [...prev, '✅ Archivo procesado exitosamente']);
+        addLog('✅ Archivo procesado exitosamente');
+        addLog('🔍 Analizando contenido del backup...');
         
         // Mostrar información detallada del backup
         if (result.info) {
-          setRestoreLogs(prev => [...prev, `📊 Información del backup:`]);
-          setRestoreLogs(prev => [...prev, `   - Versión: ${result.info.version}`]);
-          setRestoreLogs(prev => [...prev, `   - Fecha de creación: ${new Date(result.info.created).toLocaleString()}`]);
-          setRestoreLogs(prev => [...prev, `   - Descripción: ${result.info.description}`]);
+          addLog('📊 Información del backup:');
+          addLog(`   - Versión: ${result.info.version}`);
+          addLog(`   - Fecha de creación: ${new Date(result.info.created).toLocaleString()}`);
+          addLog(`   - Descripción: ${result.info.description || 'Sin descripción'}`);
           
           if (result.info.tables) {
-            setRestoreLogs(prev => [...prev, '📈 Datos restaurados por tabla:']);
+            addLog('📈 Datos a restaurar por tabla:');
             Object.entries(result.info.tables).forEach(([table, count]) => {
               if (typeof count === 'number' && count > 0) {
-                setRestoreLogs(prev => [...prev, `   - ${table}: ${count} registros`]);
+                addLog(`   - ${table}: ${count} registros`);
               }
             });
           }
         }
         
         setRestoreProgress(80);
-        setRestoreLogs(prev => [...prev, '🔄 Recargando información del sistema...']);
+        addLog('🔄 Iniciando proceso de restauración en base de datos...');
+        addLog('🔄 Recargando información del sistema...');
         
         // Recargar información después de la restauración
         await loadSystemInfo();
         await loadBackupHistory();
         
         setRestoreProgress(100);
-        setRestoreLogs(prev => [...prev, '🎉 Backup restaurado exitosamente']);
+        addLog('🎉 Backup restaurado exitosamente');
+        addLog('✅ Proceso completado exitosamente');
         setRestoreLogs(prev => [...prev, '✨ La aplicación se recargará automáticamente en 3 segundos']);
         
         setTimeout(() => {
@@ -603,7 +612,7 @@ const BackupManagement: React.FC = () => {
             <div className="bg-gray-900 text-green-400 p-4 rounded-lg font-mono text-sm max-h-96 overflow-y-auto">
               {restoreLogs.map((log, index) => (
                 <div key={index} className="mb-1">
-                  [{new Date().toLocaleTimeString()}] {log}
+                  {log}
                 </div>
               ))}
             </div>

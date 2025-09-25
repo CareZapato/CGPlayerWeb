@@ -641,40 +641,114 @@ router.post('/backup/restore', authenticateToken, requireAdmin, upload.single('b
         console.log('📥 INICIANDO RESTAURACIÓN DE DATOS...');
         let totalRestored = 0;
         
+        // Helper function para obtener IDs de usuarios válidos
+        const getValidUserIds = () => {
+          const validLocationIds = data.locations
+            ?.filter((location: any) => location.type !== 'TODOS_LOS_CORISTAS')
+            ?.map((location: any) => location.id) || [];
+          
+          return data.users
+            ?.filter((user: any) => !user.locationId || validLocationIds.includes(user.locationId))
+            ?.map((user: any) => user.id) || [];
+        };
+
         // Tablas padre primero (sin dependencias)
         if (data.locations?.length > 0) {
-          const mergedLocations = data.locations.map((location: any) => mergeRecordData(location, 'location'));
-          await tx.location.createMany({ data: mergedLocations });
-          console.log(`✅ ${data.locations.length} ubicaciones restauradas (con merge de campos)`);
-          totalRestored += data.locations.length;
+          // Filtrar ubicaciones con tipo TODOS_LOS_CORISTAS que ya no existe en el enum
+          const validLocations = data.locations.filter((location: any) => 
+            location.type !== 'TODOS_LOS_CORISTAS'
+          );
+          
+          if (validLocations.length > 0) {
+            const mergedLocations = validLocations.map((location: any) => mergeRecordData(location, 'location'));
+            await tx.location.createMany({ data: mergedLocations });
+            console.log(`✅ ${validLocations.length} ubicaciones restauradas (${data.locations.length - validLocations.length} filtradas por tipo obsoleto)`);
+            totalRestored += validLocations.length;
+          } else {
+            console.log(`⚠️  Todas las ubicaciones fueron filtradas por tipos obsoletos`);
+          }
         }
         
         if (data.users?.length > 0) {
-          const mergedUsers = data.users.map((user: any) => mergeRecordData(user, 'user'));
-          await tx.user.createMany({ data: mergedUsers });
-          console.log(`✅ ${data.users.length} usuarios restaurados (con merge de campos)`);
-          totalRestored += data.users.length;
+          // Filtrar usuarios que tienen locationId null o que apuntan a ubicaciones válidas
+          const validUserIds = getValidUserIds();
+          const validUsers = data.users.filter((user: any) => validUserIds.includes(user.id));
+          
+          if (validUsers.length > 0) {
+            const mergedUsers = validUsers.map((user: any) => mergeRecordData(user, 'user'));
+            await tx.user.createMany({ data: mergedUsers });
+            console.log(`✅ ${validUsers.length} usuarios restaurados (${data.users.length - validUsers.length} filtrados por ubicación obsoleta)`);
+            totalRestored += validUsers.length;
+          } else {
+            console.log(`⚠️  Todos los usuarios fueron filtrados por ubicaciones obsoletas`);
+          }
         }
         
         if (data.userRoles?.length > 0) {
-          const mergedUserRoles = data.userRoles.map((userRole: any) => mergeRecordData(userRole, 'userRole'));
-          await tx.userRole_DB.createMany({ data: mergedUserRoles });
-          console.log(`✅ ${data.userRoles.length} roles de usuario restaurados (con merge de campos)`);
-          totalRestored += data.userRoles.length;
+          // Filtrar userRoles que apunten solo a usuarios válidos
+          const validUserIds = getValidUserIds();
+          const validUserRoles = data.userRoles.filter((userRole: any) => 
+            validUserIds.includes(userRole.userId)
+          );
+          
+          if (validUserRoles.length > 0) {
+            const mergedUserRoles = validUserRoles.map((userRole: any) => mergeRecordData(userRole, 'userRole'));
+            await tx.userRole_DB.createMany({ data: mergedUserRoles });
+            console.log(`✅ ${validUserRoles.length} roles de usuario restaurados (${data.userRoles.length - validUserRoles.length} filtrados por usuario obsoleto)`);
+            totalRestored += validUserRoles.length;
+          } else {
+            console.log(`⚠️  Todos los roles de usuario fueron filtrados por usuarios obsoletos`);
+          }
         }
         
         if (data.userVoiceProfiles?.length > 0) {
-          const mergedUserVoiceProfiles = data.userVoiceProfiles.map((userVoiceProfile: any) => mergeRecordData(userVoiceProfile, 'userVoiceProfile'));
-          await tx.userVoiceProfile.createMany({ data: mergedUserVoiceProfiles });
-          console.log(`✅ ${data.userVoiceProfiles.length} perfiles de voz restaurados (con merge de campos)`);
-          totalRestored += data.userVoiceProfiles.length;
+          // Filtrar perfiles de voz que apunten solo a usuarios válidos
+          const validUserIds = getValidUserIds();
+          const validUserVoiceProfiles = data.userVoiceProfiles.filter((profile: any) => 
+            validUserIds.includes(profile.userId)
+          );
+          
+          if (validUserVoiceProfiles.length > 0) {
+            const mergedUserVoiceProfiles = validUserVoiceProfiles.map((userVoiceProfile: any) => mergeRecordData(userVoiceProfile, 'userVoiceProfile'));
+            await tx.userVoiceProfile.createMany({ data: mergedUserVoiceProfiles });
+            console.log(`✅ ${validUserVoiceProfiles.length} perfiles de voz restaurados (${data.userVoiceProfiles.length - validUserVoiceProfiles.length} filtrados por usuario obsoleto)`);
+            totalRestored += validUserVoiceProfiles.length;
+          } else {
+            console.log(`⚠️  Todos los perfiles de voz fueron filtrados por usuarios obsoletos`);
+          }
         }
         
         if (data.songs?.length > 0) {
           const mergedSongs = data.songs.map((song: any) => mergeRecordData(song, 'song'));
-          await tx.song.createMany({ data: mergedSongs });
-          console.log(`✅ ${data.songs.length} canciones restauradas (con merge de campos)`);
-          totalRestored += data.songs.length;
+          
+          // Para canciones, usar create individual para manejar mejor los conflictos de ID
+          let songsCreated = 0;
+          for (const song of mergedSongs) {
+            try {
+              await tx.song.create({ data: song });
+              songsCreated++;
+            } catch (error: any) {
+              // Si falla por ID duplicado, intentar upsert
+              if (error.code === 'P2002' && error.meta?.target?.includes('id')) {
+                try {
+                  await tx.song.upsert({
+                    where: { id: song.id },
+                    update: song,
+                    create: song
+                  });
+                  songsCreated++;
+                  console.log(`✅ Canción "${song.title}" actualizada via upsert`);
+                } catch (upsertError) {
+                  console.error(`❌ Error definitivo con canción "${song.title}":`, upsertError);
+                }
+              } else {
+                console.error(`⚠️ Error creando canción "${song.title}":`, error);
+              }
+            }
+          }
+          
+          console.log(`✅ ${songsCreated} canciones restauradas (${data.songs.length - songsCreated} con conflictos manejados)`);
+          totalRestored += songsCreated;
         }
         
         if (data.lyricsFiles?.length > 0) {
