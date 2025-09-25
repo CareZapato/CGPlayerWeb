@@ -110,6 +110,8 @@ router.get('/me', authenticateToken, async (req: AuthRequest, res: Response) => 
           select: {
             id: true,
             name: true,
+            city: true,
+            color: true,
             type: true
           }
         }

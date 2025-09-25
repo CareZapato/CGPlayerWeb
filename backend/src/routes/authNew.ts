@@ -270,8 +270,18 @@ router.post('/login', [
             { isPrimary: 'desc' } as any, // Voz primaria primero
             { voiceType: 'asc' }
           ]
-        }
+        },
+        location: true // Incluir toda la información de la ubicación
       }
+    });
+
+    // Debug: Log de información de usuario y ubicación
+    console.log('🔍 [LOGIN-DEBUG] Usuario encontrado:', {
+      id: user?.id,
+      firstName: user?.firstName,
+      locationId: user?.locationId,
+      hasLocation: !!user?.location,
+      locationData: user?.location
     });
 
     if (!user) {
@@ -310,16 +320,27 @@ router.post('/login', [
       id: user.id,
       firstName: user.firstName,
       roles: userRoles,
+      locationId: user.locationId,
+      location: user.location,
       formattedRoles
+    });
+
+    // Preparar respuesta del usuario
+    const userResponse = { 
+      ...userWithoutPassword, 
+      roles: formattedRoles, 
+      voiceProfiles: user.voiceProfiles,
+      location: user.location
+    };
+
+    console.log('🔍 [LOGIN-RESPONSE] Datos de usuario enviados:', {
+      hasLocation: !!userResponse.location,
+      locationData: userResponse.location
     });
 
     res.json({
       message: 'Login successful',
-      user: { 
-        ...userWithoutPassword, 
-        roles: formattedRoles, 
-        voiceProfiles: user.voiceProfiles 
-      },
+      user: userResponse,
       token
     });
 

@@ -28,6 +28,20 @@ const formatVoiceType = (voiceType: string) => {
 function HomePage() {
   const { user } = useAuthStore();
 
+  // Debug: Log del usuario para verificar si tiene location
+  console.log('🏠 [HomePage] Usuario completo:', user);
+  console.log('🏠 [HomePage] Location del usuario:', user?.location);
+  console.log('🏠 [HomePage] LocationId del usuario:', user?.locationId);
+  console.log('🏠 [HomePage] Claves del usuario:', user ? Object.keys(user) : 'No user');
+  if (user) {
+    console.log('🏠 [HomePage] Propiedades detalladas:', {
+      hasLocation: 'location' in user,
+      hasLocationId: 'locationId' in user,
+      locationValue: user.location,
+      locationIdValue: user.locationId
+    });
+  }
+
   if (!user) {
     return (
       <div className="text-center py-12">
@@ -48,7 +62,7 @@ function HomePage() {
             
             {/* Mostrar tipos de voz del usuario si los tiene - Destacar voz primaria */}
             {user.voiceProfiles && user.voiceProfiles.length > 0 && (
-              <div className="flex flex-wrap justify-center gap-1 sm:gap-2">
+              <div className="flex flex-wrap justify-center gap-1 sm:gap-2 mb-2 sm:mb-3">
                 {(user.voiceProfiles as ExtendedUserVoiceProfile[])
                   .sort((a, b) => (b.isPrimary ? 1 : 0) - (a.isPrimary ? 1 : 0)) // Voz primaria primero
                   .map((profile) => (
@@ -67,6 +81,21 @@ function HomePage() {
                 ))}
               </div>
             )}
+
+            {/* Mostrar sede del usuario - Debug temporal */}
+            <div className="flex justify-center mt-2">
+              {user.location ? (
+                <span className="inline-flex items-center px-3 sm:px-4 py-1 rounded-full text-xs sm:text-sm font-semibold bg-blue-300/30 text-white border border-blue-300/50 backdrop-blur-sm shadow-lg">
+                  <span className="mr-1 sm:mr-2">📍</span>
+                  <span>Sede: {user.location.name} - {user.location.city}</span>
+                </span>
+              ) : (
+                <span className="inline-flex items-center px-3 sm:px-4 py-1 rounded-full text-xs sm:text-sm font-semibold bg-red-300/30 text-white border border-red-300/50 backdrop-blur-sm shadow-lg">
+                  <span className="mr-1 sm:mr-2">⚠️</span>
+                  <span>Sede: No asignada</span>
+                </span>
+              )}
+            </div>
           </div>
         </div>
 
