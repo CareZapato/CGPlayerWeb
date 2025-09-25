@@ -65,14 +65,15 @@ const ResponsiveNavigation: React.FC = () => {
 
   // Cerrar dropdown cuando se hace clic fuera o en otros elementos
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
+    const handleClickOutside = (event: Event) => {
       if (!openDropdown) return; // No hacer nada si no hay dropdown abierto
       
       const target = event.target as Element;
       
       // Buscar si el click fue dentro de un dropdown abierto
       const clickedInsideDropdown = target.closest('.absolute.top-full') || 
-                                   target.closest('[data-dropdown-content]');
+                                   target.closest('[data-dropdown-content]') ||
+                                   target.closest('.bg-gray-50.rounded-lg'); // Para móvil
       
       // Buscar si el click fue en el botón del dropdown actual
       const clickedDropdownButton = target.closest(`[data-dropdown-key="${openDropdown}"]`);
@@ -87,11 +88,13 @@ const ResponsiveNavigation: React.FC = () => {
       }
     };
 
-    // Siempre escuchar clicks cuando hay dropdown abierto
+    // Usar touchstart también para dispositivos móviles
     document.addEventListener('mousedown', handleClickOutside, true);
+    document.addEventListener('touchstart', handleClickOutside, true);
 
     return () => {
       document.removeEventListener('mousedown', handleClickOutside, true);
+      document.removeEventListener('touchstart', handleClickOutside, true);
     };
   }, [openDropdown]);
 
@@ -152,23 +155,30 @@ const ResponsiveNavigation: React.FC = () => {
             // Mobile dropdown
             <div>
               <button
-                onClick={(e) => toggleDropdown(item.key, e)}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  toggleDropdown(item.key, e);
+                }}
                 data-dropdown-key={item.key}
-                className="w-full flex items-center justify-between px-3 py-3 rounded-lg text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50"
+                className="w-full flex items-center justify-between px-3 py-3 rounded-lg text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50 transition-colors"
               >
                 <div className="flex items-center">
                   <Icon className="w-5 h-5 mr-3" />
                   {item.label}
                 </div>
                 {isDropdownOpen ? (
-                  <ChevronDownIcon className="w-4 h-4" />
+                  <ChevronDownIcon className="w-4 h-4 transition-transform" />
                 ) : (
-                  <ChevronRightIcon className="w-4 h-4" />
+                  <ChevronRightIcon className="w-4 h-4 transition-transform" />
                 )}
               </button>
               
               {isDropdownOpen && (
-                <div className="ml-6 mt-1 space-y-1">
+                <div 
+                  className="ml-6 mt-1 space-y-1 bg-gray-50 rounded-lg p-2"
+                  data-dropdown-content={item.key}
+                >
                   {item.children && item.children.map((child: MenuChild) => {
                     const ChildIcon = iconMap[child.icon as keyof typeof iconMap];
                     const isChildActive = location.pathname === child.path;
@@ -177,11 +187,15 @@ const ResponsiveNavigation: React.FC = () => {
                       <Link
                         key={child.key}
                         to={child.path}
-                        onClick={closeMobileMenu}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          console.log('📱 [MOBILE] Navegando a:', child.path);
+                          closeMobileMenu();
+                        }}
                         className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                           isChildActive
                             ? 'bg-blue-100 text-blue-700'
-                            : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
+                            : 'text-gray-600 hover:text-blue-600 hover:bg-white'
                         }`}
                       >
                         <ChildIcon className="w-4 h-4 mr-2" />
