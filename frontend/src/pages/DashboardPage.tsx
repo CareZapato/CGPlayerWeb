@@ -466,18 +466,15 @@ const DashboardPage: React.FC = () => {
             <div className="space-y-0.5 sm:space-y-1">
               <div className="flex items-center justify-center space-x-1 text-xs">
                 <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-green-500 rounded-full"></span>
-                <span className="text-green-700 hidden sm:inline">{data.users?.active || data.activeUsers} activos</span>
-                <span className="text-green-700 sm:hidden">{data.users?.active || data.activeUsers}</span>
+                <span className="text-green-700">{data.users?.active || data.activeUsers} activos</span>
               </div>
               <div className="flex items-center justify-center space-x-1 text-xs">
                 <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-yellow-500 rounded-full"></span>
-                <span className="text-yellow-700 hidden sm:inline">{data.users?.risky || data.riskyUsers} en riesgo</span>
-                <span className="text-yellow-700 sm:hidden">{data.users?.risky || data.riskyUsers}</span>
+                <span className="text-yellow-700">{data.users?.risky || data.riskyUsers} en riesgo</span>
               </div>
               <div className="flex items-center justify-center space-x-1 text-xs">
                 <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-red-500 rounded-full"></span>
-                <span className="text-red-700 hidden sm:inline">{data.users?.inactive || data.inactiveUsers} inactivos</span>
-                <span className="text-red-700 sm:hidden">{data.users?.inactive || data.inactiveUsers}</span>
+                <span className="text-red-700">{data.users?.inactive || data.inactiveUsers} inactivos</span>
               </div>
             </div>
           </div>
@@ -498,12 +495,10 @@ const DashboardPage: React.FC = () => {
             <div className="text-xs sm:text-sm font-medium text-green-700 mb-2 sm:mb-3">Canciones</div>
             <div className="space-y-0.5 sm:space-y-1">
               <div className="text-xs text-green-600">
-                <span className="hidden sm:inline">{data.songs?.variations || 0} variaciones</span>
-                <span className="sm:hidden">{data.songs?.variations || 0} var</span>
+                <span>{data.songs?.variations || 0} variaciones</span>
               </div>
               <div className="text-xs text-green-800 font-medium">
-                <span className="hidden sm:inline">{data.songs?.totalWithVariations || data.totalSongs} total</span>
-                <span className="sm:hidden">{data.songs?.totalWithVariations || data.totalSongs}</span>
+                <span>{data.songs?.totalWithVariations || data.totalSongs} total</span>
               </div>
             </div>
           </div>
@@ -527,8 +522,7 @@ const DashboardPage: React.FC = () => {
                 <svg className="w-2 h-2 sm:w-3 sm:h-3" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
                 </svg>
-                <span className="hidden sm:inline">{data.events?.pending || 0} pendientes</span>
-                <span className="sm:hidden">{data.events?.pending || 0}</span>
+                <span>{data.events?.pending || 0} pendientes</span>
               </div>
             </div>
           </div>
@@ -569,8 +563,7 @@ const DashboardPage: React.FC = () => {
                 <svg className="w-2 h-2 sm:w-3 sm:h-3" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
                 </svg>
-                <span className="hidden sm:inline">{data.rehearsals?.pending || 0} pendientes</span>
-                <span className="sm:hidden">{data.rehearsals?.pending || 0}</span>
+                <span>{data.rehearsals?.pending || 0} pendientes</span>
               </div>
             </div>
           </div>

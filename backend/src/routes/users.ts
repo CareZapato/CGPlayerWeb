@@ -5,6 +5,41 @@ import os from 'os';
 
 const router = express.Router();
 
+// Función para generar un username único basado en email
+const generateUniqueUsername = async (email: string, excludeUserId?: string): Promise<string> => {
+  const baseUsername = email.split('@')[0].toLowerCase();
+  let username = baseUsername;
+  let counter = 1;
+
+  while (true) {
+    const existingUser = await prisma.user.findUnique({
+      where: { username },
+      select: { id: true }
+    });
+
+    // Si no existe o es el mismo usuario que estamos editando, está disponible
+    if (!existingUser || (excludeUserId && existingUser.id === excludeUserId)) {
+      break;
+    }
+
+    // Si existe, probar con el siguiente número
+    username = `${baseUsername}.${counter}`;
+    counter++;
+  }
+
+  return username;
+};
+
+// Función para validar si un username está disponible
+const isUsernameAvailable = async (username: string, excludeUserId?: string): Promise<boolean> => {
+  const existingUser = await prisma.user.findUnique({
+    where: { username },
+    select: { id: true }
+  });
+
+  return !existingUser || (excludeUserId !== undefined && existingUser.id === excludeUserId);
+};
+
 // Función para obtener la IP del servidor de forma consistente
 const getServerIP = (): string => {
   // Usar IP desde variables de entorno si está disponible (ip-config.env)
@@ -147,7 +182,7 @@ router.get('/', authenticateToken, requireRole(['DIRECTOR', 'ADMIN']), async (re
       location = '',
       voiceType = '',
       role = '',
-      isActive = ''
+      status = '' // Filtro de estado (pending, active, inactive, PENDING, CONFIRMED, REFUSED)
     } = req.query;
 
     const pageNum = parseInt(page as string);
@@ -167,9 +202,20 @@ router.get('/', authenticateToken, requireRole(['DIRECTOR', 'ADMIN']), async (re
     }
 
     if (location) {
-      where.location = {
-        city: { equals: location as string, mode: 'insensitive' }
-      };
+      const locationStr = location as string;
+      // Si location es un ID (para filtros de admin), usar locationId
+      // Si location es texto (para búsqueda por ciudad), usar location.city
+      if (locationStr.length > 10 && locationStr.includes('c')) {
+        // Parece un ID de Prisma (cuid), filtrar por locationId
+        where.locationId = locationStr;
+        console.log('🔍 Admin filter by locationId:', locationStr);
+      } else {
+        // Es texto, filtrar por ciudad
+        where.location = {
+          city: { equals: locationStr, mode: 'insensitive' }
+        };
+        console.log('🔍 Admin filter by city:', locationStr);
+      }
     }
 
     if (voiceType) {
@@ -188,8 +234,41 @@ router.get('/', authenticateToken, requireRole(['DIRECTOR', 'ADMIN']), async (re
       };
     }
 
-    if (isActive !== '') {
-      where.isActive = isActive === 'true';
+    if (status) {
+      // Manejar el filtro de estado visual del frontend
+      if (status === 'pending') {
+        where.status = 'PENDING';
+      } else if (status === 'refused') {
+        where.status = 'REFUSED';
+      } else if (status === 'active') {
+        where.AND = [
+          { status: { not: 'PENDING' } },
+          { status: { not: 'REFUSED' } },
+          { isActive: true }
+        ];
+      } else if (status === 'inactive') {
+        where.AND = [
+          { status: { not: 'PENDING' } },
+          { status: { not: 'REFUSED' } },
+          { isActive: false }
+        ];
+      } else {
+        // Para valores directos como PENDING, CONFIRMED, REFUSED
+        where.status = status as string;
+      }
+    }
+
+    // Si el usuario actual es Director, filtrar solo por su ubicación
+    const currentUserRoles = req.user?.roles || [];
+    const isDirectorUser = currentUserRoles.includes('DIRECTOR');
+    const isAdminUser = currentUserRoles.includes('ADMIN');
+    
+    // Para Directors que no son Admin, sobrescribir cualquier filtro de location
+    if (isDirectorUser && !isAdminUser && req.user?.locationId) {
+      // Limpiar cualquier filtro de location previo
+      delete where.location;
+      where.locationId = req.user.locationId;
+      console.log('🎯 Director filter: locationId =', req.user.locationId);
     }
 
     // Obtener usuarios con paginación
@@ -204,6 +283,7 @@ router.get('/', authenticateToken, requireRole(['DIRECTOR', 'ADMIN']), async (re
           lastName: true,
           phone: true,
           isActive: true,
+          status: true, // Test: should work after TypeScript restart
           createdAt: true,
           updatedAt: true,
           profileImage: true,
@@ -236,7 +316,7 @@ router.get('/', authenticateToken, requireRole(['DIRECTOR', 'ADMIN']), async (re
               createdAt: true
             }
           }
-        },
+        } as any,
         orderBy: {
           firstName: 'asc'
         },
@@ -246,12 +326,16 @@ router.get('/', authenticateToken, requireRole(['DIRECTOR', 'ADMIN']), async (re
       prisma.user.count({ where })
     ]);
 
+    console.log('📊 Query results: Found', users.length, 'users of', totalCount, 'total');
+
     const totalPages = Math.ceil(totalCount / limitNum);
 
-    // Transformar usuarios para agregar profileImageUrl
-    const transformedUsers = users.map(user => ({
+    // Transformar usuarios para agregar profileImageUrl y marca de pendiente
+    const transformedUsers = users.map((user: any) => ({
       ...user,
-      profileImageUrl: generateProfileImageUrl(user.profileImage)
+      profileImageUrl: generateProfileImageUrl(user.profileImage),
+      isPending: user.status === 'PENDING', // Agregar flag para el frontend
+      needsApproval: user.status === 'PENDING' && user.isActive === false // Más específico
     }));
 
     res.json({
@@ -549,11 +633,65 @@ router.put('/:userId', authenticateToken, requireRole(['DIRECTOR', 'ADMIN']), as
 
     // Verificar que el usuario existe
     const existingUser = await prisma.user.findUnique({
-      where: { id: userId }
+      where: { id: userId },
+      include: {
+        roles: {
+          select: {
+            role: true
+          }
+        }
+      }
     });
 
     if (!existingUser) {
       return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Validaciones para cambio de estado activo
+    const currentUserRoles = req.user?.roles || [];
+    const isCurrentUserDirector = currentUserRoles.includes('DIRECTOR');
+    const isCurrentUserAdmin = currentUserRoles.includes('ADMIN');
+
+    // Validar username si se proporciona
+    let finalUsername = username;
+    if (username) {
+      // Verificar si el username está disponible
+      if (!await isUsernameAvailable(username, userId)) {
+        return res.status(400).json({ 
+          message: 'El nombre de usuario ya está en uso' 
+        });
+      }
+    } else if (email && email !== existingUser.email) {
+      // Si no se proporciona username pero cambia el email, generar uno nuevo
+      finalUsername = await generateUniqueUsername(email, userId);
+    }
+
+    // Solo admins pueden editar ciertos campos como username, email, etc.
+    if (!isCurrentUserAdmin) {
+      // Directors solo pueden editar campos básicos, no username ni email
+      if ((username && username !== existingUser.username) || 
+          (email && email !== existingUser.email)) {
+        return res.status(403).json({ 
+          message: 'Solo los administradores pueden cambiar el username o email' 
+        });
+      }
+    }
+
+    // Si se está intentando cambiar el estado activo, validar permisos
+    if (isActive !== existingUser.isActive) {
+      // No permitir cambio de estado si el usuario está PENDING
+      if ((existingUser as any).status === 'PENDING') {
+        return res.status(403).json({ 
+          message: 'No se puede cambiar el estado de un usuario pendiente de aprobación' 
+        });
+      }
+
+      // Si el usuario actual es Director (y no Admin) y el usuario está REFUSED, no puede activarlo
+      if (isCurrentUserDirector && !isCurrentUserAdmin && (existingUser as any).status === 'REFUSED' && isActive) {
+        return res.status(403).json({ 
+          message: 'Los directores no pueden reactivar usuarios rechazados' 
+        });
+      }
     }
 
     // Validar locationId si se proporciona
@@ -570,18 +708,31 @@ router.put('/:userId', authenticateToken, requireRole(['DIRECTOR', 'ADMIN']), as
       validLocationId = locationId;
     }
 
+    // Preparar los datos de actualización
+    const updateData: any = {
+      firstName,
+      lastName,
+      phone: phone || null,
+      locationId: validLocationId,
+      isActive
+    };
+
+    // Solo admins pueden cambiar email y username
+    if (isCurrentUserAdmin) {
+      if (email) updateData.email = email;
+      if (finalUsername) updateData.username = finalUsername;
+    }
+
+    // Si un admin activa un usuario rechazado, cambiar status a CONFIRMED
+    if (isCurrentUserAdmin && isActive && (existingUser as any).status === 'REFUSED') {
+      updateData.status = 'CONFIRMED';
+      console.log('🔄 Admin activating refused user - changing status to CONFIRMED');
+    }
+
     // Actualizar usuario
     const updatedUser = await prisma.user.update({
       where: { id: userId },
-      data: {
-        firstName,
-        lastName,
-        email,
-        username,
-        phone: phone || null,
-        locationId: validLocationId,
-        isActive
-      },
+      data: updateData,
       select: {
         id: true,
         email: true,
@@ -590,6 +741,7 @@ router.put('/:userId', authenticateToken, requireRole(['DIRECTOR', 'ADMIN']), as
         lastName: true,
         phone: true,
         isActive: true,
+        status: true, // Now working after TypeScript restart
         location: {
           select: {
             id: true,
@@ -758,8 +910,55 @@ router.get('/data/locations', authenticateToken, requireRole(['DIRECTOR', 'ADMIN
   }
 });
 
-// Crear usuario manualmente (solo admins)
-router.post('/create', authenticateToken, requireRole(['ADMIN']), async (req: AuthRequest, res: Response) => {
+// Endpoint para que un usuario cambie su propio username
+router.put('/profile/username', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const { username } = req.body;
+    const currentUserId = req.user?.id;
+
+    if (!currentUserId) {
+      return res.status(401).json({ message: 'Usuario no autenticado' });
+    }
+
+    if (!username || username.trim().length === 0) {
+      return res.status(400).json({ message: 'Username es requerido' });
+    }
+
+    const trimmedUsername = username.trim();
+
+    // Verificar si el username está disponible
+    if (!await isUsernameAvailable(trimmedUsername, currentUserId)) {
+      return res.status(400).json({ 
+        message: 'El nombre de usuario ya está en uso' 
+      });
+    }
+
+    // Actualizar el username del usuario actual
+    const updatedUser = await prisma.user.update({
+      where: { id: currentUserId },
+      data: { username: trimmedUsername },
+      select: {
+        id: true,
+        username: true,
+        firstName: true,
+        lastName: true,
+        email: true
+      }
+    });
+
+    res.json({
+      message: 'Username actualizado exitosamente',
+      user: updatedUser
+    });
+
+  } catch (error) {
+    console.error('Error updating username:', error);
+    res.status(500).json({ message: 'Error interno del servidor' });
+  }
+});
+
+// Crear usuario manualmente (admins y directores)
+router.post('/create', authenticateToken, requireRole(['ADMIN', 'DIRECTOR']), async (req: AuthRequest, res: Response) => {
   try {
     const { 
       firstName, 
@@ -770,10 +969,16 @@ router.post('/create', authenticateToken, requireRole(['ADMIN']), async (req: Au
       password, 
       locationId, 
       isActive, 
+      status, // Nuevo campo de estado
       voiceTypes, 
       primaryVoice,  // Agregar primaryVoice del frontend
       role 
     } = req.body;
+
+    // Determinar roles del usuario que está creando
+    const creatorRoles = req.user?.roles || [];
+    const isCreatedByAdmin = creatorRoles.includes('ADMIN');
+    const isCreatedByDirector = creatorRoles.includes('DIRECTOR');
 
     console.log('Creating user with data:', {
       firstName,
@@ -783,14 +988,37 @@ router.post('/create', authenticateToken, requireRole(['ADMIN']), async (req: Au
       phone,
       locationId: locationId || 'NULL',
       isActive,
+      status: status || 'CONFIRMED',
       voiceTypes,
       primaryVoice,
       role
     });
 
     // Validar campos requeridos
-    if (!firstName || !lastName || !email || !username || !password || !role) {
+    if (!firstName || !lastName || !email || !password || !role) {
       return res.status(400).json({ message: 'Missing required fields' });
+    }
+
+    // Generar username si no se proporciona
+    let finalUsername = username;
+    if (!username || username.trim().length === 0) {
+      finalUsername = await generateUniqueUsername(email);
+      console.log(`Generated username: ${finalUsername} from email: ${email}`);
+    } else {
+      // Verificar que el username proporcionado esté disponible
+      if (!await isUsernameAvailable(username)) {
+        return res.status(400).json({ 
+          message: 'El nombre de usuario ya está en uso' 
+        });
+      }
+      finalUsername = username.trim();
+    }
+
+    // Validar que Directors solo puedan crear usuarios con rol CANTANTE
+    if (isCreatedByDirector && !isCreatedByAdmin && role !== 'CANTANTE') {
+      return res.status(403).json({ 
+        message: 'Los directores solo pueden crear usuarios con rol CANTANTE' 
+      });
     }
 
     // Verificar que el usuario no exista
@@ -798,7 +1026,7 @@ router.post('/create', authenticateToken, requireRole(['ADMIN']), async (req: Au
       where: {
         OR: [
           { email },
-          { username }
+          { username: finalUsername }
         ]
       }
     });
@@ -809,6 +1037,7 @@ router.post('/create', authenticateToken, requireRole(['ADMIN']), async (req: Au
 
     // Validar locationId si se proporciona
     let validLocationId = null;
+    
     if (locationId && locationId !== 'null' && locationId.trim() !== '') {
       const locationExists = await prisma.location.findUnique({
         where: { id: locationId }
@@ -818,15 +1047,44 @@ router.post('/create', authenticateToken, requireRole(['ADMIN']), async (req: Au
         console.log('Location ID not found:', locationId);
         return res.status(400).json({ message: 'Invalid location ID provided' });
       }
+      
+      // Si es Director (y no Admin), solo puede crear usuarios en su ubicación
+      if (isCreatedByDirector && !isCreatedByAdmin) {
+        if (locationId !== req.user?.locationId) {
+          return res.status(403).json({ 
+            message: 'Los directores solo pueden crear usuarios en su propia ubicación' 
+          });
+        }
+      }
+      
       validLocationId = locationId;
       console.log('Valid location ID set:', validLocationId);
     } else {
       console.log('No location ID provided, setting to null');
+      
+      // Si es Director, automáticamente asignar su ubicación
+      if (isCreatedByDirector && !isCreatedByAdmin && req.user?.locationId) {
+        validLocationId = req.user.locationId;
+        console.log('Director creating user - auto-assigned location:', validLocationId);
+      }
     }
 
     // Hash de la contraseña
     const bcrypt = require('bcryptjs');
     const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Determinar el estado inicial y isActive según quién crea el usuario
+    let finalStatus = status || 'CONFIRMED';
+    let finalIsActive = isActive !== undefined ? isActive : true;
+    
+    // Si es creado por un Director (y no es Admin), el usuario necesita aprobación
+    if (isCreatedByDirector && !isCreatedByAdmin) {
+      finalStatus = 'PENDING';
+      finalIsActive = false; // Usuario inactivo hasta que sea aprobado
+      console.log('🔶 Usuario creado por Director - Estado: PENDING, Activo: false, Requiere aprobación de Admin');
+    } else if (isCreatedByAdmin) {
+      console.log('✅ Usuario creado por Admin - Estado: CONFIRMED, Activo inmediatamente');
+    }
 
     // Crear usuario
     const newUser = await prisma.user.create({
@@ -834,12 +1092,25 @@ router.post('/create', authenticateToken, requireRole(['ADMIN']), async (req: Au
         firstName,
         lastName,
         email,
-        username,
+        username: finalUsername,
         phone: phone || null,
         password: hashedPassword,
         locationId: validLocationId,
-        isActive: isActive !== undefined ? isActive : true
-      }
+        isActive: finalIsActive,
+        status: finalStatus
+      } as any
+    });
+
+    console.log('📝 Usuario creado exitosamente:', {
+      id: newUser.id,
+      nombre: `${newUser.firstName} ${newUser.lastName}`,
+      email: newUser.email,
+      status: finalStatus,
+      isActive: finalIsActive,
+      locationId: validLocationId,
+      createdBy: req.user?.id,
+      creatorRoles,
+      needsApproval: isCreatedByDirector && !isCreatedByAdmin
     });
 
     // Asignar rol único
@@ -866,15 +1137,23 @@ router.post('/create', authenticateToken, requireRole(['ADMIN']), async (req: Au
       });
     }
 
+    // Determinar mensaje apropiado según quien creó el usuario
+    const successMessage = isCreatedByDirector && !isCreatedByAdmin 
+      ? 'Usuario creado exitosamente. Pendiente de aprobación por un administrador.'
+      : 'User created successfully';
+
     res.status(201).json({
       success: true,
-      message: 'User created successfully',
+      message: successMessage,
+      needsApproval: isCreatedByDirector && !isCreatedByAdmin,
       user: {
         id: newUser.id,
         firstName: newUser.firstName,
         lastName: newUser.lastName,
         email: newUser.email,
-        username: newUser.username
+        username: newUser.username,
+        status: finalStatus,
+        isActive: finalIsActive
       }
     });
 
@@ -1078,6 +1357,208 @@ router.post('/import-csv', authenticateToken, requireRole(['ADMIN']), async (req
   } catch (error) {
     console.error('Error importing users:', error);
     res.status(500).json({ message: 'Failed to import users' });
+  }
+});
+
+// Aprobar usuario (solo admins)
+router.patch('/:userId/approve', authenticateToken, requireRole(['ADMIN']), async (req: AuthRequest, res: Response) => {
+  try {
+    const { userId } = req.params;
+
+    // Verificar que el usuario existe y está pendiente
+    const existingUser = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, status: true, firstName: true, lastName: true, isActive: true } as any
+    });
+
+    if (!existingUser) {
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
+
+    if ((existingUser as any).status !== 'PENDING') {
+      return res.status(400).json({ 
+        message: `El usuario ya tiene estado: ${(existingUser as any).status}` 
+      });
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: { 
+        status: 'CONFIRMED',
+        isActive: true // Activar usuario al aprobar
+      } as any
+    });
+
+    console.log('Usuario aprobado:', {
+      userId,
+      name: `${existingUser.firstName} ${existingUser.lastName}`,
+      previousStatus: (existingUser as any).status,
+      newStatus: 'CONFIRMED',
+      approvedBy: req.user?.id
+    });
+
+    res.json({
+      success: true,
+      message: 'Usuario aprobado y activado correctamente',
+      user: updatedUser
+    });
+  } catch (error) {
+    console.error('Error approving user:', error);
+    res.status(500).json({ message: 'Error al aprobar usuario' });
+  }
+});
+
+// Rechazar usuario (solo admins)
+router.patch('/:userId/reject', authenticateToken, requireRole(['ADMIN']), async (req: AuthRequest, res: Response) => {
+  try {
+    const { userId } = req.params;
+
+    // Verificar que el usuario existe y está pendiente
+    const existingUser = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, status: true, firstName: true, lastName: true, isActive: true } as any
+    });
+
+    if (!existingUser) {
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
+
+    if ((existingUser as any).status !== 'PENDING') {
+      return res.status(400).json({ 
+        message: `El usuario ya tiene estado: ${(existingUser as any).status}` 
+      });
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: { 
+        status: 'REFUSED',
+        isActive: false // Mantener usuario inactivo al rechazar
+      } as any
+    });
+
+    console.log('Usuario rechazado:', {
+      userId,
+      name: `${existingUser.firstName} ${existingUser.lastName}`,
+      previousStatus: (existingUser as any).status,
+      newStatus: 'REFUSED',
+      rejectedBy: req.user?.id
+    });
+
+    res.json({
+      success: true,
+      message: 'Usuario rechazado',
+      user: updatedUser
+    });
+  } catch (error) {
+    console.error('Error rejecting user:', error);
+    res.status(500).json({ message: 'Error al rechazar usuario' });
+  }
+});
+
+// Obtener usuarios pendientes de aprobación (solo admins)
+router.get('/pending-approval', authenticateToken, requireRole(['ADMIN']), async (req: AuthRequest, res: Response) => {
+  try {
+    const pendingUsers = await prisma.user.findMany({
+      where: {
+        status: 'PENDING'
+      } as any,
+      select: {
+        id: true,
+        email: true,
+        username: true,
+        firstName: true,
+        lastName: true,
+        phone: true,
+        isActive: true,
+        status: true, // Now working after TypeScript restart
+        createdAt: true,
+        updatedAt: true,
+        profileImage: true,
+        location: {
+          select: {
+            id: true,
+            name: true,
+            city: true,
+            color: true
+          }
+        },
+        voiceProfiles: {
+          select: {
+            id: true,
+            voiceType: true,
+            isPrimary: true,
+            createdAt: true,
+            assignedByUser: {
+              select: {
+                firstName: true,
+                lastName: true
+              }
+            }
+          } as any
+        },
+        roles: {
+          select: {
+            id: true,
+            role: true,
+            createdAt: true,
+            assignedByUser: {
+              select: {
+                firstName: true,
+                lastName: true,
+                roles: {
+                  select: {
+                    role: true
+                  }
+                }
+              }
+            }
+          } as any
+        }
+      } as any,
+      orderBy: {
+        createdAt: 'desc'
+      }
+    });
+
+    // Transformar usuarios para agregar profileImageUrl
+    const transformedUsers = pendingUsers.map((user: any) => ({
+      ...user,
+      profileImageUrl: generateProfileImageUrl(user.profileImage),
+      needsApproval: true // Indicador para el frontend
+    }));
+
+    res.json({
+      success: true,
+      data: {
+        users: transformedUsers,
+        count: transformedUsers.length
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching pending users:', error);
+    res.status(500).json({ message: 'Failed to fetch pending users' });
+  }
+});
+
+// Obtener conteo de usuarios pendientes (para badge de notificación)
+router.get('/pending-count', authenticateToken, requireRole(['ADMIN']), async (req: AuthRequest, res: Response) => {
+  try {
+    const pendingCount = await prisma.user.count({
+      where: {
+        status: 'PENDING'
+      } as any
+    });
+
+    console.log('📊 Usuarios pendientes de aprobación:', pendingCount);
+
+    res.json({
+      success: true,
+      count: pendingCount
+    });
+  } catch (error) {
+    console.error('Error fetching pending count:', error);
+    res.status(500).json({ message: 'Failed to fetch pending count' });
   }
 });
 

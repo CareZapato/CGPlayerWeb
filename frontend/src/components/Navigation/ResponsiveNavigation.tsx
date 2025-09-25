@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import { usePermissions } from '../../utils/permissions';
@@ -24,6 +24,24 @@ import {
   CircleStackIcon
 } from '@heroicons/react/24/outline';
 
+// Tipos para los elementos del menú
+interface MenuChild {
+  key: string;
+  label: string;
+  icon: string;
+  path: string;
+  requiredPermission?: string;
+}
+
+interface MenuItem {
+  key: string;
+  label: string;
+  icon: string;
+  path: string;
+  type: string;
+  children?: MenuChild[];
+}
+
 const iconMap = {
   Home: HomeIcon,
   Music: MusicalNoteIcon,
@@ -43,6 +61,42 @@ const ResponsiveNavigation: React.FC = () => {
   const location = useLocation();
   const { user, logout } = useAuthStore();
   const { getMenuItems } = usePermissions();
+  const navRef = useRef<HTMLDivElement>(null);
+
+  // Cerrar dropdown cuando se hace clic fuera o en otros elementos
+  useEffect(() => {
+    const handleClickOutside = (event: Event) => {
+      if (!openDropdown) return; // No hacer nada si no hay dropdown abierto
+      
+      const target = event.target as Element;
+      
+      // Buscar si el click fue dentro de un dropdown abierto
+      const clickedInsideDropdown = target.closest('.absolute.top-full') || 
+                                   target.closest('[data-dropdown-content]') ||
+                                   target.closest('.bg-gray-50.rounded-lg'); // Para móvil
+      
+      // Buscar si el click fue en el botón del dropdown actual
+      const clickedDropdownButton = target.closest(`[data-dropdown-key="${openDropdown}"]`);
+      
+      if (!clickedInsideDropdown && !clickedDropdownButton) {
+        console.log('🚪 [DROPDOWN] Cerrando dropdown por click fuera:', {
+          openDropdown,
+          clickedElement: target.tagName,
+          clickedClass: target.className
+        });
+        setOpenDropdown(null);
+      }
+    };
+
+    // Usar touchstart también para dispositivos móviles
+    document.addEventListener('mousedown', handleClickOutside, true);
+    document.addEventListener('touchstart', handleClickOutside, true);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside, true);
+      document.removeEventListener('touchstart', handleClickOutside, true);
+    };
+  }, [openDropdown]);
 
   // Obtener perfil del usuario para la imagen
   const { data: profile } = useQuery({
@@ -70,39 +124,62 @@ const ResponsiveNavigation: React.FC = () => {
     setOpenDropdown(null);
   };
 
-  const toggleDropdown = (key: string) => {
+  const toggleDropdown = (key: string, event?: React.MouseEvent) => {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    console.log('🔽 [DROPDOWN] Toggle dropdown:', key, 'Current:', openDropdown);
     setOpenDropdown(openDropdown === key ? null : key);
   };
 
-  const renderMenuItem = (item: any, isMobile = false) => {
+  const renderMenuItem = (item: MenuItem, isMobile = false) => {
     const Icon = iconMap[item.icon as keyof typeof iconMap];
     const isActive = location.pathname === item.path;
     const isDropdownOpen = openDropdown === item.key;
 
-    if (item.type === 'dropdown' && item.children?.length > 0) {
+    // Debug log para el item de Gestión
+    if (item.key === 'MANAGEMENT') {
+      console.log('🛠️ [RENDER] Renderizando Gestión:', { 
+        isMobile, 
+        isDropdownOpen, 
+        hasChildren: !!item.children,
+        openDropdown
+      });
+    }
+
+    if (item.type === 'dropdown' && item.children && item.children.length > 0) {
       return (
         <div key={item.key} className={isMobile ? 'block' : 'relative group'}>
           {isMobile ? (
             // Mobile dropdown
             <div>
               <button
-                onClick={() => toggleDropdown(item.key)}
-                className="w-full flex items-center justify-between px-3 py-3 rounded-lg text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  toggleDropdown(item.key, e);
+                }}
+                data-dropdown-key={item.key}
+                className="w-full flex items-center justify-between px-3 py-3 rounded-lg text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50 transition-colors"
               >
                 <div className="flex items-center">
                   <Icon className="w-5 h-5 mr-3" />
                   {item.label}
                 </div>
                 {isDropdownOpen ? (
-                  <ChevronDownIcon className="w-4 h-4" />
+                  <ChevronDownIcon className="w-4 h-4 transition-transform" />
                 ) : (
-                  <ChevronRightIcon className="w-4 h-4" />
+                  <ChevronRightIcon className="w-4 h-4 transition-transform" />
                 )}
               </button>
               
               {isDropdownOpen && (
-                <div className="ml-6 mt-1 space-y-1">
-                  {item.children.map((child: any) => {
+                <div 
+                  className="mt-1 space-y-1 bg-gray-50 rounded-lg p-2 border-l-2 border-blue-200"
+                  data-dropdown-content={item.key}
+                >
+                  {item.children && item.children.map((child: MenuChild) => {
                     const ChildIcon = iconMap[child.icon as keyof typeof iconMap];
                     const isChildActive = location.pathname === child.path;
                     
@@ -110,14 +187,18 @@ const ResponsiveNavigation: React.FC = () => {
                       <Link
                         key={child.key}
                         to={child.path}
-                        onClick={closeMobileMenu}
-                        className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          console.log('📱 [MOBILE] Navegando a:', child.path);
+                          closeMobileMenu();
+                        }}
+                        className={`flex items-center px-3 py-3 rounded-lg text-sm font-medium transition-colors ${
                           isChildActive
                             ? 'bg-blue-100 text-blue-700'
-                            : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50'
+                            : 'text-gray-600 hover:text-blue-600 hover:bg-white'
                         }`}
                       >
-                        <ChildIcon className="w-4 h-4 mr-2" />
+                        <ChildIcon className="w-5 h-5 mr-3" />
                         {child.label}
                       </Link>
                     );
@@ -129,9 +210,10 @@ const ResponsiveNavigation: React.FC = () => {
             // Desktop dropdown
             <div className="relative">
               <button
-                onClick={() => toggleDropdown(item.key)}
+                onClick={(e) => toggleDropdown(item.key, e)}
+                data-dropdown-key={item.key}
                 className={`inline-flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                  isActive || item.children.some((child: any) => location.pathname === child.path)
+                  isActive || (item.children && item.children.some((child: MenuChild) => location.pathname === child.path))
                     ? 'bg-blue-100 text-blue-700'
                     : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'
                 }`}
@@ -142,9 +224,13 @@ const ResponsiveNavigation: React.FC = () => {
               </button>
               
               {isDropdownOpen && (
-                <div className="absolute top-full left-0 mt-1 w-56 bg-white rounded-md shadow-lg border border-gray-200 z-50">
+                <div 
+                  className="absolute top-full left-0 mt-1 w-56 bg-white rounded-md shadow-lg border border-gray-200 z-[9999]"
+                  data-dropdown-content={item.key}
+                  onClick={(e) => e.stopPropagation()}
+                >
                   <div className="py-1">
-                    {item.children.map((child: any) => {
+                    {item.children && item.children.map((child: MenuChild) => {
                       const ChildIcon = iconMap[child.icon as keyof typeof iconMap];
                       const isChildActive = location.pathname === child.path;
                       
@@ -152,7 +238,10 @@ const ResponsiveNavigation: React.FC = () => {
                         <Link
                           key={child.key}
                           to={child.path}
-                          onClick={() => setOpenDropdown(null)}
+                          onClick={() => {
+                            console.log('🚪 [DROPDOWN] Cerrando dropdown por click en opción:', child.label);
+                            setOpenDropdown(null);
+                          }}
                           className={`flex items-center px-4 py-2 text-sm transition-colors ${
                             isChildActive
                               ? 'bg-blue-50 text-blue-700'
@@ -197,36 +286,37 @@ const ResponsiveNavigation: React.FC = () => {
   };
 
   return (
-    <>
-      {/* Desktop Navigation */}
-      <nav className="hidden md:flex bg-white shadow-sm border-b border-gray-200">
-        <div className="w-full mx-auto px-2 sm:px-4 lg:px-6">
-          <div className="flex justify-between h-16">
+    <div ref={navRef}>
+      {/* Desktop Navigation - Mejorado para responsive */}
+      <nav className="hidden lg:flex bg-white shadow-sm border-b border-gray-200" style={{ overflow: 'visible' }}>
+        <div className="w-full mx-auto px-2 sm:px-4 lg:px-6" style={{ overflow: 'visible' }}>
+          <div className="flex justify-between h-16" style={{ overflow: 'visible' }}>
             {/* Logo y título a la izquierda */}
-            <div className="flex items-center">
-              <div className="flex-shrink-0 flex items-center">
+            <div className="flex items-center flex-shrink-0">
+              <div className="flex items-center">
                 <img 
                   src={LogoCGP} 
                   alt="CGPlayer Logo" 
                   className="h-8 w-8 mr-3"
                 />
-                <h1 className="text-xl font-bold text-gray-900">CGPlayer</h1>
+                <h1 className="text-xl font-bold text-gray-900 hidden xl:block">CGPlayer</h1>
+                <h1 className="text-lg font-bold text-gray-900 xl:hidden">CGP</h1>
               </div>
             </div>
 
-            {/* Menú centrado */}
-            <div className="flex-1 flex items-center justify-center">
-              <div className="flex space-x-6">
+            {/* Menú centrado con scroll horizontal si es necesario */}
+            <div className="flex-1 flex items-center justify-center min-w-0 mx-4" style={{ overflow: 'visible' }}>
+              <div className="flex space-x-2 xl:space-x-6 overflow-x-auto scrollbar-none max-w-full" style={{ overflow: 'visible' }}>
                 {menuItems.map((item) => renderMenuItem(item, false))}
               </div>
             </div>
 
-            {/* Changelog, usuario y logout a la derecha */}
-            <div className="flex items-center space-x-4">
-              {/* Changelog Icon con mejor icono */}
+            {/* Usuario y logout a la derecha */}
+            <div className="flex items-center space-x-2 xl:space-x-4 flex-shrink-0">
+              {/* Changelog Icon - Solo en pantallas grandes */}
               <Link
                 to="/changelog"
-                className="inline-flex items-center px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50"
+                className="hidden xl:inline-flex items-center px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50"
                 title="Historial de cambios y versiones"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -236,7 +326,7 @@ const ResponsiveNavigation: React.FC = () => {
               
               <Link
                 to="/profile"
-                className="flex items-center space-x-2 px-3 py-2 rounded-md hover:bg-gray-50 transition-colors"
+                className="flex items-center space-x-2 px-2 xl:px-3 py-2 rounded-md hover:bg-gray-50 transition-colors"
                 title={`Ver perfil de ${user?.firstName} ${user?.lastName}`}
               >
                 {profile?.profileImageUrl ? (
@@ -254,16 +344,139 @@ const ResponsiveNavigation: React.FC = () => {
                 <div className={`w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center ${profile?.profileImageUrl ? 'hidden' : ''}`}>
                   <UserIcon className="w-4 h-4 text-blue-600" />
                 </div>
-                <span className="text-sm font-medium text-gray-700 hover:text-blue-600">
+                <span className="text-sm font-medium text-gray-700 hover:text-blue-600 hidden xl:block">
                   {user?.firstName}
                 </span>
               </Link>
               <button
                 onClick={handleLogout}
-                className="inline-flex items-center px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-red-600 hover:bg-gray-50"
+                className="inline-flex items-center px-2 xl:px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-red-600 hover:bg-gray-50"
               >
-                <ArrowRightOnRectangleIcon className="w-4 h-4 mr-2" />
-                Salir
+                <ArrowRightOnRectangleIcon className="w-4 h-4 xl:mr-2" />
+                <span className="hidden xl:inline">Salir</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      {/* Tablet Navigation (md a lg) - Híbrido */}
+      <nav className="hidden md:flex lg:hidden bg-white shadow-sm border-b border-gray-200" style={{ overflow: 'visible' }}>
+        <div className="w-full mx-auto px-2 sm:px-4" style={{ overflow: 'visible' }}>
+          <div className="flex justify-between h-16" style={{ overflow: 'visible' }}>
+            {/* Logo compacto */}
+            <div className="flex items-center">
+              <img 
+                src={LogoCGP} 
+                alt="CGPlayer Logo" 
+                className="h-8 w-8 mr-2"
+              />
+              <h1 className="text-lg font-bold text-gray-900">CGP</h1>
+            </div>
+
+            {/* Menú compacto horizontal con scroll - Mostrar todos los elementos */}
+            <div className="flex-1 flex items-center justify-center mx-4" style={{ overflow: 'visible' }}>
+              <div className="flex space-x-1 overflow-x-auto scrollbar-none max-w-full" style={{ overflow: 'visible' }}>
+                {menuItems.map((item) => {
+                  const Icon = iconMap[item.icon as keyof typeof iconMap];
+                  const isActive = location.pathname === item.path;
+                  
+                  if (item.type === 'dropdown') {
+                    return (
+                      <div key={item.key} className="relative">
+                        <button
+                          onClick={(e) => toggleDropdown(item.key, e)}
+                          data-dropdown-key={item.key}
+                          className={`inline-flex items-center px-2 py-2 rounded-md text-xs font-medium transition-colors ${
+                            isActive || (item.children && item.children.some((child: MenuChild) => location.pathname === child.path))
+                              ? 'bg-blue-100 text-blue-700'
+                              : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'
+                          }`}
+                          title={item.label}
+                        >
+                          <Icon className="w-4 h-4" />
+                          <ChevronDownIcon className="w-3 h-3 ml-1" />
+                        </button>
+                        
+                        {openDropdown === item.key && (
+                          <div 
+                            className="absolute top-full left-0 mt-1 w-48 bg-white rounded-md shadow-lg border border-gray-200 z-[9999]"
+                            data-dropdown-content={item.key}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <div className="py-1">
+                              {item.children && item.children.map((child: MenuChild) => {
+                                const ChildIcon = iconMap[child.icon as keyof typeof iconMap];
+                                const isChildActive = location.pathname === child.path;
+                                
+                                return (
+                                  <Link
+                                    key={child.key}
+                                    to={child.path}
+                                    onClick={() => {
+                                      console.log('🚪 [DROPDOWN TABLET] Cerrando dropdown por click en opción:', child.label);
+                                      setOpenDropdown(null);
+                                    }}
+                                    className={`flex items-center px-3 py-2 text-sm transition-colors ${
+                                      isChildActive
+                                        ? 'bg-blue-50 text-blue-700'
+                                        : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'
+                                    }`}
+                                  >
+                                    <ChildIcon className="w-4 h-4 mr-3" />
+                                    {child.label}
+                                  </Link>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  } else {
+                    return (
+                      <Link
+                        key={item.key}
+                        to={item.path}
+                        className={`inline-flex items-center px-2 py-2 rounded-md text-xs font-medium transition-colors ${
+                          isActive
+                            ? 'bg-blue-100 text-blue-700'
+                            : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'
+                        }`}
+                        title={item.label}
+                      >
+                        <Icon className="w-4 h-4" />
+                      </Link>
+                    );
+                  }
+                })}
+              </div>
+            </div>
+
+            {/* Usuario compacto */}
+            <div className="flex items-center space-x-2">
+              <Link
+                to="/profile"
+                className="flex items-center space-x-1 px-2 py-2 rounded-md hover:bg-gray-50 transition-colors"
+              >
+                {profile?.profileImageUrl ? (
+                  <img
+                    src={profile.profileImageUrl}
+                    alt={`${user?.firstName}`}
+                    className="w-6 h-6 rounded-full object-cover border border-gray-200"
+                  />
+                ) : (
+                  <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center">
+                    <UserIcon className="w-3 h-3 text-blue-600" />
+                  </div>
+                )}
+              </Link>
+              <button
+                onClick={handleLogout}
+                className="inline-flex items-center p-2 rounded-md text-sm font-medium text-gray-700 hover:text-red-600 hover:bg-gray-50"
+                title="Cerrar sesión"
+              >
+                <ArrowRightOnRectangleIcon className="w-4 h-4" />
               </button>
             </div>
           </div>
@@ -381,7 +594,7 @@ const ResponsiveNavigation: React.FC = () => {
           </div>
         </div>
       </div>
-    </>
+    </div>
   );
 };
 

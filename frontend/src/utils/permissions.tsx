@@ -13,14 +13,14 @@ export const SECTION_PERMISSIONS = {
   EVENTS: ['ADMIN', 'CANTANTE', 'DIRECTOR'] as const, // Cantantes pueden ver eventos
   // PROFILE removido - ahora se accede via ícono de usuario
   
-  // Secciones para administradores
-  MANAGEMENT: ['ADMIN'] as const, // Panel de gestión
-  SONG_MANAGEMENT: ['ADMIN'] as const, // Gestión/subida de canciones
-  USERS: ['ADMIN'] as const,
-  LOCATIONS: ['ADMIN'] as const,
-  REPORTS: ['ADMIN'] as const,
+  // Secciones para administradores y directores
+  MANAGEMENT: ['ADMIN', 'DIRECTOR'] as const, // Panel de gestión
+  SONG_MANAGEMENT: ['ADMIN', 'DIRECTOR'] as const, // Gestión/subida de canciones
+  USERS: ['ADMIN', 'DIRECTOR'] as const,
+  LOCATIONS: ['ADMIN', 'DIRECTOR'] as const,
+  REPORTS: ['ADMIN', 'DIRECTOR'] as const,
   SYSTEM: ['ADMIN'] as const,
-  ANALYTICS: ['ADMIN'] as const,
+  ANALYTICS: ['ADMIN', 'DIRECTOR'] as const,
   SETTINGS: ['ADMIN'] as const,
   BACKUP: ['ADMIN'] as const
 } as const;

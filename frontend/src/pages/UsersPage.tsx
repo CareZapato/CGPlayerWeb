@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef, memo } from 'react';
 import { 
   MagnifyingGlassIcon, 
   TrashIcon,
@@ -20,6 +20,7 @@ interface User {
   lastName: string;
   phone?: string;
   isActive: boolean;
+  status?: 'PENDING' | 'CONFIRMED' | 'REFUSED';
   createdAt: string;
   profileImage?: string | null;
   profileImageUrl?: string | null;
@@ -129,9 +130,122 @@ const formatRole = (role: string): string => {
   return labels[role] || role;
 };
 
+// Función para obtener el estado visual del usuario
+const getUserDisplayStatus = (user: User) => {
+  // Si el status es PENDING, mostrar "Pendiente" independientemente de isActive
+  if (user.status === 'PENDING') {
+    return {
+      text: 'Pendiente',
+      color: 'text-amber-600',
+      bgColor: 'bg-amber-100',
+      value: 'pending'
+    };
+  }
+  
+  // Si el status es REFUSED, mostrar "Rechazado" independientemente de isActive
+  if (user.status === 'REFUSED') {
+    return {
+      text: 'Rechazado',
+      color: 'text-gray-600',
+      bgColor: 'bg-gray-100',
+      value: 'refused'
+    };
+  }
+  
+  // Para usuarios CONFIRMED, mostrar el estado isActive
+  if (user.isActive) {
+    return {
+      text: 'Activo',
+      color: 'text-green-600',
+      bgColor: 'bg-green-100',
+      value: 'active'
+    };
+  } else {
+    return {
+      text: 'Inactivo',
+      color: 'text-red-600',
+      bgColor: 'bg-red-100',
+      value: 'inactive'
+    };
+  }
+};
+
+// Componente memoizado para el input de búsqueda (evita re-renders)
+const SearchInput = memo(({ 
+  value, 
+  onChange, 
+  placeholder = "Buscar por nombre, email o usuario..." 
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+}) => {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [internalValue, setInternalValue] = useState(value);
+  
+  // Sincronizar valor interno cuando cambia el prop
+  useEffect(() => {
+    setInternalValue(value);
+  }, [value]);
+  
+  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = e.target.value;
+    setInternalValue(newValue);
+    onChange(newValue);
+  }, [onChange]);
+  
+  return (
+    <div className="w-full" key="search-container">
+      <div className="relative">
+        <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+        <input
+          ref={inputRef}
+          type="text"
+          placeholder={placeholder}
+          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          value={internalValue}
+          onChange={handleChange}
+          autoComplete="off"
+          spellCheck="false"
+        />
+      </div>
+    </div>
+  );
+});
+
+SearchInput.displayName = 'SearchInput';
+
+// Hook personalizado para debounce más estable
+const useStableDebounce = (value: string, delay: number) => {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+  const timeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
+
+  useEffect(() => {
+    // Limpiar timeout previo
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+
+    // Crear nuevo timeout
+    timeoutRef.current = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    // Cleanup
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+};
+
 const UsersPage: React.FC = () => {
   const { user: currentUser } = useAuthStore();
-  const [users, setUsers] = useState<User[]>([]);
+  const [allUsers, setAllUsers] = useState<User[]>([]); // Todos los usuarios cargados
+  const [filteredUsers, setFilteredUsers] = useState<User[]>([]); // Usuarios filtrados en frontend
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [locations, setLocations] = useState<Location[]>([]);
   const [loading, setLoading] = useState(true);
@@ -144,6 +258,9 @@ const UsersPage: React.FC = () => {
     hasPrev: false
   });
 
+  // Estado para preservar paginación previa cuando no hay datos (evita re-renders)
+  const [stablePagination, setStablePagination] = useState<Pagination>(pagination);
+
   // Estados para modales
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
@@ -155,10 +272,20 @@ const UsersPage: React.FC = () => {
     location: '',
     voiceType: '',
     role: '',
-    isActive: '',
+    status: '',
     page: 1,
     limit: 10
   });
+  
+  // Estado separado para el input de búsqueda (para debounce)
+  const [searchInput, setSearchInput] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
+  
+  // Debounce estable para la búsqueda
+  const debouncedSearch = useStableDebounce(
+    searchInput, 
+    isDeleting ? 200 : 500
+  );
 
   // Estado del formulario de edición
   const [editForm, setEditForm] = useState({
@@ -194,17 +321,24 @@ const UsersPage: React.FC = () => {
   const [importProgress, setImportProgress] = useState(0);
   const [isImporting, setIsImporting] = useState(false);
 
-  // Cargar usuarios
-  const fetchUsers = async () => {
+  // Cargar todos los usuarios una sola vez
+  const fetchAllUsers = useCallback(async () => {
     try {
-      setLoading(true);
+      // Solo cambiar loading si no hay usuarios cargados
+      if (allUsers.length === 0) {
+        setLoading(true);
+      }
+      
       const queryParams = new URLSearchParams();
       
-      Object.entries(filters).forEach(([key, value]) => {
-        if (value !== '' && value !== 0) {
-          queryParams.append(key, value.toString());
-        }
-      });
+      // Si el usuario actual es Director, filtrar por su ubicación en el backend
+      const isUserDirector = currentUser?.roles?.some(role => role.role === 'DIRECTOR');
+      if (isUserDirector && currentUser?.locationId) {
+        queryParams.append('location', currentUser.locationId);
+      }
+      
+      // Cargar todos los usuarios sin filtros de búsqueda (solo filtros básicos)
+      queryParams.append('limit', '1000'); // Cargar muchos usuarios de una vez
 
       const response = await fetch(getApiUrl(`/api/users?${queryParams}`), {
         headers: {
@@ -217,15 +351,94 @@ const UsersPage: React.FC = () => {
       }
 
       const data = await response.json();
-      setUsers(data.data.users);
+      setAllUsers(data.data.users);
+      setFilteredUsers(data.data.users); // Inicialmente mostrar todos
       setPagination(data.data.pagination);
+      
+      // Solo actualizar paginación estable si hay datos válidos
+      if (data.data.pagination.totalCount > 0 || data.data.users.length > 0) {
+        setStablePagination(data.data.pagination);
+      }
     } catch (error) {
       console.error('Error fetching users:', error);
       toast.error('Error al cargar usuarios');
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentUser, allUsers.length]);
+
+  // Filtrar usuarios en el frontend
+  const filterUsersInFrontend = useCallback(() => {
+    let filtered = [...allUsers];
+
+    // Filtro de búsqueda por texto
+    if (filters.search) {
+      const searchTerm = filters.search.toLowerCase();
+      filtered = filtered.filter(user => 
+        user.firstName.toLowerCase().includes(searchTerm) ||
+        user.lastName.toLowerCase().includes(searchTerm) ||
+        user.email.toLowerCase().includes(searchTerm) ||
+        user.username.toLowerCase().includes(searchTerm)
+      );
+    }
+
+    // Filtro por ubicación (solo para ADMINs)
+    if (filters.location && currentUser?.roles?.some(r => r.role === 'ADMIN')) {
+      filtered = filtered.filter(user => user.location?.id === filters.location);
+    }
+
+    // Filtro por tipo de voz
+    if (filters.voiceType) {
+      filtered = filtered.filter(user => 
+        user.voiceProfiles.some(voice => voice.voiceType === filters.voiceType)
+      );
+    }
+
+    // Filtro por rol
+    if (filters.role) {
+      filtered = filtered.filter(user => 
+        user.roles.some(role => role.role === filters.role)
+      );
+    }
+
+    // Filtro por estado
+    if (filters.status) {
+      if (filters.status === 'active') {
+        filtered = filtered.filter(user => user.status === 'CONFIRMED' && user.isActive);
+      } else if (filters.status === 'inactive') {
+        filtered = filtered.filter(user => user.status === 'CONFIRMED' && !user.isActive);
+      } else if (filters.status === 'pending') {
+        filtered = filtered.filter(user => user.status === 'PENDING');
+      } else if (filters.status === 'refused') {
+        filtered = filtered.filter(user => user.status === 'REFUSED');
+      }
+    }
+
+    setFilteredUsers(filtered);
+    
+    // Actualizar paginación basada en resultados filtrados
+    const totalCount = filtered.length;
+    const totalPages = Math.ceil(totalCount / filters.limit);
+    const currentPage = Math.min(filters.page, totalPages || 1);
+    
+    setPagination({
+      currentPage,
+      totalPages: totalPages || 1,
+      totalCount,
+      limit: filters.limit,
+      hasNext: currentPage < totalPages,
+      hasPrev: currentPage > 1
+    });
+    
+    setStablePagination({
+      currentPage,
+      totalPages: totalPages || 1,
+      totalCount,
+      limit: filters.limit,
+      hasNext: currentPage < totalPages,
+      hasPrev: currentPage > 1
+    });
+  }, [allUsers, filters, currentUser]);
 
   // Cargar ubicaciones
   const fetchLocations = async () => {
@@ -250,9 +463,45 @@ const UsersPage: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchUsers();
     fetchLocations();
-  }, [filters]);
+  }, []);
+
+  // Cargar usuarios al montar el componente
+  useEffect(() => {
+    fetchAllUsers();
+  }, [fetchAllUsers]);
+
+  // Filtrar usuarios cuando cambien los filtros o los datos
+  useEffect(() => {
+    if (allUsers.length > 0) {
+      filterUsersInFrontend();
+    }
+  }, [allUsers, filters, filterUsersInFrontend]);
+
+  // Obtener usuarios para la página actual
+  const getUsersForCurrentPage = useCallback(() => {
+    const startIndex = (filters.page - 1) * filters.limit;
+    const endIndex = startIndex + filters.limit;
+    return filteredUsers.slice(startIndex, endIndex);
+  }, [filteredUsers, filters.page, filters.limit]);
+
+  const displayedUsers = getUsersForCurrentPage();
+
+  // Función simplificada para manejar cambios en el input de búsqueda
+  const handleSearchInputChange = useCallback((newValue: string) => {
+    const wasDeleting = newValue.length < searchInput.length;
+    setIsDeleting(wasDeleting);
+    setSearchInput(newValue);
+  }, [searchInput]);
+
+  // Efecto para aplicar el debounce de búsqueda
+  useEffect(() => {
+    setFilters(prev => ({
+      ...prev,
+      search: debouncedSearch,
+      page: 1 // Reset a página 1 cuando cambia la búsqueda
+    }));
+  }, [debouncedSearch]);
 
   // Manejar cambios en filtros
   const handleFilterChange = (key: string, value: string | number) => {
@@ -377,7 +626,8 @@ const UsersPage: React.FC = () => {
       });
 
       if (!userResponse.ok) {
-        throw new Error('Failed to update user');
+        const errorData = await userResponse.json();
+        throw new Error(errorData.message || 'Failed to update user');
       }
 
       // Actualizar voces
@@ -416,7 +666,7 @@ const UsersPage: React.FC = () => {
       }
 
       toast.success('Usuario actualizado correctamente');
-      fetchUsers();
+      fetchAllUsers();
       
       // Actualizar usuario seleccionado
       const updatedUser = await fetch(getApiUrl(`/api/users/${selectedUser.id}`), {
@@ -431,7 +681,8 @@ const UsersPage: React.FC = () => {
       }
     } catch (error) {
       console.error('Error updating user:', error);
-      toast.error('Error al actualizar usuario');
+      const errorMessage = error instanceof Error ? error.message : 'Error al actualizar usuario';
+      toast.error(errorMessage);
     }
   };
 
@@ -450,7 +701,7 @@ const UsersPage: React.FC = () => {
       }
 
       toast.success('Usuario eliminado correctamente');
-      fetchUsers();
+      fetchAllUsers();
       if (selectedUser?.id === userId) {
         setSelectedUser(null);
       }
@@ -464,6 +715,8 @@ const UsersPage: React.FC = () => {
   // Crear usuario manual
   const handleCreateUser = async () => {
     try {
+      const isUserDirector = currentUser?.roles?.some(role => role.role === 'DIRECTOR');
+      
       const response = await fetch(getApiUrl('/api/users/create'), {
         method: 'POST',
         headers: {
@@ -477,10 +730,13 @@ const UsersPage: React.FC = () => {
           username: createForm.username,
           phone: createForm.phone || null,
           password: createForm.password,
-          locationId: createForm.locationId || null, // Convertir cadena vacía a null
+          // Si es Director, usar su ubicación, de lo contrario usar la seleccionada
+          locationId: isUserDirector ? currentUser?.locationId : (createForm.locationId || null),
           isActive: createForm.isActive,
+          // Si es Director, el usuario queda PENDING, de lo contrario CONFIRMED
+          status: isUserDirector ? 'PENDING' : 'CONFIRMED',
           voiceTypes: createForm.selectedVoices,
-          primaryVoice: createForm.primaryVoice || null, // Convertir cadena vacía a null
+          primaryVoice: createForm.primaryVoice || null,
           role: createForm.selectedRole
         })
       });
@@ -491,8 +747,13 @@ const UsersPage: React.FC = () => {
         throw new Error(errorData.message || 'Error al crear usuario');
       }
 
-      toast.success('Usuario creado correctamente');
-      fetchUsers();
+      if (isUserDirector) {
+        toast.success('Usuario creado y enviado para aprobación por administrador');
+      } else {
+        toast.success('Usuario creado correctamente');
+      }
+      
+      fetchAllUsers();
       setShowCreateModal(false);
       setCreateForm({
         firstName: '',
@@ -512,6 +773,91 @@ const UsersPage: React.FC = () => {
       const errorMessage = error instanceof Error ? error.message : 'Error al crear usuario';
       toast.error(errorMessage);
     }
+  };
+
+  // Aprobar usuario (solo admins)
+  const handleApproveUser = async (userId: string) => {
+    try {
+      const response = await fetch(getApiUrl(`/api/users/${userId}/approve`), {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Error al aprobar usuario');
+      }
+
+      toast.success('Usuario aprobado correctamente');
+      fetchAllUsers();
+    } catch (error) {
+      console.error('Error approving user:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Error al aprobar usuario';
+      toast.error(errorMessage);
+    }
+  };
+
+  // Rechazar usuario (solo admins)
+  const handleRejectUser = async (userId: string) => {
+    try {
+      const response = await fetch(getApiUrl(`/api/users/${userId}/reject`), {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Error al rechazar usuario');
+      }
+
+      toast.success('Usuario rechazado');
+      fetchAllUsers();
+    } catch (error) {
+      console.error('Error rejecting user:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Error al rechazar usuario';
+      toast.error(errorMessage);
+    }
+  };
+
+  // Validaciones para edición de usuarios
+  const canEditUserActiveStatus = (user: User | null): boolean => {
+    if (!user) return false;
+    
+    // Si el usuario está PENDING, no se puede cambiar el estado
+    if (user.status === 'PENDING') return false;
+    
+    // Si el usuario actual es Director y el usuario está REFUSED, no puede activarlo
+    const isCurrentUserDirector = currentUser?.roles?.some(role => role.role === 'DIRECTOR');
+    const isCurrentUserAdmin = currentUser?.roles?.some(role => role.role === 'ADMIN');
+    
+    if (isCurrentUserDirector && !isCurrentUserAdmin && user.status === 'REFUSED') {
+      return false;
+    }
+    
+    return true;
+  };
+
+  const getActiveStatusMessage = (user: User | null): string => {
+    if (!user) return '';
+    
+    if (user.status === 'PENDING') {
+      return 'No se puede cambiar el estado mientras esté pendiente de aprobación';
+    }
+    
+    const isCurrentUserDirector = currentUser?.roles?.some(role => role.role === 'DIRECTOR');
+    const isCurrentUserAdmin = currentUser?.roles?.some(role => role.role === 'ADMIN');
+    
+    if (isCurrentUserDirector && !isCurrentUserAdmin && user.status === 'REFUSED') {
+      return 'Los directores no pueden reactivar usuarios rechazados';
+    }
+    
+    return '';
   };
 
   // Procesar archivo CSV
@@ -594,7 +940,7 @@ const UsersPage: React.FC = () => {
         toast.error(`${result.errors.length} usuarios tuvieron errores`);
       }
 
-      fetchUsers();
+      fetchAllUsers();
       setShowImportModal(false);
       setCsvPreview([]);
     } catch (error) {
@@ -607,7 +953,7 @@ const UsersPage: React.FC = () => {
     }
   };
 
-  if (loading && users.length === 0) {
+  if (loading && allUsers.length === 0) {
     return (
       <div className="min-h-screen bg-gray-50 p-2 sm:p-4 lg:p-6">
         <div className="animate-pulse max-w-full mx-auto">
@@ -652,24 +998,28 @@ const UsersPage: React.FC = () => {
               </p>
             </div>
             
-            {currentUser?.roles && currentUser.roles.some(r => r.role === 'ADMIN') && (
+            {currentUser?.roles && (currentUser.roles.some(r => r.role === 'ADMIN') || currentUser.roles.some(r => r.role === 'DIRECTOR')) && (
               <div className="flex flex-col sm:flex-row gap-2">
                 <button
                   onClick={() => setShowCreateModal(true)}
                   className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center justify-center space-x-2 transition-colors"
                 >
                   <UserPlusIcon className="w-5 h-5" />
-                  <span>Crear Usuario</span>
+                  <span>
+                    {currentUser.roles.some(r => r.role === 'ADMIN') ? 'Crear Usuario' : 'Crear Cantante'}
+                  </span>
                 </button>
-                <button
-                  onClick={() => setShowImportModal(true)}
-                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center justify-center space-x-2 transition-colors"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
-                  </svg>
-                  <span>Importar CSV</span>
-                </button>
+                {currentUser.roles.some(r => r.role === 'ADMIN') && (
+                  <button
+                    onClick={() => setShowImportModal(true)}
+                    className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center justify-center space-x-2 transition-colors"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
+                    </svg>
+                    <span>Importar CSV</span>
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -682,34 +1032,34 @@ const UsersPage: React.FC = () => {
               {/* Filtros y búsqueda */}
               <div className="p-4 lg:p-6 border-b border-gray-200">
                 <div className="flex flex-col gap-4">
-                  {/* Búsqueda */}
-                  <div className="w-full">
-                    <div className="relative">
-                      <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                      <input
-                        type="text"
-                        placeholder="Buscar por nombre, email o usuario..."
-                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        value={filters.search}
-                        onChange={(e) => handleFilterChange('search', e.target.value)}
-                      />
-                    </div>
-                  </div>
+                  {/* Búsqueda - Componente memoizado */}
+                  <SearchInput 
+                    value={searchInput}
+                    onChange={handleSearchInputChange}
+                    placeholder="Buscar por nombre, email o usuario..."
+                  />
 
-                  {/* Filtros en una sola fila en desktop, columna en móvil */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                    <select
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                      value={filters.location}
-                      onChange={(e) => handleFilterChange('location', e.target.value)}
-                    >
-                      <option value="">Todas las ubicaciones</option>
-                      {locations.map(location => (
-                        <option key={location.id} value={location.id}>
-                          {location.name} - {location.city}
-                        </option>
-                      ))}
-                    </select>
+                  {/* Filtros dinámicos - Grid se adapta según el rol */}
+                  <div className={`grid gap-3 ${
+                    currentUser?.roles?.some(role => role.role === 'ADMIN') 
+                      ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3' 
+                      : 'grid-cols-1 sm:grid-cols-2'
+                  }`}>
+                    {/* Filtro de ubicación - Solo para ADMINs */}
+                    {currentUser?.roles?.some(role => role.role === 'ADMIN') && (
+                      <select
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                        value={filters.location}
+                        onChange={(e) => handleFilterChange('location', e.target.value)}
+                      >
+                        <option value="">Todas las ubicaciones</option>
+                        {locations.map(location => (
+                          <option key={location.id} value={location.id}>
+                            {location.name} - {location.city}
+                          </option>
+                        ))}
+                      </select>
+                    )}
 
                     <select
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
@@ -724,27 +1074,32 @@ const UsersPage: React.FC = () => {
                       ))}
                     </select>
 
-                    <select
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                      value={filters.role}
-                      onChange={(e) => handleFilterChange('role', e.target.value)}
-                    >
-                      <option value="">Todos los roles</option>
-                      {ROLES.map(role => (
-                        <option key={role} value={role}>
-                          {role}
-                        </option>
-                      ))}
-                    </select>
+                    {/* Filtro de roles - Solo para ADMINs */}
+                    {currentUser?.roles?.some(role => role.role === 'ADMIN') && (
+                      <select
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                        value={filters.role}
+                        onChange={(e) => handleFilterChange('role', e.target.value)}
+                      >
+                        <option value="">Todos los roles</option>
+                        {ROLES.map(role => (
+                          <option key={role} value={role}>
+                            {role}
+                          </option>
+                        ))}
+                      </select>
+                    )}
 
                     <select
                       className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                      value={filters.isActive}
-                      onChange={(e) => handleFilterChange('isActive', e.target.value)}
+                      value={filters.status}
+                      onChange={(e) => handleFilterChange('status', e.target.value)}
                     >
                       <option value="">Todos los estados</option>
-                      <option value="true">Activos</option>
-                      <option value="false">Inactivos</option>
+                      <option value="active">Activos</option>
+                      <option value="inactive">Inactivos</option>
+                      <option value="pending">Pendientes</option>
+                      <option value="refused">Rechazados</option>
                     </select>
 
                     <select
@@ -781,13 +1136,19 @@ const UsersPage: React.FC = () => {
                       <th className="px-3 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Estado
                       </th>
+                      {/* Solo mostrar columna de aprobación para admins */}
+                      {currentUser?.roles?.some(role => role.role === 'ADMIN') && (
+                        <th className="px-3 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Aprobación
+                        </th>
+                      )}
                       <th className="px-3 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Acciones
                       </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {users.map((user) => (
+                    {displayedUsers.map((user) => (
                       <tr 
                         key={user.id}
                         className={`hover:bg-gray-50 cursor-pointer ${selectedUser?.id === user.id ? 'bg-blue-50' : ''}`}
@@ -840,14 +1201,56 @@ const UsersPage: React.FC = () => {
                           </div>
                         </td>
                         <td className="px-3 lg:px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                            user.isActive 
-                              ? 'bg-green-100 text-green-800' 
-                              : 'bg-red-100 text-red-800'
-                          }`}>
-                            {user.isActive ? 'Activo' : 'Inactivo'}
-                          </span>
+                          {(() => {
+                            const status = getUserDisplayStatus(user);
+                            return (
+                              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${status.bgColor} ${status.color}`}>
+                                {status.text}
+                              </span>
+                            );
+                          })()}
                         </td>
+                        {/* Solo mostrar columna de aprobación para admins */}
+                        {currentUser?.roles?.some(role => role.role === 'ADMIN') && (
+                          <td className="px-3 lg:px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center space-x-2">
+                              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                user.status === 'CONFIRMED' 
+                                  ? 'bg-green-100 text-green-800'
+                                  : user.status === 'PENDING'
+                                  ? 'bg-yellow-100 text-yellow-800'
+                                  : 'bg-red-100 text-red-800'
+                              }`}>
+                                {user.status === 'CONFIRMED' ? 'Confirmado' : 
+                                 user.status === 'PENDING' ? 'Pendiente' : 'Rechazado'}
+                              </span>
+                              {user.status === 'PENDING' && (
+                                <div className="flex space-x-1">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleApproveUser(user.id);
+                                    }}
+                                    className="text-green-600 hover:text-green-900 text-xs px-2 py-1 bg-green-50 rounded"
+                                    title="Aprobar"
+                                  >
+                                    ✓
+                                  </button>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleRejectUser(user.id);
+                                    }}
+                                    className="text-red-600 hover:text-red-900 text-xs px-2 py-1 bg-red-50 rounded"
+                                    title="Rechazar"
+                                  >
+                                    ✗
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                        )}
                         <td className="px-3 lg:px-6 py-4 whitespace-nowrap text-sm font-medium">
                           <div className="flex space-x-2">
                             <button
@@ -876,36 +1279,71 @@ const UsersPage: React.FC = () => {
                         </td>
                       </tr>
                     ))}
+                    {/* Mensaje cuando no hay usuarios (evita micro-flash) */}
+                    {!loading && displayedUsers.length === 0 && (
+                      <tr>
+                        <td 
+                          colSpan={currentUser?.roles?.some(r => r.role === 'ADMIN') ? 6 : 5} 
+                          className="px-6 py-12 text-center"
+                        >
+                          <div className="text-gray-500">
+                            <MagnifyingGlassIcon className="mx-auto h-12 w-12 text-gray-300 mb-4" />
+                            <p className="text-lg font-medium">No se encontraron usuarios</p>
+                            <p className="text-sm">
+                              {filters.search ? 
+                                'Intenta ajustar los filtros de búsqueda' : 
+                                'No hay usuarios registrados'
+                              }
+                            </p>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
 
-              {/* Paginación */}
-              <div className="px-3 lg:px-6 py-4 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-3">
-                <div className="text-xs lg:text-sm text-gray-700 text-center sm:text-left">
-                  Mostrando {((pagination.currentPage - 1) * pagination.limit) + 1} a{' '}
-                  {Math.min(pagination.currentPage * pagination.limit, pagination.totalCount)} de{' '}
-                  {pagination.totalCount} usuarios
-                </div>
-                <div className="flex items-center space-x-2">
-                  <button
-                    onClick={() => handleFilterChange('page', pagination.currentPage - 1)}
-                    disabled={!pagination.hasPrev}
-                    className="p-2 rounded-lg border border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-                  >
-                    <ChevronLeftIcon className="w-4 h-4" />
-                  </button>
-                  <span className="px-3 py-1 text-xs lg:text-sm text-gray-700">
-                    Página {pagination.currentPage} de {pagination.totalPages}
-                  </span>
-                  <button
-                    onClick={() => handleFilterChange('page', pagination.currentPage + 1)}
-                    disabled={!pagination.hasNext}
-                    className="p-2 rounded-lg border border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-                  >
-                    <ChevronRightIcon className="w-4 h-4" />
-                  </button>
-                </div>
+              {/* Paginación - Contenedor estable que siempre mantiene la altura */}
+              <div className="px-3 lg:px-6 py-4 border-t border-gray-200 min-h-[60px] flex flex-col sm:flex-row items-center justify-between gap-3">
+                {(pagination.totalCount > 0 || displayedUsers.length > 0) ? (
+                  <>
+                    <div className="text-xs lg:text-sm text-gray-700 text-center sm:text-left">
+                      {pagination.totalCount > 0 ? (
+                        <>
+                          Mostrando {((stablePagination.currentPage - 1) * stablePagination.limit) + 1} a{' '}
+                          {Math.min(stablePagination.currentPage * stablePagination.limit, stablePagination.totalCount)} de{' '}
+                          {stablePagination.totalCount} usuarios
+                        </>
+                      ) : (
+                        `${displayedUsers.length} usuarios en esta página`
+                      )}
+                    </div>
+                    {stablePagination.totalPages > 1 && (
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={() => handleFilterChange('page', stablePagination.currentPage - 1)}
+                          disabled={!stablePagination.hasPrev}
+                          className="p-2 rounded-lg border border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                        >
+                          <ChevronLeftIcon className="w-4 h-4" />
+                        </button>
+                        <span className="px-3 py-1 text-xs lg:text-sm text-gray-700">
+                          Página {stablePagination.currentPage} de {stablePagination.totalPages}
+                        </span>
+                        <button
+                          onClick={() => handleFilterChange('page', stablePagination.currentPage + 1)}
+                          disabled={!stablePagination.hasNext}
+                          className="p-2 rounded-lg border border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                        >
+                          <ChevronRightIcon className="w-4 h-4" />
+                        </button>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  // Espacio reservado para mantener altura consistente
+                  <div className="h-6"></div>
+                )}
               </div>
             </div>
           </div>
@@ -930,13 +1368,14 @@ const UsersPage: React.FC = () => {
                     </h3>
                     <p className="text-gray-600 text-sm lg:text-base">@{selectedUser.username}</p>
                     <div className="mt-2">
-                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                        selectedUser.isActive 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-red-100 text-red-800'
-                      }`}>
-                        {selectedUser.isActive ? 'Activo' : 'Inactivo'}
-                      </span>
+                      {(() => {
+                        const status = getUserDisplayStatus(selectedUser);
+                        return (
+                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${status.bgColor} ${status.color}`}>
+                            {status.text}
+                          </span>
+                        );
+                      })()}
                     </div>
                   </div>
 
@@ -1093,17 +1532,29 @@ const UsersPage: React.FC = () => {
                       )}
                     </div>
 
-                    <div className="flex items-center">
-                      <input
-                        type="checkbox"
-                        id="isActive"
-                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                        checked={editForm.isActive}
-                        onChange={(e) => setEditForm(prev => ({ ...prev, isActive: e.target.checked }))}
-                      />
-                      <label htmlFor="isActive" className="ml-2 text-sm text-gray-700">
-                        Usuario activo
-                      </label>
+                    <div className="flex flex-col">
+                      <div className="flex items-center">
+                        <input
+                          type="checkbox"
+                          id="isActive"
+                          className={`rounded border-gray-300 text-blue-600 focus:ring-blue-500 ${
+                            !canEditUserActiveStatus(selectedUser) ? 'opacity-50 cursor-not-allowed' : ''
+                          }`}
+                          checked={editForm.isActive}
+                          disabled={!canEditUserActiveStatus(selectedUser)}
+                          onChange={(e) => setEditForm(prev => ({ ...prev, isActive: e.target.checked }))}
+                        />
+                        <label htmlFor="isActive" className={`ml-2 text-sm ${
+                          !canEditUserActiveStatus(selectedUser) ? 'text-gray-400' : 'text-gray-700'
+                        }`}>
+                          Usuario activo
+                        </label>
+                      </div>
+                      {!canEditUserActiveStatus(selectedUser) && (
+                        <p className="text-xs text-amber-600 mt-1 ml-6">
+                          {getActiveStatusMessage(selectedUser)}
+                        </p>
+                      )}
                     </div>
 
                     {/* Botones de acción */}
@@ -1157,213 +1608,338 @@ const UsersPage: React.FC = () => {
       {/* Modal de crear usuario */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-semibold text-gray-900">
-                  Crear Nuevo Usuario
-                </h3>
+          <div className="bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[95vh] overflow-hidden">
+            {/* Header del modal */}
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-white bg-opacity-20 rounded-lg">
+                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-white">
+                      {currentUser?.roles?.some(role => role.role === 'ADMIN') 
+                        ? 'Crear Nuevo Usuario' 
+                        : 'Crear Nuevo Cantante'
+                      }
+                    </h3>
+                    <p className="text-blue-100 text-sm">
+                      {currentUser?.roles?.some(role => role.role === 'ADMIN') 
+                        ? 'Complete los datos para crear un nuevo usuario en el sistema' 
+                        : 'Complete los datos para agregar un nuevo cantante a su delegación'
+                      }
+                    </p>
+                  </div>
+                </div>
                 <button
                   onClick={() => setShowCreateModal(false)}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="text-white hover:bg-white hover:bg-opacity-20 p-2 rounded-lg transition-colors"
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
               </div>
+            </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Nombre *
-                  </label>
-                  <input
-                    type="text"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    value={createForm.firstName}
-                    onChange={(e) => setCreateForm(prev => ({ ...prev, firstName: e.target.value }))}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Apellido *
-                  </label>
-                  <input
-                    type="text"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    value={createForm.lastName}
-                    onChange={(e) => setCreateForm(prev => ({ ...prev, lastName: e.target.value }))}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Email *
-                  </label>
-                  <input
-                    type="email"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    value={createForm.email}
-                    onChange={(e) => setCreateForm(prev => ({ ...prev, email: e.target.value }))}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Usuario *
-                  </label>
-                  <input
-                    type="text"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    value={createForm.username}
-                    onChange={(e) => setCreateForm(prev => ({ ...prev, username: e.target.value }))}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Teléfono
-                  </label>
-                  <input
-                    type="tel"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    value={createForm.phone}
-                    onChange={(e) => setCreateForm(prev => ({ ...prev, phone: e.target.value }))}
-                    placeholder="+56 9 1234 5678"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Contraseña *
-                  </label>
-                  <input
-                    type="password"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    value={createForm.password}
-                    onChange={(e) => setCreateForm(prev => ({ ...prev, password: e.target.value }))}
-                    placeholder="Mínimo 6 caracteres"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Rol *
-                  </label>
-                  <select
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    value={createForm.selectedRole}
-                    onChange={(e) => setCreateForm(prev => ({ ...prev, selectedRole: e.target.value }))}
-                  >
-                    {ROLES.map(role => (
-                      <option key={role} value={role}>
-                        {formatRole(role)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Ubicación
-                  </label>
-                  <select
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    value={createForm.locationId}
-                    onChange={(e) => setCreateForm(prev => ({ ...prev, locationId: e.target.value }))}
-                  >
-                    <option value="">Sin ubicación</option>
-                    {locations.length === 0 && (
-                      <option value="" disabled>Cargando ubicaciones...</option>
-                    )}
-                    {locations.map(location => {
-                      console.log('Rendering location option:', location); // Debug log
-                      return (
-                        <option key={location.id} value={location.id}>
-                          {location.name} - {location.city}
-                        </option>
-                      );
-                    })}
-                  </select>
-                </div>
-              </div>
-
-              <div className="mt-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Tipos de Voz
-                </label>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                  {VOICE_TYPES.map(voice => (
-                    <label key={voice} className="flex items-center">
-                      <input
-                        type="checkbox"
-                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                        checked={createForm.selectedVoices.includes(voice)}
-                        onChange={() => handleCreateVoiceToggle(voice)}
-                      />
-                      <span className="ml-2 text-sm text-gray-700">{formatVoiceType(voice)}</span>
-                    </label>
-                  ))}
-                </div>
-                
-                {/* Selector de Voz Primaria */}
-                {createForm.selectedVoices.length > 1 && (
-                  <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                    <label className="block text-sm font-medium text-blue-800 mb-2">
-                      <span className="flex items-center">
-                        <span className="text-blue-600 mr-1">⭐</span>
-                        Voz Primaria
-                      </span>
-                    </label>
-                    <div className="grid grid-cols-1 gap-2">
-                      {createForm.selectedVoices.map(voice => (
-                        <label key={voice} className="flex items-center">
-                          <input
-                            type="radio"
-                            name="createPrimaryVoice"
-                            className="border-blue-300 text-blue-600 focus:ring-blue-500"
-                            checked={createForm.primaryVoice === voice}
-                            onChange={() => handleCreatePrimaryVoiceChange(voice)}
-                          />
-                          <span className="ml-2 text-sm text-blue-700">{formatVoiceType(voice)}</span>
-                        </label>
-                      ))}
-                    </div>
-                    <p className="text-xs text-blue-600 mt-1">
-                      Esta será la voz principal mostrada en el perfil
-                    </p>
+            {/* Contenido del formulario */}
+            <div className="p-6 max-h-[calc(95vh-120px)] overflow-y-auto">
+              
+              {/* Sección: Información Personal */}
+              <div className="mb-8">
+                <div className="flex items-center mb-4">
+                  <div className="p-2 bg-blue-100 rounded-lg mr-3">
+                    <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
                   </div>
-                )}
+                  <h4 className="text-lg font-semibold text-gray-900">Información Personal</h4>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Nombre <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                      value={createForm.firstName}
+                      onChange={(e) => setCreateForm(prev => ({ ...prev, firstName: e.target.value }))}
+                      placeholder="Ingrese el nombre"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Apellido <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                      value={createForm.lastName}
+                      onChange={(e) => setCreateForm(prev => ({ ...prev, lastName: e.target.value }))}
+                      placeholder="Ingrese el apellido"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Teléfono
+                    </label>
+                    <input
+                      type="tel"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                      value={createForm.phone}
+                      onChange={(e) => setCreateForm(prev => ({ ...prev, phone: e.target.value }))}
+                      placeholder="+56 9 1234 5678"
+                    />
+                  </div>
+                </div>
               </div>
 
-              <div className="mt-6 flex items-center">
-                <input
-                  type="checkbox"
-                  id="createIsActive"
-                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  checked={createForm.isActive}
-                  onChange={(e) => setCreateForm(prev => ({ ...prev, isActive: e.target.checked }))}
-                />
-                <label htmlFor="createIsActive" className="ml-2 text-sm text-gray-700">
-                  Usuario activo
-                </label>
+              {/* Sección: Cuenta y Acceso */}
+              <div className="mb-8">
+                <div className="flex items-center mb-4">
+                  <div className="p-2 bg-green-100 rounded-lg mr-3">
+                    <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                    </svg>
+                  </div>
+                  <h4 className="text-lg font-semibold text-gray-900">Cuenta y Acceso</h4>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Email <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="email"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                      value={createForm.email}
+                      onChange={(e) => setCreateForm(prev => ({ ...prev, email: e.target.value }))}
+                      placeholder="ejemplo@correo.com"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Usuario <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                      value={createForm.username}
+                      onChange={(e) => setCreateForm(prev => ({ ...prev, username: e.target.value }))}
+                      placeholder="nombre_usuario"
+                    />
+                  </div>
+
+                  <div className="space-y-1 md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Contraseña <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="password"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                      value={createForm.password}
+                      onChange={(e) => setCreateForm(prev => ({ ...prev, password: e.target.value }))}
+                      placeholder="Mínimo 6 caracteres"
+                    />
+                  </div>
+                </div>
               </div>
 
-              <div className="mt-6 flex space-x-3">
+              {/* Sección: Rol y Ubicación */}
+              <div className="mb-8">
+                <div className="flex items-center mb-4">
+                  <div className="p-2 bg-purple-100 rounded-lg mr-3">
+                    <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                  </div>
+                  <h4 className="text-lg font-semibold text-gray-900">Rol y Ubicación</h4>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Rol <span className="text-red-500">*</span>
+                    </label>
+                    {currentUser?.roles?.some(role => role.role === 'ADMIN') ? (
+                      <select
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                        value={createForm.selectedRole}
+                        onChange={(e) => setCreateForm(prev => ({ ...prev, selectedRole: e.target.value }))}
+                      >
+                        {ROLES.map(role => (
+                          <option key={role} value={role}>
+                            {formatRole(role)}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <div className="w-full px-4 py-3 border border-gray-200 rounded-lg bg-gray-50 text-gray-700 font-medium">
+                        🎤 Cantante
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Solo mostrar selector de ubicación para ADMINs */}
+                  {currentUser?.roles?.some(role => role.role === 'ADMIN') && (
+                    <div className="space-y-1">
+                      <label className="block text-sm font-medium text-gray-700">
+                        Ubicación
+                      </label>
+                      <select
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                        value={createForm.locationId}
+                        onChange={(e) => setCreateForm(prev => ({ ...prev, locationId: e.target.value }))}
+                      >
+                        <option value="">Sin ubicación</option>
+                        {locations.length === 0 && (
+                          <option value="" disabled>Cargando ubicaciones...</option>
+                        )}
+                        {locations.map(location => (
+                          <option key={location.id} value={location.id}>
+                            {location.name} - {location.city}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {/* Para Directors, mostrar información de la ubicación asignada automáticamente */}
+                  {currentUser?.roles?.some(role => role.role === 'DIRECTOR') && !currentUser?.roles?.some(role => role.role === 'ADMIN') && (
+                    <div className="space-y-1">
+                      <label className="block text-sm font-medium text-gray-700">
+                        Ubicación
+                      </label>
+                      <div className="w-full px-4 py-3 border border-blue-200 rounded-lg bg-blue-50 text-blue-700 font-medium flex items-center">
+                        <svg className="w-5 h-5 text-blue-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                        </svg>
+                        Se asignará automáticamente a tu ubicación
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Sección: Tipos de Voz */}
+              <div className="mb-8">
+                <div className="flex items-center mb-4">
+                  <div className="p-2 bg-pink-100 rounded-lg mr-3">
+                    <svg className="w-5 h-5 text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                    </svg>
+                  </div>
+                  <h4 className="text-lg font-semibold text-gray-900">Tipos de Voz</h4>
+                </div>
+
+                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    {VOICE_TYPES.map(voice => (
+                      <label key={voice} className="flex items-center p-3 bg-white rounded-lg border border-gray-200 hover:border-blue-300 transition-colors cursor-pointer">
+                        <input
+                          type="checkbox"
+                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-3"
+                          checked={createForm.selectedVoices.includes(voice)}
+                          onChange={() => handleCreateVoiceToggle(voice)}
+                        />
+                        <span className="text-sm text-gray-700 font-medium">{formatVoiceType(voice)}</span>
+                      </label>
+                    ))}
+                  </div>
+                  
+                  {/* Selector de Voz Primaria */}
+                  {createForm.selectedVoices.length > 1 && (
+                    <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                      <div className="flex items-center mb-3">
+                        <span className="text-blue-600 mr-2 text-lg">⭐</span>
+                        <label className="block text-sm font-medium text-blue-800">
+                          Voz Primaria
+                        </label>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        {createForm.selectedVoices.map(voice => (
+                          <label key={voice} className="flex items-center p-2 bg-white bg-opacity-60 rounded-lg">
+                            <input
+                              type="radio"
+                              name="createPrimaryVoice"
+                              className="border-blue-300 text-blue-600 focus:ring-blue-500 mr-2"
+                              checked={createForm.primaryVoice === voice}
+                              onChange={() => handleCreatePrimaryVoiceChange(voice)}
+                            />
+                            <span className="text-sm text-blue-700 font-medium">{formatVoiceType(voice)}</span>
+                          </label>
+                        ))}
+                      </div>
+                      <p className="text-xs text-blue-600 mt-2">
+                        Esta será la voz principal mostrada en el perfil del cantante
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Solo mostrar checkbox de activo para ADMINs */}
+              {currentUser?.roles?.some(role => role.role === 'ADMIN') && (
+                <div className="mt-6 flex items-center">
+                  <input
+                    type="checkbox"
+                    id="createIsActive"
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    checked={createForm.isActive}
+                    onChange={(e) => setCreateForm(prev => ({ ...prev, isActive: e.target.checked }))}
+                  />
+                  <label htmlFor="createIsActive" className="ml-2 text-sm text-gray-700">
+                    Usuario activo
+                  </label>
+                </div>
+              )}
+
+              {/* Para Directors, mostrar info de que el usuario quedará pendiente */}
+              {currentUser?.roles?.some(role => role.role === 'DIRECTOR') && !currentUser?.roles?.some(role => role.role === 'ADMIN') && (
+                <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                  <div className="flex items-center">
+                    <svg className="w-5 h-5 text-amber-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span className="text-sm text-amber-800 font-medium">
+                      El usuario será creado en estado <strong>PENDIENTE</strong> hasta que un administrador lo apruebe
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Botones de acción */}
+              <div className="flex flex-col sm:flex-row gap-3 pt-6 border-t border-gray-200">
                 <button
                   onClick={() => setShowCreateModal(false)}
-                  className="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-400 transition-colors"
+                  className="flex-1 px-6 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium flex items-center justify-center"
                 >
+                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
                   Cancelar
                 </button>
                 <button
                   onClick={handleCreateUser}
                   disabled={!createForm.firstName || !createForm.lastName || !createForm.email || !createForm.username || !createForm.password}
-                  className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+                  className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-200 disabled:from-gray-400 disabled:to-gray-400 disabled:cursor-not-allowed font-medium flex items-center justify-center"
                 >
-                  Crear Usuario
+                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                  </svg>
+                  {currentUser?.roles?.some(role => role.role === 'ADMIN') 
+                    ? 'Crear Usuario' 
+                    : 'Crear Cantante'
+                  }
                 </button>
               </div>
             </div>

@@ -17,6 +17,181 @@ const execAsync = promisify(exec);
 const projectRoot = path.resolve(__dirname, '../../..');
 const upload = multer({ dest: path.join(projectRoot, 'temp-uploads') });
 
+// Función para limpiar directorios de uploads (excepto READMEs)
+const cleanUploadsDirectories = async (): Promise<void> => {
+  console.log('🧹 Iniciando limpieza de directorios de uploads...');
+  
+  const uploadsDir = path.join(projectRoot, 'backend', 'uploads');
+  const dirsToClean = [
+    path.join(uploadsDir, 'images', 'profiles'),
+    path.join(uploadsDir, 'images', 'playlists'),
+    path.join(uploadsDir, 'songs')
+  ];
+
+  for (const dirPath of dirsToClean) {
+    if (fs.existsSync(dirPath)) {
+      console.log(`🗑️ Limpiando: ${path.relative(uploadsDir, dirPath)}`);
+      
+      const files = fs.readdirSync(dirPath);
+      let deleted = 0;
+      
+      for (const file of files) {
+        const filePath = path.join(dirPath, file);
+        const isReadme = file.toLowerCase().includes('readme');
+        
+        if (!isReadme) {
+          try {
+            const stats = fs.statSync(filePath);
+            if (stats.isDirectory()) {
+              fs.rmSync(filePath, { recursive: true, force: true });
+            } else {
+              fs.unlinkSync(filePath);
+            }
+            deleted++;
+          } catch (error) {
+            console.warn(`⚠️ Error eliminando ${file}:`, error);
+          }
+        }
+      }
+      
+      console.log(`   ✅ ${deleted} elementos eliminados (READMEs preservados)`);
+    } else {
+      console.log(`   ℹ️ Directorio no existe: ${path.relative(uploadsDir, dirPath)}`);
+    }
+  }
+  
+  console.log('✅ Limpieza de uploads completada');
+};
+
+// Función mejorada para detectar y mergear diferencias en campos de BD
+// Función para mergear un registro individual con valores por defecto
+const mergeRecordData = (record: any, tableName: string): any => {
+  const mergedRecord = { ...record };
+  
+  // Agregar campos que podrían faltar según el tipo de tabla
+  const defaultFields: Record<string, any> = {
+    status: 'CONFIRMED',
+    isActive: true,
+    isPrimary: false,
+    isHighlighted: false,
+    isSynchronized: false,
+    createdAt: record.createdAt || new Date().toISOString(),
+    updatedAt: record.updatedAt || new Date().toISOString()
+  };
+
+  // Aplicar campos por defecto según el tipo de tabla
+  if (tableName === 'user' || tableName === 'users') {
+    // Asegurar que los usuarios tengan el campo status
+    if (!record.hasOwnProperty('status')) {
+      mergedRecord.status = 'CONFIRMED';
+    }
+  }
+
+  return mergedRecord;
+};
+
+const mergeBackupData = async (backupData: any): Promise<any> => {
+  console.log('🔍 Analizando diferencias entre backup y esquema actual...');
+  
+  // Obtener esquema actual de la base de datos
+  const currentSchema: Record<string, string[]> = {
+    users: await prisma.user.findFirst().then(u => u ? Object.keys(u) : []).catch(() => []),
+    songs: await prisma.song.findFirst().then(s => s ? Object.keys(s) : []).catch(() => []),
+    events: await prisma.event.findFirst().then(e => e ? Object.keys(e) : []).catch(() => []),
+    playlists: await prisma.playlist.findFirst().then(p => p ? Object.keys(p) : []).catch(() => [])
+  };
+
+  const mergedData = { ...backupData };
+  let fieldsMerged = 0;
+
+  // Para cada tabla en el backup
+  for (const [tableName, records] of Object.entries(backupData)) {
+    if (Array.isArray(records) && records.length > 0) {
+      const backupFields = Object.keys(records[0]);
+      const currentFields = currentSchema[tableName] || [];
+      
+      // Detectar campos faltantes en el esquema actual
+      const missingFields = backupFields.filter(field => !currentFields.includes(field));
+      const extraFields = currentFields.filter(field => !backupFields.includes(field));
+      
+      if (missingFields.length > 0 || extraFields.length > 0) {
+        console.log(`📋 ${tableName}:`);
+        if (missingFields.length > 0) {
+          console.log(`   📤 Campos en backup pero no en esquema: ${missingFields.join(', ')}`);
+        }
+        if (extraFields.length > 0) {
+          console.log(`   📥 Campos en esquema pero no en backup: ${extraFields.join(', ')}`);
+        }
+      }
+
+      // Mergear registros agregando campos faltantes con valores por defecto
+      mergedData[tableName] = records.map((record: any) => {
+        const mergedRecord = { ...record };
+        
+        // Agregar campos que existen en el esquema pero no en el backup
+        for (const extraField of extraFields) {
+          if (!(extraField in mergedRecord)) {
+            // Valores por defecto según el tipo esperado
+            switch (extraField) {
+              case 'status':
+                mergedRecord[extraField] = 'CONFIRMED';
+                break;
+              case 'isActive':
+                mergedRecord[extraField] = true;
+                break;
+              case 'isPrimary':
+                mergedRecord[extraField] = false;
+                break;
+              case 'isHighlighted':
+                mergedRecord[extraField] = false;
+                break;
+              case 'isSynchronized':
+                mergedRecord[extraField] = false;
+                break;
+              case 'createdAt':
+              case 'updatedAt':
+                mergedRecord[extraField] = new Date().toISOString();
+                break;
+              default:
+                mergedRecord[extraField] = null;
+            }
+            fieldsMerged++;
+          }
+        }
+        
+        return mergedRecord;
+      });
+    }
+  }
+
+  if (fieldsMerged > 0) {
+    console.log(`✅ Agregados ${fieldsMerged} campos faltantes con valores por defecto`);
+  } else {
+    console.log('✅ No se requieren ajustes en los datos');
+  }
+
+  return mergedData;
+};
+
+// Ruta para limpiar archivos de uploads (nueva funcionalidad)
+router.post('/backup/clean-uploads', authenticateToken, requireAdmin, async (req: Request, res: Response) => {
+  try {
+    console.log('🧹 Iniciando limpieza manual de uploads...');
+    await cleanUploadsDirectories();
+    
+    res.json({
+      success: true,
+      message: 'Directorios de uploads limpiados exitosamente (READMEs preservados)'
+    });
+  } catch (error) {
+    console.error('Error cleaning uploads:', error);
+    res.status(500).json({ 
+      error: 'Error limpiando archivos uploads',
+      details: error instanceof Error ? error.message : 'Error desconocido'
+    });
+  }
+});
+
 // Crear backup completo
 router.post('/backup/create', authenticateToken, requireAdmin, async (req: Request, res: Response) => {
   try {
@@ -462,123 +637,148 @@ router.post('/backup/restore', authenticateToken, requireAdmin, upload.single('b
           throw new Error('La base de datos no se limpió completamente');
         }
         
-        // PASO 3: RESTAURAR DATOS
+        // PASO 3: RESTAURAR DATOS CON MERGE DE CAMPOS
         console.log('📥 INICIANDO RESTAURACIÓN DE DATOS...');
         let totalRestored = 0;
         
         // Tablas padre primero (sin dependencias)
         if (data.locations?.length > 0) {
-          await tx.location.createMany({ data: data.locations });
-          console.log(`✅ ${data.locations.length} ubicaciones restauradas`);
+          const mergedLocations = data.locations.map((location: any) => mergeRecordData(location, 'location'));
+          await tx.location.createMany({ data: mergedLocations });
+          console.log(`✅ ${data.locations.length} ubicaciones restauradas (con merge de campos)`);
           totalRestored += data.locations.length;
         }
         
         if (data.users?.length > 0) {
-          await tx.user.createMany({ data: data.users });
-          console.log(`✅ ${data.users.length} usuarios restaurados`);
+          const mergedUsers = data.users.map((user: any) => mergeRecordData(user, 'user'));
+          await tx.user.createMany({ data: mergedUsers });
+          console.log(`✅ ${data.users.length} usuarios restaurados (con merge de campos)`);
           totalRestored += data.users.length;
         }
         
         if (data.userRoles?.length > 0) {
-          await tx.userRole_DB.createMany({ data: data.userRoles });
-          console.log(`✅ ${data.userRoles.length} roles de usuario restaurados`);
+          const mergedUserRoles = data.userRoles.map((userRole: any) => mergeRecordData(userRole, 'userRole'));
+          await tx.userRole_DB.createMany({ data: mergedUserRoles });
+          console.log(`✅ ${data.userRoles.length} roles de usuario restaurados (con merge de campos)`);
           totalRestored += data.userRoles.length;
         }
         
         if (data.userVoiceProfiles?.length > 0) {
-          await tx.userVoiceProfile.createMany({ data: data.userVoiceProfiles });
-          console.log(`✅ ${data.userVoiceProfiles.length} perfiles de voz restaurados`);
+          const mergedUserVoiceProfiles = data.userVoiceProfiles.map((userVoiceProfile: any) => mergeRecordData(userVoiceProfile, 'userVoiceProfile'));
+          await tx.userVoiceProfile.createMany({ data: mergedUserVoiceProfiles });
+          console.log(`✅ ${data.userVoiceProfiles.length} perfiles de voz restaurados (con merge de campos)`);
           totalRestored += data.userVoiceProfiles.length;
         }
         
         if (data.songs?.length > 0) {
-          await tx.song.createMany({ data: data.songs });
-          console.log(`✅ ${data.songs.length} canciones restauradas`);
+          const mergedSongs = data.songs.map((song: any) => mergeRecordData(song, 'song'));
+          await tx.song.createMany({ data: mergedSongs });
+          console.log(`✅ ${data.songs.length} canciones restauradas (con merge de campos)`);
           totalRestored += data.songs.length;
         }
         
         if (data.lyricsFiles?.length > 0) {
-          await tx.lyricsFile.createMany({ data: data.lyricsFiles });
-          console.log(`✅ ${data.lyricsFiles.length} archivos de letras restaurados`);
+          const mergedLyricsFiles = data.lyricsFiles.map((lyricsFile: any) => mergeRecordData(lyricsFile, 'lyricsFile'));
+          await tx.lyricsFile.createMany({ data: mergedLyricsFiles });
+          console.log(`✅ ${data.lyricsFiles.length} archivos de letras restaurados (con merge de campos)`);
           totalRestored += data.lyricsFiles.length;
         }
         
         if (data.lyrics?.length > 0) {
-          await tx.lyric.createMany({ data: data.lyrics });
-          console.log(`✅ ${data.lyrics.length} letras restauradas`);
+          const mergedLyrics = data.lyrics.map((lyric: any) => mergeRecordData(lyric, 'lyric'));
+          await tx.lyric.createMany({ data: mergedLyrics });
+          console.log(`✅ ${data.lyrics.length} letras restauradas (con merge de campos)`);
           totalRestored += data.lyrics.length;
         }
         
         if (data.songAssignments?.length > 0) {
-          await tx.songAssignment.createMany({ data: data.songAssignments });
-          console.log(`✅ ${data.songAssignments.length} asignaciones de canciones restauradas`);
+          const mergedSongAssignments = data.songAssignments.map((songAssignment: any) => mergeRecordData(songAssignment, 'songAssignment'));
+          await tx.songAssignment.createMany({ data: mergedSongAssignments });
+          console.log(`✅ ${data.songAssignments.length} asignaciones de canciones restauradas (con merge de campos)`);
           totalRestored += data.songAssignments.length;
         }
         
         if (data.playlists?.length > 0) {
-          await tx.playlist.createMany({ data: data.playlists });
-          console.log(`✅ ${data.playlists.length} playlists restauradas`);
+          const mergedPlaylists = data.playlists.map((playlist: any) => mergeRecordData(playlist, 'playlist'));
+          await tx.playlist.createMany({ data: mergedPlaylists });
+          console.log(`✅ ${data.playlists.length} playlists restauradas (con merge de campos)`);
           totalRestored += data.playlists.length;
         }
         
         if (data.playlistItems?.length > 0) {
-          await tx.playlistItem.createMany({ data: data.playlistItems });
-          console.log(`✅ ${data.playlistItems.length} elementos de playlist restaurados`);
+          const mergedPlaylistItems = data.playlistItems.map((playlistItem: any) => mergeRecordData(playlistItem, 'playlistItem'));
+          await tx.playlistItem.createMany({ data: mergedPlaylistItems });
+          console.log(`✅ ${data.playlistItems.length} elementos de playlist restaurados (con merge de campos)`);
           totalRestored += data.playlistItems.length;
         }
         
         if (data.events?.length > 0) {
-          await tx.event.createMany({ data: data.events });
-          console.log(`✅ ${data.events.length} eventos restaurados`);
+          const mergedEvents = data.events.map((event: any) => mergeRecordData(event, 'event'));
+          await tx.event.createMany({ data: mergedEvents });
+          console.log(`✅ ${data.events.length} eventos restaurados (con merge de campos)`);
           totalRestored += data.events.length;
         }
         
         if (data.eventPlaylists?.length > 0) {
-          await tx.eventPlaylist.createMany({ data: data.eventPlaylists });
-          console.log(`✅ ${data.eventPlaylists.length} playlists de eventos restauradas`);
+          const mergedEventPlaylists = data.eventPlaylists.map((eventPlaylist: any) => mergeRecordData(eventPlaylist, 'eventPlaylist'));
+          await tx.eventPlaylist.createMany({ data: mergedEventPlaylists });
+          console.log(`✅ ${data.eventPlaylists.length} playlists de eventos restauradas (con merge de campos)`);
           totalRestored += data.eventPlaylists.length;
         }
         
         if (data.eventAttendees?.length > 0) {
-          await tx.eventAttendee.createMany({ data: data.eventAttendees });
-          console.log(`✅ ${data.eventAttendees.length} asistentes a eventos restaurados`);
+          const mergedEventAttendees = data.eventAttendees.map((eventAttendee: any) => mergeRecordData(eventAttendee, 'eventAttendee'));
+          await tx.eventAttendee.createMany({ data: mergedEventAttendees });
+          console.log(`✅ ${data.eventAttendees.length} asistentes a eventos restaurados (con merge de campos)`);
           totalRestored += data.eventAttendees.length;
         }
         
         if (data.eventJoinRequests?.length > 0) {
-          await tx.eventJoinRequest.createMany({ data: data.eventJoinRequests });
-          console.log(`✅ ${data.eventJoinRequests.length} solicitudes de eventos restauradas`);
+          const mergedEventJoinRequests = data.eventJoinRequests.map((eventJoinRequest: any) => mergeRecordData(eventJoinRequest, 'eventJoinRequest'));
+          await tx.eventJoinRequest.createMany({ data: mergedEventJoinRequests });
+          console.log(`✅ ${data.eventJoinRequests.length} solicitudes de eventos restauradas (con merge de campos)`);
           totalRestored += data.eventJoinRequests.length;
         }
         
         if (data.eventSongs?.length > 0) {
-          await tx.eventSong.createMany({ data: data.eventSongs });
-          console.log(`✅ ${data.eventSongs.length} canciones de eventos restauradas`);
+          const mergedEventSongs = data.eventSongs.map((eventSong: any) => mergeRecordData(eventSong, 'eventSong'));
+          await tx.eventSong.createMany({ data: mergedEventSongs });
+          console.log(`✅ ${data.eventSongs.length} canciones de eventos restauradas (con merge de campos)`);
           totalRestored += data.eventSongs.length;
         }
         
         if (data.eventAttendance?.length > 0) {
-          await tx.eventAttendance.createMany({ data: data.eventAttendance });
-          console.log(`✅ ${data.eventAttendance.length} asistencias a eventos restauradas`);
+          const mergedEventAttendance = data.eventAttendance.map((eventAttendance: any) => mergeRecordData(eventAttendance, 'eventAttendance'));
+          await tx.eventAttendance.createMany({ data: mergedEventAttendance });
+          console.log(`✅ ${data.eventAttendance.length} asistencias a eventos restauradas (con merge de campos)`);
           totalRestored += data.eventAttendance.length;
         }
         
         if (data.soloists?.length > 0) {
-          await tx.soloist.createMany({ data: data.soloists });
-          console.log(`✅ ${data.soloists.length} solistas restaurados`);
+          const mergedSoloists = data.soloists.map((soloist: any) => mergeRecordData(soloist, 'soloist'));
+          await tx.soloist.createMany({ data: mergedSoloists });
+          console.log(`✅ ${data.soloists.length} solistas restaurados (con merge de campos)`);
           totalRestored += data.soloists.length;
         }
         
         if (data.news?.length > 0) {
-          await tx.news.createMany({ data: data.news });
-          console.log(`✅ ${data.news.length} noticias restauradas`);
+          const mergedNews = data.news.map((news: any) => mergeRecordData(news, 'news'));
+          await tx.news.createMany({ data: mergedNews });
+          console.log(`✅ ${data.news.length} noticias restauradas (con merge de campos)`);
           totalRestored += data.news.length;
         }
         
-        console.log(`🎉 RESTAURACIÓN DE BASE DE DATOS COMPLETADA: ${totalRestored} registros totales`);
-      });
+      console.log(`🎉 RESTAURACIÓN DE BASE DE DATOS COMPLETADA: ${totalRestored} registros totales`);
       
-      // PASO 4: VERIFICAR RESULTADOS FINALES
+      // PASO 4: LIMPIAR DIRECTORIOS DE UPLOADS ANTES DE RESTAURAR ARCHIVOS
+      console.log('🧹 LIMPIANDO DIRECTORIOS DE UPLOADS...');
+      try {
+        await cleanUploadsDirectories();
+        console.log('✅ Directorios de uploads limpiados correctamente');
+      } catch (cleanError) {
+        console.warn('⚠️ Advertencia al limpiar uploads:', cleanError);
+      }
+    });      // PASO 4: VERIFICAR RESULTADOS FINALES
       const statsAfter = {
         users: await prisma.user.count(),
         songs: await prisma.song.count(),
