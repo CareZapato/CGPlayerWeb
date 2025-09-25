@@ -176,7 +176,7 @@ const ResponsiveNavigation: React.FC = () => {
               
               {isDropdownOpen && (
                 <div 
-                  className="ml-6 mt-1 space-y-1 bg-gray-50 rounded-lg p-2"
+                  className="mt-1 space-y-1 bg-gray-50 rounded-lg p-2 border-l-2 border-blue-200"
                   data-dropdown-content={item.key}
                 >
                   {item.children && item.children.map((child: MenuChild) => {
@@ -192,13 +192,13 @@ const ResponsiveNavigation: React.FC = () => {
                           console.log('📱 [MOBILE] Navegando a:', child.path);
                           closeMobileMenu();
                         }}
-                        className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        className={`flex items-center px-3 py-3 rounded-lg text-sm font-medium transition-colors ${
                           isChildActive
                             ? 'bg-blue-100 text-blue-700'
                             : 'text-gray-600 hover:text-blue-600 hover:bg-white'
                         }`}
                       >
-                        <ChildIcon className="w-4 h-4 mr-2" />
+                        <ChildIcon className="w-5 h-5 mr-3" />
                         {child.label}
                       </Link>
                     );
