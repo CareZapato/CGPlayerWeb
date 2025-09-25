@@ -1360,24 +1360,49 @@ router.post('/import-csv', authenticateToken, requireRole(['ADMIN']), async (req
   }
 });
 
-// Aprobar usuario (solo admins)
-router.patch('/:userId/approve', authenticateToken, requireRole(['ADMIN']), async (req: AuthRequest, res: Response) => {
+// Aprobar usuario (admins y directores de la misma ubicación)
+router.patch('/:userId/approve', authenticateToken, requireRole(['ADMIN', 'DIRECTOR']), async (req: AuthRequest, res: Response) => {
   try {
     const { userId } = req.params;
+    const requestingUserId = (req as any).user.id;
+
+    // Obtener información del usuario que hace la petición
+    const requestingUser = await prisma.user.findUnique({
+      where: { id: requestingUserId },
+      include: { 
+        assignedRoles: { select: { role: true } }
+      }
+    });
+
+    const isAdmin = requestingUser?.assignedRoles?.some((role: any) => role.role === 'ADMIN');
 
     // Verificar que el usuario existe y está pendiente
     const existingUser = await prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, status: true, firstName: true, lastName: true, isActive: true } as any
+      select: { 
+        id: true, 
+        status: true, 
+        firstName: true, 
+        lastName: true, 
+        isActive: true, 
+        locationId: true 
+      }
     });
 
     if (!existingUser) {
       return res.status(404).json({ message: 'Usuario no encontrado' });
     }
 
-    if ((existingUser as any).status !== 'PENDING') {
+    if (existingUser.status !== 'PENDING') {
       return res.status(400).json({ 
-        message: `El usuario ya tiene estado: ${(existingUser as any).status}` 
+        message: `El usuario ya tiene estado: ${existingUser.status}` 
+      });
+    }
+
+    // Si es director (y no admin), verificar que el usuario pertenezca a su ubicación
+    if (!isAdmin && requestingUser?.locationId !== existingUser.locationId) {
+      return res.status(403).json({ 
+        message: 'Solo puedes aprobar usuarios de tu propia ubicación' 
       });
     }
 
@@ -1386,15 +1411,15 @@ router.patch('/:userId/approve', authenticateToken, requireRole(['ADMIN']), asyn
       data: { 
         status: 'CONFIRMED',
         isActive: true // Activar usuario al aprobar
-      } as any
+      }
     });
 
     console.log('Usuario aprobado:', {
       userId,
       name: `${existingUser.firstName} ${existingUser.lastName}`,
-      previousStatus: (existingUser as any).status,
+      previousStatus: existingUser.status,
       newStatus: 'CONFIRMED',
-      approvedBy: req.user?.id
+      approvedBy: requestingUserId
     });
 
     res.json({
@@ -1408,24 +1433,49 @@ router.patch('/:userId/approve', authenticateToken, requireRole(['ADMIN']), asyn
   }
 });
 
-// Rechazar usuario (solo admins)
-router.patch('/:userId/reject', authenticateToken, requireRole(['ADMIN']), async (req: AuthRequest, res: Response) => {
+// Rechazar usuario (admins y directores de la misma ubicación)
+router.patch('/:userId/reject', authenticateToken, requireRole(['ADMIN', 'DIRECTOR']), async (req: AuthRequest, res: Response) => {
   try {
     const { userId } = req.params;
+    const requestingUserId = (req as any).user.id;
+
+    // Obtener información del usuario que hace la petición
+    const requestingUser = await prisma.user.findUnique({
+      where: { id: requestingUserId },
+      include: { 
+        assignedRoles: { select: { role: true } }
+      }
+    });
+
+    const isAdmin = requestingUser?.assignedRoles?.some((role: any) => role.role === 'ADMIN');
 
     // Verificar que el usuario existe y está pendiente
     const existingUser = await prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, status: true, firstName: true, lastName: true, isActive: true } as any
+      select: { 
+        id: true, 
+        status: true, 
+        firstName: true, 
+        lastName: true, 
+        isActive: true, 
+        locationId: true 
+      }
     });
 
     if (!existingUser) {
       return res.status(404).json({ message: 'Usuario no encontrado' });
     }
 
-    if ((existingUser as any).status !== 'PENDING') {
+    if (existingUser.status !== 'PENDING') {
       return res.status(400).json({ 
-        message: `El usuario ya tiene estado: ${(existingUser as any).status}` 
+        message: `El usuario ya tiene estado: ${existingUser.status}` 
+      });
+    }
+
+    // Si es director (y no admin), verificar que el usuario pertenezca a su ubicación
+    if (!isAdmin && requestingUser?.locationId !== existingUser.locationId) {
+      return res.status(403).json({ 
+        message: 'Solo puedes rechazar usuarios de tu propia ubicación' 
       });
     }
 
@@ -1434,15 +1484,15 @@ router.patch('/:userId/reject', authenticateToken, requireRole(['ADMIN']), async
       data: { 
         status: 'REFUSED',
         isActive: false // Mantener usuario inactivo al rechazar
-      } as any
+      }
     });
 
     console.log('Usuario rechazado:', {
       userId,
       name: `${existingUser.firstName} ${existingUser.lastName}`,
-      previousStatus: (existingUser as any).status,
+      previousStatus: existingUser.status,
       newStatus: 'REFUSED',
-      rejectedBy: req.user?.id
+      rejectedBy: requestingUserId
     });
 
     res.json({
@@ -1457,12 +1507,33 @@ router.patch('/:userId/reject', authenticateToken, requireRole(['ADMIN']), async
 });
 
 // Obtener usuarios pendientes de aprobación (solo admins)
-router.get('/pending-approval', authenticateToken, requireRole(['ADMIN']), async (req: AuthRequest, res: Response) => {
+router.get('/pending-approval', authenticateToken, requireRole(['ADMIN', 'DIRECTOR']), async (req: AuthRequest, res: Response) => {
   try {
+    const userId = (req as any).user.id;
+    
+    // Obtener información del usuario que hace la petición
+    const requestingUser = await prisma.user.findUnique({
+      where: { id: userId },
+      include: { 
+        assignedRoles: { select: { role: true } }
+      }
+    });
+
+    const isAdmin = requestingUser?.assignedRoles?.some((role: any) => role.role === 'ADMIN');
+    const isDirector = requestingUser?.assignedRoles?.some((role: any) => role.role === 'DIRECTOR');
+
+    // Construir filtros según el rol
+    let whereFilter: any = {
+      status: 'PENDING'
+    };
+
+    // Si es director (y no admin), filtrar por su ubicación
+    if (isDirector && !isAdmin && requestingUser?.locationId) {
+      whereFilter.locationId = requestingUser.locationId;
+    }
+
     const pendingUsers = await prisma.user.findMany({
-      where: {
-        status: 'PENDING'
-      } as any,
+      where: whereFilter,
       select: {
         id: true,
         email: true,
@@ -1542,19 +1613,45 @@ router.get('/pending-approval', authenticateToken, requireRole(['ADMIN']), async
 });
 
 // Obtener conteo de usuarios pendientes (para badge de notificación)
-router.get('/pending-count', authenticateToken, requireRole(['ADMIN']), async (req: AuthRequest, res: Response) => {
+router.get('/pending-count', authenticateToken, requireRole(['ADMIN', 'DIRECTOR']), async (req: AuthRequest, res: Response) => {
   try {
+    const userId = (req as any).user.id;
+    
+    // Obtener información del usuario que hace la petición
+    const requestingUser = await prisma.user.findUnique({
+      where: { id: userId },
+      include: { 
+        assignedRoles: { select: { role: true } }
+      }
+    });
+
+    const isAdmin = requestingUser?.assignedRoles?.some((role: any) => role.role === 'ADMIN');
+    const isDirector = requestingUser?.assignedRoles?.some((role: any) => role.role === 'DIRECTOR');
+
+    // Construir filtros según el rol
+    let whereFilter: any = {
+      status: 'PENDING'
+    };
+
+    // Si es director (y no admin), filtrar por su ubicación
+    if (isDirector && !isAdmin && requestingUser?.locationId) {
+      whereFilter.locationId = requestingUser.locationId;
+    }
+
     const pendingCount = await prisma.user.count({
-      where: {
-        status: 'PENDING'
-      } as any
+      where: whereFilter
     });
 
     console.log('📊 Usuarios pendientes de aprobación:', pendingCount);
 
     res.json({
       success: true,
-      count: pendingCount
+      count: pendingCount,
+      userContext: {
+        isAdmin,
+        isDirector,
+        locationId: requestingUser?.locationId
+      }
     });
   } catch (error) {
     console.error('Error fetching pending count:', error);

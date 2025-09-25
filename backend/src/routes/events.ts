@@ -239,8 +239,29 @@ router.get('/', authenticateToken, requireRole(['ADMIN', 'DIRECTOR']), async (re
 // GET /api/events/management/all - Alias para obtener todos los eventos para gestión
 router.get('/management/all', authenticateToken, requireRole(['ADMIN', 'DIRECTOR']), async (req, res) => {
   try {
+    const userId = (req as any).user.id;
+    
+    // Obtener información del usuario que hace la petición
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: { 
+        assignedRoles: { select: { role: true } }
+      }
+    });
+
+    const isAdmin = user?.assignedRoles?.some((role: any) => role.role === 'ADMIN');
+    const isDirector = user?.assignedRoles?.some((role: any) => role.role === 'DIRECTOR');
+
+    // Construir filtros según el rol
+    let eventFilter: any = { isActive: true };
+
+    // Si es director (y no admin), filtrar por su ubicación
+    if (isDirector && !isAdmin && user?.locationId) {
+      eventFilter.locationId = user.locationId;
+    }
+
     const events = await prisma.event.findMany({
-      where: { isActive: true },
+      where: eventFilter,
       include: {
         location: true,
         creator: {
@@ -2194,23 +2215,32 @@ router.put('/:id/join-requests/:requestId', authenticateToken, requireRole(['ADM
       });
     }
 
-    // Verificar permisos: solo el creador del evento o ADMIN puede responder
+    // Verificar permisos: ADMIN, creador del evento o DIRECTOR de la misma ubicación
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      include: { assignedRoles: { select: { role: true } } }
+      include: { 
+        assignedRoles: { select: { role: true } },
+        location: { select: { id: true, name: true } }
+      }
     });
 
     const isAdmin = user?.assignedRoles?.some((role: any) => role.role === 'ADMIN');
+    const isDirector = user?.assignedRoles?.some((role: any) => role.role === 'DIRECTOR');
     const isEventCreator = joinRequest.event.createdBy === userId;
+    
+    // Para directores, verificar que el evento pertenezca a la misma ubicación
+    const canDirectorManage = isDirector && 
+      user?.locationId && 
+      joinRequest.event.locationId === user.locationId;
 
-    if (!isAdmin && !isEventCreator) {
+    if (!isAdmin && !isEventCreator && !canDirectorManage) {
       return res.status(403).json({
         success: false,
-        message: 'Solo el creador del evento o un administrador puede responder a las solicitudes'
+        message: 'Solo el creador del evento, un administrador o el director de la sede pueden responder a las solicitudes'
       });
     }
 
-    console.log(`✅ Permission check passed. IsAdmin=${isAdmin}, IsEventCreator=${isEventCreator}`);
+    console.log(`✅ Permission check passed. IsAdmin=${isAdmin}, IsEventCreator=${isEventCreator}, CanDirectorManage=${canDirectorManage}`);
 
     // Actualizar el estado de la solicitud
     const updatedRequest = await prisma.eventJoinRequest.update({
@@ -2808,6 +2838,101 @@ router.put('/:id/attendees/mark-pending-refused', authenticateToken, requireRole
     res.status(500).json({
       success: false,
       message: 'Error al marcar asistentes como ausentes'
+    });
+  }
+});
+
+// GET /api/events/join-requests/pending - Obtener solicitudes pendientes (ADMIN y DIRECTOR)
+router.get('/join-requests/pending', authenticateToken, requireRole(['ADMIN', 'DIRECTOR']), async (req, res) => {
+  try {
+    const userId = (req as any).user.id;
+    
+    // Obtener información del usuario
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: { 
+        assignedRoles: { select: { role: true } },
+        location: { select: { id: true, name: true } }
+      }
+    });
+
+    const isAdmin = user?.assignedRoles?.some((role: any) => role.role === 'ADMIN');
+    const isDirector = user?.assignedRoles?.some((role: any) => role.role === 'DIRECTOR');
+
+    // Construir filtros según el rol
+    let eventFilter: any = {
+      date: { gt: new Date() }, // Solo eventos futuros
+      category: 'Evento'
+    };
+
+    // Si es director (y no admin), filtrar por su ubicación
+    if (isDirector && !isAdmin && user?.locationId) {
+      eventFilter.locationId = user.locationId;
+    }
+
+    // Obtener solicitudes pendientes
+    const pendingRequests = await prisma.eventJoinRequest.findMany({
+      where: {
+        status: 'PENDING',
+        event: eventFilter
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            profileImage: true,
+            location: {
+              select: { name: true }
+            }
+          }
+        },
+        event: {
+          select: {
+            id: true,
+            title: true,
+            date: true,
+            time: true,
+            category: true,
+            location: {
+              select: { name: true }
+            }
+          }
+        }
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    });
+
+    // Transformar datos con URLs de imagen
+    const transformedRequests = pendingRequests.map(request => ({
+      ...request,
+      user: {
+        ...request.user,
+        profileImageUrl: generateProfileImageUrl(request.user.profileImage)
+      }
+    }));
+
+    res.status(200).json({
+      success: true,
+      data: transformedRequests,
+      total: transformedRequests.length,
+      userContext: {
+        isAdmin,
+        isDirector,
+        locationId: user?.locationId,
+        locationName: user?.location?.name
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Error fetching pending join requests:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al obtener solicitudes pendientes'
     });
   }
 });
