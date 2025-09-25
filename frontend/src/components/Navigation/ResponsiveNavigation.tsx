@@ -330,9 +330,9 @@ const ResponsiveNavigation: React.FC = () => {
       </nav>
 
       {/* Tablet Navigation (md a lg) - Híbrido */}
-      <nav className="hidden md:flex lg:hidden bg-white shadow-sm border-b border-gray-200">
-        <div className="w-full mx-auto px-2 sm:px-4">
-          <div className="flex justify-between h-16">
+      <nav className="hidden md:flex lg:hidden bg-white shadow-sm border-b border-gray-200" style={{ overflow: 'visible' }}>
+        <div className="w-full mx-auto px-2 sm:px-4" style={{ overflow: 'visible' }}>
+          <div className="flex justify-between h-16" style={{ overflow: 'visible' }}>
             {/* Logo compacto */}
             <div className="flex items-center">
               <img 
@@ -343,10 +343,10 @@ const ResponsiveNavigation: React.FC = () => {
               <h1 className="text-lg font-bold text-gray-900">CGP</h1>
             </div>
 
-            {/* Menú compacto horizontal con scroll */}
-            <div className="flex-1 flex items-center justify-center mx-4">
-              <div className="flex space-x-1 overflow-x-auto scrollbar-none max-w-full">
-                {menuItems.slice(0, 4).map((item) => {
+            {/* Menú compacto horizontal con scroll - Mostrar todos los elementos */}
+            <div className="flex-1 flex items-center justify-center mx-4" style={{ overflow: 'visible' }}>
+              <div className="flex space-x-1 overflow-x-auto scrollbar-none max-w-full" style={{ overflow: 'visible' }}>
+                {menuItems.map((item) => {
                   const Icon = iconMap[item.icon as keyof typeof iconMap];
                   const isActive = location.pathname === item.path;
                   
@@ -354,7 +354,7 @@ const ResponsiveNavigation: React.FC = () => {
                     return (
                       <div key={item.key} className="relative">
                         <button
-                          onClick={() => toggleDropdown(item.key)}
+                          onClick={(e) => toggleDropdown(item.key, e)}
                           className={`inline-flex items-center px-2 py-2 rounded-md text-xs font-medium transition-colors ${
                             isActive || (item.children && item.children.some((child: MenuChild) => location.pathname === child.path))
                               ? 'bg-blue-100 text-blue-700'
@@ -367,7 +367,10 @@ const ResponsiveNavigation: React.FC = () => {
                         </button>
                         
                         {openDropdown === item.key && (
-                          <div className="absolute top-full left-0 mt-1 w-48 bg-white rounded-md shadow-lg border border-gray-200 z-50">
+                          <div 
+                            className="absolute top-full left-0 mt-1 w-48 bg-white rounded-md shadow-lg border border-gray-200 z-[9999]"
+                            onClick={(e) => e.stopPropagation()}
+                          >
                             <div className="py-1">
                               {item.children && item.children.map((child: MenuChild) => {
                                 const ChildIcon = iconMap[child.icon as keyof typeof iconMap];
@@ -377,7 +380,10 @@ const ResponsiveNavigation: React.FC = () => {
                                   <Link
                                     key={child.key}
                                     to={child.path}
-                                    onClick={() => setOpenDropdown(null)}
+                                    onClick={() => {
+                                      console.log('🚪 [DROPDOWN TABLET] Cerrando dropdown por click en opción:', child.label);
+                                      setOpenDropdown(null);
+                                    }}
                                     className={`flex items-center px-3 py-2 text-sm transition-colors ${
                                       isChildActive
                                         ? 'bg-blue-50 text-blue-700'
