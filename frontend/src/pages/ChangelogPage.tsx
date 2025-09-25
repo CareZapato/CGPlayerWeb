@@ -15,6 +15,57 @@ interface ChangelogEntry {
 
 const changelogData: ChangelogEntry[] = [
   {
+    version: '0.12.42',
+    date: '2025-09-25',
+    type: 'minor',
+    title: 'Mejoras Visuales del Homepage y Restricciones de Eventos - Homepage Enhancements & Event Permissions',
+    highlights: [
+      'HomePage completamente rediseñado con scroll optimizado en móviles',
+      'Carrusel de noticias mejorado con navegación automática inteligente',
+      'Nuevas restricciones por cuenta para creación de eventos',
+      'Componentes visuales refinados con mejor responsive design',
+      'Sistema de permisos más granular para gestión de eventos'
+    ],
+    changes: [
+      {
+        category: 'improved',
+        items: [
+          'HomePage: carrusel de noticias ahora muestra 3 noticias completas en desktop y 1 en móvil',
+          'Navegación automática mejorada en carrusel con indicadores visuales claros',
+          'Responsive design optimizado: elementos se adaptan perfectamente a diferentes pantallas',
+          'Spacing y padding refinados para mejor legibilidad en dispositivos móviles',
+          'Cards de noticias con mejor contraste y tipografía más clara',
+          'Botones de navegación del carrusel más intuitivos y accesibles',
+          'Transiciones suaves entre elementos del carrusel mejoradas'
+        ]
+      },
+      {
+        category: 'added',
+        items: [
+          'Sistema de restricciones por cuenta para creación de eventos implementado',
+          'Límites configurables por tipo de usuario (cantantes vs directores)',
+          'Validaciones automáticas antes de permitir creación de nuevos eventos',
+          'Mensajes informativos cuando se alcanzan límites de eventos por cuenta',
+          'Dashboard con contadores de eventos creados por usuario',
+          'Sistema de notificaciones para advertencias de límites próximos',
+          'Panel de administración para gestionar restricciones por rol'
+        ]
+      },
+      {
+        category: 'fixed',
+        items: [
+          'Carrusel de noticias: corregido problema de overflow en pantallas pequeñas',
+          'Navegación táctil del carrusel ahora funciona correctamente en dispositivos móviles',
+          'Indicadores de posición del carrusel alineados correctamente en todos los tamaños',
+          'Responsive breakpoints ajustados para tablets y dispositivos intermedios',
+          'Corrección de z-index en elementos superpuestos del homepage',
+          'Scroll horizontal eliminado en contenedores del carrusel',
+          'Compatibilidad mejorada con diferentes resoluciones de pantalla'
+        ]
+      }
+    ]
+  },
+  {
     version: '0.12.36',
     date: '2025-09-24',
     type: 'patch',
@@ -809,7 +860,7 @@ const ChangelogPage: React.FC = () => {
               <p><strong>Versión actual:</strong> {changelogData[0].version}</p>
               <p><strong>Última actualización:</strong> {new Date(changelogData[0].date).toLocaleDateString('es-ES')}</p>
               <p><strong>Tecnologías:</strong> React, TypeScript, Node.js, PostgreSQL, Prisma</p>
-              <p><strong>Nuevo en v0.12.36:</strong> Experiencia móvil completamente optimizada, navegación funcional, HomePage minimalista y código TypeScript libre de errores.</p>
+              <p><strong>Nuevo en v0.12.42:</strong> Homepage rediseñado con carrusel optimizado, navegación móvil mejorada y nuevas restricciones por cuenta para eventos.</p>
             </div>
           </div>
           <div className="text-6xl">
