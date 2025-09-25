@@ -3,6 +3,7 @@ import { useAuthStore } from '../store/authStore';
 import NewsCard from '../components/NewsCard';
 import { APP_CONFIG, getSystemStatus } from '../config/appConfig';
 import { useState, useEffect } from 'react';
+import './HomePage.css';
 
 // Estilos CSS para el diseño minimalista de noticias
 const minimalNewsStyles = `
@@ -320,17 +321,17 @@ function HomePage() {
         {/* Layout Mobile: Carrusel */}
         <div className="lg:hidden h-full flex flex-col">
           {/* Contenedor del carrusel */}
-          <div className="flex-1 relative overflow-hidden">
+          <div className="flex-1 relative overflow-hidden px-2">
             <div 
               className="flex h-full transition-transform duration-500 ease-in-out"
               style={{ transform: `translateX(-${currentSlide * 100}%)` }}
             >
               {/* Slide 1: Saludo + Botones */}
-              <div className="w-full flex-shrink-0 flex flex-col p-4">
+              <div className="w-full flex-shrink-0 flex flex-col p-3">
                 {/* Saludo móvil */}
-                <div className="bg-gradient-to-br from-slate-50 to-blue-50 rounded-2xl border border-slate-200/50 p-4 mb-4 shadow-sm">
-                  <div className="mb-3">
-                    <h1 className="text-xl font-light text-slate-800 mb-1">
+                <div className="bg-gradient-to-br from-slate-50 to-blue-50 rounded-2xl border border-slate-200/50 p-3 mb-3 shadow-sm">
+                  <div className="mb-2">
+                    <h1 className="text-lg font-light text-slate-800 mb-1">
                       Hola, <span className="font-medium text-blue-600">{user.firstName}</span>
                     </h1>
                     <p className="text-sm text-slate-600 font-light">
@@ -347,7 +348,7 @@ function HomePage() {
                         .map((profile) => (
                         <span
                           key={profile.id}
-                          className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${
+                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${
                             profile.isPrimary
                               ? 'bg-amber-50 text-amber-700 border-amber-200'
                               : 'bg-slate-50 text-slate-600 border-slate-200'
@@ -362,12 +363,12 @@ function HomePage() {
 
                     {/* Sede móvil */}
                     {user.location ? (
-                      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
                         <span className="mr-1">📍</span>
                         <span>Sede: {user.location.name}</span>
                       </span>
                     ) : (
-                      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-red-50 text-red-700 border border-red-200">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-50 text-red-700 border border-red-200">
                         <span className="mr-1">⚠️</span>
                         <span>Sede: No asignada</span>
                       </span>
@@ -376,28 +377,28 @@ function HomePage() {
                 </div>
 
                 {/* Botones móviles */}
-                <div className="flex-1">
-                  <h2 className="text-lg font-light text-slate-800 mb-3">Acciones Rápidas</h2>
-                  <div className="grid grid-cols-2 gap-3">
-                    <Link to="/dashboard" className="group bg-white/70 backdrop-blur-sm rounded-xl p-4 border border-slate-200/50 hover:border-slate-300/70 transition-all duration-300">
+                <div className="flex-1 px-1">
+                  <h2 className="text-lg font-light text-slate-800 mb-2">Acciones Rápidas</h2>
+                  <div className="grid grid-cols-2 gap-2 max-w-xs mx-auto">
+                    <Link to="/dashboard" className="group bg-white/70 backdrop-blur-sm rounded-xl p-3 border border-slate-200/50 hover:border-slate-300/70 transition-all duration-300">
                       <div className="text-2xl mb-2 group-hover:scale-110 transition-transform duration-300">📊</div>
                       <h3 className="text-sm font-medium text-slate-800 mb-1">Dashboard</h3>
                       <p className="text-xs text-slate-500">Ver métricas</p>
                     </Link>
 
-                    <Link to="/albums" className="group bg-white/70 backdrop-blur-sm rounded-xl p-4 border border-slate-200/50 hover:border-slate-300/70 transition-all duration-300">
+                    <Link to="/albums" className="group bg-white/70 backdrop-blur-sm rounded-xl p-3 border border-slate-200/50 hover:border-slate-300/70 transition-all duration-300">
                       <div className="text-2xl mb-2 group-hover:scale-110 transition-transform duration-300">🎵</div>
                       <h3 className="text-sm font-medium text-slate-800 mb-1">Canciones</h3>
                       <p className="text-xs text-slate-500">Catálogo musical</p>
                     </Link>
 
-                    <Link to="/playlists" className="group bg-white/70 backdrop-blur-sm rounded-xl p-4 border border-slate-200/50 hover:border-slate-300/70 transition-all duration-300">
+                    <Link to="/playlists" className="group bg-white/70 backdrop-blur-sm rounded-xl p-3 border border-slate-200/50 hover:border-slate-300/70 transition-all duration-300">
                       <div className="text-2xl mb-2 group-hover:scale-110 transition-transform duration-300">📋</div>
                       <h3 className="text-sm font-medium text-slate-800 mb-1">Listas</h3>
                       <p className="text-xs text-slate-500">Gestionar playlists</p>
                     </Link>
 
-                    <Link to="/events" className="group bg-white/70 backdrop-blur-sm rounded-xl p-4 border border-slate-200/50 hover:border-slate-300/70 transition-all duration-300">
+                    <Link to="/events" className="group bg-white/70 backdrop-blur-sm rounded-xl p-3 border border-slate-200/50 hover:border-slate-300/70 transition-all duration-300">
                       <div className="text-2xl mb-2 group-hover:scale-110 transition-transform duration-300">📅</div>
                       <h3 className="text-sm font-medium text-slate-800 mb-1">Eventos</h3>
                       <p className="text-xs text-slate-500">Actividades programadas</p>
@@ -407,16 +408,20 @@ function HomePage() {
               </div>
 
               {/* Slide 2: Noticias */}
-              <div className="w-full flex-shrink-0 flex flex-col p-4">
-                <div className="flex-1 min-h-0">
-                  <NewsCard limit={10} className="minimal-news mobile-news" />
+              <div className="w-full flex-shrink-0 flex flex-col p-3">
+                <div className="text-center mb-4">
+                  <h2 className="text-xl font-light text-slate-800">Últimas Noticias</h2>
+                  <p className="text-sm text-slate-500 mt-1">Mantente informado</p>
+                </div>
+                <div className="flex-1 min-h-0 px-1">
+                  <NewsCard limit={5} className="carousel-news" showTitle={false} />
                 </div>
               </div>
             </div>
           </div>
 
           {/* Indicadores y controles del carrusel */}
-          <div className="flex justify-center items-center py-4 space-x-4">
+          <div className="flex justify-center items-center py-3 space-x-4 px-4">
             {/* Indicadores de página */}
             <div className="flex space-x-2">
               <button
