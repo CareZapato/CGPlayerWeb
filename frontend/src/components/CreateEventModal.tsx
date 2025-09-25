@@ -151,6 +151,11 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({
   const [isPublic, setIsPublic] = useState(true);
   const [allowExternalJoin, setAllowExternalJoin] = useState(false);
   
+  // Event location state
+  const [eventLocationId, setEventLocationId] = useState<string>('');
+  const [availableLocations, setAvailableLocations] = useState<SingerLocation[]>([]);
+  const [userInfo, setUserInfo] = useState<{roles: string[], locationId: string | null} | null>(null);
+  
   // Loading and error states
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -200,6 +205,67 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({
       }
     } catch (error) {
       console.error('Error loading singer locations:', error);
+    }
+  };
+
+  // Load user info and available locations for event assignment
+  const loadUserInfoAndLocations = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      
+      // Get user info
+      const userResponse = await fetch(getApiUrl('/profile/me'), {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (userResponse.ok) {
+        const userData = await userResponse.json();
+        // El backend devuelve userRoles, no roles
+        const userRoles = userData.userRoles || [];
+        const roles = userRoles.map((ur: {role: string}) => ur.role);
+        // El backend devuelve location.id, no locationId directamente
+        const locationId = userData.location?.id || null;
+        
+        setUserInfo({ roles, locationId });
+        
+        // If user is DIRECTOR (but not ADMIN), force their location
+        if (roles.includes('DIRECTOR') && !roles.includes('ADMIN') && locationId) {
+          setEventLocationId(locationId);
+        }
+        
+        // Get available locations for selection
+        if (roles.includes('ADMIN')) {
+          const locationsResponse = await fetch(getApiUrl('/locations'), {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          if (locationsResponse.ok) {
+            const locationsData = await locationsResponse.json();
+            setAvailableLocations(locationsData.data || locationsData || []);
+          }
+        } else if (locationId) {
+          // For directors, show only their location
+          const locationResponse = await fetch(getApiUrl(`/locations/${locationId}`), {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          if (locationResponse.ok) {
+            const locationData = await locationResponse.json();
+            setAvailableLocations([locationData.data || locationData]);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error loading user info and locations:', error);
     }
   };
 
@@ -563,6 +629,11 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({
     }
   };
 
+  // Load user info and locations on component mount
+  useEffect(() => {
+    loadUserInfoAndLocations();
+  }, []);
+
   useEffect(() => {
     if (activeTab === 'attendees') {
       loadSingerLocations();
@@ -752,6 +823,12 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({
       return;
     }
 
+    // Validar que los admins seleccionen una sede
+    if (userInfo?.roles.includes('ADMIN') && !eventLocationId) {
+      setError('Los administradores deben seleccionar una sede para el evento');
+      return;
+    }
+
     // Validar que se hayan completado todas las fases necesarias
     if (selectedAttendees.length === 0) {
       setError('Debes seleccionar al menos un asistente para el evento');
@@ -779,6 +856,11 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({
       formData.append('eventAddress', eventAddress);
       formData.append('isPublic', String(isPublic));
       formData.append('allowExternalJoin', String(allowExternalJoin));
+      
+      // Agregar locationId si está seleccionado
+      if (eventLocationId && eventLocationId.trim() !== '') {
+        formData.append('locationId', eventLocationId);
+      }
 
       // Add selected attendees
       if (selectedAttendees.length > 0) {
@@ -1216,6 +1298,37 @@ const CreateEventModal: React.FC<CreateEventModalProps> = ({
                   <option value="Ensayo">Ensayo</option>
                 </select>
               </div>
+
+              {/* Selector de Sede */}
+              {userInfo && (
+                <div>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
+                    Sede
+                  </label>
+                  {userInfo.roles.includes('ADMIN') ? (
+                    <select
+                      value={eventLocationId}
+                      onChange={(e) => setEventLocationId(e.target.value)}
+                      required
+                      className="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                    >
+                      <option value="" disabled>Selecciona una sede *</option>
+                      {availableLocations.map(location => (
+                        <option key={location.id} value={location.id}>
+                          {location.name}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <div className="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border border-gray-300 rounded-xl bg-gray-50 text-gray-600">
+                      {availableLocations.length > 0 ? availableLocations[0].name : 'Sede asignada automáticamente'}
+                      <p className="text-xs text-gray-500 mt-1">
+                        Como director, los eventos se asignan automáticamente a tu sede
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div className="relative">

@@ -27,6 +27,12 @@ export interface User {
   locationId?: string;  // ID de la ubicación asignada
   roles?: UserRole_DB[];  // Roles del usuario desde user_roles
   voiceProfiles?: UserVoiceProfile[];  // Voces desde user_voices_profile
+  location?: {  // Información de la ubicación
+    id: string;
+    name: string;
+    city: string;
+    color?: string;
+  };
 }
 
 export interface UserVoiceProfile {

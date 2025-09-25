@@ -19,9 +19,11 @@ export const useAuthStore = create<AuthState>()(
       isAuthenticated: false,
       login: (user: User, token: string) => {
         console.log('🔐 [AUTH_STORE] Login llamado con usuario:', user.firstName, user.roles);
+        console.log('🔐 [AUTH_STORE] Location en usuario:', user.location);
+        console.log('🔐 [AUTH_STORE] Usuario completo:', user);
         localStorage.setItem('token', token);
         set({ user, token, isAuthenticated: true });
-        console.log('🔐 [AUTH_STORE] Estado actualizado:', { user: user.firstName, roles: user.roles, isAuthenticated: true });
+        console.log('🔐 [AUTH_STORE] Estado actualizado:', { user: user.firstName, roles: user.roles, hasLocation: !!user.location, isAuthenticated: true });
       },
       logout: () => {
         console.log('🔐 [AUTH_STORE] Logout ejecutado');

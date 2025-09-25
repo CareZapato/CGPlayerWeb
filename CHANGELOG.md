@@ -5,6 +5,43 @@ Todos los cambios notables de este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto se adhiere al [Versionado Semántico](https://semver.org/lang/es/).
 
+## [0.12.42] - 2025-09-25
+
+### 🎨 **MEJORAS VISUALES DEL HOMEPAGE Y UX**
+- **Homepage completamente rediseñado**: Optimización integral del carrusel de noticias para mejor experiencia visual
+  - Carrusel de noticias muestra 3 noticias completas en desktop y 1 en móvil
+  - Navegación automática mejorada con indicadores visuales claros y intuitivos
+  - Cards de noticias con mejor contraste, tipografía más clara y elementos refinados
+  - Transiciones suaves entre elementos del carrusel con animaciones mejoradas
+- **Responsive design completamente optimizado**: Elementos se adaptan perfectamente a diferentes pantallas
+  - Spacing y padding refinados para mejor legibilidad en dispositivos móviles
+  - Responsive breakpoints ajustados para tablets y dispositivos intermedios
+  - Botones de navegación del carrusel más intuitivos y accesibles
+
+### 🔐 **SISTEMA DE RESTRICCIONES POR CUENTA PARA EVENTOS**
+- **Nuevas restricciones por cuenta implementadas**: Sistema completo de límites para creación de eventos
+  - Límites configurables por tipo de usuario (cantantes vs directores)
+  - Validaciones automáticas antes de permitir creación de nuevos eventos
+  - Mensajes informativos cuando se alcanzan límites de eventos por cuenta
+- **Dashboard con control de eventos**: Contadores de eventos creados por usuario y gestión de límites
+  - Sistema de notificaciones para advertencias de límites próximos a alcanzar
+  - Panel de administración para gestionar restricciones por rol
+  - Métricas en tiempo real de uso de cuotas por usuario
+
+### 🔧 **CORRECCIONES CRÍTICAS DEL CARRUSEL**
+- **Navegación táctil del carrusel**: Ahora funciona correctamente en dispositivos móviles
+  - Corrección de problema de overflow en pantallas pequeñas
+  - Indicadores de posición del carrusel alineados correctamente en todos los tamaños
+  - Corrección de z-index en elementos superpuestos del homepage
+- **Optimización de elementos visuales**: Scroll horizontal eliminado en contenedores del carrusel
+  - Compatibilidad mejorada con diferentes resoluciones de pantalla
+  - Mejor manejo de contenido dinámico y adaptación automática
+
+### 📱 **MEJORAS DE ACCESIBILIDAD Y USABILIDAD**
+- **Mejor experiencia de usuario**: Sistema intuitivo de navegación y feedback visual
+- **Compatibilidad multi-dispositivo**: Funciona perfectamente en desktop, tablet y móvil
+- **Elementos interactivos mejorados**: Botones y controles más accesibles y responsivos
+
 ## [0.12.36] - 2025-09-24
 
 ### 🎨 **MEJORAS VISUALES Y UX**
