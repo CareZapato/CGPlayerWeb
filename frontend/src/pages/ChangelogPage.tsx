@@ -13,6 +13,17 @@ interface ChangelogEntry {
   highlights?: string[];
 }
 
+// Función para formatear fechas correctamente en zona horaria chilena
+const formatDateForChile = (dateString: string): string => {
+  // Agregar tiempo del mediodía para evitar problemas de zona horaria
+  const date = new Date(dateString + 'T12:00:00');
+  return date.toLocaleDateString('es-CL', {
+    day: 'numeric',
+    month: 'numeric',
+    year: 'numeric'
+  });
+};
+
 const changelogData: ChangelogEntry[] = [
   {
     version: '0.12.42',
@@ -858,7 +869,7 @@ const ChangelogPage: React.FC = () => {
             <div className="space-y-2 text-gray-700">
               <p><strong>Desarrollado por:</strong> CareZapato</p>
               <p><strong>Versión actual:</strong> {changelogData[0].version}</p>
-              <p><strong>Última actualización:</strong> {new Date(changelogData[0].date).toLocaleDateString('es-ES')}</p>
+              <p><strong>Última actualización:</strong> {formatDateForChile(changelogData[0].date)}</p>
               <p><strong>Tecnologías:</strong> React, TypeScript, Node.js, PostgreSQL, Prisma</p>
               <p><strong>Nuevo en v0.12.42:</strong> Homepage rediseñado con carrusel optimizado, navegación móvil mejorada y nuevas restricciones por cuenta para eventos.</p>
             </div>
@@ -909,7 +920,7 @@ const ChangelogPage: React.FC = () => {
                         v{entry.version}
                       </span>
                       <span className="text-sm text-gray-500">
-                        {new Date(entry.date).toLocaleDateString('es-ES')}
+                        {formatDateForChile(entry.date)}
                       </span>
                     </div>
                     <h3 className="text-xl font-semibold text-gray-900">
