@@ -107,7 +107,9 @@ router.get('/stats', authenticateToken, async (req: AuthRequest, res: Response) 
       totalEvents,
       pendingEvents,
       totalRehearsals,
-      pendingRehearsals
+      pendingRehearsals,
+      pendingEventRequests,
+      pendingUserRequests
     ] = await Promise.all([
       // Usuarios totales
       prisma.user.count({
@@ -164,6 +166,28 @@ router.get('/stats', authenticateToken, async (req: AuthRequest, res: Response) 
         where: {
           date: { gt: currentDate },
           category: 'Ensayo',
+          ...(isDirector && !isAdmin && user?.locationId 
+            ? { locationId: user.locationId }
+            : {})
+        }
+      }),
+      // Solicitudes pendientes a eventos
+      prisma.eventJoinRequest.count({
+        where: {
+          status: 'PENDING',
+          event: {
+            date: { gt: currentDate },
+            category: 'Evento',
+            ...(isDirector && !isAdmin && user?.locationId 
+              ? { locationId: user.locationId }
+              : {})
+          }
+        }
+      }),
+      // Usuarios pendientes de confirmación
+      prisma.user.count({
+        where: {
+          status: 'PENDING',
           ...(isDirector && !isAdmin && user?.locationId 
             ? { locationId: user.locationId }
             : {})
@@ -482,6 +506,13 @@ router.get('/stats', authenticateToken, async (req: AuthRequest, res: Response) 
         rehearsals: {
           total: totalRehearsals,
           pending: pendingRehearsals
+        },
+        
+        // Estadísticas de solicitudes (nuevo cuadro)
+        requests: {
+          pendingEventRequests,
+          pendingUserRequests,
+          totalPending: pendingEventRequests + pendingUserRequests
         },
         
         // Estadísticas de sedes

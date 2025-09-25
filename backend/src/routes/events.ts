@@ -555,6 +555,8 @@ router.post('/', authenticateToken, requireRole(['ADMIN', 'DIRECTOR']), upload.s
     } = req.body;
 
     const userId = (req as any).user.id;
+    const userRoles = (req as any).user.roles || [];
+    const userLocationId = (req as any).user.locationId;
 
     if (!title || !date) {
       return res.status(400).json({
@@ -562,6 +564,23 @@ router.post('/', authenticateToken, requireRole(['ADMIN', 'DIRECTOR']), upload.s
         message: 'Título y fecha son requeridos'
       });
     }
+
+    // Lógica de asignación de location
+    let finalLocationId = locationId;
+    
+    // Si es DIRECTOR (y no ADMIN), forzar su location
+    if (userRoles.includes('DIRECTOR') && !userRoles.includes('ADMIN')) {
+      if (!userLocationId) {
+        return res.status(400).json({
+          success: false,
+          message: 'Director debe tener una ubicación asignada'
+        });
+      }
+      finalLocationId = userLocationId;
+    }
+    
+    // Si es ADMIN, puede asignar cualquier location o dejarla vacía
+    // (finalLocationId ya viene del body del request)
 
     // Crear el evento
     const eventData: any = {
@@ -579,8 +598,8 @@ router.post('/', authenticateToken, requireRole(['ADMIN', 'DIRECTOR']), upload.s
       createdBy: userId
     };
 
-    if (locationId) {
-      eventData.locationId = locationId;
+    if (finalLocationId) {
+      eventData.locationId = finalLocationId;
     }
 
     if (req.file) {
